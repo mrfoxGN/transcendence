@@ -16,18 +16,13 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('tasks')
-@Index(
-  'idx_tasks_workspace_status_position',
-  ['workspaceId', 'status', 'position'],
-)
-@Index(
-  'idx_tasks_workspace_priority',
-  ['workspaceId', 'priority'],
-)
-@Index(
-  'idx_tasks_due_at',
-  ['dueAt'],
-)
+@Index('idx_tasks_workspace_status_position', [
+  'workspaceId',
+  'status',
+  'position',
+])
+@Index('idx_tasks_workspace_priority', ['workspaceId', 'priority'])
+@Index('idx_tasks_due_at', ['dueAt'])
 export class Task {
   @PrimaryColumn({
     type: 'char',

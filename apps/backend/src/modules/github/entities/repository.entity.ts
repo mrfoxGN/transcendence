@@ -14,10 +14,10 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('repositories')
-@Unique(
-  'uq_repositories_workspace_github_repository',
-  ['workspaceId', 'githubRepositoryId'],
-)
+@Unique('uq_repositories_workspace_github_repository', [
+  'workspaceId',
+  'githubRepositoryId',
+])
 export class Repository {
   @PrimaryColumn({
     type: 'char',

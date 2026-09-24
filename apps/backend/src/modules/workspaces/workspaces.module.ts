@@ -17,14 +17,8 @@ import { WorkspacesService } from './services/workspaces.service';
       WorkspaceKanbanSetting,
     ]),
   ],
-  controllers: [
-    WorkspacesController,
-  ],
-  providers: [
-    WorkspacesService,
-  ],
-  exports: [
-    WorkspacesService,
-  ],
+  controllers: [WorkspacesController],
+  providers: [WorkspacesService],
+  exports: [WorkspacesService],
 })
 export class WorkspacesModule {}

@@ -11,10 +11,7 @@ import { Task } from './task.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('task_comments')
-@Index(
-  'idx_task_comments_task_created_at',
-  ['taskId', 'createdAt'],
-)
+@Index('idx_task_comments_task_created_at', ['taskId', 'createdAt'])
 export class TaskComment {
   @PrimaryColumn({
     type: 'char',

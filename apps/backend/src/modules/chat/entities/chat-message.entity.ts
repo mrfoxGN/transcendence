@@ -11,10 +11,7 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('chat_messages')
-@Index(
-  'idx_chat_messages_workspace_created_at',
-  ['workspaceId', 'createdAt'],
-)
+@Index('idx_chat_messages_workspace_created_at', ['workspaceId', 'createdAt'])
 export class ChatMessage {
   @PrimaryColumn({
     type: 'char',

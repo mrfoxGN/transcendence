@@ -6,19 +6,9 @@ import { WorkspaceFile } from './entities/workspace-file.entity';
 import { FilesService } from './services/files.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      WorkspaceFile,
-    ]),
-  ],
-  controllers: [
-    FilesController,
-  ],
-  providers: [
-    FilesService,
-  ],
-  exports: [
-    FilesService,
-  ],
+  imports: [TypeOrmModule.forFeature([WorkspaceFile])],
+  controllers: [FilesController],
+  providers: [FilesService],
+  exports: [FilesService],
 })
 export class FilesModule {}

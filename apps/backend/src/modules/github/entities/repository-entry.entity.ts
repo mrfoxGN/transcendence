@@ -12,10 +12,11 @@ import { RepositoryEntryType } from '../../../database/enums/database.enums';
 import { Repository } from './repository.entity';
 
 @Entity('repository_entries')
-@Unique(
-  'uq_repository_entries_repository_branch_path_hash',
-  ['repositoryId', 'branchName', 'pathHash'],
-)
+@Unique('uq_repository_entries_repository_branch_path_hash', [
+  'repositoryId',
+  'branchName',
+  'pathHash',
+])
 export class RepositoryEntry {
   @PrimaryColumn({
     type: 'char',

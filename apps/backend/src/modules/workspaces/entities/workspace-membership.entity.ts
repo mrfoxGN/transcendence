@@ -11,10 +11,7 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from './workspace.entity';
 
 @Entity('workspace_memberships')
-@Unique(
-  'uq_workspace_memberships_workspace_user',
-  ['workspaceId', 'userId'],
-)
+@Unique('uq_workspace_memberships_workspace_user', ['workspaceId', 'userId'])
 export class WorkspaceMembership {
   @PrimaryColumn({
     type: 'char',

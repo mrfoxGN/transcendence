@@ -1,13 +1,6 @@
-import {
-  Column,
-  Entity,
-  PrimaryColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-import {
-  AppRole,
-  UserStatus,
-} from '../../../database/enums/database.enums';
+import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 
 @Entity('users')
 export class User {

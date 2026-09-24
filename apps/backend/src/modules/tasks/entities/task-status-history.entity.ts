@@ -13,10 +13,7 @@ import { Task } from './task.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('task_status_history')
-@Index(
-  'idx_task_status_history_task_changed_at',
-  ['taskId', 'changedAt'],
-)
+@Index('idx_task_status_history_task_changed_at', ['taskId', 'changedAt'])
 export class TaskStatusHistory {
   @PrimaryColumn({
     type: 'char',

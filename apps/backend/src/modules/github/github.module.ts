@@ -23,14 +23,8 @@ import { GitHubService } from './services/github.service';
       GitHubWebhookDelivery,
     ]),
   ],
-  controllers: [
-    GitHubController,
-  ],
-  providers: [
-    GitHubService,
-  ],
-  exports: [
-    GitHubService,
-  ],
+  controllers: [GitHubController],
+  providers: [GitHubService],
+  exports: [GitHubService],
 })
 export class GitHubModule {}

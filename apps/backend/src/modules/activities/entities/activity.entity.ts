@@ -11,10 +11,7 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('activities')
-@Index(
-  'idx_activities_workspace_created_at',
-  ['workspaceId', 'createdAt'],
-)
+@Index('idx_activities_workspace_created_at', ['workspaceId', 'createdAt'])
 export class Activity {
   @PrimaryColumn({
     type: 'char',

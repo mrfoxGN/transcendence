@@ -6,19 +6,9 @@ import { Activity } from './entities/activity.entity';
 import { ActivitiesService } from './services/activities.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      Activity,
-    ]),
-  ],
-  controllers: [
-    ActivitiesController,
-  ],
-  providers: [
-    ActivitiesService,
-  ],
-  exports: [
-    ActivitiesService,
-  ],
+  imports: [TypeOrmModule.forFeature([Activity])],
+  controllers: [ActivitiesController],
+  providers: [ActivitiesService],
+  exports: [ActivitiesService],
 })
 export class ActivitiesModule {}

@@ -15,8 +15,10 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('returns the current root message', () => {
+      expect(appController.getHello()).toBe(
+        'Hot reload works automatically!',
+      );
     });
   });
 });

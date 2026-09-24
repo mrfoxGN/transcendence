@@ -11,10 +11,7 @@ import { Task } from './task.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('task_dependencies')
-@Unique(
-  'uq_task_dependencies_task_depends_on',
-  ['taskId', 'dependsOnTaskId'],
-)
+@Unique('uq_task_dependencies_task_depends_on', ['taskId', 'dependsOnTaskId'])
 export class TaskDependency {
   @PrimaryColumn({
     type: 'char',

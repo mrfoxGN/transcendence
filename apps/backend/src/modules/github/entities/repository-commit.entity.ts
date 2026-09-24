@@ -12,14 +12,11 @@ import { Repository } from './repository.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('repository_commits')
-@Unique(
-  'uq_repository_commits_repository_sha',
-  ['repositoryId', 'sha'],
-)
-@Index(
-  'idx_repository_commits_repository_committed_at',
-  ['repositoryId', 'committedAt'],
-)
+@Unique('uq_repository_commits_repository_sha', ['repositoryId', 'sha'])
+@Index('idx_repository_commits_repository_committed_at', [
+  'repositoryId',
+  'committedAt',
+])
 export class RepositoryCommit {
   @PrimaryColumn({
     type: 'char',

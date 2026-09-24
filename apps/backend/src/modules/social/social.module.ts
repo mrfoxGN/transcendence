@@ -9,20 +9,10 @@ import { SocialService } from './services/social.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Friendship,
-      DirectConversation,
-      DirectMessage,
-    ]),
+    TypeOrmModule.forFeature([Friendship, DirectConversation, DirectMessage]),
   ],
-  controllers: [
-    SocialController,
-  ],
-  providers: [
-    SocialService,
-  ],
-  exports: [
-    SocialService,
-  ],
+  controllers: [SocialController],
+  providers: [SocialService],
+  exports: [SocialService],
 })
 export class SocialModule {}

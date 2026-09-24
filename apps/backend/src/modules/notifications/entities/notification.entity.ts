@@ -11,10 +11,11 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('notifications')
-@Index(
-  'idx_notifications_user_read_created_at',
-  ['userId', 'readAt', 'createdAt'],
-)
+@Index('idx_notifications_user_read_created_at', [
+  'userId',
+  'readAt',
+  'createdAt',
+])
 export class Notification {
   @PrimaryColumn({
     type: 'char',

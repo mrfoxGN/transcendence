@@ -19,14 +19,8 @@ import { TasksService } from './services/tasks.service';
       TaskStatusHistory,
     ]),
   ],
-  controllers: [
-    TasksController,
-  ],
-  providers: [
-    TasksService,
-  ],
-  exports: [
-    TasksService,
-  ],
+  controllers: [TasksController],
+  providers: [TasksService],
+  exports: [TasksService],
 })
 export class TasksModule {}
