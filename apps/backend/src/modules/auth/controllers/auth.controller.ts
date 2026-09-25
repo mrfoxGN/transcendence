@@ -42,4 +42,15 @@ export class AuthController {
   getProfile(@Req() request: AuthenticatedRequest): UserResponseDto {
     return request.user;
   }
+
+  @Post('logout')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  logout() {
+    return {
+      message: 'Logout successful',
+      loggedOut: true,
+    };
+  }
 }
