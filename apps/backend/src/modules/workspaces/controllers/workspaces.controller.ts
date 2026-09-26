@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -13,6 +14,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
+import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
 import { WorkspacesService } from '../services/workspaces.service';
 
@@ -44,6 +46,19 @@ export class WorkspacesController {
     return this.workspacesService.findOneForUser(
       id,
       request.user.id,
+    );
+  }
+
+  @Patch(':id')
+  updateWorkspace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateWorkspaceDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceResponseDto> {
+    return this.workspacesService.update(
+      id,
+      request.user.id,
+      dto,
     );
   }
 

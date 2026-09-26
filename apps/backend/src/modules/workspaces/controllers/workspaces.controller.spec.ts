@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   INestApplication,
   NotFoundException,
@@ -51,6 +52,7 @@ describe('Workspaces endpoints', () => {
     create: jest.fn(),
     findAllForUser: jest.fn(),
     findOneForUser: jest.fn(),
+    update: jest.fn(),
   };
 
   let app: INestApplication;
@@ -104,6 +106,7 @@ describe('Workspaces endpoints', () => {
     workspacesService.create.mockResolvedValue(workspace);
     workspacesService.findAllForUser.mockResolvedValue([workspace]);
     workspacesService.findOneForUser.mockResolvedValue(workspace);
+    workspacesService.update.mockResolvedValue(workspace);
   });
 
   afterAll(async () => {
@@ -285,4 +288,125 @@ describe('Workspaces endpoints', () => {
 
     expect(workspacesService.create).not.toHaveBeenCalled();
   });
+
+  it('PATCH requires authentication', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .send({
+        name: 'Updated Workspace',
+      })
+      .expect(401);
+
+    expect(workspacesService.update).not.toHaveBeenCalled();
+  });
+
+  it('PATCH allows the owner to update a workspace', async () => {
+    const dto = {
+      name: 'Updated Workspace',
+      description: 'Updated description',
+    };
+
+    workspacesService.update.mockResolvedValue({
+      ...workspace,
+      ...dto,
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(dto)
+      .expect(200);
+
+    expect(workspacesService.update).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      dto,
+    );
+
+    expect(response.body.name).toBe('Updated Workspace');
+    expect(response.body.description).toBe('Updated description');
+  });
+
+  it('PATCH rejects an invalid workspace UUID', async () => {
+    await request(app.getHttpServer())
+      .patch('/workspaces/not-a-uuid')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Updated Workspace',
+      })
+      .expect(400);
+
+    expect(workspacesService.update).not.toHaveBeenCalled();
+  });
+
+  it('PATCH rejects a name longer than 120 characters', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'A'.repeat(121),
+      })
+      .expect(400);
+
+    expect(workspacesService.update).not.toHaveBeenCalled();
+  });
+
+  it('PATCH rejects protected fields such as ownerId', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        ownerId: '11111111-1111-4111-8111-111111111111',
+      })
+      .expect(400);
+
+    expect(workspacesService.update).not.toHaveBeenCalled();
+  });
+
+  it('PATCH rejects an empty update', async () => {
+    workspacesService.update.mockRejectedValue(
+      new BadRequestException('No changes provided'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(400);
+
+    expect(workspacesService.update).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      {},
+    );
+  });
+
+  it('PATCH returns 404 when workspace does not exist', async () => {
+    workspacesService.update.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Updated Workspace',
+      })
+      .expect(404);
+  });
+
+  it('PATCH returns 403 when user is not the owner', async () => {
+    workspacesService.update.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Unauthorized Update',
+      })
+      .expect(403);
+  });
+
 });

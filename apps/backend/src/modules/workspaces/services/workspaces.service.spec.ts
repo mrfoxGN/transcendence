@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -269,5 +270,118 @@ describe('WorkspacesService', () => {
     await expect(
       service.findOneForUser(workspaceId, ownerId),
     ).rejects.toThrow(ForbiddenException);
+  });
+});
+
+describe('WorkspacesService update', () => {
+  const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
+  const otherUserId = '2897c53b-478a-414d-b332-ae6db9d6d6da';
+  const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
+
+  function makeWorkspace(): Workspace {
+    return {
+      id: workspaceId,
+      ownerId,
+      name: 'Old Name',
+      description: 'Old description',
+      createdAt: new Date('2026-09-26T13:00:00Z'),
+      updatedAt: new Date('2026-09-26T13:00:00Z'),
+      archivedAt: null,
+      deletedAt: null,
+    } as Workspace;
+  }
+
+  it('allows the owner to update workspace fields', async () => {
+    const workspace = makeWorkspace();
+
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(workspace),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    const response = await service.update(
+      workspaceId,
+      ownerId,
+      {
+        name: 'Updated Name',
+        description: 'Updated description',
+      },
+    );
+
+    expect(workspace.name).toBe('Updated Name');
+    expect(workspace.description).toBe('Updated description');
+    expect(workspace.updatedAt).toBeInstanceOf(Date);
+
+    expect(repository.save).toHaveBeenCalledWith(workspace);
+
+    expect(response.name).toBe('Updated Name');
+    expect(response.description).toBe('Updated description');
+    expect(response).not.toHaveProperty('deletedAt');
+  });
+
+  it('rejects an empty update', async () => {
+    const dataSource = {
+      getRepository: jest.fn(),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.update(workspaceId, ownerId, {}),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(dataSource.getRepository).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when updating a missing workspace', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.update(
+        workspaceId,
+        ownerId,
+        { name: 'Updated Name' },
+      ),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when a non-owner tries to update', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.update(
+        workspaceId,
+        otherUserId,
+        { name: 'Unauthorized Name' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(repository.save).not.toHaveBeenCalled();
   });
 });

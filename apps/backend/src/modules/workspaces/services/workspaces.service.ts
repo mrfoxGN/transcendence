@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
+import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
 import { WorkspaceKanbanSetting } from '../entities/workspace-kanban-setting.entity';
 import { WorkspaceMembership } from '../entities/workspace-membership.entity';
@@ -114,5 +116,49 @@ export class WorkspacesService {
     }
 
     return WorkspaceMapper.toResponse(workspace);
+  }
+
+  async update(
+    workspaceId: string,
+    userId: string,
+    dto: UpdateWorkspaceDto,
+  ): Promise<WorkspaceResponseDto> {
+    if (
+      dto.name === undefined &&
+      dto.description === undefined
+    ) {
+      throw new BadRequestException('No changes provided');
+    }
+
+    const repository = this.dataSource.getRepository(Workspace);
+
+    const workspace = await repository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+
+    if (dto.name !== undefined) {
+      workspace.name = dto.name;
+    }
+
+    if (dto.description !== undefined) {
+      workspace.description = dto.description;
+    }
+
+    workspace.updatedAt = new Date();
+
+    const savedWorkspace = await repository.save(workspace);
+
+    return WorkspaceMapper.toResponse(savedWorkspace);
   }
 }
