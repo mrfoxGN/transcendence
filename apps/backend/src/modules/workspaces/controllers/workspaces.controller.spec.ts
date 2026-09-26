@@ -1,5 +1,7 @@
 import {
+  ForbiddenException,
   INestApplication,
+  NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
@@ -18,6 +20,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 describe('Workspaces endpoints', () => {
   const userId = '550e8400-e29b-41d4-a716-446655440000';
+  const workspaceId = '660e8400-e29b-41d4-a716-446655440000';
 
   const user = {
     id: userId,
@@ -31,7 +34,7 @@ describe('Workspaces endpoints', () => {
   };
 
   const workspace = {
-    id: '660e8400-e29b-41d4-a716-446655440000',
+    id: workspaceId,
     ownerId: userId,
     name: 'Transcendence Team',
     description: 'Main workspace',
@@ -46,6 +49,8 @@ describe('Workspaces endpoints', () => {
 
   const workspacesService = {
     create: jest.fn(),
+    findAllForUser: jest.fn(),
+    findOneForUser: jest.fn(),
   };
 
   let app: INestApplication;
@@ -74,6 +79,7 @@ describe('Workspaces endpoints', () => {
     }).compile();
 
     jwtService = module.get(JwtService);
+
     token = await jwtService.signAsync({
       sub: userId,
     });
@@ -96,10 +102,100 @@ describe('Workspaces endpoints', () => {
 
     usersService.findById.mockResolvedValue(user);
     workspacesService.create.mockResolvedValue(workspace);
+    workspacesService.findAllForUser.mockResolvedValue([workspace]);
+    workspacesService.findOneForUser.mockResolvedValue(workspace);
   });
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('GET /workspaces requires authentication', async () => {
+    await request(app.getHttpServer())
+      .get('/workspaces')
+      .expect(401);
+
+    expect(workspacesService.findAllForUser).not.toHaveBeenCalled();
+  });
+
+  it('GET /workspaces returns workspaces for the authenticated user', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/workspaces')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.findAllForUser).toHaveBeenCalledWith(
+      userId,
+    );
+
+    expect(response.body).toHaveLength(1);
+
+    expect(response.body[0]).toMatchObject({
+      id: workspaceId,
+      ownerId: userId,
+      name: 'Transcendence Team',
+      archivedAt: null,
+    });
+  });
+
+  it('GET /workspaces returns an empty list when the user has no workspaces', async () => {
+    workspacesService.findAllForUser.mockResolvedValue([]);
+
+    const response = await request(app.getHttpServer())
+      .get('/workspaces')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toEqual([]);
+  });
+
+  it('GET /workspaces/:id returns one workspace for a member', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(response.body).toMatchObject({
+      id: workspaceId,
+      ownerId: userId,
+      name: 'Transcendence Team',
+    });
+  });
+
+  it('GET /workspaces/:id rejects an invalid UUID', async () => {
+    await request(app.getHttpServer())
+      .get('/workspaces/not-a-uuid')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.findOneForUser).not.toHaveBeenCalled();
+  });
+
+  it('GET /workspaces/:id returns 404 when workspace does not exist', async () => {
+    workspacesService.findOneForUser.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('GET /workspaces/:id returns 403 when user is not a member', async () => {
+    workspacesService.findOneForUser.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
   });
 
   it('POST requires authentication', async () => {

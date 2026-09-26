@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
@@ -56,5 +60,59 @@ export class WorkspacesService {
 
       return WorkspaceMapper.toResponse(savedWorkspace);
     });
+  }
+
+  async findAllForUser(
+    userId: string,
+  ): Promise<WorkspaceResponseDto[]> {
+    const workspaces = await this.dataSource
+      .getRepository(Workspace)
+      .createQueryBuilder('workspace')
+      .innerJoin(
+        WorkspaceMembership,
+        'membership',
+        'membership.workspaceId = workspace.id',
+      )
+      .where('membership.userId = :userId', { userId })
+      .andWhere('workspace.deletedAt IS NULL')
+      .orderBy('workspace.createdAt', 'ASC')
+      .getMany();
+
+    return workspaces.map((workspace) =>
+      WorkspaceMapper.toResponse(workspace),
+    );
+  }
+
+  async findOneForUser(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceResponseDto> {
+    const workspace = await this.dataSource
+      .getRepository(Workspace)
+      .findOne({
+        where: {
+          id: workspaceId,
+          deletedAt: IsNull(),
+        },
+      });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const membership = await this.dataSource
+      .getRepository(WorkspaceMembership)
+      .findOne({
+        where: {
+          workspaceId,
+          userId,
+        },
+      });
+
+    if (!membership) {
+      throw new ForbiddenException();
+    }
+
+    return WorkspaceMapper.toResponse(workspace);
   }
 }

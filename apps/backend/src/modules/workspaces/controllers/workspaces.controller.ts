@@ -1,6 +1,9 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UseGuards,
@@ -23,6 +26,26 @@ export class WorkspacesController {
   constructor(
     private readonly workspacesService: WorkspacesService,
   ) {}
+
+  @Get()
+  getMyWorkspaces(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceResponseDto[]> {
+    return this.workspacesService.findAllForUser(
+      request.user.id,
+    );
+  }
+
+  @Get(':id')
+  getWorkspace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceResponseDto> {
+    return this.workspacesService.findOneForUser(
+      id,
+      request.user.id,
+    );
+  }
 
   @Post()
   createWorkspace(
