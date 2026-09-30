@@ -59,6 +59,8 @@ describe('Workspaces endpoints', () => {
     acceptInvitation: jest.fn(),
     rejectInvitation: jest.fn(),
     cancelInvitation: jest.fn(),
+    getKanbanSettings: jest.fn(),
+    updateKanbanSettings: jest.fn(),
     update: jest.fn(),
     archive: jest.fn(),
     unarchive: jest.fn(),
@@ -1254,6 +1256,104 @@ describe('Workspaces endpoints', () => {
       )
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
+  });
+
+
+  it('GET kanban settings requires authentication', async () => {
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/kanban-settings`)
+      .expect(401);
+
+    expect(
+      workspacesService.getKanbanSettings,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('GET kanban settings returns workspace settings', async () => {
+    workspacesService.getKanbanSettings.mockResolvedValue({
+      workspaceId,
+      activeWipLimit: 3,
+      definitionOfReady: null,
+      definitionOfDone: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/kanban-settings`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      workspacesService.getKanbanSettings,
+    ).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(response.body.activeWipLimit).toBe(3);
+  });
+
+  it('PATCH kanban settings requires authentication', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/kanban-settings`)
+      .send({ activeWipLimit: 5 })
+      .expect(401);
+
+    expect(
+      workspacesService.updateKanbanSettings,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH kanban settings updates settings', async () => {
+    workspacesService.updateKanbanSettings.mockResolvedValue({
+      workspaceId,
+      activeWipLimit: 5,
+      definitionOfReady: null,
+      definitionOfDone: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/kanban-settings`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ activeWipLimit: 5 })
+      .expect(200);
+
+    expect(
+      workspacesService.updateKanbanSettings,
+    ).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      { activeWipLimit: 5 },
+    );
+
+    expect(response.body.activeWipLimit).toBe(5);
+  });
+
+  it('PATCH kanban settings rejects WIP limit below 1', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/kanban-settings`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ activeWipLimit: 0 })
+      .expect(400);
+
+    expect(
+      workspacesService.updateKanbanSettings,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH kanban settings rejects non-integer WIP limit', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/kanban-settings`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ activeWipLimit: 2.5 })
+      .expect(400);
+
+    expect(
+      workspacesService.updateKanbanSettings,
+    ).not.toHaveBeenCalled();
   });
 
 });

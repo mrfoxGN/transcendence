@@ -26,6 +26,8 @@ type AuthenticatedRequest = Request & {
   user: UserResponseDto;
 };
 
+import { WorkspaceKanbanSettingsResponseDto } from '../dto/workspace-kanban-settings-response.dto';
+import { UpdateWorkspaceKanbanSettingsDto } from '../dto/update-workspace-kanban-settings.dto';
 @Controller('workspaces')
 @UseGuards(JwtAuthGuard)
 export class WorkspacesController {
@@ -48,6 +50,32 @@ export class WorkspacesController {
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceMemberResponseDto[]> {
     return this.workspacesService.findMembers(
+      id,
+      request.user.id,
+    );
+  }
+
+
+
+  @Patch(':id/kanban-settings')
+  updateWorkspaceKanbanSettings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateWorkspaceKanbanSettingsDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceKanbanSettingsResponseDto> {
+    return this.workspacesService.updateKanbanSettings(
+      id,
+      request.user.id,
+      dto,
+    );
+  }
+
+  @Get(':id/kanban-settings')
+  getWorkspaceKanbanSettings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceKanbanSettingsResponseDto> {
+    return this.workspacesService.getKanbanSettings(
       id,
       request.user.id,
     );

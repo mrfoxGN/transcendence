@@ -2006,3 +2006,239 @@ describe('WorkspacesService cancelInvitation', () => {
     ).rejects.toThrow(ConflictException);
   });
 });
+
+
+describe('WorkspacesService kanban settings', () => {
+  const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
+  const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+  const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
+
+  function makeWorkspace(): Workspace {
+    return {
+      id: workspaceId,
+      ownerId,
+      name: 'Transcendence Workspace',
+      description: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      archivedAt: null,
+      deletedAt: null,
+    } as Workspace;
+  }
+
+  function makeSettings(): WorkspaceKanbanSetting {
+    return {
+      id: '11111111-1111-4111-8111-111111111111',
+      workspaceId,
+      activeWipLimit: 3,
+      definitionOfReady: null,
+      definitionOfDone: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as WorkspaceKanbanSetting;
+  }
+
+  it('returns kanban settings for a workspace member', async () => {
+    const settings = makeSettings();
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue(settings),
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+    );
+
+    jest.spyOn(service, 'findOneForUser').mockResolvedValue(
+      makeWorkspace() as any,
+    );
+
+    const result = await service.getKanbanSettings(
+      workspaceId,
+      memberId,
+    );
+
+    expect(service.findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      memberId,
+    );
+    expect(result.activeWipLimit).toBe(3);
+    expect(result.workspaceId).toBe(workspaceId);
+  });
+
+  it('returns 403 when non-member reads kanban settings', async () => {
+    const service = new WorkspacesService(
+      {} as DataSource,
+      {} as UsersService,
+    );
+
+    jest.spyOn(service, 'findOneForUser').mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.getKanbanSettings(workspaceId, memberId),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('returns 404 when kanban settings do not exist', async () => {
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue(null),
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+    );
+
+    jest.spyOn(service, 'findOneForUser').mockResolvedValue(
+      makeWorkspace() as any,
+    );
+
+    await expect(
+      service.getKanbanSettings(workspaceId, ownerId),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('allows owner to update kanban settings', async () => {
+    const settings = makeSettings();
+
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const settingsRepository = {
+      findOne: jest.fn().mockResolvedValue(settings),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn((entity) => {
+        if (entity === Workspace) return workspaceRepository;
+        if (entity === WorkspaceKanbanSetting) {
+          return settingsRepository;
+        }
+        throw new Error('Unexpected repository');
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+    );
+
+    const result = await service.updateKanbanSettings(
+      workspaceId,
+      ownerId,
+      {
+        activeWipLimit: 5,
+        definitionOfReady: ['requirements clear'],
+        definitionOfDone: ['tests pass'],
+      },
+    );
+
+    expect(result.activeWipLimit).toBe(5);
+    expect(result.definitionOfReady).toEqual([
+      'requirements clear',
+    ]);
+    expect(result.definitionOfDone).toEqual([
+      'tests pass',
+    ]);
+    expect(settingsRepository.save).toHaveBeenCalled();
+  });
+
+  it('returns 400 for empty kanban settings update', async () => {
+    const service = new WorkspacesService(
+      {} as DataSource,
+      {} as UsersService,
+    );
+
+    await expect(
+      service.updateKanbanSettings(
+        workspaceId,
+        ownerId,
+        {},
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('returns 404 when updating settings of missing workspace', async () => {
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue(null),
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+    );
+
+    await expect(
+      service.updateKanbanSettings(
+        workspaceId,
+        ownerId,
+        { activeWipLimit: 5 },
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('returns 403 when non-owner updates kanban settings', async () => {
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+    );
+
+    await expect(
+      service.updateKanbanSettings(
+        workspaceId,
+        memberId,
+        { activeWipLimit: 5 },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('returns 404 when kanban settings row is missing during update', async () => {
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const settingsRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn((entity) => {
+        if (entity === Workspace) return workspaceRepository;
+        if (entity === WorkspaceKanbanSetting) {
+          return settingsRepository;
+        }
+        throw new Error('Unexpected repository');
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+    );
+
+    await expect(
+      service.updateKanbanSettings(
+        workspaceId,
+        ownerId,
+        { activeWipLimit: 5 },
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
+});

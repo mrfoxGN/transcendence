@@ -23,6 +23,9 @@ import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationMapper } from '../mappers/workspace-invitation.mapper';
 import { WorkspaceMapper } from '../mappers/workspace.mapper';
 
+import { WorkspaceKanbanSettingsResponseDto } from '../dto/workspace-kanban-settings-response.dto';
+import { WorkspaceKanbanSettingsMapper } from '../mappers/workspace-kanban-settings.mapper';
+import { UpdateWorkspaceKanbanSettingsDto } from '../dto/update-workspace-kanban-settings.dto';
 @Injectable()
 export class WorkspacesService {
   constructor(
@@ -621,6 +624,102 @@ export class WorkspacesService {
 
     return WorkspaceInvitationMapper.toResponse(
       savedInvitation,
+    );
+  }
+
+
+  async getKanbanSettings(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceKanbanSettingsResponseDto> {
+    await this.findOneForUser(workspaceId, userId);
+
+    const settingsRepository =
+      this.dataSource.getRepository(WorkspaceKanbanSetting);
+
+    const settings = await settingsRepository.findOne({
+      where: {
+        workspaceId,
+      },
+    });
+
+    if (!settings) {
+      throw new NotFoundException(
+        'Kanban settings not found',
+      );
+    }
+
+    return WorkspaceKanbanSettingsMapper.toResponse(
+      settings,
+    );
+  }
+
+
+  async updateKanbanSettings(
+    workspaceId: string,
+    userId: string,
+    dto: UpdateWorkspaceKanbanSettingsDto,
+  ): Promise<WorkspaceKanbanSettingsResponseDto> {
+    if (
+      dto.activeWipLimit === undefined &&
+      dto.definitionOfReady === undefined &&
+      dto.definitionOfDone === undefined
+    ) {
+      throw new BadRequestException('No changes provided');
+    }
+
+    const workspaceRepository =
+      this.dataSource.getRepository(Workspace);
+
+    const workspace = await workspaceRepository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+
+    const settingsRepository =
+      this.dataSource.getRepository(WorkspaceKanbanSetting);
+
+    const settings = await settingsRepository.findOne({
+      where: {
+        workspaceId,
+      },
+    });
+
+    if (!settings) {
+      throw new NotFoundException(
+        'Kanban settings not found',
+      );
+    }
+
+    if (dto.activeWipLimit !== undefined) {
+      settings.activeWipLimit = dto.activeWipLimit;
+    }
+
+    if (dto.definitionOfReady !== undefined) {
+      settings.definitionOfReady = dto.definitionOfReady;
+    }
+
+    if (dto.definitionOfDone !== undefined) {
+      settings.definitionOfDone = dto.definitionOfDone;
+    }
+
+    settings.updatedAt = new Date();
+
+    const savedSettings =
+      await settingsRepository.save(settings);
+
+    return WorkspaceKanbanSettingsMapper.toResponse(
+      savedSettings,
     );
   }
 
