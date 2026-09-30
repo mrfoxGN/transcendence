@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   INestApplication,
   NotFoundException,
@@ -54,6 +55,10 @@ describe('Workspaces endpoints', () => {
     findOneForUser: jest.fn(),
     findMembers: jest.fn(),
     removeMember: jest.fn(),
+    createInvitation: jest.fn(),
+    acceptInvitation: jest.fn(),
+    rejectInvitation: jest.fn(),
+    cancelInvitation: jest.fn(),
     update: jest.fn(),
     archive: jest.fn(),
     unarchive: jest.fn(),
@@ -122,6 +127,42 @@ describe('Workspaces endpoints', () => {
       },
     ]);
     workspacesService.removeMember.mockResolvedValue(undefined);
+    workspacesService.createInvitation.mockResolvedValue({
+      id: '770e8400-e29b-41d4-a716-446655440000',
+      workspaceId,
+      invitedById: userId,
+      invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      invitedEmail: null,
+      status: 'PENDING',
+      expiresAt: null,
+      respondedAt: null,
+      createdAt: new Date('2026-09-30T14:00:00Z'),
+    });
+
+    workspacesService.acceptInvitation.mockResolvedValue({
+      id: '770e8400-e29b-41d4-a716-446655440000',
+      workspaceId,
+      invitedById: userId,
+      invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      invitedEmail: null,
+      status: 'ACCEPTED',
+      expiresAt: null,
+      respondedAt: new Date('2026-09-30T15:00:00Z'),
+      createdAt: new Date('2026-09-30T14:00:00Z'),
+    });
+
+    workspacesService.rejectInvitation.mockResolvedValue({
+      id: '770e8400-e29b-41d4-a716-446655440000',
+      workspaceId,
+      invitedById: userId,
+      invitedUserId: '53e0d5fb-864d-42e1-9ba7-03b49945df4f',
+      invitedEmail: null,
+      status: 'REJECTED',
+      expiresAt: null,
+      respondedAt: new Date('2026-09-30T15:00:00Z'),
+      createdAt: new Date('2026-09-30T14:00:00Z'),
+    });
+
     workspacesService.update.mockResolvedValue(workspace);
     workspacesService.archive.mockResolvedValue({
       ...workspace,
@@ -738,6 +779,481 @@ describe('Workspaces endpoints', () => {
       .delete(`/workspaces/${workspaceId}/members/${memberId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
+  });
+
+
+  it('POST /workspaces/:id/invitations requires authentication', async () => {
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .send({
+        invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      })
+      .expect(401);
+
+    expect(workspacesService.createInvitation).not.toHaveBeenCalled();
+  });
+
+  it('POST /workspaces/:id/invitations creates a pending invitation', async () => {
+    const invitedUserId =
+      'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+
+    const response = await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId,
+      })
+      .expect(201);
+
+    expect(workspacesService.createInvitation).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      {
+        invitedUserId,
+      },
+    );
+
+    expect(response.body).toMatchObject({
+      workspaceId,
+      invitedById: userId,
+      invitedUserId,
+      invitedEmail: null,
+      status: 'PENDING',
+      expiresAt: null,
+      respondedAt: null,
+    });
+
+    expect(response.body).not.toHaveProperty('tokenHash');
+  });
+
+  it('POST invitation rejects an invalid workspace UUID', async () => {
+    await request(app.getHttpServer())
+      .post('/workspaces/not-a-uuid/invitations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      })
+      .expect(400);
+
+    expect(workspacesService.createInvitation).not.toHaveBeenCalled();
+  });
+
+  it('POST invitation rejects an invalid invited user UUID', async () => {
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: 'not-a-uuid',
+      })
+      .expect(400);
+
+    expect(workspacesService.createInvitation).not.toHaveBeenCalled();
+  });
+
+  it('POST invitation returns 404 when workspace does not exist', async () => {
+    workspacesService.createInvitation.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      })
+      .expect(404);
+  });
+
+  it('POST invitation returns 404 when invited user does not exist', async () => {
+    workspacesService.createInvitation.mockRejectedValue(
+      new NotFoundException('User not found'),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      })
+      .expect(404);
+  });
+
+  it('POST invitation returns 403 when current user is not the owner', async () => {
+    workspacesService.createInvitation.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      })
+      .expect(403);
+  });
+
+  it('POST invitation rejects inviting yourself', async () => {
+    workspacesService.createInvitation.mockRejectedValue(
+      new BadRequestException(
+        'Workspace owner cannot invite themselves',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: userId,
+      })
+      .expect(400);
+  });
+
+  it('POST invitation returns 409 for a duplicate pending invitation', async () => {
+    workspacesService.createInvitation.mockRejectedValue(
+      new ConflictException(
+        'Pending invitation already exists',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/workspaces/${workspaceId}/invitations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
+      })
+      .expect(409);
+  });
+
+
+  it('PATCH invitation accept requires authentication', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
+      )
+      .expect(401);
+
+    expect(
+      workspacesService.acceptInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation accept accepts a pending invitation', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    const response = await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      workspacesService.acceptInvitation,
+    ).toHaveBeenCalledWith(
+      workspaceId,
+      invitationId,
+      userId,
+    );
+
+    expect(response.body.status).toBe('ACCEPTED');
+    expect(response.body.respondedAt).not.toBeNull();
+  });
+
+  it('PATCH invitation accept rejects an invalid workspace UUID', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/not-a-uuid/invitations/${invitationId}/accept`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(
+      workspacesService.acceptInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation accept rejects an invalid invitation UUID', async () => {
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/not-a-uuid/accept`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(
+      workspacesService.acceptInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation accept returns 404 when invitation is missing', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.acceptInvitation.mockRejectedValue(
+      new NotFoundException('Invitation not found'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('PATCH invitation accept returns 403 for the wrong user', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.acceptInvitation.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('PATCH invitation accept returns 409 when invitation is not pending', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.acceptInvitation.mockRejectedValue(
+      new ConflictException(
+        'Invitation is no longer pending',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(409);
+  });
+
+
+  it('PATCH invitation reject requires authentication', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
+      )
+      .expect(401);
+
+    expect(
+      workspacesService.rejectInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation reject rejects a pending invitation', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    const response = await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      workspacesService.rejectInvitation,
+    ).toHaveBeenCalledWith(
+      workspaceId,
+      invitationId,
+      userId,
+    );
+
+    expect(response.body.status).toBe('REJECTED');
+  });
+
+  it('PATCH invitation reject rejects invalid invitation UUID', async () => {
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/not-a-uuid/reject`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(
+      workspacesService.rejectInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation reject returns 404 for missing invitation', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.rejectInvitation.mockRejectedValue(
+      new NotFoundException('Invitation not found'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('PATCH invitation reject returns 403 for wrong user', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.rejectInvitation.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('PATCH invitation reject returns 409 when no longer pending', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.rejectInvitation.mockRejectedValue(
+      new ConflictException(
+        'Invitation is no longer pending',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(409);
+  });
+
+
+  it('PATCH invitation cancel requires authentication', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
+      )
+      .expect(401);
+
+    expect(
+      workspacesService.cancelInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation cancel cancels a pending invitation', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.cancelInvitation.mockResolvedValue({
+      id: invitationId,
+      workspaceId,
+      invitedById: userId,
+      invitedUserId: '53e0d5fb-864d-42e1-9ba7-03b49945df4f',
+      invitedEmail: null,
+      status: 'CANCELLED',
+      expiresAt: null,
+      respondedAt: new Date(),
+      createdAt: new Date(),
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      workspacesService.cancelInvitation,
+    ).toHaveBeenCalledWith(
+      workspaceId,
+      invitationId,
+      userId,
+    );
+
+    expect(response.body.status).toBe('CANCELLED');
+  });
+
+  it('PATCH invitation cancel rejects invalid invitation UUID', async () => {
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/not-a-uuid/cancel`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(
+      workspacesService.cancelInvitation,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('PATCH invitation cancel returns 404 for missing invitation', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.cancelInvitation.mockRejectedValue(
+      new NotFoundException('Invitation not found'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('PATCH invitation cancel returns 403 for non-owner', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.cancelInvitation.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('PATCH invitation cancel returns 409 when no longer pending', async () => {
+    const invitationId =
+      '770e8400-e29b-41d4-a716-446655440000';
+
+    workspacesService.cancelInvitation.mockRejectedValue(
+      new ConflictException(
+        'Invitation is no longer pending',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(409);
   });
 
 });

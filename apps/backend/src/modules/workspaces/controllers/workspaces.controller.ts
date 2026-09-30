@@ -14,8 +14,10 @@ import type { Request } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
+import { WorkspaceInvitationResponseDto } from '../dto/workspace-invitation-response.dto';
 import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
 import { WorkspacesService } from '../services/workspaces.service';
@@ -118,6 +120,58 @@ export class WorkspacesController {
     return this.workspacesService.softDelete(
       id,
       request.user.id,
+    );
+  }
+
+  @Patch(':id/invitations/:invitationId/accept')
+  acceptWorkspaceInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    return this.workspacesService.acceptInvitation(
+      id,
+      invitationId,
+      request.user.id,
+    );
+  }
+
+  @Patch(':id/invitations/:invitationId/reject')
+  rejectWorkspaceInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    return this.workspacesService.rejectInvitation(
+      id,
+      invitationId,
+      request.user.id,
+    );
+  }
+
+  @Patch(':id/invitations/:invitationId/cancel')
+  cancelWorkspaceInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    return this.workspacesService.cancelInvitation(
+      id,
+      invitationId,
+      request.user.id,
+    );
+  }
+
+  @Post(':id/invitations')
+  createWorkspaceInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateWorkspaceInvitationDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    return this.workspacesService.createInvitation(
+      id,
+      request.user.id,
+      dto,
     );
   }
 

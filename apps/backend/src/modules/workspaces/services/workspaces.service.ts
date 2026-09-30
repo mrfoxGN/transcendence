@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,18 +8,27 @@ import {
 import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
+import { InvitationStatus } from '../../../database/enums/database.enums';
+import { UsersService } from '../../users/services/users.service';
+import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
+import { WorkspaceInvitationResponseDto } from '../dto/workspace-invitation-response.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
+import { WorkspaceInvitation } from '../entities/workspace-invitation.entity';
 import { WorkspaceKanbanSetting } from '../entities/workspace-kanban-setting.entity';
 import { WorkspaceMembership } from '../entities/workspace-membership.entity';
 import { Workspace } from '../entities/workspace.entity';
+import { WorkspaceInvitationMapper } from '../mappers/workspace-invitation.mapper';
 import { WorkspaceMapper } from '../mappers/workspace.mapper';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly usersService: UsersService,
+  ) {}
 
   async create(
     ownerId: string,
@@ -329,6 +339,289 @@ export class WorkspacesService {
     }
 
     await membershipRepository.remove(membership);
+  }
+
+
+  async createInvitation(
+    workspaceId: string,
+    currentUserId: string,
+    dto: CreateWorkspaceInvitationDto,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    const workspaceRepository =
+      this.dataSource.getRepository(Workspace);
+
+    const workspace = await workspaceRepository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== currentUserId) {
+      throw new ForbiddenException();
+    }
+
+    if (dto.invitedUserId === currentUserId) {
+      throw new BadRequestException(
+        'Workspace owner cannot invite themselves',
+      );
+    }
+
+    await this.usersService.findById(dto.invitedUserId);
+
+    const membershipRepository =
+      this.dataSource.getRepository(WorkspaceMembership);
+
+    const existingMembership =
+      await membershipRepository.findOne({
+        where: {
+          workspaceId,
+          userId: dto.invitedUserId,
+        },
+      });
+
+    if (existingMembership) {
+      throw new ConflictException(
+        'User is already a workspace member',
+      );
+    }
+
+    const invitationRepository =
+      this.dataSource.getRepository(WorkspaceInvitation);
+
+    const existingInvitation =
+      await invitationRepository.findOne({
+        where: {
+          workspaceId,
+          invitedUserId: dto.invitedUserId,
+          status: InvitationStatus.PENDING,
+        },
+      });
+
+    if (existingInvitation) {
+      throw new ConflictException(
+        'Pending invitation already exists',
+      );
+    }
+
+    const invitation = invitationRepository.create({
+      id: randomUUID(),
+      workspaceId,
+      invitedById: currentUserId,
+      invitedUserId: dto.invitedUserId,
+      invitedEmail: null,
+      status: InvitationStatus.PENDING,
+      tokenHash: null,
+      expiresAt: null,
+      respondedAt: null,
+      createdAt: new Date(),
+    });
+
+    const savedInvitation =
+      await invitationRepository.save(invitation);
+
+    return WorkspaceInvitationMapper.toResponse(
+      savedInvitation,
+    );
+  }
+
+
+  async acceptInvitation(
+    workspaceId: string,
+    invitationId: string,
+    currentUserId: string,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      const workspaceRepository =
+        manager.getRepository(Workspace);
+
+      const invitationRepository =
+        manager.getRepository(WorkspaceInvitation);
+
+      const membershipRepository =
+        manager.getRepository(WorkspaceMembership);
+
+      const workspace = await workspaceRepository.findOne({
+        where: {
+          id: workspaceId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (!workspace) {
+        throw new NotFoundException('Workspace not found');
+      }
+
+      const invitation = await invitationRepository.findOne({
+        where: {
+          id: invitationId,
+          workspaceId,
+        },
+      });
+
+      if (!invitation) {
+        throw new NotFoundException('Invitation not found');
+      }
+
+      if (invitation.invitedUserId !== currentUserId) {
+        throw new ForbiddenException();
+      }
+
+      if (invitation.status !== InvitationStatus.PENDING) {
+        throw new ConflictException(
+          'Invitation is no longer pending',
+        );
+      }
+
+      const existingMembership =
+        await membershipRepository.findOne({
+          where: {
+            workspaceId,
+            userId: currentUserId,
+          },
+        });
+
+      if (existingMembership) {
+        throw new ConflictException(
+          'User is already a workspace member',
+        );
+      }
+
+      const now = new Date();
+
+      const membership = membershipRepository.create({
+        id: randomUUID(),
+        workspaceId,
+        userId: currentUserId,
+        joinedAt: now,
+      });
+
+      await membershipRepository.save(membership);
+
+      invitation.status = InvitationStatus.ACCEPTED;
+      invitation.respondedAt = now;
+
+      const savedInvitation =
+        await invitationRepository.save(invitation);
+
+      return WorkspaceInvitationMapper.toResponse(
+        savedInvitation,
+      );
+    });
+  }
+
+
+  async rejectInvitation(
+    workspaceId: string,
+    invitationId: string,
+    currentUserId: string,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    const workspaceRepository =
+      this.dataSource.getRepository(Workspace);
+
+    const workspace = await workspaceRepository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const invitationRepository =
+      this.dataSource.getRepository(WorkspaceInvitation);
+
+    const invitation = await invitationRepository.findOne({
+      where: {
+        id: invitationId,
+        workspaceId,
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.invitedUserId !== currentUserId) {
+      throw new ForbiddenException();
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new ConflictException(
+        'Invitation is no longer pending',
+      );
+    }
+
+    invitation.status = InvitationStatus.REJECTED;
+    invitation.respondedAt = new Date();
+
+    const savedInvitation =
+      await invitationRepository.save(invitation);
+
+    return WorkspaceInvitationMapper.toResponse(
+      savedInvitation,
+    );
+  }
+
+
+  async cancelInvitation(
+    workspaceId: string,
+    invitationId: string,
+    currentUserId: string,
+  ): Promise<WorkspaceInvitationResponseDto> {
+    const workspaceRepository =
+      this.dataSource.getRepository(Workspace);
+
+    const workspace = await workspaceRepository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== currentUserId) {
+      throw new ForbiddenException();
+    }
+
+    const invitationRepository =
+      this.dataSource.getRepository(WorkspaceInvitation);
+
+    const invitation = await invitationRepository.findOne({
+      where: {
+        id: invitationId,
+        workspaceId,
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new ConflictException(
+        'Invitation is no longer pending',
+      );
+    }
+
+    invitation.status = InvitationStatus.CANCELLED;
+    invitation.respondedAt = new Date();
+
+    const savedInvitation =
+      await invitationRepository.save(invitation);
+
+    return WorkspaceInvitationMapper.toResponse(
+      savedInvitation,
+    );
   }
 
 }
