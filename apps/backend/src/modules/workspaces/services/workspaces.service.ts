@@ -161,4 +161,92 @@ export class WorkspacesService {
 
     return WorkspaceMapper.toResponse(savedWorkspace);
   }
+
+  async archive(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceResponseDto> {
+    const repository = this.dataSource.getRepository(Workspace);
+
+    const workspace = await repository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+
+    workspace.archivedAt = new Date();
+    workspace.updatedAt = new Date();
+
+    const savedWorkspace = await repository.save(workspace);
+
+    return WorkspaceMapper.toResponse(savedWorkspace);
+  }
+
+
+  async unarchive(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceResponseDto> {
+    const repository = this.dataSource.getRepository(Workspace);
+
+    const workspace = await repository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+
+    workspace.archivedAt = null;
+    workspace.updatedAt = new Date();
+
+    const savedWorkspace = await repository.save(workspace);
+
+    return WorkspaceMapper.toResponse(savedWorkspace);
+  }
+
+
+  async softDelete(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    const repository = this.dataSource.getRepository(Workspace);
+
+    const workspace = await repository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+
+    workspace.deletedAt = new Date();
+    workspace.updatedAt = new Date();
+
+    await repository.save(workspace);
+  }
+
 }

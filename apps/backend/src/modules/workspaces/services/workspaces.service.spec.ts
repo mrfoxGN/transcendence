@@ -385,3 +385,212 @@ describe('WorkspacesService update', () => {
     expect(repository.save).not.toHaveBeenCalled();
   });
 });
+
+
+describe('WorkspacesService archive/unarchive/delete', () => {
+  const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
+  const otherUserId = '2897c53b-478a-414d-b332-ae6db9d6d6da';
+  const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
+
+  function makeWorkspace(): Workspace {
+    return {
+      id: workspaceId,
+      ownerId,
+      name: 'Transcendence Workspace',
+      description: 'Workspace description',
+      createdAt: new Date('2026-09-26T13:00:00Z'),
+      updatedAt: new Date('2026-09-26T13:00:00Z'),
+      archivedAt: null,
+      deletedAt: null,
+    } as Workspace;
+  }
+
+  it('allows the owner to archive a workspace', async () => {
+    const workspace = makeWorkspace();
+
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(workspace),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    const response = await service.archive(
+      workspaceId,
+      ownerId,
+    );
+
+    expect(workspace.archivedAt).toBeInstanceOf(Date);
+    expect(workspace.updatedAt).toBeInstanceOf(Date);
+    expect(repository.save).toHaveBeenCalledWith(workspace);
+    expect(response.archivedAt).toBeInstanceOf(Date);
+  });
+
+  it('returns 404 when archiving a missing workspace', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.archive(workspaceId, ownerId),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when a non-owner tries to archive', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.archive(workspaceId, otherUserId),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('allows the owner to unarchive a workspace', async () => {
+    const workspace = makeWorkspace();
+    workspace.archivedAt = new Date('2026-09-30T13:00:00Z');
+
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(workspace),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    const response = await service.unarchive(
+      workspaceId,
+      ownerId,
+    );
+
+    expect(workspace.archivedAt).toBeNull();
+    expect(repository.save).toHaveBeenCalledWith(workspace);
+    expect(response.archivedAt).toBeNull();
+  });
+
+  it('returns 404 when unarchiving a missing workspace', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.unarchive(workspaceId, ownerId),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('returns 403 when a non-owner tries to unarchive', async () => {
+    const workspace = makeWorkspace();
+    workspace.archivedAt = new Date();
+
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(workspace),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.unarchive(workspaceId, otherUserId),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('soft deletes a workspace without removing the row', async () => {
+    const workspace = makeWorkspace();
+
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(workspace),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await service.softDelete(
+      workspaceId,
+      ownerId,
+    );
+
+    expect(workspace.deletedAt).toBeInstanceOf(Date);
+    expect(workspace.updatedAt).toBeInstanceOf(Date);
+    expect(repository.save).toHaveBeenCalledWith(workspace);
+  });
+
+  it('returns 404 when deleting a missing workspace', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.softDelete(workspaceId, ownerId),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when a non-owner tries to delete', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+      save: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(repository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.softDelete(workspaceId, otherUserId),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+});

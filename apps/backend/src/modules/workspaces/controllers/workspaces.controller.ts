@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -59,6 +60,39 @@ export class WorkspacesController {
       id,
       request.user.id,
       dto,
+    );
+  }
+
+  @Patch(':id/archive')
+  archiveWorkspace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceResponseDto> {
+    return this.workspacesService.archive(
+      id,
+      request.user.id,
+    );
+  }
+
+  @Patch(':id/unarchive')
+  unarchiveWorkspace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceResponseDto> {
+    return this.workspacesService.unarchive(
+      id,
+      request.user.id,
+    );
+  }
+
+  @Delete(':id')
+  deleteWorkspace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.workspacesService.softDelete(
+      id,
+      request.user.id,
     );
   }
 

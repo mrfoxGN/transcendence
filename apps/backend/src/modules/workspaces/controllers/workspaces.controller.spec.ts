@@ -53,6 +53,9 @@ describe('Workspaces endpoints', () => {
     findAllForUser: jest.fn(),
     findOneForUser: jest.fn(),
     update: jest.fn(),
+    archive: jest.fn(),
+    unarchive: jest.fn(),
+    softDelete: jest.fn(),
   };
 
   let app: INestApplication;
@@ -107,6 +110,15 @@ describe('Workspaces endpoints', () => {
     workspacesService.findAllForUser.mockResolvedValue([workspace]);
     workspacesService.findOneForUser.mockResolvedValue(workspace);
     workspacesService.update.mockResolvedValue(workspace);
+    workspacesService.archive.mockResolvedValue({
+      ...workspace,
+      archivedAt: new Date('2026-09-30T13:00:00Z'),
+    });
+    workspacesService.unarchive.mockResolvedValue({
+      ...workspace,
+      archivedAt: null,
+    });
+    workspacesService.softDelete.mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -406,6 +418,164 @@ describe('Workspaces endpoints', () => {
       .send({
         name: 'Unauthorized Update',
       })
+      .expect(403);
+  });
+
+
+  it('PATCH /workspaces/:id/archive requires authentication', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/archive`)
+      .expect(401);
+
+    expect(workspacesService.archive).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /workspaces/:id/archive archives a workspace', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/archive`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.archive).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(response.body.archivedAt).not.toBeNull();
+  });
+
+  it('PATCH /workspaces/:id/archive rejects an invalid UUID', async () => {
+    await request(app.getHttpServer())
+      .patch('/workspaces/not-a-uuid/archive')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.archive).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /workspaces/:id/archive returns 404 when workspace does not exist', async () => {
+    workspacesService.archive.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/archive`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('PATCH /workspaces/:id/archive returns 403 for a non-owner', async () => {
+    workspacesService.archive.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/archive`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('PATCH /workspaces/:id/unarchive requires authentication', async () => {
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/unarchive`)
+      .expect(401);
+
+    expect(workspacesService.unarchive).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /workspaces/:id/unarchive unarchives a workspace', async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/unarchive`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.unarchive).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(response.body.archivedAt).toBeNull();
+  });
+
+  it('PATCH /workspaces/:id/unarchive rejects an invalid UUID', async () => {
+    await request(app.getHttpServer())
+      .patch('/workspaces/not-a-uuid/unarchive')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.unarchive).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /workspaces/:id/unarchive returns 404 when workspace does not exist', async () => {
+    workspacesService.unarchive.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/unarchive`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('PATCH /workspaces/:id/unarchive returns 403 for a non-owner', async () => {
+    workspacesService.unarchive.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/workspaces/${workspaceId}/unarchive`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('DELETE /workspaces/:id requires authentication', async () => {
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}`)
+      .expect(401);
+
+    expect(workspacesService.softDelete).not.toHaveBeenCalled();
+  });
+
+  it('DELETE /workspaces/:id soft deletes a workspace', async () => {
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.softDelete).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+  });
+
+  it('DELETE /workspaces/:id rejects an invalid UUID', async () => {
+    await request(app.getHttpServer())
+      .delete('/workspaces/not-a-uuid')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.softDelete).not.toHaveBeenCalled();
+  });
+
+  it('DELETE /workspaces/:id returns 404 when workspace does not exist', async () => {
+    workspacesService.softDelete.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('DELETE /workspaces/:id returns 403 for a non-owner', async () => {
+    workspacesService.softDelete.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
