@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
+import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
 import { WorkspacesService } from '../services/workspaces.service';
 
@@ -35,6 +36,17 @@ export class WorkspacesController {
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto[]> {
     return this.workspacesService.findAllForUser(
+      request.user.id,
+    );
+  }
+
+  @Get(':id/members')
+  getWorkspaceMembers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceMemberResponseDto[]> {
+    return this.workspacesService.findMembers(
+      id,
       request.user.id,
     );
   }
@@ -82,6 +94,19 @@ export class WorkspacesController {
     return this.workspacesService.unarchive(
       id,
       request.user.id,
+    );
+  }
+
+  @Delete(':id/members/:userId')
+  removeWorkspaceMember(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.workspacesService.removeMember(
+      id,
+      request.user.id,
+      userId,
     );
   }
 

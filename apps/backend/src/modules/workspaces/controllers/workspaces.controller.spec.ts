@@ -52,6 +52,8 @@ describe('Workspaces endpoints', () => {
     create: jest.fn(),
     findAllForUser: jest.fn(),
     findOneForUser: jest.fn(),
+    findMembers: jest.fn(),
+    removeMember: jest.fn(),
     update: jest.fn(),
     archive: jest.fn(),
     unarchive: jest.fn(),
@@ -109,6 +111,17 @@ describe('Workspaces endpoints', () => {
     workspacesService.create.mockResolvedValue(workspace);
     workspacesService.findAllForUser.mockResolvedValue([workspace]);
     workspacesService.findOneForUser.mockResolvedValue(workspace);
+    workspacesService.findMembers.mockResolvedValue([
+      {
+        membershipId: '12499996-b915-4109-8061-749d82dd5ab0',
+        userId,
+        username: 'anass',
+        avatarUrl: null,
+        joinedAt: new Date('2026-09-26T13:31:56.955Z'),
+        isOwner: true,
+      },
+    ]);
+    workspacesService.removeMember.mockResolvedValue(undefined);
     workspacesService.update.mockResolvedValue(workspace);
     workspacesService.archive.mockResolvedValue({
       ...workspace,
@@ -577,6 +590,154 @@ describe('Workspaces endpoints', () => {
       .delete(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
+  });
+
+
+  it('GET /workspaces/:id/members requires authentication', async () => {
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/members`)
+      .expect(401);
+
+    expect(workspacesService.findMembers).not.toHaveBeenCalled();
+  });
+
+  it('GET /workspaces/:id/members returns workspace members', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/members`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.findMembers).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(response.body).toHaveLength(1);
+
+    expect(response.body[0]).toMatchObject({
+      membershipId: '12499996-b915-4109-8061-749d82dd5ab0',
+      userId,
+      username: 'anass',
+      avatarUrl: null,
+      isOwner: true,
+    });
+
+    expect(response.body[0]).not.toHaveProperty('email');
+    expect(response.body[0]).not.toHaveProperty('passwordHash');
+  });
+
+  it('GET /workspaces/:id/members rejects an invalid UUID', async () => {
+    await request(app.getHttpServer())
+      .get('/workspaces/not-a-uuid/members')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.findMembers).not.toHaveBeenCalled();
+  });
+
+  it('GET /workspaces/:id/members returns 404 when workspace does not exist', async () => {
+    workspacesService.findMembers.mockRejectedValue(
+      new NotFoundException('Workspace not found'),
+    );
+
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/members`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it('GET /workspaces/:id/members returns 403 for a non-member', async () => {
+    workspacesService.findMembers.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .get(`/workspaces/${workspaceId}/members`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+
+  it('DELETE /workspaces/:id/members/:userId requires authentication', async () => {
+    const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/${memberId}`)
+      .expect(401);
+
+    expect(workspacesService.removeMember).not.toHaveBeenCalled();
+  });
+
+  it('DELETE /workspaces/:id/members/:userId removes a member', async () => {
+    const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/${memberId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(workspacesService.removeMember).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      memberId,
+    );
+  });
+
+  it('DELETE member rejects an invalid workspace UUID', async () => {
+    const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/not-a-uuid/members/${memberId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.removeMember).not.toHaveBeenCalled();
+  });
+
+  it('DELETE member rejects an invalid member UUID', async () => {
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/not-a-uuid`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    expect(workspacesService.removeMember).not.toHaveBeenCalled();
+  });
+
+  it('DELETE member returns 403 when current user is not allowed', async () => {
+    const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+
+    workspacesService.removeMember.mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/${memberId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('DELETE member rejects removing the workspace owner', async () => {
+    workspacesService.removeMember.mockRejectedValue(
+      new BadRequestException('Workspace owner cannot be removed'),
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/${userId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it('DELETE member returns 404 when target membership does not exist', async () => {
+    const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+
+    workspacesService.removeMember.mockRejectedValue(
+      new NotFoundException('Workspace member not found'),
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/workspaces/${workspaceId}/members/${memberId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
   });
 
 });

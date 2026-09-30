@@ -594,3 +594,312 @@ describe('WorkspacesService archive/unarchive/delete', () => {
     expect(repository.save).not.toHaveBeenCalled();
   });
 });
+
+
+describe('WorkspacesService members', () => {
+  const userId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
+  const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
+
+  it('returns the members of a workspace', async () => {
+    const membershipRepository = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: '12499996-b915-4109-8061-749d82dd5ab0',
+          workspaceId,
+          userId,
+          joinedAt: new Date('2026-09-26T13:31:56.955Z'),
+          user: {
+            id: userId,
+            username: 'anass_test',
+            avatarUrl: null,
+          },
+        },
+      ]),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(membershipRepository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    jest.spyOn(service, 'findOneForUser').mockResolvedValue({
+      id: workspaceId,
+      ownerId: userId,
+      name: 'Transcendence Workspace',
+      description: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      archivedAt: null,
+    });
+
+    const result = await service.findMembers(
+      workspaceId,
+      userId,
+    );
+
+    expect(service.findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(membershipRepository.find).toHaveBeenCalledWith({
+      where: {
+        workspaceId,
+      },
+      relations: {
+        user: true,
+      },
+      order: {
+        joinedAt: 'ASC',
+      },
+    });
+
+    expect(result).toEqual([
+      {
+        membershipId: '12499996-b915-4109-8061-749d82dd5ab0',
+        userId,
+        username: 'anass_test',
+        avatarUrl: null,
+        joinedAt: new Date('2026-09-26T13:31:56.955Z'),
+        isOwner: true,
+      },
+    ]);
+
+    expect(result[0]).not.toHaveProperty('email');
+    expect(result[0]).not.toHaveProperty('passwordHash');
+  });
+
+  it('marks non-owner members with isOwner false', async () => {
+    const ownerId = '2897c53b-478a-414d-b332-ae6db9d6d6da';
+
+    const membershipRepository = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: 'membership-id',
+          workspaceId,
+          userId,
+          joinedAt: new Date(),
+          user: {
+            id: userId,
+            username: 'member',
+            avatarUrl: null,
+          },
+        },
+      ]),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(membershipRepository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    jest.spyOn(service, 'findOneForUser').mockResolvedValue({
+      id: workspaceId,
+      ownerId,
+      name: 'Workspace',
+      description: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      archivedAt: null,
+    });
+
+    const result = await service.findMembers(
+      workspaceId,
+      userId,
+    );
+
+    expect(result[0].isOwner).toBe(false);
+  });
+
+  it('does not load memberships when workspace access is rejected', async () => {
+    const membershipRepository = {
+      find: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(membershipRepository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    jest.spyOn(service, 'findOneForUser').mockRejectedValue(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.findMembers(workspaceId, userId),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(membershipRepository.find).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('WorkspacesService removeMember', () => {
+  const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
+  const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+  const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
+
+  function makeWorkspace(): Workspace {
+    return {
+      id: workspaceId,
+      ownerId,
+      name: 'Transcendence Workspace',
+      description: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      archivedAt: null,
+      deletedAt: null,
+    } as Workspace;
+  }
+
+  it('allows the owner to remove another member', async () => {
+    const membership = {
+      id: 'membership-id',
+      workspaceId,
+      userId: memberId,
+      joinedAt: new Date(),
+    };
+
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const membershipRepository = {
+      findOne: jest.fn().mockResolvedValue(membership),
+      remove: jest.fn().mockResolvedValue(membership),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn((entity) => {
+        if (entity === Workspace) {
+          return workspaceRepository;
+        }
+
+        if (entity === WorkspaceMembership) {
+          return membershipRepository;
+        }
+
+        throw new Error('Unexpected repository');
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await service.removeMember(
+      workspaceId,
+      ownerId,
+      memberId,
+    );
+
+    expect(membershipRepository.findOne).toHaveBeenCalledWith({
+      where: {
+        workspaceId,
+        userId: memberId,
+      },
+    });
+
+    expect(membershipRepository.remove).toHaveBeenCalledWith(
+      membership,
+    );
+  });
+
+  it('returns 404 when workspace does not exist', async () => {
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(workspaceRepository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.removeMember(
+        workspaceId,
+        ownerId,
+        memberId,
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('returns 403 when current user is not the owner', async () => {
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(workspaceRepository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.removeMember(
+        workspaceId,
+        memberId,
+        ownerId,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('rejects removing the workspace owner', async () => {
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue(workspaceRepository),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.removeMember(
+        workspaceId,
+        ownerId,
+        ownerId,
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('returns 404 when target user is not a member', async () => {
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const membershipRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      remove: jest.fn(),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn((entity) => {
+        if (entity === Workspace) {
+          return workspaceRepository;
+        }
+
+        if (entity === WorkspaceMembership) {
+          return membershipRepository;
+        }
+
+        throw new Error('Unexpected repository');
+      }),
+    } as unknown as DataSource;
+
+    const service = new WorkspacesService(dataSource);
+
+    await expect(
+      service.removeMember(
+        workspaceId,
+        ownerId,
+        memberId,
+      ),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(membershipRepository.remove).not.toHaveBeenCalled();
+  });
+});

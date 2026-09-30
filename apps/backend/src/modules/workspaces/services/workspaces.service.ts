@@ -9,6 +9,7 @@ import { DataSource, IsNull } from 'typeorm';
 
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
+import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
 import { WorkspaceResponseDto } from '../dto/workspace-response.dto';
 import { WorkspaceKanbanSetting } from '../entities/workspace-kanban-setting.entity';
 import { WorkspaceMembership } from '../entities/workspace-membership.entity';
@@ -247,6 +248,87 @@ export class WorkspacesService {
     workspace.updatedAt = new Date();
 
     await repository.save(workspace);
+  }
+
+
+  async findMembers(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceMemberResponseDto[]> {
+    const workspace = await this.findOneForUser(
+      workspaceId,
+      userId,
+    );
+
+    const memberships = await this.dataSource
+      .getRepository(WorkspaceMembership)
+      .find({
+        where: {
+          workspaceId,
+        },
+        relations: {
+          user: true,
+        },
+        order: {
+          joinedAt: 'ASC',
+        },
+      });
+
+    return memberships.map((membership) => ({
+      membershipId: membership.id,
+      userId: membership.userId,
+      username: membership.user.username,
+      avatarUrl: membership.user.avatarUrl,
+      joinedAt: membership.joinedAt,
+      isOwner: membership.userId === workspace.ownerId,
+    }));
+  }
+
+
+  async removeMember(
+    workspaceId: string,
+    currentUserId: string,
+    memberUserId: string,
+  ): Promise<void> {
+    const workspaceRepository =
+      this.dataSource.getRepository(Workspace);
+
+    const workspace = await workspaceRepository.findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== currentUserId) {
+      throw new ForbiddenException();
+    }
+
+    if (workspace.ownerId === memberUserId) {
+      throw new BadRequestException(
+        'Workspace owner cannot be removed',
+      );
+    }
+
+    const membershipRepository =
+      this.dataSource.getRepository(WorkspaceMembership);
+
+    const membership = await membershipRepository.findOne({
+      where: {
+        workspaceId,
+        userId: memberUserId,
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    await membershipRepository.remove(membership);
   }
 
 }
