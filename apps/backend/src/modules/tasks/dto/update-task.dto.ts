@@ -1,9 +1,12 @@
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   Length,
+  Min,
+  ValidateIf,
 } from 'class-validator';
 
 import { TaskPriority } from '../../../database/enums/database.enums';
@@ -29,4 +32,9 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsDateString()
   dueAt?: string | null;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  position?: number;
 }

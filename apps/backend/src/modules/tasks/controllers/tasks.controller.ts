@@ -26,6 +26,9 @@ import { TaskResponseDto } from '../dto/task-response.dto';
 import { TransitionTaskDto } from '../dto/transition-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { TasksService } from '../services/tasks.service';
+import { CreateTaskDependencyDto } from '../dto/create-task-dependency.dto';
+import { TaskDependencyResponseDto } from '../dto/task-dependency-response.dto';
+import { BlockTaskDto } from '../dto/block-task.dto';
 
 type AuthenticatedRequest = Request & {
   user: UserResponseDto;
@@ -121,11 +124,7 @@ export class TasksController {
     @Body() dto: CreateTaskCommentDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<TaskCommentResponseDto> {
-    return this.tasksService.addComment(
-      taskId,
-      request.user.id,
-      dto,
-    );
+    return this.tasksService.addComment(taskId, request.user.id, dto);
   }
 
   @Get('tasks/:id/comments')
@@ -133,10 +132,7 @@ export class TasksController {
     @Param('id', ParseUUIDPipe) taskId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<TaskCommentResponseDto[]> {
-    return this.tasksService.listComments(
-      taskId,
-      request.user.id,
-    );
+    return this.tasksService.listComments(taskId, request.user.id);
   }
 
   @Patch('tasks/:taskId/comments/:commentId')
@@ -161,10 +157,55 @@ export class TasksController {
     @Param('commentId', ParseUUIDPipe) commentId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
-    return this.tasksService.removeComment(
+    return this.tasksService.removeComment(taskId, commentId, request.user.id);
+  }
+  @Post('tasks/:id/dependencies')
+  addDependency(
+    @Param('id', ParseUUIDPipe) taskId: string,
+    @Body() dto: CreateTaskDependencyDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TaskDependencyResponseDto> {
+    return this.tasksService.addDependency(taskId, request.user.id, dto);
+  }
+
+  @Get('tasks/:id/dependencies')
+  listDependencies(
+    @Param('id', ParseUUIDPipe) taskId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TaskDependencyResponseDto[]> {
+    return this.tasksService.listDependencies(taskId, request.user.id);
+  }
+
+  @Delete('tasks/:id/dependencies/:dependencyId')
+  @HttpCode(204)
+  removeDependency(
+    @Param('id', ParseUUIDPipe) taskId: string,
+    @Param('dependencyId', ParseUUIDPipe) dependencyId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.tasksService.removeDependency(
       taskId,
-      commentId,
       request.user.id,
+      dependencyId,
     );
+  }
+
+  @Post('tasks/:id/block')
+  @HttpCode(200)
+  block(
+    @Param('id', ParseUUIDPipe) taskId: string,
+    @Body() dto: BlockTaskDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TaskResponseDto> {
+    return this.tasksService.block(taskId, request.user.id, dto);
+  }
+
+  @Delete('tasks/:id/block')
+  @HttpCode(200)
+  unblock(
+    @Param('id', ParseUUIDPipe) taskId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TaskResponseDto> {
+    return this.tasksService.unblock(taskId, request.user.id);
   }
 }
