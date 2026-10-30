@@ -7,6 +7,7 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 
 import { InvitationStatus } from '../../../database/enums/database.enums';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 
 import { WorkspaceInvitation } from '../entities/workspace-invitation.entity';
@@ -815,6 +816,7 @@ describe('WorkspacesService removeMember', () => {
     );
   });
 
+
   it('returns 404 when workspace does not exist', async () => {
     const workspaceRepository = {
       findOne: jest.fn().mockResolvedValue(null),
@@ -972,9 +974,16 @@ describe('WorkspacesService createInvitation', () => {
       }),
     } as unknown as UsersService;
 
+    const notificationsService = {
+      createForUser: jest.fn().mockResolvedValue({
+        id: 'notification-id',
+      }),
+    } as unknown as NotificationsService;
+
     const service = new WorkspacesService(
       dataSource,
       usersService,
+      notificationsService,
     );
 
     const response = await service.createInvitation(
@@ -1017,10 +1026,112 @@ describe('WorkspacesService createInvitation', () => {
       }),
     );
 
+    expect(
+      notificationsService.createForUser,
+    ).toHaveBeenCalledWith({
+      userId: invitedUserId,
+      workspaceId,
+      type: 'WORKSPACE_INVITATION',
+      message: 'You were invited to Transcendence Workspace',
+      relatedResourceType: 'workspace_invitation',
+      relatedResourceId: expect.any(String),
+      payload: {
+        invitedById: ownerId,
+      },
+    });
+
     expect(response.status).toBe(InvitationStatus.PENDING);
     expect(response.invitedUserId).toBe(invitedUserId);
     expect(response.invitedById).toBe(ownerId);
     expect(response).not.toHaveProperty('tokenHash');
+  });
+
+  it('still creates the invitation when notification creation fails', async () => {
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const membershipRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+
+    const invitationRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((data) => data),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const dataSource = {
+      getRepository: jest.fn((entity) => {
+        if (entity === Workspace) {
+          return workspaceRepository;
+        }
+
+        if (entity === WorkspaceMembership) {
+          return membershipRepository;
+        }
+
+        if (entity === WorkspaceInvitation) {
+          return invitationRepository;
+        }
+
+        throw new Error('Unexpected repository');
+      }),
+    } as unknown as DataSource;
+
+    const usersService = {
+      findById: jest.fn().mockResolvedValue({
+        id: invitedUserId,
+        username: 'outsider_test',
+      }),
+    } as unknown as UsersService;
+
+    const notificationsService = {
+      createForUser: jest.fn().mockRejectedValue(
+        new Error('Notification unavailable'),
+      ),
+    } as unknown as NotificationsService;
+
+    const service = new WorkspacesService(
+      dataSource,
+      usersService,
+      notificationsService,
+    );
+
+    jest
+      .spyOn(
+        (service as unknown as {
+          logger: {
+            error: (...args: unknown[]) => void;
+          };
+        }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+
+    const response = await service.createInvitation(
+      workspaceId,
+      ownerId,
+      {
+        invitedUserId,
+      },
+    );
+
+    expect(
+      invitationRepository.save,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(
+      notificationsService.createForUser,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(response.status).toBe(
+      InvitationStatus.PENDING,
+    );
+
+    expect(response.invitedUserId).toBe(
+      invitedUserId,
+    );
   });
 
   it('returns 404 when workspace does not exist', async () => {
