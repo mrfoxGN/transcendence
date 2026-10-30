@@ -3,12 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { InvitationStatus } from '../../../database/enums/database.enums';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
@@ -28,9 +30,12 @@ import { WorkspaceKanbanSettingsMapper } from '../mappers/workspace-kanban-setti
 import { UpdateWorkspaceKanbanSettingsDto } from '../dto/update-workspace-kanban-settings.dto';
 @Injectable()
 export class WorkspacesService {
+  private readonly logger = new Logger(WorkspacesService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -426,6 +431,25 @@ export class WorkspacesService {
 
     const savedInvitation =
       await invitationRepository.save(invitation);
+
+    try {
+      await this.notificationsService.createForUser({
+        userId: dto.invitedUserId,
+        workspaceId,
+        type: 'WORKSPACE_INVITATION',
+        message: `You were invited to ${workspace.name}`,
+        relatedResourceType: 'workspace_invitation',
+        relatedResourceId: savedInvitation.id,
+        payload: {
+          invitedById: currentUserId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create workspace invitation notification for user ${dto.invitedUserId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
 
     return WorkspaceInvitationMapper.toResponse(
       savedInvitation,
