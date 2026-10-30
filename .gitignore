@@ -62,3 +62,6 @@ docker-compose.override.yml
 # TypeScript
 # ============================================================
 *.tsbuildinfo
+
+# Backend file storage
+/apps/backend/storage/

@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { IsNull, QueryFailedError, Repository } from 'typeorm';
 
 import { UserStatus } from '../../../database/enums/database.enums';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { DirectConversationResponseDto } from '../dto/direct-conversation-response.dto';
 import { DirectMessageResponseDto } from '../dto/direct-message-response.dto';
@@ -29,6 +30,7 @@ export class SocialService {
     private readonly messagesRepository: Repository<DirectMessage>,
     private readonly usersService: UsersService,
     private readonly directChatGateway: DirectChatGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async openConversation(
@@ -224,6 +226,31 @@ export class SocialService {
     } catch (error) {
       this.logger.error(
         'Could not notify chat clients',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+
+    const recipientId =
+      result.userAId === senderId
+        ? result.userBId
+        : result.userAId;
+
+    try {
+      await this.notificationsService.createForUser({
+        userId: recipientId,
+        workspaceId: null,
+        type: 'DIRECT_MESSAGE',
+        message: 'You received a new direct message',
+        relatedResourceType: 'direct_conversation',
+        relatedResourceId: conversationId,
+        payload: {
+          senderId,
+          messageId: result.message.id,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create direct message notification for user ${recipientId}`,
         error instanceof Error ? error.stack : String(error),
       );
     }
