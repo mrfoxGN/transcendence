@@ -3,12 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { InvitationStatus } from '../../../database/enums/database.enums';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
@@ -28,9 +30,12 @@ import { WorkspaceKanbanSettingsMapper } from '../mappers/workspace-kanban-setti
 import { UpdateWorkspaceKanbanSettingsDto } from '../dto/update-workspace-kanban-settings.dto';
 @Injectable()
 export class WorkspacesService {
+  private readonly logger = new Logger(WorkspacesService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -438,83 +443,116 @@ export class WorkspacesService {
     invitationId: string,
     currentUserId: string,
   ): Promise<WorkspaceInvitationResponseDto> {
-    return this.dataSource.transaction(async (manager) => {
-      const workspaceRepository =
-        manager.getRepository(Workspace);
+    const result = await this.dataSource.transaction(
+      async (manager) => {
+        const workspaceRepository =
+          manager.getRepository(Workspace);
 
-      const invitationRepository =
-        manager.getRepository(WorkspaceInvitation);
+        const invitationRepository =
+          manager.getRepository(WorkspaceInvitation);
 
-      const membershipRepository =
-        manager.getRepository(WorkspaceMembership);
+        const membershipRepository =
+          manager.getRepository(WorkspaceMembership);
 
-      const workspace = await workspaceRepository.findOne({
-        where: {
-          id: workspaceId,
-          deletedAt: IsNull(),
-        },
-      });
-
-      if (!workspace) {
-        throw new NotFoundException('Workspace not found');
-      }
-
-      const invitation = await invitationRepository.findOne({
-        where: {
-          id: invitationId,
-          workspaceId,
-        },
-      });
-
-      if (!invitation) {
-        throw new NotFoundException('Invitation not found');
-      }
-
-      if (invitation.invitedUserId !== currentUserId) {
-        throw new ForbiddenException();
-      }
-
-      if (invitation.status !== InvitationStatus.PENDING) {
-        throw new ConflictException(
-          'Invitation is no longer pending',
-        );
-      }
-
-      const existingMembership =
-        await membershipRepository.findOne({
+        const workspace = await workspaceRepository.findOne({
           where: {
-            workspaceId,
-            userId: currentUserId,
+            id: workspaceId,
+            deletedAt: IsNull(),
           },
         });
 
-      if (existingMembership) {
-        throw new ConflictException(
-          'User is already a workspace member',
+        if (!workspace) {
+          throw new NotFoundException('Workspace not found');
+        }
+
+        const invitation = await invitationRepository.findOne({
+          where: {
+            id: invitationId,
+            workspaceId,
+          },
+        });
+
+        if (!invitation) {
+          throw new NotFoundException('Invitation not found');
+        }
+
+        if (invitation.invitedUserId !== currentUserId) {
+          throw new ForbiddenException();
+        }
+
+        if (invitation.status !== InvitationStatus.PENDING) {
+          throw new ConflictException(
+            'Invitation is no longer pending',
+          );
+        }
+
+        const existingMembership =
+          await membershipRepository.findOne({
+            where: {
+              workspaceId,
+              userId: currentUserId,
+            },
+          });
+
+        if (existingMembership) {
+          throw new ConflictException(
+            'User is already a workspace member',
+          );
+        }
+
+        const now = new Date();
+
+        const membership = membershipRepository.create({
+          id: randomUUID(),
+          workspaceId,
+          userId: currentUserId,
+          joinedAt: now,
+        });
+
+        await membershipRepository.save(membership);
+
+        invitation.status = InvitationStatus.ACCEPTED;
+        invitation.respondedAt = now;
+
+        const savedInvitation =
+          await invitationRepository.save(invitation);
+
+        return {
+          response:
+            WorkspaceInvitationMapper.toResponse(
+              savedInvitation,
+            ),
+          invitedById: invitation.invitedById,
+          workspaceName: workspace.name,
+        };
+      },
+    );
+
+    if (result.invitedById) {
+      try {
+        await this.notificationsService.createForUser({
+          userId: result.invitedById,
+          workspaceId,
+          type: 'WORKSPACE_INVITATION_ACCEPTED',
+          message:
+            `Your invitation to ${result.workspaceName} was accepted`,
+          relatedResourceType: 'workspace_invitation',
+          relatedResourceId: invitationId,
+          payload: {
+            acceptedById: currentUserId,
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to create invitation accepted notification for user ${result.invitedById}`,
+          error instanceof Error
+            ? error.stack
+            : String(error),
         );
       }
+    }
 
-      const now = new Date();
-
-      const membership = membershipRepository.create({
-        id: randomUUID(),
-        workspaceId,
-        userId: currentUserId,
-        joinedAt: now,
-      });
-
-      await membershipRepository.save(membership);
-
-      invitation.status = InvitationStatus.ACCEPTED;
-      invitation.respondedAt = now;
-
-      const savedInvitation =
-        await invitationRepository.save(invitation);
-
-      return WorkspaceInvitationMapper.toResponse(
-        savedInvitation,
-      );
-    });
+    return result.response;
   }
 
 
