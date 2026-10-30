@@ -1433,9 +1433,16 @@ describe('WorkspacesService acceptInvitation', () => {
 
     const usersService = {} as UsersService;
 
+    const notificationsService = {
+      createForUser: jest.fn().mockResolvedValue({
+        id: 'notification-id',
+      }),
+    } as unknown as NotificationsService;
+
     const service = new WorkspacesService(
       dataSource,
       usersService,
+      notificationsService,
     );
 
     const response = await service.acceptInvitation(
@@ -1470,7 +1477,109 @@ describe('WorkspacesService acceptInvitation', () => {
     );
 
     expect(response.respondedAt).toBeInstanceOf(Date);
+
+    expect(
+      notificationsService.createForUser,
+    ).toHaveBeenCalledWith({
+      userId: ownerId,
+      workspaceId,
+      type: 'WORKSPACE_INVITATION_ACCEPTED',
+      message:
+        'Your invitation to Transcendence Workspace was accepted',
+      relatedResourceType: 'workspace_invitation',
+      relatedResourceId: invitationId,
+      payload: {
+        acceptedById: invitedUserId,
+      },
+    });
   });
+
+  it('still accepts the invitation when notification creation fails', async () => {
+    const invitation = makeInvitation();
+
+    const workspaceRepository = {
+      findOne: jest.fn().mockResolvedValue(makeWorkspace()),
+    };
+
+    const invitationRepository = {
+      findOne: jest.fn().mockResolvedValue(invitation),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const membershipRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((data) => data),
+      save: jest.fn().mockImplementation(async (entity) => entity),
+    };
+
+    const manager = {
+      getRepository: jest.fn((entity) => {
+        if (entity === Workspace) {
+          return workspaceRepository;
+        }
+
+        if (entity === WorkspaceInvitation) {
+          return invitationRepository;
+        }
+
+        if (entity === WorkspaceMembership) {
+          return membershipRepository;
+        }
+
+        throw new Error('Unexpected repository');
+      }),
+    };
+
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback) => callback(manager),
+      ),
+    } as unknown as DataSource;
+
+    const notificationsService = {
+      createForUser: jest.fn().mockRejectedValue(
+        new Error('Notification unavailable'),
+      ),
+    } as unknown as NotificationsService;
+
+    const service = new WorkspacesService(
+      dataSource,
+      {} as UsersService,
+      notificationsService,
+    );
+
+    jest
+      .spyOn(
+        (service as unknown as {
+          logger: {
+            error: (...args: unknown[]) => void;
+          };
+        }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+
+    const response = await service.acceptInvitation(
+      workspaceId,
+      invitationId,
+      invitedUserId,
+    );
+
+    expect(response.status).toBe(
+      InvitationStatus.ACCEPTED,
+    );
+
+    expect(membershipRepository.save).toHaveBeenCalledTimes(1);
+
+    expect(invitation.status).toBe(
+      InvitationStatus.ACCEPTED,
+    );
+
+    expect(
+      notificationsService.createForUser,
+    ).toHaveBeenCalledTimes(1);
+  });
+
 
   it('returns 404 when workspace does not exist', async () => {
     const workspaceRepository = {

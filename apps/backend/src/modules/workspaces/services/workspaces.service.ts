@@ -462,83 +462,116 @@ export class WorkspacesService {
     invitationId: string,
     currentUserId: string,
   ): Promise<WorkspaceInvitationResponseDto> {
-    return this.dataSource.transaction(async (manager) => {
-      const workspaceRepository =
-        manager.getRepository(Workspace);
+    const result = await this.dataSource.transaction(
+      async (manager) => {
+        const workspaceRepository =
+          manager.getRepository(Workspace);
 
-      const invitationRepository =
-        manager.getRepository(WorkspaceInvitation);
+        const invitationRepository =
+          manager.getRepository(WorkspaceInvitation);
 
-      const membershipRepository =
-        manager.getRepository(WorkspaceMembership);
+        const membershipRepository =
+          manager.getRepository(WorkspaceMembership);
 
-      const workspace = await workspaceRepository.findOne({
-        where: {
-          id: workspaceId,
-          deletedAt: IsNull(),
-        },
-      });
-
-      if (!workspace) {
-        throw new NotFoundException('Workspace not found');
-      }
-
-      const invitation = await invitationRepository.findOne({
-        where: {
-          id: invitationId,
-          workspaceId,
-        },
-      });
-
-      if (!invitation) {
-        throw new NotFoundException('Invitation not found');
-      }
-
-      if (invitation.invitedUserId !== currentUserId) {
-        throw new ForbiddenException();
-      }
-
-      if (invitation.status !== InvitationStatus.PENDING) {
-        throw new ConflictException(
-          'Invitation is no longer pending',
-        );
-      }
-
-      const existingMembership =
-        await membershipRepository.findOne({
+        const workspace = await workspaceRepository.findOne({
           where: {
-            workspaceId,
-            userId: currentUserId,
+            id: workspaceId,
+            deletedAt: IsNull(),
           },
         });
 
-      if (existingMembership) {
-        throw new ConflictException(
-          'User is already a workspace member',
+        if (!workspace) {
+          throw new NotFoundException('Workspace not found');
+        }
+
+        const invitation = await invitationRepository.findOne({
+          where: {
+            id: invitationId,
+            workspaceId,
+          },
+        });
+
+        if (!invitation) {
+          throw new NotFoundException('Invitation not found');
+        }
+
+        if (invitation.invitedUserId !== currentUserId) {
+          throw new ForbiddenException();
+        }
+
+        if (invitation.status !== InvitationStatus.PENDING) {
+          throw new ConflictException(
+            'Invitation is no longer pending',
+          );
+        }
+
+        const existingMembership =
+          await membershipRepository.findOne({
+            where: {
+              workspaceId,
+              userId: currentUserId,
+            },
+          });
+
+        if (existingMembership) {
+          throw new ConflictException(
+            'User is already a workspace member',
+          );
+        }
+
+        const now = new Date();
+
+        const membership = membershipRepository.create({
+          id: randomUUID(),
+          workspaceId,
+          userId: currentUserId,
+          joinedAt: now,
+        });
+
+        await membershipRepository.save(membership);
+
+        invitation.status = InvitationStatus.ACCEPTED;
+        invitation.respondedAt = now;
+
+        const savedInvitation =
+          await invitationRepository.save(invitation);
+
+        return {
+          response:
+            WorkspaceInvitationMapper.toResponse(
+              savedInvitation,
+            ),
+          invitedById: invitation.invitedById,
+          workspaceName: workspace.name,
+        };
+      },
+    );
+
+    if (result.invitedById) {
+      try {
+        await this.notificationsService.createForUser({
+          userId: result.invitedById,
+          workspaceId,
+          type: 'WORKSPACE_INVITATION_ACCEPTED',
+          message:
+            `Your invitation to ${result.workspaceName} was accepted`,
+          relatedResourceType: 'workspace_invitation',
+          relatedResourceId: invitationId,
+          payload: {
+            acceptedById: currentUserId,
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to create invitation accepted notification for user ${result.invitedById}`,
+          error instanceof Error
+            ? error.stack
+            : String(error),
         );
       }
+    }
 
-      const now = new Date();
-
-      const membership = membershipRepository.create({
-        id: randomUUID(),
-        workspaceId,
-        userId: currentUserId,
-        joinedAt: now,
-      });
-
-      await membershipRepository.save(membership);
-
-      invitation.status = InvitationStatus.ACCEPTED;
-      invitation.respondedAt = now;
-
-      const savedInvitation =
-        await invitationRepository.save(invitation);
-
-      return WorkspaceInvitationMapper.toResponse(
-        savedInvitation,
-      );
-    });
+    return result.response;
   }
 
 
