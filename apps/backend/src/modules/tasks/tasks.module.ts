@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { ActivitiesModule } from '../activities/activities.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { TasksController } from './controllers/tasks.controller';
@@ -13,6 +14,7 @@ import { TasksService } from './services/tasks.service';
 
 @Module({
   imports: [
+    ActivitiesModule,
     UsersModule,
     WorkspacesModule,
     TypeOrmModule.forFeature([

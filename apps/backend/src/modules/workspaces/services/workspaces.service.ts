@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { InvitationStatus } from '../../../database/enums/database.enums';
+import { ActivitiesService } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
@@ -36,6 +37,7 @@ export class WorkspacesService {
     private readonly dataSource: DataSource,
     private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
+    private readonly activitiesService: ActivitiesService,
   ) {}
 
   async create(
@@ -346,7 +348,29 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace member not found');
     }
 
+    const membershipId = membership.id;
+
     await membershipRepository.remove(membership);
+
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: currentUserId,
+        actionType: 'MEMBER_REMOVED',
+        resourceType: 'workspace_membership',
+        resourceId: membershipId,
+        metadata: {
+          memberUserId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create MEMBER_REMOVED activity for user ${memberUserId}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+    }
   }
 
 
@@ -543,6 +567,7 @@ export class WorkspacesService {
             ),
           invitedById: invitation.invitedById,
           workspaceName: workspace.name,
+          membershipId: membership.id,
         };
       },
     );
@@ -569,6 +594,27 @@ export class WorkspacesService {
             : String(error),
         );
       }
+    }
+
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: currentUserId,
+        actionType: 'MEMBER_JOINED',
+        resourceType: 'workspace_membership',
+        resourceId: result.membershipId,
+        metadata: {
+          memberUserId: currentUserId,
+          invitationId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create MEMBER_JOINED activity for user ${currentUserId}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
     }
 
     return result.response;

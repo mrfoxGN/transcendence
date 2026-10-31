@@ -39,6 +39,10 @@ describe('FilesService', () => {
     findById: jest.Mock;
   };
 
+  let activitiesService: {
+    create: jest.Mock;
+  };
+
   const workspaceId = '11111111-1111-4111-8111-111111111111';
   const userId = '22222222-2222-4222-8222-222222222222';
   const fileId = '33333333-3333-4333-8333-333333333333';
@@ -76,10 +80,17 @@ describe('FilesService', () => {
       findById: jest.fn(),
     };
 
+    activitiesService = {
+      create: jest.fn().mockResolvedValue({
+        id: 'activity-id',
+      }),
+    };
+
     service = new FilesService(
       repository as never,
       workspacesService as never,
       tasksService as never,
+      activitiesService as never,
     );
 
     jest.clearAllMocks();
@@ -124,6 +135,58 @@ describe('FilesService', () => {
       expect(result.workspaceId).toBe(workspaceId);
       expect(result.uploaderId).toBe(userId);
       expect(result.originalName).toBe('document.pdf');
+
+      expect(
+        activitiesService.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId,
+          actorUserId: userId,
+          actionType: 'FILE_UPLOADED',
+          resourceType: 'workspace_file',
+          resourceId: expect.any(String),
+          metadata: expect.objectContaining({
+            displayName: 'document.pdf',
+            originalName: 'document.pdf',
+            taskId: null,
+          }),
+        }),
+      );
+    });
+
+    it('still uploads when activity creation fails', async () => {
+      repository.create.mockImplementation((value) => value);
+      repository.save.mockImplementation((value) => value);
+
+      activitiesService.create.mockRejectedValue(
+        new Error('Activity unavailable'),
+      );
+
+      jest
+        .spyOn(
+          (service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }).logger,
+          'error',
+        )
+        .mockImplementation(() => undefined);
+
+      const result = await service.upload(
+        workspaceId,
+        userId,
+        uploadedFile,
+        {},
+      );
+
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.originalName).toBe('document.pdf');
+
+      expect(repository.save).toHaveBeenCalledTimes(1);
+      expect(
+        activitiesService.create,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('rejects upload when file is missing', async () => {
@@ -282,6 +345,62 @@ describe('FilesService', () => {
           deletedAt: expect.any(Date),
         }),
       );
+
+      expect(
+        activitiesService.create,
+      ).toHaveBeenCalledWith({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'FILE_DELETED',
+        resourceType: 'workspace_file',
+        resourceId: fileId,
+        metadata: {
+          displayName: 'document.pdf',
+          originalName: 'document.pdf',
+          taskId: null,
+        },
+      });
+    });
+
+    it('still deletes when activity creation fails', async () => {
+      repository.findOne.mockResolvedValue({
+        ...storedFile,
+      });
+
+      repository.save.mockImplementation((value) => value);
+
+      activitiesService.create.mockRejectedValue(
+        new Error('Activity unavailable'),
+      );
+
+      jest
+        .spyOn(
+          (service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }).logger,
+          'error',
+        )
+        .mockImplementation(() => undefined);
+
+      await expect(
+        service.remove(
+          workspaceId,
+          fileId,
+          userId,
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deletedAt: expect.any(Date),
+        }),
+      );
+
+      expect(
+        activitiesService.create,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('allows workspace owner to delete another user file', async () => {

@@ -94,6 +94,7 @@ describe('TasksService', () => {
     getKanbanSettings: jest.Mock;
   };
   let users: { findById: jest.Mock };
+  let activities: { create: jest.Mock };
   let dataSource: { getRepository: jest.Mock; transaction: jest.Mock };
   let query: {
     where: jest.Mock;
@@ -134,6 +135,12 @@ describe('TasksService', () => {
         .mockResolvedValue({ id: otherUserId, status: UserStatus.ACTIVE }),
     };
 
+    activities = {
+      create: jest.fn().mockResolvedValue({
+        id: 'activity-id',
+      }),
+    };
+
     const repositories = new Map<Function, ReturnType<typeof makeRepository>>([
       [Task, transactionTasks],
       [TaskAssignment, assignments],
@@ -164,6 +171,7 @@ describe('TasksService', () => {
       workspaces as unknown as WorkspacesService,
       users as unknown as UsersService,
       dataSource as unknown as DataSource,
+      activities as never,
     );
   });
 
@@ -253,6 +261,50 @@ describe('TasksService', () => {
       );
       expect(result.title).toBe('Build profile');
       expect(result).not.toHaveProperty('deletedAt');
+
+      expect(activities.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId,
+          actorUserId: userId,
+          actionType: 'TASK_CREATED',
+          resourceType: 'task',
+          resourceId: expect.any(String),
+          metadata: expect.objectContaining({
+            title: 'Build profile',
+            status: TaskStatus.BACKLOG,
+            priority: null,
+          }),
+        }),
+      );
+    });
+
+    it('still creates the task when activity creation fails', async () => {
+      activities.create.mockRejectedValue(
+        new Error('Activity unavailable'),
+      );
+
+      jest
+        .spyOn(
+          (service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }).logger,
+          'error',
+        )
+        .mockImplementation(() => undefined);
+
+      const result = await service.create(
+        workspaceId,
+        userId,
+        {
+          title: 'Build profile',
+        },
+      );
+
+      expect(result.title).toBe('Build profile');
+      expect(tasks.save).toHaveBeenCalledTimes(1);
+      expect(activities.create).toHaveBeenCalledTimes(1);
     });
 
     it('rejects a spaces-only task title', async () => {
@@ -461,6 +513,21 @@ describe('TasksService', () => {
           note: 'Reviewed',
         });
         expect(result.status).toBe(to);
+
+        expect(activities.create).toHaveBeenCalledWith({
+          workspaceId,
+          actorUserId: userId,
+          actionType: 'TASK_STATUS_CHANGED',
+          resourceType: 'task',
+          resourceId: taskId,
+          metadata: {
+            title: 'Build profile',
+            fromStatus: from,
+            toStatus: to,
+            note: 'Reviewed',
+          },
+        });
+
         expect(dataSource.transaction).toHaveBeenCalledTimes(1);
         expect(query.setLock).toHaveBeenCalledWith('pessimistic_write');
         expect(history.save).toHaveBeenCalledWith(
@@ -505,6 +572,42 @@ describe('TasksService', () => {
         expect(history.save).not.toHaveBeenCalled();
       },
     );
+
+    it('still transitions the task when activity creation fails', async () => {
+      task.status = TaskStatus.BACKLOG;
+
+      activities.create.mockRejectedValue(
+        new Error('Activity unavailable'),
+      );
+
+      jest
+        .spyOn(
+          (service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }).logger,
+          'error',
+        )
+        .mockImplementation(() => undefined);
+
+      const result = await service.transition(
+        taskId,
+        userId,
+        {
+          toStatus: TaskStatus.READY,
+          note: 'Ready to start',
+        },
+      );
+
+      expect(result.status).toBe(TaskStatus.READY);
+
+      expect(history.save).toHaveBeenCalledTimes(1);
+
+      expect(
+        activities.create,
+      ).toHaveBeenCalledTimes(1);
+    });
 
     it('rejects READY to IN_PROGRESS when active WIP is full', async () => {
       task.status = TaskStatus.READY;
