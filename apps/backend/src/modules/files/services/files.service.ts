@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +11,7 @@ import { access, mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { IsNull, Repository } from 'typeorm';
 
+import { ActivitiesService } from '../../activities/services/activities.service';
 import { TasksService } from '../../tasks/services/tasks.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ListWorkspaceFilesDto } from '../dto/list-workspace-files.dto';
@@ -19,6 +21,8 @@ import { WorkspaceFile } from '../entities/workspace-file.entity';
 
 @Injectable()
 export class FilesService {
+  private readonly logger = new Logger(FilesService.name);
+
   private readonly storageRoot = join(
     process.cwd(),
     'storage',
@@ -32,6 +36,8 @@ export class FilesService {
     private readonly workspacesService: WorkspacesService,
 
     private readonly tasksService: TasksService,
+
+    private readonly activitiesService: ActivitiesService,
   ) {}
 
   async upload(
@@ -91,15 +97,39 @@ export class FilesService {
       deletedAt: null,
     });
 
-    try {
-      const savedFile =
-        await this.workspaceFilesRepository.save(workspaceFile);
+    let savedFile: WorkspaceFile;
 
-      return this.toResponse(savedFile);
+    try {
+      savedFile =
+        await this.workspaceFilesRepository.save(workspaceFile);
     } catch (error) {
       await unlink(absolutePath).catch(() => undefined);
       throw error;
     }
+
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'FILE_UPLOADED',
+        resourceType: 'workspace_file',
+        resourceId: savedFile.id,
+        metadata: {
+          displayName: savedFile.displayName,
+          originalName: savedFile.originalName,
+          taskId: savedFile.taskId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create FILE_UPLOADED activity for file ${savedFile.id}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+    }
+
+    return this.toResponse(savedFile);
   }
 
   async findAll(
@@ -199,6 +229,28 @@ export class FilesService {
     );
 
     await unlink(absolutePath).catch(() => undefined);
+
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'FILE_DELETED',
+        resourceType: 'workspace_file',
+        resourceId: file.id,
+        metadata: {
+          displayName: file.displayName,
+          originalName: file.originalName,
+          taskId: file.taskId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create FILE_DELETED activity for file ${file.id}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+    }
   }
 
   async getDownloadInfo(

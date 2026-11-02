@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { ActivitiesModule } from '../activities/activities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesController } from './controllers/workspaces.controller';
@@ -12,6 +13,7 @@ import { WorkspacesService } from './services/workspaces.service';
 
 @Module({
   imports: [
+    forwardRef(() => ActivitiesModule),
     UsersModule,
     NotificationsModule,
     TypeOrmModule.forFeature([

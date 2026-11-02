@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, In, IsNull, Repository } from 'typeorm';
 
 import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
+import { ActivitiesService } from '../../activities/services/activities.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { AssignTaskDto } from '../dto/assign-task.dto';
@@ -36,12 +38,15 @@ import { BlockTaskDto } from '../dto/block-task.dto';
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(Task)
     private readonly tasksRepository: Repository<Task>,
     private readonly workspacesService: WorkspacesService,
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
+    private readonly activitiesService: ActivitiesService,
   ) {}
 
   async create(
@@ -81,6 +86,29 @@ export class TasksService {
     });
 
     const savedTask = await this.tasksRepository.save(task);
+
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'TASK_CREATED',
+        resourceType: 'task',
+        resourceId: savedTask.id,
+        metadata: {
+          title: savedTask.title,
+          status: savedTask.status,
+          priority: savedTask.priority,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create TASK_CREATED activity for task ${savedTask.id}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+    }
+
     return TaskMapper.toResponse(savedTask);
   }
 
@@ -243,7 +271,7 @@ export class TasksService {
           )
         : null;
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const tasksRepository = manager.getRepository(Task);
 
       const workspaceTasks = await tasksRepository
@@ -313,8 +341,36 @@ export class TasksService {
 
       await manager.getRepository(TaskStatusHistory).save(history);
 
-      return TaskMapper.toResponse(task);
+      return {
+        response: TaskMapper.toResponse(task),
+        previousStatus,
+      };
     });
+
+    try {
+      await this.activitiesService.create({
+        workspaceId: existingTask.workspaceId,
+        actorUserId: userId,
+        actionType: 'TASK_STATUS_CHANGED',
+        resourceType: 'task',
+        resourceId: taskId,
+        metadata: {
+          title: result.response.title,
+          fromStatus: result.previousStatus,
+          toStatus: result.response.status,
+          note: dto.note ?? null,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create TASK_STATUS_CHANGED activity for task ${taskId}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+    }
+
+    return result.response;
   }
 
   async remove(taskId: string, userId: string): Promise<void> {
