@@ -46,7 +46,7 @@ describe('Workspaces endpoints', () => {
   };
 
   const usersService = {
-    findById: jest.fn(),
+    findForAuth: jest.fn(),
   };
 
   const workspacesService = {
@@ -96,6 +96,7 @@ describe('Workspaces endpoints', () => {
 
     token = await jwtService.signAsync({
       sub: userId,
+      tokenVersion: 0,
     });
 
     app = module.createNestApplication();
@@ -114,7 +115,10 @@ describe('Workspaces endpoints', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    usersService.findById.mockResolvedValue(user);
+    usersService.findForAuth.mockResolvedValue({
+      user,
+      tokenVersion: 0,
+    });
     workspacesService.create.mockResolvedValue(workspace);
     workspacesService.findAllForUser.mockResolvedValue([workspace]);
     workspacesService.findOneForUser.mockResolvedValue(workspace);

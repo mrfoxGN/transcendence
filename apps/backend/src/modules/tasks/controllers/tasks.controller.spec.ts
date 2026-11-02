@@ -313,7 +313,7 @@ describe('TasksController HTTP', () => {
   let jwt: JwtService;
   let token: string;
   let tasksService: Record<Method, jest.Mock>;
-  const usersService = { findById: jest.fn() };
+  const usersService = { findForAuth: jest.fn() };
 
   beforeAll(async () => {
     tasksService = Object.fromEntries(
@@ -323,7 +323,7 @@ describe('TasksController HTTP', () => {
       secret: testSecret,
       signOptions: { expiresIn: '1h' },
     });
-    token = jwt.sign({ sub: userId });
+    token = jwt.sign({ sub: userId, tokenVersion: 0 });
 
     const module = await Test.createTestingModule({
       controllers: [TasksController],
@@ -347,7 +347,7 @@ describe('TasksController HTTP', () => {
   });
 
   beforeEach(() => {
-    usersService.findById.mockReset().mockResolvedValue(user);
+    usersService.findForAuth.mockReset().mockResolvedValue({ user, tokenVersion: 0 });
     for (const route of routes) {
       tasksService[route.method].mockReset().mockResolvedValue(route.response);
     }
@@ -438,7 +438,7 @@ describe('TasksController HTTP', () => {
     });
 
     it('rejects a token belonging to a user who no longer exists', async () => {
-      usersService.findById.mockRejectedValueOnce(
+      usersService.findForAuth.mockRejectedValueOnce(
         new NotFoundException('User not found'),
       );
       await send('get', path).expect(401);
@@ -446,9 +446,9 @@ describe('TasksController HTTP', () => {
     });
 
     it('rejects a disabled user', async () => {
-      usersService.findById.mockResolvedValueOnce({
-        ...user,
-        status: UserStatus.DISABLED,
+      usersService.findForAuth.mockResolvedValueOnce({
+        user: { ...user, status: UserStatus.DISABLED },
+        tokenVersion: 0,
       });
       await send('get', path).expect(401);
       expect(tasksService.findById).not.toHaveBeenCalled();

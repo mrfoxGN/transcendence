@@ -35,7 +35,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    let payload: { sub?: unknown };
+    let payload: { sub?: unknown; tokenVersion?: unknown };
 
     try {
       payload = await this.jwtService.verifyAsync(token);
@@ -43,14 +43,18 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    if (typeof payload.sub !== 'string') {
+    if (
+      typeof payload.sub !== 'string' ||
+      !Number.isInteger(payload.tokenVersion) ||
+      (payload.tokenVersion as number) < 0
+    ) {
       throw new UnauthorizedException();
     }
 
-    let user: UserResponseDto;
+    let authUser: Awaited<ReturnType<UsersService['findForAuth']>>;
 
     try {
-      user = await this.usersService.findById(payload.sub);
+      authUser = await this.usersService.findForAuth(payload.sub);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new UnauthorizedException();
@@ -58,11 +62,14 @@ export class JwtAuthGuard implements CanActivate {
       throw error;
     }
 
-    if (user.status !== UserStatus.ACTIVE) {
+    if (
+      authUser.user.status !== UserStatus.ACTIVE ||
+      authUser.tokenVersion !== payload.tokenVersion
+    ) {
       throw new UnauthorizedException();
     }
 
-    request.user = user;
+    request.user = authUser.user;
     return true;
   }
 }

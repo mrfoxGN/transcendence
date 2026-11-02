@@ -37,19 +37,25 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
       const payload = await this.jwtService.verifyAsync<{
         sub?: unknown;
         exp?: unknown;
+        tokenVersion?: unknown;
       }>(token);
 
       if (
         typeof payload.sub !== 'string' ||
-        typeof payload.exp !== 'number'
+        typeof payload.exp !== 'number' ||
+        !Number.isInteger(payload.tokenVersion) ||
+        (payload.tokenVersion as number) < 0
       ) {
         client.disconnect();
         return;
       }
 
-      const user = await this.usersService.findById(payload.sub);
+      const authUser = await this.usersService.findForAuth(payload.sub);
 
-      if (user.status !== UserStatus.ACTIVE) {
+      if (
+        authUser.user.status !== UserStatus.ACTIVE ||
+        authUser.tokenVersion !== payload.tokenVersion
+      ) {
         client.disconnect();
         return;
       }
@@ -61,7 +67,9 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
         return;
       }
 
-      client.data.userId = user.id;
+      client.data.userId = authUser.user.id;
+
+      await client.join(`user:${authUser.user.id}`);
 
       client.emit('workspace-chat.ready');
 
@@ -103,5 +111,9 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
     this.server
       .to(`workspace:${workspaceId}`)
       .emit('workspace-message.created', message);
+  }
+
+  disconnectUser(userId: string): void {
+    this.server.in(`user:${userId}`).disconnectSockets(true);
   }
 }
