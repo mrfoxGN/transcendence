@@ -19,7 +19,7 @@ describe('WorkspaceChatGateway', () => {
   };
 
   let usersService: {
-    findById: jest.Mock;
+    findForAuth: jest.Mock;
   };
 
   let workspacesService: {
@@ -56,14 +56,15 @@ describe('WorkspaceChatGateway', () => {
     jwtService = {
       verifyAsync: jest.fn().mockResolvedValue({
         sub: userId,
+        tokenVersion: 0,
         exp: Math.floor(Date.now() / 1000) + 3600,
       }),
     };
 
     usersService = {
-      findById: jest.fn().mockResolvedValue({
-        id: userId,
-        status: UserStatus.ACTIVE,
+      findForAuth: jest.fn().mockResolvedValue({
+        user: { id: userId, status: UserStatus.ACTIVE },
+        tokenVersion: 0,
       }),
     };
 
@@ -89,7 +90,7 @@ describe('WorkspaceChatGateway', () => {
       'valid-token',
     );
 
-    expect(usersService.findById).toHaveBeenCalledWith(
+    expect(usersService.findForAuth).toHaveBeenCalledWith(
       userId,
     );
 
@@ -121,13 +122,25 @@ describe('WorkspaceChatGateway', () => {
   });
 
   it('disconnects an inactive user', async () => {
-    usersService.findById.mockResolvedValue({
-      id: userId,
-      status: UserStatus.DISABLED,
+    usersService.findForAuth.mockResolvedValue({
+      user: { id: userId, status: UserStatus.DISABLED },
+      tokenVersion: 0,
     });
 
     const client = makeClient();
 
+    await gateway.handleConnection(client as never);
+
+    expect(client.disconnect).toHaveBeenCalled();
+  });
+
+  it('disconnects when the token version was revoked', async () => {
+    usersService.findForAuth.mockResolvedValue({
+      user: { id: userId, status: UserStatus.ACTIVE },
+      tokenVersion: 1,
+    });
+
+    const client = makeClient();
     await gateway.handleConnection(client as never);
 
     expect(client.disconnect).toHaveBeenCalled();

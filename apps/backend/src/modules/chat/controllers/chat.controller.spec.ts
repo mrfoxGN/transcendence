@@ -41,7 +41,7 @@ describe('Chat endpoints', () => {
   };
 
   const usersService = {
-    findById: jest.fn(),
+    findForAuth: jest.fn(),
   };
 
   const chatService = {
@@ -78,6 +78,7 @@ describe('Chat endpoints', () => {
 
     token = await jwtService.signAsync({
       sub: userId,
+      tokenVersion: 0,
     });
 
     app = module.createNestApplication();
@@ -96,7 +97,7 @@ describe('Chat endpoints', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    usersService.findById.mockResolvedValue(user);
+    usersService.findForAuth.mockResolvedValue({ user, tokenVersion: 0 });
     chatService.sendMessage.mockResolvedValue(message);
     chatService.listMessages.mockResolvedValue([message]);
   });

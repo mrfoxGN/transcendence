@@ -53,6 +53,13 @@ export class User {
   status!: UserStatus;
 
   @Column({
+  name: 'token_version',
+    type: 'int',
+    default: 0,
+  })
+  tokenVersion!: number;
+
+  @Column({
     name: 'last_seen_at',
     type: 'datetime',
     precision: 6,

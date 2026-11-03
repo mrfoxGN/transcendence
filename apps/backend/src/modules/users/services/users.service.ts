@@ -57,6 +57,24 @@ export class UsersService {
     return UserMapper.toResponse(user);
   }
 
+  async findForAuth(
+    id: string,
+  ): Promise<{ user: UserResponseDto; tokenVersion: number }> {
+    const user = await this.usersRepository.findOneBy({
+      id,
+      deletedAt: IsNull(),
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      user: UserMapper.toResponse(user),
+      tokenVersion: user.tokenVersion,
+    };
+  }
+
   findByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOneBy({
       email,
@@ -125,6 +143,7 @@ export class UsersService {
       throw error;
     }
   }
+
   async updateProfile(
     id: string,
     dto: UpdateProfileDto,
@@ -177,6 +196,18 @@ export class UsersService {
         throw new ConflictException('Username or email already exists');
       }
       throw error;
+    }
+  }
+
+  async revokeTokens(id: string): Promise<void> {
+    const result = await this.usersRepository.increment(
+      { id, deletedAt: IsNull() },
+      'tokenVersion',
+      1,
+    );
+
+    if (!result.affected) {
+      throw new NotFoundException('User not found');
     }
   }
 }

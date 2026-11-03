@@ -32,19 +32,25 @@ export class DirectChatGateway implements OnGatewayConnection {
       const payload = await this.jwtService.verifyAsync<{
         sub?: unknown;
         exp?: unknown;
+        tokenVersion?: unknown;
       }>(token);
 
       if (
         typeof payload.sub !== 'string' ||
-        typeof payload.exp !== 'number'
+        typeof payload.exp !== 'number' ||
+        !Number.isInteger(payload.tokenVersion) ||
+        (payload.tokenVersion as number) < 0
       ) {
         client.disconnect();
         return;
       }
 
-      const user = await this.usersService.findById(payload.sub);
+      const authUser = await this.usersService.findForAuth(payload.sub);
 
-      if (user.status !== UserStatus.ACTIVE) {
+      if (
+        authUser.user.status !== UserStatus.ACTIVE ||
+        authUser.tokenVersion !== payload.tokenVersion
+      ) {
         client.disconnect();
         return;
       }
@@ -56,9 +62,12 @@ export class DirectChatGateway implements OnGatewayConnection {
         return;
       }
 
-      await client.join(`user:${user.id}`);
+      await client.join(`user:${authUser.user.id}`);
 
-      const timeout = setTimeout(() => client.disconnect(), expiresInMs);
+      const timeout = setTimeout(
+        () => client.disconnect(),
+        expiresInMs,
+      );
       client.once('disconnect', () => clearTimeout(timeout));
     } catch {
       client.disconnect();
@@ -74,5 +83,9 @@ export class DirectChatGateway implements OnGatewayConnection {
       .to(`user:${userAId}`)
       .to(`user:${userBId}`)
       .emit('direct-message.created', message);
+  }
+
+  disconnectUser(userId: string): void {
+    this.server.in(`user:${userId}`).disconnectSockets(true);
   }
 }

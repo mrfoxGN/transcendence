@@ -8,12 +8,16 @@ import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { LoginDto } from '../dto/login.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
+import { WorkspaceChatGateway } from '../../chat/gateways/workspace-chat.gateway';
+import { DirectChatGateway } from '../../social/gateways/direct-chat.gateway';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly directChatGateway: DirectChatGateway,
+    private readonly workspaceChatGateway: WorkspaceChatGateway,
   ) {}
 
   register(dto: CreateUserDto): Promise<UserResponseDto> {
@@ -40,10 +44,20 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
-    const user = await this.validateCredentials(dto);
+  const user = await this.validateCredentials(dto);
 
-    return {
-      accessToken: await this.jwtService.signAsync({ sub: user.id }),
+  return {
+      accessToken: await this.jwtService.signAsync({
+        sub: user.id,
+        tokenVersion: user.tokenVersion,
+      }),
     };
+  }
+
+  async logout(userId: string): Promise<void> {
+    await this.usersService.revokeTokens(userId);
+
+    this.directChatGateway.disconnectUser(userId);
+    this.workspaceChatGateway.disconnectUser(userId);
   }
 }

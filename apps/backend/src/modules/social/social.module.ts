@@ -22,6 +22,6 @@ import { SocialService } from './services/social.service';
   ],
   controllers: [SocialController],
   providers: [SocialService, DirectChatGateway],
-  exports: [SocialService],
+  exports: [SocialService, DirectChatGateway],
 })
 export class SocialModule {}

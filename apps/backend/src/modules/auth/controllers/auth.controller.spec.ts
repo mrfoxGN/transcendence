@@ -11,9 +11,11 @@ import request from 'supertest';
 
 import { UserStatus } from '../../../database/enums/database.enums';
 import { UsersService } from '../../users/services/users.service';
-import { AuthController } from './auth.controller';
+import { DirectChatGateway } from '../../social/gateways/direct-chat.gateway';
+import { WorkspaceChatGateway } from '../../chat/gateways/workspace-chat.gateway';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
+import { AuthController } from './auth.controller';
 
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
@@ -29,13 +31,25 @@ describe('Auth endpoints', () => {
     email,
     passwordHash: '',
     status: UserStatus.ACTIVE,
+    tokenVersion: 0,
+  };
+
+  const profile = {
+    id,
+    username: 'khaled',
+    email,
+    status: UserStatus.ACTIVE,
   };
 
   const usersService = {
     create: jest.fn(),
     findByEmail: jest.fn(),
-    findById: jest.fn(),
+    findForAuth: jest.fn(),
+    revokeTokens: jest.fn(),
   };
+
+  const directChatGateway = { disconnectUser: jest.fn() };
+  const workspaceChatGateway = { disconnectUser: jest.fn() };
 
   let app: INestApplication;
   let jwtService: JwtService;
@@ -55,6 +69,8 @@ describe('Auth endpoints', () => {
         AuthService,
         JwtAuthGuard,
         { provide: UsersService, useValue: usersService },
+        { provide: DirectChatGateway, useValue: directChatGateway },
+        { provide: WorkspaceChatGateway, useValue: workspaceChatGateway },
       ],
     }).compile();
 
@@ -101,6 +117,7 @@ describe('Auth endpoints', () => {
     expect(usersService.create).toHaveBeenCalledWith(input);
     expect(response.body.id).toBe(id);
     expect(response.body).not.toHaveProperty('passwordHash');
+    expect(response.body).not.toHaveProperty('tokenVersion');
   });
 
   it('rejects invalid registration data', async () => {
@@ -141,7 +158,7 @@ describe('Auth endpoints', () => {
       .expect(409);
   });
 
-  it('logs in and returns a JWT containing the user ID', async () => {
+  it('logs in and returns a JWT containing the user ID and version', async () => {
     usersService.findByEmail.mockResolvedValue(user);
 
     const response = await request(app.getHttpServer())
@@ -156,6 +173,7 @@ describe('Auth endpoints', () => {
     );
 
     expect(payload.sub).toBe(id);
+    expect(payload.tokenVersion).toBe(0);
     expect(payload).not.toHaveProperty('passwordHash');
   });
 
@@ -205,15 +223,15 @@ describe('Auth endpoints', () => {
   });
 
   it('returns the current profile with a valid token', async () => {
-    const profile = {
-      id,
-      username: 'khaled',
-      email,
-      status: UserStatus.ACTIVE,
-    };
-    usersService.findById.mockResolvedValue(profile);
+    usersService.findForAuth.mockResolvedValue({
+      user: profile,
+      tokenVersion: 0,
+    });
 
-    const token = await jwtService.signAsync({ sub: id });
+    const token = await jwtService.signAsync({
+      sub: id,
+      tokenVersion: 0,
+    });
 
     const response = await request(app.getHttpServer())
       .get('/auth/profile')
@@ -222,7 +240,8 @@ describe('Auth endpoints', () => {
 
     expect(response.body).toEqual(profile);
     expect(response.body).not.toHaveProperty('passwordHash');
-    expect(usersService.findById).toHaveBeenCalledWith(id);
+    expect(response.body).not.toHaveProperty('tokenVersion');
+    expect(usersService.findForAuth).toHaveBeenCalledWith(id);
   });
 
   it('rejects a profile request without a token', async () => {
@@ -230,7 +249,7 @@ describe('Auth endpoints', () => {
       .get('/auth/profile')
       .expect(401);
 
-    expect(usersService.findById).not.toHaveBeenCalled();
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid token', async () => {
@@ -238,11 +257,13 @@ describe('Auth endpoints', () => {
       .get('/auth/profile')
       .set('Authorization', 'Bearer invalid-token')
       .expect(401);
+
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
   });
 
   it('rejects an expired token', async () => {
     const token = await jwtService.signAsync(
-      { sub: id },
+      { sub: id, tokenVersion: 0 },
       { expiresIn: -1 },
     );
 
@@ -250,14 +271,49 @@ describe('Auth endpoints', () => {
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
+
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
+  });
+
+  it('rejects an old token without a version', async () => {
+    const token = await jwtService.signAsync({ sub: id });
+
+    await request(app.getHttpServer())
+      .get('/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
   });
 
   it('rejects a token for a missing user', async () => {
-    usersService.findById.mockRejectedValue(
+    usersService.findForAuth.mockRejectedValue(
       new NotFoundException('User not found'),
     );
 
-    const token = await jwtService.signAsync({ sub: id });
+    const token = await jwtService.signAsync({
+      sub: id,
+      tokenVersion: 0,
+    });
+
+    await request(app.getHttpServer())
+      .get('/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+
+    expect(usersService.findForAuth).toHaveBeenCalledWith(id);
+  });
+
+  it('rejects a disabled user', async () => {
+    usersService.findForAuth.mockResolvedValue({
+      user: { ...profile, status: UserStatus.DISABLED },
+      tokenVersion: 0,
+    });
+
+    const token = await jwtService.signAsync({
+      sub: id,
+      tokenVersion: 0,
+    });
 
     await request(app.getHttpServer())
       .get('/auth/profile')
@@ -265,17 +321,91 @@ describe('Auth endpoints', () => {
       .expect(401);
   });
 
-  it('rejects a disabled user', async () => {
-    usersService.findById.mockResolvedValue({
-      id,
-      status: UserStatus.DISABLED,
+  it('rejects a token whose version differs from the database', async () => {
+    usersService.findForAuth.mockResolvedValue({
+      user: profile,
+      tokenVersion: 1,
     });
 
-    const token = await jwtService.signAsync({ sub: id });
+    const token = await jwtService.signAsync({
+      sub: id,
+      tokenVersion: 0,
+    });
 
     await request(app.getHttpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
+  });
+
+  it('logs out and rejects the same token afterward', async () => {
+    let databaseVersion = 0;
+
+    usersService.findForAuth.mockImplementation(async () => ({
+      user: profile,
+      tokenVersion: databaseVersion,
+    }));
+
+    usersService.revokeTokens.mockImplementation(async () => {
+      databaseVersion += 1;
+    });
+
+    const token = await jwtService.signAsync({
+      sub: id,
+      tokenVersion: 0,
+    });
+
+    await request(app.getHttpServer())
+      .get('/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      message: 'Logout successful',
+      loggedOut: true,
+    });
+    expect(usersService.revokeTokens).toHaveBeenCalledWith(id);
+    expect(directChatGateway.disconnectUser).toHaveBeenCalledWith(id);
+    expect(workspaceChatGateway.disconnectUser).toHaveBeenCalledWith(id);
+
+    await request(app.getHttpServer())
+      .get('/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+  });
+
+  it('rejects a second logout with the same token', async () => {
+    let databaseVersion = 0;
+
+    usersService.findForAuth.mockImplementation(async () => ({
+      user: profile,
+      tokenVersion: databaseVersion,
+    }));
+
+    usersService.revokeTokens.mockImplementation(async () => {
+      databaseVersion += 1;
+    });
+
+    const token = await jwtService.signAsync({
+      sub: id,
+      tokenVersion: 0,
+    });
+
+    await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+
+    expect(usersService.revokeTokens).toHaveBeenCalledTimes(1);
   });
 });

@@ -33,6 +33,7 @@ describe('Users endpoints', () => {
 
   const usersService = {
     findById: jest.fn(),
+    findForAuth: jest.fn(),
     updateProfile: jest.fn(),
   };
 
@@ -51,7 +52,7 @@ describe('Users endpoints', () => {
     }).compile();
 
     jwtService = module.get(JwtService);
-    token = await jwtService.signAsync({ sub: id });
+    token = await jwtService.signAsync({ sub: id, tokenVersion: 0 });
 
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -67,6 +68,7 @@ describe('Users endpoints', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     usersService.findById.mockResolvedValue(user);
+    usersService.findForAuth.mockResolvedValue({ user, tokenVersion: 0 });
   });
 
   afterAll(async () => {
@@ -78,7 +80,7 @@ describe('Users endpoints', () => {
       .get(`/users/${id}`)
       .expect(401);
 
-    expect(usersService.findById).not.toHaveBeenCalled();
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
   });
 
   it('GET rejects an invalid token', async () => {
@@ -98,7 +100,7 @@ describe('Users endpoints', () => {
   });
 
   it('GET rejects a deleted or missing account', async () => {
-    usersService.findById.mockRejectedValue(
+    usersService.findForAuth.mockRejectedValue(
       new NotFoundException('User not found'),
     );
 
@@ -109,9 +111,9 @@ describe('Users endpoints', () => {
   });
 
   it('GET rejects a disabled account', async () => {
-    usersService.findById.mockResolvedValue({
-      ...user,
-      status: UserStatus.DISABLED,
+    usersService.findForAuth.mockResolvedValue({
+      user: { ...user, status: UserStatus.DISABLED },
+      tokenVersion: 0,
     });
 
     await request(app.getHttpServer())
