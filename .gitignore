@@ -65,3 +65,7 @@ docker-compose.override.yml
 
 # Backend file storage
 /apps/backend/storage/
+
+.env.github-oauth
+
+compose.override.yaml

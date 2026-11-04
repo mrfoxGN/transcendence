@@ -139,6 +139,29 @@ export class WorkspacesService {
     return WorkspaceMapper.toResponse(workspace);
   }
 
+  async assertOwner(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    const workspace = await this.dataSource
+      .getRepository(Workspace)
+      .findOne({
+        where: {
+          id: workspaceId,
+          deletedAt: IsNull(),
+        },
+      });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+  }
+
+
   async update(
     workspaceId: string,
     userId: string,
