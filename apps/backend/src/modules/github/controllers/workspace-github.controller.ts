@@ -18,7 +18,6 @@ import { ConnectRepositoryDto } from '../dto/connect-repository.dto';
 import { ConnectedRepositoryResponseDto } from '../dto/connected-repository-response.dto';
 import type {
   PublicGitHubBranch,
-  PublicGitHubPullRequest,
 } from '../services/github-api.service';
 import { GitHubService } from '../services/github.service';
 import { GitHubSyncService } from '../services/github-sync.service';
@@ -99,17 +98,6 @@ export class WorkspaceGitHubController {
     @Req() request: AuthenticatedRequest,
   ): Promise<PublicGitHubBranch[]> {
     return this.githubService.listWorkspaceBranches(
-      workspaceId,
-      request.user.id,
-    );
-  }
-
-  @Get('pull-requests')
-  listPullRequests(
-    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-    @Req() request: AuthenticatedRequest,
-  ): Promise<PublicGitHubPullRequest[]> {
-    return this.githubService.listWorkspacePullRequests(
       workspaceId,
       request.user.id,
     );

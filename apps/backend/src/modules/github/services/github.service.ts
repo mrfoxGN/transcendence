@@ -8,7 +8,6 @@ import { GitHubApiService } from './github-api.service';
 import type {
   PublicGitHubRepository,
   PublicGitHubBranch,
-  PublicGitHubPullRequest,
 } from './github-api.service';
 import { GitHubOAuthService } from './github-oauth.service';
 import { GitHubTokenCryptoService } from './github-token-crypto.service';
@@ -289,71 +288,73 @@ export class GitHubService {
   private async getConnectedRepositoryForMember(
     workspaceId: string,
     userId: string,
-  ): Promise<ConnectedRepository> {
-    // Members may read the repository's public data.
+  ): Promise<{ repository: ConnectedRepository; accessToken: string }> {
     await this.workspacesService.findOneForUser(
       workspaceId,
       userId,
     );
 
-    const connection = await this.connectedRepositories.findOne({
+    const repository = await this.connectedRepositories.findOne({
+      select: {
+        id: true,
+        workspaceId: true,
+        githubRepositoryId: true,
+        ownerLogin: true,
+        name: true,
+        encryptedOAuthToken: true,
+      },
       where: {
         workspaceId,
         disconnectedAt: IsNull(),
       },
     });
 
-    if (!connection) {
+    if (!repository) {
       throw new NotFoundException(
         'No GitHub repository connected to this workspace',
       );
     }
 
-    // Confirm that the GitHub repository still has
-    // the identity originally connected to this workspace.
-    const remote = await this.githubApiService.getPublicRepository(
-      connection.ownerLogin,
-      connection.name,
+    if (!repository.encryptedOAuthToken) {
+      throw new ConflictException(
+        'GitHub authorization missing. Reconnect the repository.',
+      );
+    }
+
+    const accessToken = this.githubTokenCryptoService.decrypt(
+      repository.encryptedOAuthToken,
+      repository.id,
     );
 
-    if (
-      remote.githubRepositoryId !== connection.githubRepositoryId
-    ) {
+    const remote = await this.githubApiService.getPublicRepository(
+      repository.ownerLogin,
+      repository.name,
+      accessToken,
+    );
+
+    if (remote.githubRepositoryId !== repository.githubRepositoryId) {
       throw new ConflictException(
         'Connected GitHub repository identity has changed',
       );
     }
 
-    return connection;
+    return { repository, accessToken };
   }
 
   async listWorkspaceBranches(
     workspaceId: string,
     userId: string,
   ): Promise<PublicGitHubBranch[]> {
-    const repository = await this.getConnectedRepositoryForMember(
-      workspaceId,
-      userId,
-    );
+    const { repository, accessToken } =
+      await this.getConnectedRepositoryForMember(
+        workspaceId,
+        userId,
+      );
 
     return this.githubApiService.listBranches(
       repository.ownerLogin,
       repository.name,
-    );
-  }
-
-  async listWorkspacePullRequests(
-    workspaceId: string,
-    userId: string,
-  ): Promise<PublicGitHubPullRequest[]> {
-    const repository = await this.getConnectedRepositoryForMember(
-      workspaceId,
-      userId,
-    );
-
-    return this.githubApiService.listOpenPullRequests(
-      repository.ownerLogin,
-      repository.name,
+      accessToken,
     );
   }
 
