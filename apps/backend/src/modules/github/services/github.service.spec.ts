@@ -15,6 +15,10 @@ jest.mock('./github-oauth.service', () => ({
   GitHubOAuthService: class GitHubOAuthService {},
 }));
 
+jest.mock('@nestjs/config', () => ({
+  ConfigService: class ConfigService {},
+}));
+
 import { GitHubService } from './github.service';
 import { RepositoryVisibility } from '../../../database/enums/database.enums';
 
@@ -82,6 +86,8 @@ describe('GitHubService - Repository Connection', () => {
       githubOAuthService as never,
       {} as never,
       connectedRepositories as never,
+      {} as never,
+      { encrypt: jest.fn().mockReturnValue('encrypted-test-token') } as never,
     );
   });
 

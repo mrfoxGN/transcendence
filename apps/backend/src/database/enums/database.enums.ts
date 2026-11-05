@@ -69,11 +69,3 @@ export enum TaskRepositoryLinkType {
   FILE = 'FILE',
   COMMIT = 'COMMIT',
 }
-
-export enum WebhookStatus {
-  RECEIVED = 'RECEIVED',
-  PROCESSING = 'PROCESSING',
-  PROCESSED = 'PROCESSED',
-  FAILED = 'FAILED',
-  IGNORED = 'IGNORED',
-}

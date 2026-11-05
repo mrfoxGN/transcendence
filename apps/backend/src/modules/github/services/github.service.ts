@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -8,12 +8,13 @@ import { GitHubApiService } from './github-api.service';
 import type {
   PublicGitHubRepository,
   PublicGitHubBranch,
-  PublicGitHubPullRequest,
 } from './github-api.service';
 import { GitHubOAuthService } from './github-oauth.service';
+import { GitHubTokenCryptoService } from './github-token-crypto.service';
 import { RepositoryVisibility } from '../../../database/enums/database.enums';
 import { ConnectedRepositoryResponseDto } from '../dto/connected-repository-response.dto';
 import { Repository as ConnectedRepository } from '../entities/repository.entity';
+import { RepositoryCommit } from '../entities/repository-commit.entity';
 import { GitHubInstallation } from '../entities/github-installation.entity';
 
 @Injectable()
@@ -27,6 +28,10 @@ export class GitHubService {
 
     @InjectRepository(ConnectedRepository)
     private readonly connectedRepositories: Repository<ConnectedRepository>,
+
+    @InjectRepository(RepositoryCommit)
+    private readonly repositoryCommits: Repository<RepositoryCommit>,
+    private readonly githubTokenCryptoService: GitHubTokenCryptoService,
   ) {}
 
   async listAvailableRepositories(
@@ -141,6 +146,12 @@ export class GitHubService {
       disconnectedAt: null,
     });
 
+    connection.encryptedOAuthToken =
+      this.githubTokenCryptoService.encrypt(
+        accessToken,
+        connection.id,
+      );
+
     const saved = await this.connectedRepositories.save(
       connection,
     );
@@ -164,74 +175,186 @@ export class GitHubService {
   }
 
 
-  private async getConnectedRepositoryForMember(
+  async getWorkspaceRepository(
     workspaceId: string,
     userId: string,
-  ): Promise<ConnectedRepository> {
-    // Members may read the repository's public data.
+  ): Promise<
+    ConnectedRepositoryResponseDto & {
+      lastSyncedAt: Date | null;
+    }
+  > {
+    // Only workspace members can view the connection.
     await this.workspacesService.findOneForUser(
       workspaceId,
       userId,
     );
 
-    const connection = await this.connectedRepositories.findOne({
+    // Read stored data without calling the GitHub API.
+    const repository = await this.connectedRepositories.findOne({
       where: {
         workspaceId,
         disconnectedAt: IsNull(),
       },
     });
 
-    if (!connection) {
+    if (!repository) {
       throw new NotFoundException(
         'No GitHub repository connected to this workspace',
       );
     }
 
-    // Confirm that the GitHub repository still has
-    // the identity originally connected to this workspace.
-    const remote = await this.githubApiService.getPublicRepository(
-      connection.ownerLogin,
-      connection.name,
+    return {
+      id: repository.id,
+      workspaceId: repository.workspaceId,
+      githubRepositoryId: repository.githubRepositoryId,
+      fullName: repository.fullName,
+      repositoryUrl: repository.repositoryUrl,
+      defaultBranch: repository.defaultBranch,
+      visibility: repository.visibility,
+      createdAt: repository.createdAt,
+      lastSyncedAt: repository.lastSyncedAt,
+    };
+  }
+
+  async listWorkspaceCommits(
+    workspaceId: string,
+    userId: string,
+    page = 1,
+    limit = 20,
+  ) {
+    if (
+      !Number.isInteger(page) ||
+      !Number.isInteger(limit) ||
+      page < 1 ||
+      limit < 1 ||
+      limit > 100
+    ) {
+      throw new BadRequestException(
+        'Invalid pagination parameters',
+      );
+    }
+
+    // Verify workspace membership.
+    await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
     );
 
-    if (
-      remote.githubRepositoryId !== connection.githubRepositoryId
-    ) {
+    // Read the connected repository from MySQL.
+    const repository = await this.connectedRepositories.findOne({
+      where: {
+        workspaceId,
+        disconnectedAt: IsNull(),
+      },
+    });
+
+    if (!repository) {
+      throw new NotFoundException(
+        'No GitHub repository connected to this workspace',
+      );
+    }
+
+    // Read stored commits. No GitHub API request.
+    const [commits, total] =
+      await this.repositoryCommits.findAndCount({
+        where: {
+          repositoryId: repository.id,
+        },
+        order: {
+          committedAt: 'DESC',
+          sha: 'DESC',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+    return {
+      items: commits.map((commit) => ({
+        id: commit.id,
+        sha: commit.sha,
+        message: commit.message,
+        authorName: commit.authorName,
+        committerName: commit.committerName,
+        committedAt: commit.committedAt,
+        githubUrl: commit.githubUrl,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  private async getConnectedRepositoryForMember(
+    workspaceId: string,
+    userId: string,
+  ): Promise<{ repository: ConnectedRepository; accessToken: string }> {
+    await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
+
+    const repository = await this.connectedRepositories.findOne({
+      select: {
+        id: true,
+        workspaceId: true,
+        githubRepositoryId: true,
+        ownerLogin: true,
+        name: true,
+        encryptedOAuthToken: true,
+      },
+      where: {
+        workspaceId,
+        disconnectedAt: IsNull(),
+      },
+    });
+
+    if (!repository) {
+      throw new NotFoundException(
+        'No GitHub repository connected to this workspace',
+      );
+    }
+
+    if (!repository.encryptedOAuthToken) {
+      throw new ConflictException(
+        'GitHub authorization missing. Reconnect the repository.',
+      );
+    }
+
+    const accessToken = this.githubTokenCryptoService.decrypt(
+      repository.encryptedOAuthToken,
+      repository.id,
+    );
+
+    const remote = await this.githubApiService.getPublicRepository(
+      repository.ownerLogin,
+      repository.name,
+      accessToken,
+    );
+
+    if (remote.githubRepositoryId !== repository.githubRepositoryId) {
       throw new ConflictException(
         'Connected GitHub repository identity has changed',
       );
     }
 
-    return connection;
+    return { repository, accessToken };
   }
 
   async listWorkspaceBranches(
     workspaceId: string,
     userId: string,
   ): Promise<PublicGitHubBranch[]> {
-    const repository = await this.getConnectedRepositoryForMember(
-      workspaceId,
-      userId,
-    );
+    const { repository, accessToken } =
+      await this.getConnectedRepositoryForMember(
+        workspaceId,
+        userId,
+      );
 
     return this.githubApiService.listBranches(
       repository.ownerLogin,
       repository.name,
-    );
-  }
-
-  async listWorkspacePullRequests(
-    workspaceId: string,
-    userId: string,
-  ): Promise<PublicGitHubPullRequest[]> {
-    const repository = await this.getConnectedRepositoryForMember(
-      workspaceId,
-      userId,
-    );
-
-    return this.githubApiService.listOpenPullRequests(
-      repository.ownerLogin,
-      repository.name,
+      accessToken,
     );
   }
 

@@ -10,6 +10,7 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 import { Repository as ConnectedRepository } from '../entities/repository.entity';
 import { RepositoryCommit } from '../entities/repository-commit.entity';
 import { GitHubApiService } from './github-api.service';
+import { GitHubTokenCryptoService } from './github-token-crypto.service';
 
 export interface GitHubSyncResult {
   repositoryId: string;
@@ -21,26 +22,61 @@ export interface GitHubSyncResult {
 
 @Injectable()
 export class GitHubSyncService {
+  private readonly inFlightSyncs = new Map<
+    string,
+    Promise<GitHubSyncResult>
+  >();
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly workspacesService: WorkspacesService,
     private readonly githubApiService: GitHubApiService,
+    private readonly githubTokenCryptoService: GitHubTokenCryptoService,
   ) {}
 
   async syncRepository(
     workspaceId: string,
     userId: string,
   ): Promise<GitHubSyncResult> {
-    // 1. Verify workspace ownership.
-    await this.workspacesService.assertOwner(
+    // Every caller must be an authorized workspace member.
+    await this.workspacesService.findOneForUser(
       workspaceId,
       userId,
     );
 
-    // 2. Find the connected repository.
+    // Reuse an ongoing synchronization for this workspace.
+    const existingSync = this.inFlightSyncs.get(workspaceId);
+
+    if (existingSync) {
+      return existingSync;
+    }
+
+    const syncPromise = this.performSync(workspaceId);
+    this.inFlightSyncs.set(workspaceId, syncPromise);
+
+    try {
+      return await syncPromise;
+    } finally {
+      // Allow future manual refreshes, including after failures.
+      this.inFlightSyncs.delete(workspaceId);
+    }
+  }
+
+  private async performSync(
+    workspaceId: string,
+  ): Promise<GitHubSyncResult> {
+    // Find the connected repository.
     const repository = await this.dataSource
       .getRepository(ConnectedRepository)
       .findOne({
+        select: {
+          id: true,
+          workspaceId: true,
+          githubRepositoryId: true,
+          ownerLogin: true,
+          name: true,
+          encryptedOAuthToken: true,
+        },
         where: {
           workspaceId,
           disconnectedAt: IsNull(),
@@ -53,10 +89,22 @@ export class GitHubSyncService {
       );
     }
 
+    if (!repository.encryptedOAuthToken) {
+      throw new ConflictException(
+        'GitHub authorization missing. Reconnect the repository.',
+      );
+    }
+
+    const accessToken = this.githubTokenCryptoService.decrypt(
+      repository.encryptedOAuthToken,
+      repository.id,
+    );
+
     // 3. Verify the repository still exists and is public.
     const remote = await this.githubApiService.getPublicRepository(
       repository.ownerLogin,
       repository.name,
+      accessToken,
     );
 
     if (
@@ -71,6 +119,7 @@ export class GitHubSyncService {
     const commits = await this.githubApiService.listRecentCommits(
       remote.ownerLogin,
       remote.name,
+      accessToken,
     );
 
     const now = new Date();

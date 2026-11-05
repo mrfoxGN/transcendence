@@ -45,7 +45,7 @@ describe('GitHubOAuthService', () => {
         new Response(
           JSON.stringify({
             access_token: 'gho_test_token',
-            scope: 'admin:repo_hook',
+            scope: 'read:user',
             token_type: 'bearer',
           }),
           { status: 200 },
@@ -103,7 +103,7 @@ describe('GitHubOAuthService', () => {
     );
 
     expect(url.searchParams.get('scope')).toBe(
-      'admin:repo_hook',
+      'read:user',
     );
   });
 
@@ -259,14 +259,14 @@ describe('GitHubOAuthService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('rejects missing GitHub webhook permissions', async () => {
+  it('rejects OAuth responses without an access token', async () => {
     const { state } = await startOAuth();
 
     jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          access_token: 'gho_test_token',
           scope: 'read:user',
+          token_type: 'bearer',
         }),
         { status: 200 },
       ),
@@ -274,7 +274,7 @@ describe('GitHubOAuthService', () => {
 
     await expect(
       service.complete('test-code', state),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('handles GitHub connection failures', async () => {

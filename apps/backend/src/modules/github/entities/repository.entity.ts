@@ -122,6 +122,14 @@ export class Repository {
   visibility!: RepositoryVisibility;
 
   @Column({
+    name: 'encrypted_oauth_token',
+    type: 'text',
+    nullable: true,
+    select: false,
+  })
+  encryptedOAuthToken!: string | null;
+
+  @Column({
     name: 'last_synced_at',
     type: 'datetime',
     precision: 6,

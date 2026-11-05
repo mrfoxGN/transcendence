@@ -35,25 +35,31 @@ export interface PublicGitHubBranch {
   protected: boolean;
 }
 
-export interface PublicGitHubPullRequest {
-  number: number;
-  title: string;
-  githubUrl: string;
-  authorLogin: string | null;
-  sourceBranch: string;
-  targetBranch: string;
-  isDraft: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 @Injectable()
 export class GitHubApiService {
   private readonly baseUrl = 'https://api.github.com';
 
+  private getPublicApiHeaders(
+    accessToken?: string,
+  ): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'Transcendence',
+    };
+
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    return headers;
+  }
+
   async getPublicRepository(
     owner: string,
     repo: string,
+    accessToken?: string,
   ): Promise<PublicGitHubRepository> {
     const validOwner =
       /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(
@@ -81,11 +87,7 @@ export class GitHubApiService {
     try {
       response = await fetch(url, {
         method: 'GET',
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'Transcendence',
-        },
+        headers: this.getPublicApiHeaders(accessToken),
         redirect: 'error',
         signal: AbortSignal.timeout(10_000),
       });
@@ -300,6 +302,7 @@ export class GitHubApiService {
   async listRecentCommits(
     owner: string,
     repo: string,
+    accessToken?: string,
   ): Promise<PublicGitHubCommit[]> {
     const url = new URL(
       `${this.baseUrl}/repos/` +
@@ -315,11 +318,7 @@ export class GitHubApiService {
     try {
       response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'Transcendence',
-        },
+        headers: this.getPublicApiHeaders(accessToken),
         redirect: 'error',
         signal: AbortSignal.timeout(10_000),
       });
@@ -455,8 +454,9 @@ export class GitHubApiService {
   private async fetchPublicRepositoryItems(
     owner: string,
     repo: string,
-    resource: 'branches' | 'pulls',
+    resource: 'branches',
     parameters: Record<string, string> = {},
+    accessToken?: string,
   ): Promise<unknown[]> {
     const items: unknown[] = [];
 
@@ -480,11 +480,7 @@ export class GitHubApiService {
       try {
         response = await fetch(url.toString(), {
           method: 'GET',
-          headers: {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'Transcendence',
-          },
+          headers: this.getPublicApiHeaders(accessToken),
           redirect: 'error',
           signal: AbortSignal.timeout(10_000),
         });
@@ -544,11 +540,14 @@ export class GitHubApiService {
   async listBranches(
     owner: string,
     repo: string,
+    accessToken?: string,
   ): Promise<PublicGitHubBranch[]> {
     const items = await this.fetchPublicRepositoryItems(
       owner,
       repo,
       'branches',
+      {},
+      accessToken,
     );
 
     return items.map((item): PublicGitHubBranch => {
@@ -587,97 +586,6 @@ export class GitHubApiService {
         name,
         sha,
         protected: protectedBranch,
-      };
-    });
-  }
-
-  async listOpenPullRequests(
-    owner: string,
-    repo: string,
-  ): Promise<PublicGitHubPullRequest[]> {
-    const items = await this.fetchPublicRepositoryItems(
-      owner,
-      repo,
-      'pulls',
-      {
-        state: 'open',
-        sort: 'updated',
-        direction: 'desc',
-      },
-    );
-
-    return items.map((item): PublicGitHubPullRequest => {
-      if (!this.isRecord(item)) {
-        throw new BadGatewayException(
-          'Invalid GitHub pull request response',
-        );
-      }
-
-      const number = item.number;
-      const title = item.title;
-      const githubUrl = item.html_url;
-      const head = item.head;
-      const base = item.base;
-      const user = item.user;
-      const createdAt = item.created_at;
-      const updatedAt = item.updated_at;
-
-      if (
-        typeof number !== 'number' ||
-        !Number.isSafeInteger(number) ||
-        number <= 0 ||
-        typeof title !== 'string' ||
-        typeof githubUrl !== 'string' ||
-        !this.isRecord(head) ||
-        !this.isRecord(base) ||
-        typeof createdAt !== 'string' ||
-        typeof updatedAt !== 'string'
-      ) {
-        throw new BadGatewayException(
-          'Invalid GitHub pull request data',
-        );
-      }
-
-      const sourceBranch = head.ref;
-      const targetBranch = base.ref;
-
-      if (
-        typeof sourceBranch !== 'string' ||
-        typeof targetBranch !== 'string'
-      ) {
-        throw new BadGatewayException(
-          'Invalid pull request branches',
-        );
-      }
-
-      const createdDate = new Date(createdAt);
-      const updatedDate = new Date(updatedAt);
-
-      if (
-        Number.isNaN(createdDate.getTime()) ||
-        Number.isNaN(updatedDate.getTime())
-      ) {
-        throw new BadGatewayException(
-          'Invalid pull request timestamps',
-        );
-      }
-
-      const authorLogin =
-        this.isRecord(user) &&
-        typeof user.login === 'string'
-          ? user.login
-          : null;
-
-      return {
-        number,
-        title,
-        githubUrl,
-        authorLogin,
-        sourceBranch,
-        targetBranch,
-        isDraft: item.draft === true,
-        createdAt: createdDate.toISOString(),
-        updatedAt: updatedDate.toISOString(),
       };
     });
   }
