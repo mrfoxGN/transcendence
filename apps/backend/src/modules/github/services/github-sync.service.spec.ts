@@ -8,6 +8,10 @@ jest.mock('../../workspaces/services/workspaces.service', () => ({
   WorkspacesService: class WorkspacesService {},
 }));
 
+jest.mock('@nestjs/config', () => ({
+  ConfigService: class ConfigService {},
+}));
+
 import { GitHubSyncService } from './github-sync.service';
 
 describe('GitHubSyncService', () => {
@@ -25,6 +29,7 @@ describe('GitHubSyncService', () => {
     name: 'transcendence',
     fullName: 'mrfoxGN/transcendence',
     disconnectedAt: null,
+    encryptedOAuthToken: 'encrypted-test-token',
   };
 
   const remoteRepository = {
@@ -48,13 +53,18 @@ describe('GitHubSyncService', () => {
   };
 
   const workspacesService = {
-    assertOwner: jest.fn(),
+    findOneForUser: jest.fn(),
   };
 
   const githubApiService = {
     getPublicRepository: jest.fn(),
     listRecentCommits: jest.fn(),
   };
+
+  const githubTokenCryptoService = {
+    decrypt: jest.fn(),
+  };
+
 
   const databaseRepository = {
     findOne: jest.fn(),
@@ -87,7 +97,9 @@ describe('GitHubSyncService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    workspacesService.assertOwner.mockResolvedValue(undefined);
+    workspacesService.findOneForUser.mockResolvedValue(undefined);
+
+    githubTokenCryptoService.decrypt.mockReturnValue('test-oauth-token');
 
     githubApiService.getPublicRepository.mockResolvedValue({
       ...remoteRepository,
@@ -140,6 +152,7 @@ describe('GitHubSyncService', () => {
       dataSource as never,
       workspacesService as never,
       githubApiService as never,
+      githubTokenCryptoService as never,
     );
   });
 
@@ -156,16 +169,16 @@ describe('GitHubSyncService', () => {
     expect(result.lastSyncedAt).toBeInstanceOf(Date);
   });
 
-  it('verifies workspace ownership', async () => {
+  it('verifies workspace membership', async () => {
     await sync();
 
     expect(
-      workspacesService.assertOwner,
+      workspacesService.findOneForUser,
     ).toHaveBeenCalledWith(workspaceId, userId);
   });
 
   it('rejects unauthorized users', async () => {
-    workspacesService.assertOwner.mockRejectedValueOnce(
+    workspacesService.findOneForUser.mockRejectedValueOnce(
       new ForbiddenException(),
     );
 
@@ -282,4 +295,177 @@ describe('GitHubSyncService', () => {
       }),
     );
   });
+
+  it('shares an ongoing sync between workspace members', async () => {
+    const secondUserId = 'd30a15a4-bb32-4c4f-a34b-7de84cc7ab63';
+
+    let signalStarted!: () => void;
+    let releaseFetch!: (commits: typeof commit[]) => void;
+
+    const fetchStarted = new Promise<void>((resolve) => {
+      signalStarted = resolve;
+    });
+
+    githubApiService.listRecentCommits.mockImplementationOnce(
+      () => {
+        signalStarted();
+
+        return new Promise<typeof commit[]>((resolve) => {
+          releaseFetch = resolve;
+        });
+      },
+    );
+
+    // Member A starts synchronization.
+    const firstRequest = service.syncRepository(
+      workspaceId,
+      userId,
+    );
+
+    await fetchStarted;
+
+    // Member B refreshes while A's request is still running.
+    const secondRequest = service.syncRepository(
+      workspaceId,
+      secondUserId,
+    );
+
+    releaseFetch([commit]);
+
+    const [firstResult, secondResult] = await Promise.all([
+      firstRequest,
+      secondRequest,
+    ]);
+
+    expect(firstResult).toEqual(secondResult);
+
+    expect(
+      workspacesService.findOneForUser,
+    ).toHaveBeenCalledTimes(2);
+
+    expect(
+      githubApiService.getPublicRepository,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(
+      githubApiService.listRecentCommits,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows retry after a failed synchronization', async () => {
+    githubApiService.getPublicRepository.mockRejectedValueOnce(
+      new Error('GitHub unavailable'),
+    );
+
+    await expect(sync()).rejects.toThrow(
+      'GitHub unavailable',
+    );
+
+    const result = await sync();
+
+    expect(result.repositoryId).toBe(repositoryId);
+
+    expect(
+      githubApiService.getPublicRepository,
+    ).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects unauthorized members during an ongoing sync', async () => {
+    const unauthorizedUserId =
+      'a8f0f1e9-b154-45df-8bc1-cfa06104b947';
+
+    let signalStarted!: () => void;
+    let releaseFetch!: (commits: typeof commit[]) => void;
+
+    const fetchStarted = new Promise<void>((resolve) => {
+      signalStarted = resolve;
+    });
+
+    githubApiService.listRecentCommits.mockImplementationOnce(
+      () => {
+        signalStarted();
+
+        return new Promise<typeof commit[]>((resolve) => {
+          releaseFetch = resolve;
+        });
+      },
+    );
+
+    workspacesService.findOneForUser.mockImplementation(
+      async (_workspaceId: string, memberId: string) => {
+        if (memberId === unauthorizedUserId) {
+          throw new ForbiddenException();
+        }
+      },
+    );
+
+    const authorizedRequest = sync();
+
+    await fetchStarted;
+
+    await expect(
+      service.syncRepository(
+        workspaceId,
+        unauthorizedUserId,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    releaseFetch([commit]);
+
+    await authorizedRequest;
+
+    expect(
+      githubApiService.listRecentCommits,
+    ).toHaveBeenCalledTimes(1);
+  });
+
+
+  it('uses decrypted OAuth credentials for GitHub requests', async () => {
+    await sync();
+
+    expect(
+      githubTokenCryptoService.decrypt,
+    ).toHaveBeenCalledWith(
+      'encrypted-test-token',
+      repositoryId,
+    );
+
+    expect(
+      githubApiService.getPublicRepository,
+    ).toHaveBeenCalledWith(
+      'mrfoxGN',
+      'transcendence',
+      'test-oauth-token',
+    );
+
+    expect(
+      githubApiService.listRecentCommits,
+    ).toHaveBeenCalledWith(
+      'mrfoxGN',
+      'transcendence',
+      'test-oauth-token',
+    );
+  });
+
+  it('rejects repositories without stored OAuth credentials', async () => {
+    databaseRepository.findOne.mockResolvedValueOnce({
+      ...localRepository,
+      encryptedOAuthToken: null,
+    });
+
+    await expect(sync()).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+
+    expect(
+      githubTokenCryptoService.decrypt,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      githubApiService.getPublicRepository,
+    ).not.toHaveBeenCalled();
+  });
+
 });

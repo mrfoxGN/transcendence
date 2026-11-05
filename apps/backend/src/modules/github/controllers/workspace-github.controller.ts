@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -36,6 +37,21 @@ export class WorkspaceGitHubController {
     private readonly githubSyncService: GitHubSyncService,
   ) {}
 
+  @Get('repository')
+  getWorkspaceRepository(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<
+    ConnectedRepositoryResponseDto & {
+      lastSyncedAt: Date | null;
+    }
+  > {
+    return this.githubService.getWorkspaceRepository(
+      workspaceId,
+      request.user.id,
+    );
+  }
+
   @Post('repository')
   connectRepository(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -61,6 +77,21 @@ export class WorkspaceGitHubController {
     );
   }
 
+
+  @Get('commits')
+  listWorkspaceCommits(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.githubService.listWorkspaceCommits(
+      workspaceId,
+      request.user.id,
+      page === undefined ? 1 : Number(page),
+      limit === undefined ? 20 : Number(limit),
+    );
+  }
 
   @Get('branches')
   listBranches(

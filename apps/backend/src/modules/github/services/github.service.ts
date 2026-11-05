@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -11,9 +11,11 @@ import type {
   PublicGitHubPullRequest,
 } from './github-api.service';
 import { GitHubOAuthService } from './github-oauth.service';
+import { GitHubTokenCryptoService } from './github-token-crypto.service';
 import { RepositoryVisibility } from '../../../database/enums/database.enums';
 import { ConnectedRepositoryResponseDto } from '../dto/connected-repository-response.dto';
 import { Repository as ConnectedRepository } from '../entities/repository.entity';
+import { RepositoryCommit } from '../entities/repository-commit.entity';
 import { GitHubInstallation } from '../entities/github-installation.entity';
 
 @Injectable()
@@ -27,6 +29,10 @@ export class GitHubService {
 
     @InjectRepository(ConnectedRepository)
     private readonly connectedRepositories: Repository<ConnectedRepository>,
+
+    @InjectRepository(RepositoryCommit)
+    private readonly repositoryCommits: Repository<RepositoryCommit>,
+    private readonly githubTokenCryptoService: GitHubTokenCryptoService,
   ) {}
 
   async listAvailableRepositories(
@@ -141,6 +147,12 @@ export class GitHubService {
       disconnectedAt: null,
     });
 
+    connection.encryptedOAuthToken =
+      this.githubTokenCryptoService.encrypt(
+        accessToken,
+        connection.id,
+      );
+
     const saved = await this.connectedRepositories.save(
       connection,
     );
@@ -163,6 +175,116 @@ export class GitHubService {
     };
   }
 
+
+  async getWorkspaceRepository(
+    workspaceId: string,
+    userId: string,
+  ): Promise<
+    ConnectedRepositoryResponseDto & {
+      lastSyncedAt: Date | null;
+    }
+  > {
+    // Only workspace members can view the connection.
+    await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
+
+    // Read stored data without calling the GitHub API.
+    const repository = await this.connectedRepositories.findOne({
+      where: {
+        workspaceId,
+        disconnectedAt: IsNull(),
+      },
+    });
+
+    if (!repository) {
+      throw new NotFoundException(
+        'No GitHub repository connected to this workspace',
+      );
+    }
+
+    return {
+      id: repository.id,
+      workspaceId: repository.workspaceId,
+      githubRepositoryId: repository.githubRepositoryId,
+      fullName: repository.fullName,
+      repositoryUrl: repository.repositoryUrl,
+      defaultBranch: repository.defaultBranch,
+      visibility: repository.visibility,
+      createdAt: repository.createdAt,
+      lastSyncedAt: repository.lastSyncedAt,
+    };
+  }
+
+  async listWorkspaceCommits(
+    workspaceId: string,
+    userId: string,
+    page = 1,
+    limit = 20,
+  ) {
+    if (
+      !Number.isInteger(page) ||
+      !Number.isInteger(limit) ||
+      page < 1 ||
+      limit < 1 ||
+      limit > 100
+    ) {
+      throw new BadRequestException(
+        'Invalid pagination parameters',
+      );
+    }
+
+    // Verify workspace membership.
+    await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
+
+    // Read the connected repository from MySQL.
+    const repository = await this.connectedRepositories.findOne({
+      where: {
+        workspaceId,
+        disconnectedAt: IsNull(),
+      },
+    });
+
+    if (!repository) {
+      throw new NotFoundException(
+        'No GitHub repository connected to this workspace',
+      );
+    }
+
+    // Read stored commits. No GitHub API request.
+    const [commits, total] =
+      await this.repositoryCommits.findAndCount({
+        where: {
+          repositoryId: repository.id,
+        },
+        order: {
+          committedAt: 'DESC',
+          sha: 'DESC',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+    return {
+      items: commits.map((commit) => ({
+        id: commit.id,
+        sha: commit.sha,
+        message: commit.message,
+        authorName: commit.authorName,
+        committerName: commit.committerName,
+        committedAt: commit.committedAt,
+        githubUrl: commit.githubUrl,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 
   private async getConnectedRepositoryForMember(
     workspaceId: string,

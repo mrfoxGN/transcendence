@@ -51,9 +51,26 @@ export interface PublicGitHubPullRequest {
 export class GitHubApiService {
   private readonly baseUrl = 'https://api.github.com';
 
+  private getPublicApiHeaders(
+    accessToken?: string,
+  ): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'Transcendence',
+    };
+
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    return headers;
+  }
+
   async getPublicRepository(
     owner: string,
     repo: string,
+    accessToken?: string,
   ): Promise<PublicGitHubRepository> {
     const validOwner =
       /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(
@@ -81,11 +98,7 @@ export class GitHubApiService {
     try {
       response = await fetch(url, {
         method: 'GET',
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'Transcendence',
-        },
+        headers: this.getPublicApiHeaders(accessToken),
         redirect: 'error',
         signal: AbortSignal.timeout(10_000),
       });
@@ -300,6 +313,7 @@ export class GitHubApiService {
   async listRecentCommits(
     owner: string,
     repo: string,
+    accessToken?: string,
   ): Promise<PublicGitHubCommit[]> {
     const url = new URL(
       `${this.baseUrl}/repos/` +
@@ -315,11 +329,7 @@ export class GitHubApiService {
     try {
       response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'Transcendence',
-        },
+        headers: this.getPublicApiHeaders(accessToken),
         redirect: 'error',
         signal: AbortSignal.timeout(10_000),
       });
@@ -480,11 +490,7 @@ export class GitHubApiService {
       try {
         response = await fetch(url.toString(), {
           method: 'GET',
-          headers: {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'Transcendence',
-          },
+          headers: this.getPublicApiHeaders(),
           redirect: 'error',
           signal: AbortSignal.timeout(10_000),
         });
