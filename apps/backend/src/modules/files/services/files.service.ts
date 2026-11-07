@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
@@ -219,16 +220,70 @@ export class FilesService {
       );
     }
 
-    file.deletedAt = new Date();
-
-    await this.workspaceFilesRepository.save(file);
-
     const absolutePath = join(
       this.storageRoot,
       file.storageKey,
     );
 
-    await unlink(absolutePath).catch(() => undefined);
+    // Delete the physical file before marking it as deleted.
+    // If deletion fails, keep the database record active so
+    // the user can retry the DELETE request.
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await unlink(absolutePath);
+        break;
+      } catch (error) {
+        const code =
+          error instanceof Error && 'code' in error
+            ? String(error.code)
+            : 'UNKNOWN';
+
+        // The file was already removed.
+        // We can safely continue with the database update.
+        if (code === 'ENOENT') {
+          this.logger.warn(
+            `Physical file already missing for file ${file.id}`,
+          );
+          break;
+        }
+
+        // Retry only transient filesystem errors.
+        const retryable =
+          code === 'EBUSY' || code === 'EAGAIN';
+
+        if (retryable && attempt < 3) {
+          this.logger.warn(
+            `Retrying physical deletion for file ${file.id} ` +
+            `(attempt ${attempt}, code ${code})`,
+          );
+
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, attempt * 200),
+          );
+
+          continue;
+        }
+
+        // Never silently ignore filesystem errors.
+        this.logger.error(
+          `Physical deletion failed for file ${file.id} ` +
+          `in workspace ${workspaceId} (code: ${code})`,
+          error instanceof Error
+            ? error.stack
+            : String(error),
+        );
+
+        throw new ServiceUnavailableException(
+          'Unable to delete file from storage. Please retry.',
+        );
+      }
+    }
+
+    // Only mark the file as deleted after physical cleanup.
+    file.deletedAt = new Date();
+
+    await this.workspaceFilesRepository.save(file);
 
     try {
       await this.activitiesService.create({
