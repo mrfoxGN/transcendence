@@ -73,7 +73,7 @@ function makeRepository() {
     find: jest.fn().mockResolvedValue([]),
     count: jest.fn().mockResolvedValue(0),
     create: jest.fn((value: object) => ({ ...value })),
-    save: jest.fn(async (value: object) => value),
+    save: jest.fn((value: object) => Promise.resolve(value)),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
     delete: jest.fn().mockResolvedValue({ affected: 1 }),
     createQueryBuilder: jest.fn(),
@@ -141,7 +141,10 @@ describe('TasksService', () => {
       }),
     };
 
-    const repositories = new Map<Function, ReturnType<typeof makeRepository>>([
+    const repositories = new Map<
+      abstract new (...args: never[]) => object,
+      ReturnType<typeof makeRepository>
+    >([
       [Task, transactionTasks],
       [TaskAssignment, assignments],
       [TaskComment, comments],
@@ -149,13 +152,15 @@ describe('TasksService', () => {
       [TaskStatusHistory, history],
     ]);
     const manager = {
-      getRepository: jest.fn((entity: Function) => {
-        const repository = repositories.get(entity);
-        if (!repository) {
-          throw new Error('Unexpected repository requested by the service');
-        }
-        return repository;
-      }),
+      getRepository: jest.fn(
+        (entity: abstract new (...args: never[]) => object) => {
+          const repository = repositories.get(entity);
+          if (!repository) {
+            throw new Error('Unexpected repository requested by the service');
+          }
+          return repository;
+        },
+      ),
     };
     dataSource = {
       getRepository: manager.getRepository,
@@ -268,12 +273,12 @@ describe('TasksService', () => {
           actorUserId: userId,
           actionType: 'TASK_CREATED',
           resourceType: 'task',
-          resourceId: expect.any(String),
+          resourceId: expect.any(String) as unknown,
           metadata: expect.objectContaining({
             title: 'Build profile',
             status: TaskStatus.BACKLOG,
             priority: null,
-          }),
+          }) as unknown,
         }),
       );
     });
@@ -347,11 +352,11 @@ describe('TasksService', () => {
     it('trims the title, converts the due date, and preserves omitted fields', async () => {
       const dueAt = '2026-12-01T10:00:00.000Z';
       await service.update(taskId, userId, { title: '  Updated  ', dueAt });
-      const changes = tasks.update.mock.calls[0][1];
+      const changes = (tasks.update.mock.calls as unknown[][])[0][1];
       expect(changes).toEqual({
         title: 'Updated',
         dueAt: new Date(dueAt),
-        updatedAt: expect.any(Date),
+        updatedAt: expect.any(Date) as unknown,
       });
     });
 
@@ -362,19 +367,19 @@ describe('TasksService', () => {
         priority: null,
         dueAt: null,
       });
-      expect(tasks.update).toHaveBeenCalledWith(expect.anything(), {
+      expect(tasks.update).toHaveBeenCalledWith(expect.anything() as unknown, {
         description: null,
         acceptanceCriteria: null,
         priority: null,
         dueAt: null,
-        updatedAt: expect.any(Date),
+        updatedAt: expect.any(Date) as unknown,
       });
     });
 
     it('updates task priority', async () => {
       await service.update(taskId, userId, { priority: TaskPriority.HIGH });
       expect(tasks.update).toHaveBeenCalledWith(
-        expect.anything(),
+        expect.anything() as unknown,
         expect.objectContaining({ priority: TaskPriority.HIGH }),
       );
     });
@@ -386,10 +391,13 @@ describe('TasksService', () => {
           .mockResolvedValueOnce(task)
           .mockResolvedValueOnce(makeTask({ position }));
         const result = await service.update(taskId, userId, { position });
-        expect(tasks.update).toHaveBeenCalledWith(expect.anything(), {
-          position,
-          updatedAt: expect.any(Date),
-        });
+        expect(tasks.update).toHaveBeenCalledWith(
+          expect.anything() as unknown,
+          {
+            position,
+            updatedAt: expect.any(Date) as unknown,
+          },
+        );
         expect(result.position).toBe(position);
       },
     );
@@ -421,8 +429,8 @@ describe('TasksService', () => {
       expect(tasks.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: taskId }),
         {
-          deletedAt: expect.any(Date),
-          updatedAt: expect.any(Date),
+          deletedAt: expect.any(Date) as unknown,
+          updatedAt: expect.any(Date) as unknown,
         },
       );
       expect(tasks.delete).not.toHaveBeenCalled();
@@ -462,8 +470,8 @@ describe('TasksService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             workspaceId,
-            deletedAt: expect.anything(),
-          }),
+            deletedAt: expect.anything() as unknown,
+          }) as unknown,
           order: { position: 'ASC', createdAt: 'ASC', id: 'ASC' },
         }),
       );
@@ -532,7 +540,7 @@ describe('TasksService', () => {
             fromStatus: from,
             toStatus: to,
             changedById: userId,
-            changedAt: expect.any(Date),
+            changedAt: expect.any(Date) as unknown,
             note: 'Reviewed',
           }),
         );
@@ -653,7 +661,7 @@ describe('TasksService', () => {
           taskId,
           userId: otherUserId,
           assignedById: userId,
-          assignedAt: expect.any(Date),
+          assignedAt: expect.any(Date) as unknown,
         }),
       );
       expect(result.userId).toBe(otherUserId);
@@ -774,8 +782,8 @@ describe('TasksService', () => {
           where: expect.objectContaining({
             id: commentId,
             taskId,
-            deletedAt: expect.anything(),
-          }),
+            deletedAt: expect.anything() as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -799,7 +807,7 @@ describe('TasksService', () => {
       comments.find.mockResolvedValue([makeComment()]);
       const result = await service.listComments(taskId, userId);
       expect(comments.find).toHaveBeenCalledWith({
-        where: { taskId, deletedAt: expect.anything() },
+        where: { taskId, deletedAt: expect.anything() as unknown },
         order: { createdAt: 'ASC', id: 'ASC' },
       });
       expect(result[0].id).toBe(commentId);
@@ -811,8 +819,8 @@ describe('TasksService', () => {
       await service.removeComment(taskId, commentId, userId);
       expect(comments.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          deletedAt: expect.any(Date),
-          updatedAt: expect.any(Date),
+          deletedAt: expect.any(Date) as unknown,
+          updatedAt: expect.any(Date) as unknown,
         }),
       );
       expect(comments.delete).not.toHaveBeenCalled();
@@ -970,19 +978,19 @@ describe('TasksService', () => {
       const result = await service.block(taskId, userId, {
         reason: '  Waiting for access  ',
       });
-      const [criteria, changes] = tasks.update.mock.calls[0];
+      const [criteria, changes] = (tasks.update.mock.calls as unknown[][])[0];
       expect(criteria).toEqual(
         expect.objectContaining({
           id: taskId,
           isBlocked: false,
-          deletedAt: expect.anything(),
+          deletedAt: expect.anything() as unknown,
         }),
       );
       expect(changes).toEqual({
         isBlocked: true,
         blockedReason: 'Waiting for access',
-        blockedAt: expect.any(Date),
-        updatedAt: expect.any(Date),
+        blockedAt: expect.any(Date) as unknown,
+        updatedAt: expect.any(Date) as unknown,
       });
       expect(result.isBlocked).toBe(true);
       expect(result.status).toBe(TaskStatus.IN_PROGRESS);
@@ -1029,7 +1037,7 @@ describe('TasksService', () => {
           isBlocked: false,
           blockedReason: null,
           blockedAt: null,
-          updatedAt: expect.any(Date),
+          updatedAt: expect.any(Date) as unknown,
         },
       );
       expect(result.isBlocked).toBe(false);

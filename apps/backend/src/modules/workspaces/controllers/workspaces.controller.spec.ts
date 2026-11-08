@@ -186,13 +186,15 @@ describe('Workspaces endpoints', () => {
   });
 
   it('GET /workspaces requires authentication', async () => {
-    await request(app.getHttpServer()).get('/workspaces').expect(401);
+    await request(app.getHttpServer() as import('http').Server)
+      .get('/workspaces')
+      .expect(401);
 
     expect(workspacesService.findAllForUser).not.toHaveBeenCalled();
   });
 
   it('GET /workspaces returns workspaces for the authenticated user', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -201,7 +203,7 @@ describe('Workspaces endpoints', () => {
 
     expect(response.body).toHaveLength(1);
 
-    expect(response.body[0]).toMatchObject({
+    expect((response.body as unknown[])[0]).toMatchObject({
       id: workspaceId,
       ownerId: userId,
       name: 'Transcendence Team',
@@ -212,7 +214,7 @@ describe('Workspaces endpoints', () => {
   it('GET /workspaces returns an empty list when the user has no workspaces', async () => {
     workspacesService.findAllForUser.mockResolvedValue([]);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -221,7 +223,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('GET /workspaces/:id returns one workspace for a member', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -239,7 +241,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('GET /workspaces/:id rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/workspaces/not-a-uuid')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -252,7 +254,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -263,14 +265,14 @@ describe('Workspaces endpoints', () => {
       new ForbiddenException(),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('POST requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces')
       .send({
         name: 'Transcendence Team',
@@ -286,7 +288,7 @@ describe('Workspaces endpoints', () => {
       description: 'Main workspace',
     };
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .send(dto)
@@ -306,7 +308,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST rejects a client-supplied ownerId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -319,7 +321,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST rejects an empty name', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -331,7 +333,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST rejects a missing name', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -343,7 +345,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST rejects a name longer than 120 characters', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -355,7 +357,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .send({
         name: 'Updated Workspace',
@@ -376,7 +378,7 @@ describe('Workspaces endpoints', () => {
       ...dto,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .send(dto)
@@ -388,12 +390,14 @@ describe('Workspaces endpoints', () => {
       dto,
     );
 
-    expect(response.body.name).toBe('Updated Workspace');
-    expect(response.body.description).toBe('Updated description');
+    expect((response.body as { name: unknown }).name).toBe('Updated Workspace');
+    expect((response.body as { description: unknown }).description).toBe(
+      'Updated description',
+    );
   });
 
   it('PATCH rejects an invalid workspace UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch('/workspaces/not-a-uuid')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -405,7 +409,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH rejects a name longer than 120 characters', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -417,7 +421,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH rejects protected fields such as ownerId', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -433,7 +437,7 @@ describe('Workspaces endpoints', () => {
       new BadRequestException('No changes provided'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({})
@@ -451,7 +455,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -463,7 +467,7 @@ describe('Workspaces endpoints', () => {
   it('PATCH returns 403 when user is not the owner', async () => {
     workspacesService.update.mockRejectedValue(new ForbiddenException());
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -473,7 +477,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH /workspaces/:id/archive requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/archive`)
       .expect(401);
 
@@ -481,18 +485,20 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH /workspaces/:id/archive archives a workspace', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/archive`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(workspacesService.archive).toHaveBeenCalledWith(workspaceId, userId);
 
-    expect(response.body.archivedAt).not.toBeNull();
+    expect(
+      (response.body as { archivedAt: unknown }).archivedAt,
+    ).not.toBeNull();
   });
 
   it('PATCH /workspaces/:id/archive rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch('/workspaces/not-a-uuid/archive')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -505,7 +511,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/archive`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -514,14 +520,14 @@ describe('Workspaces endpoints', () => {
   it('PATCH /workspaces/:id/archive returns 403 for a non-owner', async () => {
     workspacesService.archive.mockRejectedValue(new ForbiddenException());
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/archive`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('PATCH /workspaces/:id/unarchive requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/unarchive`)
       .expect(401);
 
@@ -529,7 +535,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH /workspaces/:id/unarchive unarchives a workspace', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/unarchive`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -539,11 +545,11 @@ describe('Workspaces endpoints', () => {
       userId,
     );
 
-    expect(response.body.archivedAt).toBeNull();
+    expect((response.body as { archivedAt: unknown }).archivedAt).toBeNull();
   });
 
   it('PATCH /workspaces/:id/unarchive rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch('/workspaces/not-a-uuid/unarchive')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -556,7 +562,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/unarchive`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -565,14 +571,14 @@ describe('Workspaces endpoints', () => {
   it('PATCH /workspaces/:id/unarchive returns 403 for a non-owner', async () => {
     workspacesService.unarchive.mockRejectedValue(new ForbiddenException());
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/unarchive`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('DELETE /workspaces/:id requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}`)
       .expect(401);
 
@@ -580,7 +586,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('DELETE /workspaces/:id soft deletes a workspace', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -592,7 +598,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('DELETE /workspaces/:id rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete('/workspaces/not-a-uuid')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -605,7 +611,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -614,14 +620,14 @@ describe('Workspaces endpoints', () => {
   it('DELETE /workspaces/:id returns 403 for a non-owner', async () => {
     workspacesService.softDelete.mockRejectedValue(new ForbiddenException());
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('GET /workspaces/:id/members requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}/members`)
       .expect(401);
 
@@ -629,7 +635,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('GET /workspaces/:id/members returns workspace members', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}/members`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -641,7 +647,7 @@ describe('Workspaces endpoints', () => {
 
     expect(response.body).toHaveLength(1);
 
-    expect(response.body[0]).toMatchObject({
+    expect((response.body as unknown[])[0]).toMatchObject({
       membershipId: '12499996-b915-4109-8061-749d82dd5ab0',
       userId,
       username: 'anass',
@@ -649,12 +655,12 @@ describe('Workspaces endpoints', () => {
       isOwner: true,
     });
 
-    expect(response.body[0]).not.toHaveProperty('email');
-    expect(response.body[0]).not.toHaveProperty('passwordHash');
+    expect((response.body as unknown[])[0]).not.toHaveProperty('email');
+    expect((response.body as unknown[])[0]).not.toHaveProperty('passwordHash');
   });
 
   it('GET /workspaces/:id/members rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/workspaces/not-a-uuid/members')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -667,7 +673,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}/members`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -676,7 +682,7 @@ describe('Workspaces endpoints', () => {
   it('GET /workspaces/:id/members returns 403 for a non-member', async () => {
     workspacesService.findMembers.mockRejectedValue(new ForbiddenException());
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}/members`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
@@ -685,7 +691,7 @@ describe('Workspaces endpoints', () => {
   it('DELETE /workspaces/:id/members/:userId requires authentication', async () => {
     const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}/members/${memberId}`)
       .expect(401);
 
@@ -695,7 +701,7 @@ describe('Workspaces endpoints', () => {
   it('DELETE /workspaces/:id/members/:userId removes a member', async () => {
     const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}/members/${memberId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -710,7 +716,7 @@ describe('Workspaces endpoints', () => {
   it('DELETE member rejects an invalid workspace UUID', async () => {
     const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/not-a-uuid/members/${memberId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -719,7 +725,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('DELETE member rejects an invalid member UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}/members/not-a-uuid`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -732,7 +738,7 @@ describe('Workspaces endpoints', () => {
 
     workspacesService.removeMember.mockRejectedValue(new ForbiddenException());
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}/members/${memberId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
@@ -743,7 +749,7 @@ describe('Workspaces endpoints', () => {
       new BadRequestException('Workspace owner cannot be removed'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}/members/${userId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -756,14 +762,14 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace member not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .delete(`/workspaces/${workspaceId}/members/${memberId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
   });
 
   it('POST /workspaces/:id/invitations requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .send({
         invitedUserId: 'dfc8ad56-f9c0-4918-9190-31bdba2341fe',
@@ -776,7 +782,7 @@ describe('Workspaces endpoints', () => {
   it('POST /workspaces/:id/invitations creates a pending invitation', async () => {
     const invitedUserId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -806,7 +812,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST invitation rejects an invalid workspace UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post('/workspaces/not-a-uuid/invitations')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -818,7 +824,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST invitation rejects an invalid invited user UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -834,7 +840,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Workspace not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -848,7 +854,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('User not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -862,7 +868,7 @@ describe('Workspaces endpoints', () => {
       new ForbiddenException(),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -876,7 +882,7 @@ describe('Workspaces endpoints', () => {
       new BadRequestException('Workspace owner cannot invite themselves'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -890,7 +896,7 @@ describe('Workspaces endpoints', () => {
       new ConflictException('Pending invitation already exists'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .post(`/workspaces/${workspaceId}/invitations`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -902,7 +908,7 @@ describe('Workspaces endpoints', () => {
   it('PATCH invitation accept requires authentication', async () => {
     const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .expect(401);
 
@@ -912,7 +918,7 @@ describe('Workspaces endpoints', () => {
   it('PATCH invitation accept accepts a pending invitation', async () => {
     const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -923,14 +929,16 @@ describe('Workspaces endpoints', () => {
       userId,
     );
 
-    expect(response.body.status).toBe('ACCEPTED');
-    expect(response.body.respondedAt).not.toBeNull();
+    expect((response.body as { status: unknown }).status).toBe('ACCEPTED');
+    expect(
+      (response.body as { respondedAt: unknown }).respondedAt,
+    ).not.toBeNull();
   });
 
   it('PATCH invitation accept rejects an invalid workspace UUID', async () => {
     const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/not-a-uuid/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -939,7 +947,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH invitation accept rejects an invalid invitation UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/not-a-uuid/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -954,7 +962,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Invitation not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -967,7 +975,7 @@ describe('Workspaces endpoints', () => {
       new ForbiddenException(),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
@@ -980,7 +988,7 @@ describe('Workspaces endpoints', () => {
       new ConflictException('Invitation is no longer pending'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
@@ -989,7 +997,7 @@ describe('Workspaces endpoints', () => {
   it('PATCH invitation reject requires authentication', async () => {
     const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .expect(401);
 
@@ -999,7 +1007,7 @@ describe('Workspaces endpoints', () => {
   it('PATCH invitation reject rejects a pending invitation', async () => {
     const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -1010,11 +1018,11 @@ describe('Workspaces endpoints', () => {
       userId,
     );
 
-    expect(response.body.status).toBe('REJECTED');
+    expect((response.body as { status: unknown }).status).toBe('REJECTED');
   });
 
   it('PATCH invitation reject rejects invalid invitation UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/not-a-uuid/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -1029,7 +1037,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Invitation not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -1042,7 +1050,7 @@ describe('Workspaces endpoints', () => {
       new ForbiddenException(),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
@@ -1055,7 +1063,7 @@ describe('Workspaces endpoints', () => {
       new ConflictException('Invitation is no longer pending'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
@@ -1064,7 +1072,7 @@ describe('Workspaces endpoints', () => {
   it('PATCH invitation cancel requires authentication', async () => {
     const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .expect(401);
 
@@ -1086,7 +1094,7 @@ describe('Workspaces endpoints', () => {
       createdAt: new Date(),
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -1097,11 +1105,11 @@ describe('Workspaces endpoints', () => {
       userId,
     );
 
-    expect(response.body.status).toBe('CANCELLED');
+    expect((response.body as { status: unknown }).status).toBe('CANCELLED');
   });
 
   it('PATCH invitation cancel rejects invalid invitation UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/not-a-uuid/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
@@ -1116,7 +1124,7 @@ describe('Workspaces endpoints', () => {
       new NotFoundException('Invitation not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
@@ -1129,7 +1137,7 @@ describe('Workspaces endpoints', () => {
       new ForbiddenException(),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
@@ -1142,14 +1150,14 @@ describe('Workspaces endpoints', () => {
       new ConflictException('Invitation is no longer pending'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
   });
 
   it('GET kanban settings requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}/kanban-settings`)
       .expect(401);
 
@@ -1166,7 +1174,7 @@ describe('Workspaces endpoints', () => {
       updatedAt: new Date(),
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get(`/workspaces/${workspaceId}/kanban-settings`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -1176,11 +1184,13 @@ describe('Workspaces endpoints', () => {
       userId,
     );
 
-    expect(response.body.activeWipLimit).toBe(3);
+    expect((response.body as { activeWipLimit: unknown }).activeWipLimit).toBe(
+      3,
+    );
   });
 
   it('PATCH kanban settings requires authentication', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/kanban-settings`)
       .send({ activeWipLimit: 5 })
       .expect(401);
@@ -1198,7 +1208,7 @@ describe('Workspaces endpoints', () => {
       updatedAt: new Date(),
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/kanban-settings`)
       .set('Authorization', `Bearer ${token}`)
       .send({ activeWipLimit: 5 })
@@ -1210,11 +1220,13 @@ describe('Workspaces endpoints', () => {
       { activeWipLimit: 5 },
     );
 
-    expect(response.body.activeWipLimit).toBe(5);
+    expect((response.body as { activeWipLimit: unknown }).activeWipLimit).toBe(
+      5,
+    );
   });
 
   it('PATCH kanban settings rejects WIP limit below 1', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/kanban-settings`)
       .set('Authorization', `Bearer ${token}`)
       .send({ activeWipLimit: 0 })
@@ -1224,7 +1236,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH kanban settings rejects non-integer WIP limit', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/workspaces/${workspaceId}/kanban-settings`)
       .set('Authorization', `Bearer ${token}`)
       .send({ activeWipLimit: 2.5 })

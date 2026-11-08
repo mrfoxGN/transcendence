@@ -73,7 +73,7 @@ describe('SocialService sendMessage notifications', () => {
 
   function mockSuccessfulTransaction() {
     messagesRepository.manager.transaction.mockImplementation(
-      async (callback) => {
+      async (callback: (manager: unknown) => Promise<unknown>) => {
         const manager = {
           findOneBy: jest.fn().mockResolvedValue({
             id: conversationId,
@@ -91,7 +91,11 @@ describe('SocialService sendMessage notifications', () => {
             deletedAt: null,
           }),
 
-          save: jest.fn().mockImplementation(async (_entity, value) => value),
+          save: jest
+            .fn()
+            .mockImplementation((_entity: unknown, value: unknown) =>
+              Promise.resolve(value),
+            ),
 
           update: jest.fn().mockResolvedValue({
             affected: 1,

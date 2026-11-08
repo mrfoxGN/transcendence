@@ -54,9 +54,9 @@ describe('NotificationsService', () => {
 
   describe('createForUser', () => {
     it('creates an unread notification', async () => {
-      repository.create.mockImplementation((value) => value);
+      repository.create.mockImplementation((value: unknown) => value);
 
-      repository.save.mockImplementation((value) => value);
+      repository.save.mockImplementation((value: unknown) => value);
 
       const result = await service.createForUser({
         userId,
@@ -127,8 +127,8 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             userId,
-            readAt: expect.anything(),
-          }),
+            readAt: expect.anything() as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -154,7 +154,7 @@ describe('NotificationsService', () => {
         ...notification,
       });
 
-      repository.save.mockImplementation((value) => value);
+      repository.save.mockImplementation((value: unknown) => value);
 
       const result = await service.markAsRead(notificationId, userId);
 
@@ -167,7 +167,7 @@ describe('NotificationsService', () => {
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          readAt: expect.any(Date),
+          readAt: expect.any(Date) as unknown,
         }),
       );
 

@@ -41,7 +41,7 @@ function makeNote(overrides: Partial<Note> = {}): Note {
 function makeRepository() {
   return {
     create: jest.fn((value: object) => value),
-    save: jest.fn(async (value: object) => value),
+    save: jest.fn((value: object) => Promise.resolve(value)),
     find: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockResolvedValue(null),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -115,7 +115,7 @@ describe('NotesService', () => {
     expect(repository.find).toHaveBeenCalledWith({
       where: {
         workspaceId,
-        deletedAt: expect.anything(),
+        deletedAt: expect.anything() as unknown,
       },
       order: {
         updatedAt: 'DESC',
@@ -147,7 +147,7 @@ describe('NotesService', () => {
       where: {
         id: noteId,
         workspaceId,
-        deletedAt: expect.anything(),
+        deletedAt: expect.anything() as unknown,
       },
     });
     expect(result.id).toBe(noteId);
@@ -229,7 +229,7 @@ describe('NotesService', () => {
 
     expect(repository.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: noteId, workspaceId }),
-      { deletedAt: expect.any(Date) },
+      { deletedAt: expect.any(Date) as unknown },
     );
   });
 

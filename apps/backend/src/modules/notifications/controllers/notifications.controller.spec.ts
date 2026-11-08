@@ -53,7 +53,9 @@ describe('NotificationsController', () => {
       .overrideGuard(JwtAuthGuard)
       .useValue({
         canActivate(context: ExecutionContext) {
-          const req = context.switchToHttp().getRequest();
+          const req = context
+            .switchToHttp()
+            .getRequest<{ user: { id: string } }>();
 
           req.user = {
             id: userId,
@@ -88,7 +90,7 @@ describe('NotificationsController', () => {
   it('lists notifications', async () => {
     notificationsService.findAll.mockResolvedValue([notification]);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?page=1&limit=20')
       .expect(200);
 
@@ -106,7 +108,7 @@ describe('NotificationsController', () => {
   it('lists unread notifications only', async () => {
     notificationsService.findAll.mockResolvedValue([notification]);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?unreadOnly=true')
       .expect(200);
 
@@ -119,13 +121,15 @@ describe('NotificationsController', () => {
   });
 
   it('rejects invalid pagination', async () => {
-    await request(app.getHttpServer()).get('/notifications?page=0').expect(400);
+    await request(app.getHttpServer() as import('http').Server)
+      .get('/notifications?page=0')
+      .expect(400);
 
     expect(notificationsService.findAll).not.toHaveBeenCalled();
   });
 
   it('rejects invalid unreadOnly value', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?unreadOnly=test')
       .expect(400);
 
@@ -137,7 +141,7 @@ describe('NotificationsController', () => {
       count: 3,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get('/notifications/unread-count')
       .expect(200);
 
@@ -154,11 +158,11 @@ describe('NotificationsController', () => {
       readAt: new Date(),
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/notifications/${notificationId}/read`)
       .expect(200);
 
-    expect(response.body.id).toBe(notificationId);
+    expect((response.body as { id: unknown }).id).toBe(notificationId);
 
     expect(notificationsService.markAsRead).toHaveBeenCalledWith(
       notificationId,
@@ -167,7 +171,7 @@ describe('NotificationsController', () => {
   });
 
   it('rejects invalid notification UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch('/notifications/not-a-uuid/read')
       .expect(400);
 
@@ -179,7 +183,7 @@ describe('NotificationsController', () => {
       updated: 4,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch('/notifications/read-all')
       .expect(200);
 

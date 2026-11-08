@@ -43,7 +43,9 @@ describe('UsersService', () => {
 
   it('rejects an empty update and a null username', async () => {
     const repository = {
-      findOneBy: jest.fn().mockImplementation(async () => makeUser()),
+      findOneBy: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve(makeUser())),
     };
     const service = new UsersService(repository as unknown as Repository<User>);
     const id = makeUser().id;
@@ -61,7 +63,9 @@ describe('UsersService', () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),
       existsBy: jest.fn().mockResolvedValue(false),
-      save: jest.fn().mockImplementation(async (user) => user),
+      save: jest
+        .fn()
+        .mockImplementation((user: unknown) => Promise.resolve(user)),
     };
     const service = new UsersService(repository as unknown as Repository<User>);
 
@@ -137,7 +141,7 @@ describe('UsersService', () => {
   it('returns a conflict if the database rejects a duplicate', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((user) => user),
+      create: jest.fn().mockImplementation((user: unknown) => user),
       save: jest.fn().mockRejectedValue(
         new QueryFailedError('INSERT', [], {
           code: 'ER_DUP_ENTRY',
@@ -177,8 +181,10 @@ describe('UsersService', () => {
   it('hashes a password and never returns the hash', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((user) => user),
-      save: jest.fn().mockImplementation(async (user) => user),
+      create: jest.fn().mockImplementation((user: unknown) => user),
+      save: jest
+        .fn()
+        .mockImplementation((user: unknown) => Promise.resolve(user)),
     };
 
     const service = new UsersService(repository as unknown as Repository<User>);
@@ -189,7 +195,7 @@ describe('UsersService', () => {
       password: 'example-password',
     });
 
-    const savedUser = repository.save.mock.calls[0][0] as User;
+    const savedUser = (repository.save.mock.calls as unknown[][])[0][0] as User;
 
     expect(savedUser.passwordHash).not.toBe('example-password');
     expect(

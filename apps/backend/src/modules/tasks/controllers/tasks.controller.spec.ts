@@ -365,7 +365,9 @@ describe('TasksController HTTP', () => {
     body?: Record<string, unknown>,
     bearer: string | null = token,
   ) {
-    const call = request(app.getHttpServer())[verb](path);
+    const call = request(app.getHttpServer() as import('http').Server)[verb](
+      path,
+    );
     if (bearer !== null) call.set('Authorization', `Bearer ${bearer}`);
     if (body !== undefined) call.send(body);
     return call;
@@ -408,7 +410,7 @@ describe('TasksController HTTP', () => {
     });
 
     it('rejects the wrong authorization scheme', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .get(path)
         .set('Authorization', `Basic ${token}`)
         .expect(401);
@@ -624,7 +626,9 @@ describe('TasksController HTTP', () => {
         new NotFoundException('Task not found'),
       );
       const response = await send('get', `/tasks/${taskId}`).expect(404);
-      expect(response.body.message).toBe('Task not found');
+      expect((response.body as { message: unknown }).message).toBe(
+        'Task not found',
+      );
     });
 
     it('returns 403 when the service rejects workspace access', async () => {
@@ -639,7 +643,9 @@ describe('TasksController HTTP', () => {
       const response = await send('post', `/tasks/${taskId}/block`, {
         reason: 'Waiting',
       }).expect(409);
-      expect(response.body.message).toBe('Task is already blocked');
+      expect((response.body as { message: unknown }).message).toBe(
+        'Task is already blocked',
+      );
     });
   });
 });

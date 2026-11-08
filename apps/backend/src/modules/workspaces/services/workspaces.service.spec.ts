@@ -20,6 +20,11 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
 }));
 
+// Access mock handles without treating the mocked methods as unbound methods.
+function mockMethods<T>(value: T): { [K in keyof T]: jest.Mock } {
+  return value as { [K in keyof T]: jest.Mock };
+}
+
 describe('WorkspacesService', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
   const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
@@ -39,12 +44,15 @@ describe('WorkspacesService', () => {
 
   it('creates a workspace, owner membership and default kanban settings', async () => {
     const manager = {
-      create: jest.fn((_entity, data) => data),
-      save: jest.fn(async (entity) => entity),
+      create: jest.fn((_entity, data: unknown) => data),
+      save: jest.fn((entity: unknown) => Promise.resolve(entity)),
     } as unknown as EntityManager;
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource);
@@ -54,9 +62,9 @@ describe('WorkspacesService', () => {
       description: 'Main workspace',
     });
 
-    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(mockMethods(dataSource).transaction).toHaveBeenCalledTimes(1);
 
-    expect(manager.create).toHaveBeenNthCalledWith(
+    expect(mockMethods(manager).create).toHaveBeenNthCalledWith(
       1,
       Workspace,
       expect.objectContaining({
@@ -68,7 +76,7 @@ describe('WorkspacesService', () => {
       }),
     );
 
-    expect(manager.create).toHaveBeenNthCalledWith(
+    expect(mockMethods(manager).create).toHaveBeenNthCalledWith(
       2,
       WorkspaceMembership,
       expect.objectContaining({
@@ -76,7 +84,7 @@ describe('WorkspacesService', () => {
       }),
     );
 
-    expect(manager.create).toHaveBeenNthCalledWith(
+    expect(mockMethods(manager).create).toHaveBeenNthCalledWith(
       3,
       WorkspaceKanbanSetting,
       expect.objectContaining({
@@ -86,7 +94,7 @@ describe('WorkspacesService', () => {
       }),
     );
 
-    expect(manager.save).toHaveBeenCalledTimes(3);
+    expect(mockMethods(manager).save).toHaveBeenCalledTimes(3);
 
     expect(response).toEqual(
       expect.objectContaining({
@@ -102,12 +110,15 @@ describe('WorkspacesService', () => {
 
   it('stores a missing description as null', async () => {
     const manager = {
-      create: jest.fn((_entity, data) => data),
-      save: jest.fn(async (entity) => entity),
+      create: jest.fn((_entity, data: unknown) => data),
+      save: jest.fn((entity: unknown) => Promise.resolve(entity)),
     } as unknown as EntityManager;
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource);
@@ -116,7 +127,7 @@ describe('WorkspacesService', () => {
       name: 'Workspace Without Description',
     });
 
-    expect(manager.create).toHaveBeenNthCalledWith(
+    expect(mockMethods(manager).create).toHaveBeenNthCalledWith(
       1,
       Workspace,
       expect.objectContaining({
@@ -129,15 +140,18 @@ describe('WorkspacesService', () => {
 
   it('propagates an error when one transaction operation fails', async () => {
     const manager = {
-      create: jest.fn((_entity, data) => data),
+      create: jest.fn((_entity, data: unknown) => data),
       save: jest
         .fn()
-        .mockImplementationOnce(async (entity) => entity)
+        .mockImplementationOnce((entity: unknown) => Promise.resolve(entity))
         .mockRejectedValueOnce(new Error('Membership creation failed')),
     } as unknown as EntityManager;
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource);
@@ -148,7 +162,7 @@ describe('WorkspacesService', () => {
       }),
     ).rejects.toThrow('Membership creation failed');
 
-    expect(manager.save).toHaveBeenCalledTimes(2);
+    expect(mockMethods(manager).save).toHaveBeenCalledTimes(2);
   });
 
   it('lists only workspaces belonging to the user memberships', async () => {
@@ -174,7 +188,9 @@ describe('WorkspacesService', () => {
 
     const result = await service.findAllForUser(ownerId);
 
-    expect(dataSource.getRepository).toHaveBeenCalledWith(Workspace);
+    expect(mockMethods(dataSource).getRepository).toHaveBeenCalledWith(
+      Workspace,
+    );
 
     expect(queryBuilder.where).toHaveBeenCalledWith(
       'membership.userId = :userId',
@@ -303,7 +319,9 @@ describe('WorkspacesService update', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -339,7 +357,7 @@ describe('WorkspacesService update', () => {
       BadRequestException,
     );
 
-    expect(dataSource.getRepository).not.toHaveBeenCalled();
+    expect(mockMethods(dataSource).getRepository).not.toHaveBeenCalled();
   });
 
   it('returns 404 when updating a missing workspace', async () => {
@@ -404,7 +422,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -465,7 +485,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -525,7 +547,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -619,7 +643,10 @@ describe('WorkspacesService members', () => {
 
     const result = await service.findMembers(workspaceId, userId);
 
-    expect(service.findOneForUser).toHaveBeenCalledWith(workspaceId, userId);
+    expect(mockMethods(service).findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
 
     expect(membershipRepository.find).toHaveBeenCalledWith({
       where: {
@@ -971,8 +998,10 @@ describe('WorkspacesService createInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((data) => data),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -1016,7 +1045,9 @@ describe('WorkspacesService createInvitation', () => {
       invitedUserId,
     });
 
-    expect(usersService.findById).toHaveBeenCalledWith(invitedUserId);
+    expect(mockMethods(usersService).findById).toHaveBeenCalledWith(
+      invitedUserId,
+    );
 
     expect(membershipRepository.findOne).toHaveBeenCalledWith({
       where: {
@@ -1046,13 +1077,15 @@ describe('WorkspacesService createInvitation', () => {
       }),
     );
 
-    expect(notificationsService.createForUser).toHaveBeenCalledWith({
+    expect(
+      mockMethods(notificationsService).createForUser,
+    ).toHaveBeenCalledWith({
       userId: invitedUserId,
       workspaceId,
       type: 'WORKSPACE_INVITATION',
       message: 'You were invited to Transcendence Workspace',
       relatedResourceType: 'workspace_invitation',
-      relatedResourceId: expect.any(String),
+      relatedResourceId: expect.any(String) as unknown,
       payload: {
         invitedById: ownerId,
       },
@@ -1075,8 +1108,10 @@ describe('WorkspacesService createInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((data) => data),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -1135,7 +1170,9 @@ describe('WorkspacesService createInvitation', () => {
 
     expect(invitationRepository.save).toHaveBeenCalledTimes(1);
 
-    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
+    expect(
+      mockMethods(notificationsService).createForUser,
+    ).toHaveBeenCalledTimes(1);
 
     expect(response.status).toBe(InvitationStatus.PENDING);
 
@@ -1161,7 +1198,7 @@ describe('WorkspacesService createInvitation', () => {
       service.createInvitation(workspaceId, ownerId, { invitedUserId }),
     ).rejects.toThrow(NotFoundException);
 
-    expect(usersService.findById).not.toHaveBeenCalled();
+    expect(mockMethods(usersService).findById).not.toHaveBeenCalled();
   });
 
   it('returns 403 when current user is not the workspace owner', async () => {
@@ -1185,7 +1222,7 @@ describe('WorkspacesService createInvitation', () => {
       }),
     ).rejects.toThrow(ForbiddenException);
 
-    expect(usersService.findById).not.toHaveBeenCalled();
+    expect(mockMethods(usersService).findById).not.toHaveBeenCalled();
   });
 
   it('rejects the owner inviting themselves', async () => {
@@ -1209,7 +1246,7 @@ describe('WorkspacesService createInvitation', () => {
       }),
     ).rejects.toThrow(BadRequestException);
 
-    expect(usersService.findById).not.toHaveBeenCalled();
+    expect(mockMethods(usersService).findById).not.toHaveBeenCalled();
   });
 
   it('returns 404 when the invited user does not exist', async () => {
@@ -1367,13 +1404,17 @@ describe('WorkspacesService acceptInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(invitation),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const membershipRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((data) => data),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const manager = {
@@ -1395,7 +1436,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const usersService = {} as UsersService;
@@ -1425,7 +1469,7 @@ describe('WorkspacesService acceptInvitation', () => {
       invitedUserId,
     );
 
-    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(mockMethods(dataSource).transaction).toHaveBeenCalledTimes(1);
 
     expect(membershipRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1451,14 +1495,16 @@ describe('WorkspacesService acceptInvitation', () => {
       actorUserId: invitedUserId,
       actionType: 'MEMBER_JOINED',
       resourceType: 'workspace_membership',
-      resourceId: expect.any(String),
+      resourceId: expect.any(String) as unknown,
       metadata: {
         memberUserId: invitedUserId,
         invitationId,
       },
     });
 
-    expect(notificationsService.createForUser).toHaveBeenCalledWith({
+    expect(
+      mockMethods(notificationsService).createForUser,
+    ).toHaveBeenCalledWith({
       userId: ownerId,
       workspaceId,
       type: 'WORKSPACE_INVITATION_ACCEPTED',
@@ -1480,13 +1526,17 @@ describe('WorkspacesService acceptInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(invitation),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const membershipRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((data) => data),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const manager = {
@@ -1508,7 +1558,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const notificationsService = {
@@ -1555,7 +1608,9 @@ describe('WorkspacesService acceptInvitation', () => {
 
     expect(invitation.status).toBe(InvitationStatus.ACCEPTED);
 
-    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
+    expect(
+      mockMethods(notificationsService).createForUser,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it('still accepts the invitation when activity creation fails', async () => {
@@ -1567,13 +1622,17 @@ describe('WorkspacesService acceptInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(invitation),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const membershipRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((data) => data),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const manager = {
@@ -1595,7 +1654,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const notificationsService = {
@@ -1640,7 +1702,9 @@ describe('WorkspacesService acceptInvitation', () => {
 
     expect(invitation.status).toBe(InvitationStatus.ACCEPTED);
 
-    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
+    expect(
+      mockMethods(notificationsService).createForUser,
+    ).toHaveBeenCalledTimes(1);
 
     expect(activitiesService.create).toHaveBeenCalledTimes(1);
   });
@@ -1655,7 +1719,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
@@ -1689,7 +1756,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
@@ -1725,7 +1795,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
@@ -1762,7 +1835,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
@@ -1812,7 +1888,10 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async (callback) => callback(manager)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(manager),
+      ),
     } as unknown as DataSource;
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
@@ -1870,7 +1949,9 @@ describe('WorkspacesService rejectInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(invitation),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -2057,7 +2138,9 @@ describe('WorkspacesService cancelInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(invitation),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
@@ -2203,13 +2286,14 @@ describe('WorkspacesService kanban settings', () => {
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
 
-    jest
-      .spyOn(service, 'findOneForUser')
-      .mockResolvedValue(makeWorkspace() as any);
+    jest.spyOn(service, 'findOneForUser').mockResolvedValue(makeWorkspace());
 
     const result = await service.getKanbanSettings(workspaceId, memberId);
 
-    expect(service.findOneForUser).toHaveBeenCalledWith(workspaceId, memberId);
+    expect(mockMethods(service).findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      memberId,
+    );
     expect(result.activeWipLimit).toBe(3);
     expect(result.workspaceId).toBe(workspaceId);
   });
@@ -2235,9 +2319,7 @@ describe('WorkspacesService kanban settings', () => {
 
     const service = new WorkspacesService(dataSource, {} as UsersService);
 
-    jest
-      .spyOn(service, 'findOneForUser')
-      .mockResolvedValue(makeWorkspace() as any);
+    jest.spyOn(service, 'findOneForUser').mockResolvedValue(makeWorkspace());
 
     await expect(
       service.getKanbanSettings(workspaceId, ownerId),
@@ -2253,7 +2335,9 @@ describe('WorkspacesService kanban settings', () => {
 
     const settingsRepository = {
       findOne: jest.fn().mockResolvedValue(settings),
-      save: jest.fn().mockImplementation(async (entity) => entity),
+      save: jest
+        .fn()
+        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
     const dataSource = {
