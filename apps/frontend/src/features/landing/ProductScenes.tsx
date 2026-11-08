@@ -53,7 +53,7 @@ export function ProductScenes() {
     <section className="product-stories" id="features" aria-labelledby="stories-heading">
       <div className="section-wrap">
         <div className="stories-heading" id="workflow">
-          <h2 id="stories-heading">Follow a task <span>beyond the board.</span></h2>
+          <h2 id="stories-heading">Follow a task <span className="aurora-text" data-slot="aurora-text">beyond the board.</span></h2>
         </div>
         <div className="story-timeline">
           {scenes.map(({ id, Icon, label, description, Preview }) => (

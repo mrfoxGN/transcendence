@@ -1,13 +1,23 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type PointerEvent } from 'react';
+import { ArrowLeft, ArrowUp } from 'lucide-react';
 import { BoardPreview } from './BoardPreview';
 import { ProductScenes } from './ProductScenes';
 import { LandingDetails } from './LandingDetails';
 import { LogoCarousel } from './LogoCarousel';
+import { ContainerScroll, ScrollTextReveal } from './LandingMotion';
+import { MagicButton } from './MagicButton';
 import './hero.css';
 
 function Brand() {
   return <a className="brand" href="/" aria-label="DevUP home"><svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#245bc9" /><path d="m11 21 13-10 13 10M11 33l13-10 13 10" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg><span>DevUP</span></a>;
+}
+
+function moveHeroGlow(event: PointerEvent<HTMLElement>) {
+  if (event.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const hero = event.currentTarget;
+  const bounds = hero.getBoundingClientRect();
+  hero.style.setProperty('--hero-glow-x', `${((event.clientX - bounds.left) / bounds.width - .5) * 44}px`);
+  hero.style.setProperty('--hero-glow-y', `${((event.clientY - bounds.top) / bounds.height - .5) * 36}px`);
 }
 
 export function LandingPage() {
@@ -29,11 +39,11 @@ export function LandingPage() {
       </div>
     </header>
     <main id="main">
-      <section className="landing-hero" aria-labelledby="hero-heading">
+      <section className="landing-hero" aria-labelledby="hero-heading" onPointerMove={moveHeroGlow} onPointerLeave={event => { event.currentTarget.style.removeProperty("--hero-glow-x"); event.currentTarget.style.removeProperty("--hero-glow-y"); }}>
         <div className="landing-hero-copy section-wrap">
           <h1 id="hero-heading">From idea to impact,<br />all in one flow.</h1>
           <p>A clear next step. A connected team. A place for the whole project.<br className="desktop-break" /> Bring your tasks, conversations, and code together with DevUP.</p>
-          <div className="hero-actions"><a className="button button--primary" href="/register">Create an account <ArrowRight size={17} /></a><a className="button button--secondary" href="#preview">Explore the board</a></div>
+          <div className="hero-actions"><MagicButton href="/register" variant="secondary">Create an account</MagicButton></div>
         </div>
         <picture className="hero-workflow" aria-hidden="true">
           <source media="(max-width: 600px)" srcSet="/illustrations/workflow-phone.png" width="1254" height="1254" />
@@ -47,8 +57,9 @@ export function LandingPage() {
         <div className="showcase-heading section-wrap">
           <h2 id="board-heading">A unified platform for building, shipping, and collaborating.</h2>
         </div>
-        <BoardPreview />
+        <ContainerScroll>{ready => <BoardPreview ready={ready} />}</ContainerScroll>
       </section>
+      <ScrollTextReveal text="A task is more than a card. Follow the conversations, decisions, and files that help your team take it from an idea to something they can ship." />
       <ProductScenes />
       <LandingDetails />
     </main>
@@ -56,7 +67,7 @@ export function LandingPage() {
       <section className="closing-copy section-wrap" aria-labelledby="closing-heading">
         <img src="/devup.svg" alt="" width="48" height="48" />
         <h2 id="closing-heading">Your next idea starts here.</h2>
-        <a className="button button--secondary" href="/register">Create an account</a>
+        <MagicButton href="/register" variant="secondary">Get started</MagicButton>
       </section>
       <footer className="site-footer">
         <div className="section-wrap">
@@ -111,6 +122,15 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
         return;
       }
       setRegistered(true);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        void import('canvas-confetti').then(({ default: confetti }) => confetti({
+          particleCount: 52,
+          spread: 58,
+          origin: { y: .62 },
+          colors: ['#a8c9ff', '#b7a3ff', '#f9b9de', '#245bc9'],
+          disableForReducedMotion: true,
+        })).catch(() => {});
+      }
     } catch {
       setMessage('Could not reach account setup. Try again later.');
     } finally {

@@ -1,9 +1,8 @@
-import { Children, useState, useSyncExternalStore } from 'react';
-import { BentoGrid } from './BentoGrid';
-import { sampleRepository } from './sampleData';
-import { ScrollStack } from './ScrollStack';
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion } from 'framer-motion';
+import { sampleProject, sampleRepository } from './sampleData';
 import './github-showcase.css';
-import { FileCode, GitBranch, GitCommitHorizontal, Github, Minus, Plus } from 'lucide-react';
+import { FileCode, GitBranch, GitCommitHorizontal, Github, Minus, Pause, Play, Plus } from 'lucide-react';
 
 const questions = [
   { question: 'Can I connect a private repository?', answer: 'DevUP currently supports eligible public GitHub repositories. A workspace owner can connect one repository per workspace. The browser handoff for first-time setup is still in development.' },
@@ -13,79 +12,116 @@ const questions = [
   { question: 'Are direct messages separate from team chat?', answer: 'Yes. Direct messages are separate from workspace chat, so you can continue a private conversation while switching between workspaces.' },
 ];
 
-const mobileLayout = '(max-width: 760px)';
-
-function subscribeToLayout(callback: () => void) {
-  const query = window.matchMedia(mobileLayout);
-  query.addEventListener('change', callback);
-  return () => query.removeEventListener('change', callback);
-}
-
-function isMobileLayout() {
-  return window.matchMedia(mobileLayout).matches;
-}
+const steps = [
+  { label: 'Repository', title: 'Bring your code into DevUP.', description: 'Connect a public GitHub repository to see its default branch and when it last synced.' },
+  { label: 'Branches', title: 'See where work is happening.', description: 'Browse branch names and head commits, with a badge for protected branches.' },
+  { label: 'Commits', title: 'Follow the work into code.', description: 'Open a commit to see who authored it, who committed it, and when.' },
+  { label: 'Code changes', title: 'See what changed in each file.', description: 'This concept preview shows how a file diff could display added and removed lines.' },
+];
 
 export function LandingDetails() {
-  const mobile = useSyncExternalStore(subscribeToLayout, isMobileLayout);
   const [step, setStep] = useState(0);
-  const cards = [
-    <article key="blue" className="github-card github-card--blue">
-            <div><Github className="github-feature-icon" size={24} aria-hidden="true" /><h3>Connect a repository</h3><p>Bring a public GitHub repository into your DevUP workspace.</p></div>
+  const [run, setRun] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [pageVisible, setPageVisible] = useState(!document.hidden);
+  const controls = useRef<HTMLDivElement>(null);
+  const inView = useInView(controls, { amount: .22 });
+  const reduced = useReducedMotion();
+  const playing = inView && pageVisible && !paused && !reduced;
+
+
+  useEffect(() => {
+    const update = () => setPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+
+  function goTo(next: number) {
+    setStep(next);
+    setRun(value => value + 1);
+  }
+
+  const panels = [
             <div className="github-panel">
               <h4><Github size={19} aria-hidden="true" /> {sampleRepository.name}</h4>
-              <dl><div><dt>Visibility</dt><dd>Public</dd></div><div><dt>Default branch</dt><dd><code>{sampleRepository.branches[0]}</code></dd></div><div><dt>Last sync</dt><dd><small className="github-sync">Synced</small> 2 minutes ago</dd></div></dl>
-            </div>
-          </article>,
-          <article key="violet" className="github-card github-card--violet">
-            <div><GitBranch className="github-feature-icon" size={24} aria-hidden="true" /><h3>Browse branches</h3><p>See active branches, their latest commits, and which branches are protected.</p></div>
+              <dl><div data-demo-motion="repository"><dt>Visibility</dt><dd>Public</dd></div><div data-demo-motion="repository"><dt>Default branch</dt><dd><code>{sampleRepository.branches[0]}</code></dd></div><div data-demo-target><dt>Last sync</dt><dd><small className="github-sync" data-demo-motion="sync"><span aria-hidden="true" /> Synced</small> 2 minutes ago</dd></div></dl>
+            </div>,
             <div className="github-panel">
               <h4><GitBranch size={19} aria-hidden="true" /> Branches <small>{sampleRepository.branches.length} branches</small></h4><div className="github-panel-labels"><span>Branch</span><span>Head commit</span></div>
               <dl>{sampleRepository.branches.map((branch, index) => (
-                <div key={branch}><dt><code>{branch}</code>{index === 0 && <small>Protected</small>}</dt><dd><code>{sampleRepository.commits[index].sha}</code></dd></div>
+                <div key={branch} data-demo-motion="branch" data-demo-target={index === 0 ? true : undefined}><dt><code>{branch}</code>{index === 0 && <small data-demo-motion="protected">Protected</small>}</dt><dd><code>{sampleRepository.commits[index].sha}</code></dd></div>
               ))}</dl>
-            </div>
-          </article>,
-          <article key="pink" className="github-card github-card--pink">
-            <div><GitCommitHorizontal className="github-feature-icon" size={24} aria-hidden="true" /><h3>Inspect a commit</h3><p>Read the commit message and see who authored it, who committed it, and when.</p></div>
+            </div>,
             <div className="github-panel">
-              <h4><GitCommitHorizontal size={19} aria-hidden="true" /> {sampleRepository.commits[2].title}</h4>
+              <h4><GitCommitHorizontal size={19} aria-hidden="true" /> {sampleRepository.commits[2].title} <small>{sampleProject.taskId}</small></h4>
               <div className="github-commit-layout">
                 <ul className="github-commit-list" aria-label="Sample recent commits">
                   {[...sampleRepository.commits].reverse().map((commit, index) => (
-                    <li key={commit.sha} className={index === 0 ? 'github-selected' : undefined}>
+                    <li key={commit.sha} data-demo-motion="commit" data-demo-target={index === 0 ? true : undefined} className={index === 0 ? 'github-selected' : undefined}>
                       <strong>{commit.title}</strong><code>{commit.sha}</code>
                     </li>
                   ))}
                 </ul>
-                <dl><div><dt>Author</dt><dd>Alex Morgan</dd></div><div><dt>Committer</dt><dd>Jamie Chen</dd></div><div><dt>Committed</dt><dd>Apr 12, 10:24</dd></div><div><dt>SHA</dt><dd><code>{sampleRepository.commits[2].sha}</code></dd></div></dl></div>
-            </div>
-          </article>,
-          <article key="green" className="github-card github-card--green">
-            <div><FileCode className="github-feature-icon" size={24} aria-hidden="true" /><h3>Review code changes</h3><p>See which lines were added or removed in a changed file.</p></div>
+                <dl className="github-demo-result"><div data-demo-motion="metadata"><dt>Author</dt><dd>Alex Morgan</dd></div><div data-demo-motion="metadata"><dt>Committer</dt><dd>Jamie Chen</dd></div><div data-demo-motion="metadata"><dt>Committed</dt><dd>Apr 12, 10:24</dd></div><div data-demo-motion="metadata"><dt>SHA</dt><dd><code>{sampleRepository.commits[2].sha}</code></dd></div></dl></div>
+            </div>,
             <div className="github-panel">
               <h4><FileCode size={19} aria-hidden="true" /> Changed files <small>Concept preview</small></h4>
-              <div className="github-code-layout"><ul className="github-files"><li className="github-selected"><code>src/pages/Login.tsx</code></li><li><code>src/styles/auth.css</code></li></ul>
-              <div className="github-code-preview"><div className="github-code-header"><code>Login.tsx</code><span><b>+2</b> <b>−1</b></span></div><pre className="github-diff" tabIndex={0} aria-label="Example diff for Login.tsx"><code>
-                <span className="github-diff-removed">19 - {'<input type="email" />'}</span>
-                <span className="github-diff-added">19 + {'<input type="email" aria-invalid={!!emailError} />'}</span>
-                <span className="github-diff-added">20 + {'{emailError && <p role="alert">{emailError}</p>}'}</span>
+              <div className="github-code-layout"><ul className="github-files"><li className="github-selected" data-demo-motion="file" data-demo-target><code>src/pages/Login.tsx</code></li><li><code>src/styles/auth.css</code></li></ul>
+              <div className="github-code-preview github-demo-result"><div className="github-code-header"><code>Login.tsx</code><span><b>+2</b> <b>−1</b></span></div><pre className="github-diff" tabIndex={0} aria-label="Example diff for Login.tsx"><code>
+                <span className="github-diff-removed" data-demo-motion="line">19 - {'<input type="email" />'}</span>
+                <span className="github-diff-added" data-demo-motion="line">19 + {'<input type="email" aria-invalid={!!emailError} />'}</span>
+                <span className="github-diff-added" data-demo-motion="line">20 + {'{emailError && <p role="alert">{emailError}</p>}'}</span>
               </code></pre></div></div>
-            </div>
-          </article>
+            </div>,
   ];
   return (
     <>
-      <section className="github-showcase" id="github" aria-labelledby="github-title">
-        <div className="github-stage">
-          <div className="github-heading-track"><header className="github-showcase-heading">
-          <h2 id="github-title">Keep your code in view.</h2>{!mobile && <span className="github-step-count">{step + 1} of {Children.count(cards)}</span>}
-        </header></div>
-          {mobile ? <BentoGrid>{cards}</BentoGrid> : (
-            <ScrollStack className="github-stack" pinTop="0px" peek={6} onStepChange={setStep}>
-              {cards}
-            </ScrollStack>
-          )}
-
+      <section className="github-showcase section-wrap" id="github" aria-labelledby="github-title">
+        <header className="github-showcase-heading">
+          <h2 id="github-title">Keep your code in view.</h2>
+          <p>Browse branches and commits alongside the work that led to them.</p>
+        </header>
+        <div className="github-demo-controls">
+          <div className="github-stepper" data-playing={playing} role="group" aria-label="GitHub walkthrough steps">
+            {steps.map(({ label }, index) => (
+              <button key={label} type="button" data-step={index} data-complete={index < step} aria-current={index === step ? 'step' : undefined}
+                aria-controls="github-feature-preview" onClick={() => goTo(index)}>
+                <svg className="github-step-outline" aria-hidden="true" width="100%" height="100%">
+                  <rect className="github-step-track" x="1" y="1" rx="9" pathLength="100" />
+                  <rect key={index === step ? run : label} className="github-step-progress" x="1" y="1" rx="9" pathLength="100"
+                    onAnimationEnd={index === step && !reduced ? () => goTo((step + 1) % steps.length) : undefined} />
+                </svg>
+                {label}
+              </button>
+            ))}
+          </div>
+          {!reduced && <button type="button" className="github-autoplay" onClick={() => setPaused(value => !value)}
+            aria-label={paused ? 'Resume GitHub walkthrough' : 'Pause GitHub walkthrough'}>
+            {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
+            {paused ? 'Resume' : 'Pause'}
+          </button>}
+        </div>
+        <div id="github-feature-preview" ref={controls} className="github-feature" data-step={step} data-playing={playing} data-paused={paused}>
+          <div className="github-feature-copy-stack">
+            {steps.map(({ label, title, description }, index) => (
+              <div className="github-feature-copy" key={label} data-active={index === step} inert={index !== step}>
+                <span className="github-feature-label"><Github size={18} aria-hidden="true" /> {label}</span>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </div>
+            ))}
+          </div>
+          <div className="github-feature-demo-stack">
+            {steps.map(({ label }, index) => {
+              const active = index === step;
+              return (
+                <div className="github-feature-demo" key={active ? `${label}-${run}` : label} data-active={active} inert={!active}>
+                  <div className="github-demo-bar"><span className="window-dots" aria-hidden="true"><i /><i /><i /></span><span>DevUP / GitHub</span><small>Sample data</small></div>
+                  {panels[index]}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
       <section className="faq section-wrap" aria-labelledby="faq-title">

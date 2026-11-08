@@ -60,7 +60,7 @@ function TaskCard({ task }: { task: Task }) {
   );
 }
 
-export function BoardPreview() {
+export function BoardPreview({ ready }: { ready: boolean }) {
   const [step, setStep] = useState(0);
   const [inView, setInView] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -88,7 +88,7 @@ export function BoardPreview() {
   }, []);
 
   useEffect(() => {
-    if (!inView) return;
+    if (!inView || !ready) return;
     if (finished) {
       const restart = window.setTimeout(() => setStep(0), 4500);
       return () => window.clearTimeout(restart);
@@ -139,10 +139,10 @@ export function BoardPreview() {
       cardMotion.cancel();
       cardBlur.cancel();
     };
-  }, [step, inView, finished]);
+  }, [step, inView, finished, ready]);
 
   return (
-    <section className="preview section-wrap" aria-label="Interactive workspace preview">
+    <section className="preview" aria-label="Interactive workspace preview">
       <div className="preview-window">
         <div className="window-bar">
           <span className="window-dots" aria-hidden="true"><i /><i /><i /></span>
