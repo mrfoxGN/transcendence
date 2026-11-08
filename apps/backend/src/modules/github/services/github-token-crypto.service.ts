@@ -1,19 +1,10 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-} from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 @Injectable()
 export class GitHubTokenCryptoService {
-  constructor(
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   private getEncryptionKey(): Buffer {
     const encoded = this.configService.get<string>(
@@ -28,10 +19,7 @@ export class GitHubTokenCryptoService {
 
     const key = Buffer.from(encoded, 'base64');
 
-    if (
-      key.length !== 32 ||
-      key.toString('base64') !== encoded
-    ) {
+    if (key.length !== 32 || key.toString('base64') !== encoded) {
       throw new InternalServerErrorException(
         'Invalid GitHub token encryption key',
       );
@@ -82,11 +70,7 @@ export class GitHubTokenCryptoService {
         throw new Error('Invalid encrypted token');
       }
 
-      const decipher = createDecipheriv(
-        'aes-256-gcm',
-        key,
-        iv,
-      );
+      const decipher = createDecipheriv('aes-256-gcm', key, iv);
 
       decipher.setAAD(Buffer.from(repositoryId, 'utf8'));
       decipher.setAuthTag(authTag);

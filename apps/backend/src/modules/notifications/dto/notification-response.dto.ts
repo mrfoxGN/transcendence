@@ -5,7 +5,7 @@ export class NotificationResponseDto {
   message!: string;
   relatedResourceType!: string | null;
   relatedResourceId!: string | null;
-  payload!: unknown | null;
+  payload!: unknown;
   createdAt!: Date;
   readAt!: Date | null;
 }

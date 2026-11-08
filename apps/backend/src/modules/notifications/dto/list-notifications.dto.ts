@@ -1,11 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsInt,
-  IsOptional,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class ListNotificationsDto {
   @IsOptional()
@@ -23,15 +17,17 @@ export class ListNotificationsDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    if (value === 'true') {
+    const input: unknown = value;
+
+    if (input === 'true') {
       return true;
     }
 
-    if (value === 'false') {
+    if (input === 'false') {
       return false;
     }
 
-    return value;
+    return input;
   })
   @IsBoolean()
   unreadOnly?: boolean;

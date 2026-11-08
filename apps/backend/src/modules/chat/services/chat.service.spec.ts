@@ -14,41 +14,42 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
 }));
 
+function makeRepository() {
+  return {
+    create: jest.fn((data: Partial<ChatMessage>): ChatMessage =>
+      Object.assign(new ChatMessage(), data),
+    ),
+    save: jest.fn((message: ChatMessage): Promise<ChatMessage> =>
+      Promise.resolve(message),
+    ),
+    find: jest.fn((options: unknown): Promise<ChatMessage[]> => {
+      void options;
+      return Promise.resolve([]);
+    }),
+  };
+}
+
+function makeWorkspacesService(workspaceId: string) {
+  return {
+    findOneForUser: jest.fn(() => Promise.resolve({ id: workspaceId })),
+  };
+}
+
 describe('ChatService', () => {
   const userId = '9afb3d2a-5d0a-4544-a9fc-6cdb465de34b';
   const workspaceId = '62a9bb1e-bf7b-4d38-a986-14f730579045';
-
   const messageId = '73362c61-b9c9-45f0-aeec-30542510fc79';
 
   let service: ChatService;
-
-  let chatMessagesRepository: {
-    create: jest.Mock;
-    save: jest.Mock;
-    find: jest.Mock;
-  };
-
-  let workspacesService: {
-    findOneForUser: jest.Mock;
-  };
-
+  let chatMessagesRepository: ReturnType<typeof makeRepository>;
+  let workspacesService: ReturnType<typeof makeWorkspacesService>;
   let workspaceChatGateway: {
     emitMessageCreated: jest.Mock;
   };
 
   beforeEach(() => {
-    chatMessagesRepository = {
-      create: jest.fn((data) => data),
-      save: jest.fn(async (message) => message),
-      find: jest.fn(),
-    };
-
-    workspacesService = {
-      findOneForUser: jest.fn().mockResolvedValue({
-        id: workspaceId,
-      }),
-    };
-
+    chatMessagesRepository = makeRepository();
+    workspacesService = makeWorkspacesService(workspaceId);
     workspaceChatGateway = {
       emitMessageCreated: jest.fn(),
     };
@@ -61,18 +62,16 @@ describe('ChatService', () => {
   });
 
   it('allows a workspace member to send a message', async () => {
-    chatMessagesRepository.save.mockImplementation(async (message) => ({
-      ...message,
-      id: messageId,
-    }));
-
-    const result = await service.sendMessage(
-      workspaceId,
-      userId,
-      {
-        content: 'Hello workspace!',
-      },
+    chatMessagesRepository.save.mockImplementation(
+      (message: ChatMessage): Promise<ChatMessage> =>
+        Promise.resolve(
+          Object.assign(new ChatMessage(), message, { id: messageId }),
+        ),
     );
+
+    const result = await service.sendMessage(workspaceId, userId, {
+      content: 'Hello workspace!',
+    });
 
     expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
       workspaceId,
@@ -102,18 +101,16 @@ describe('ChatService', () => {
   });
 
   it('trims message content before saving', async () => {
-    chatMessagesRepository.save.mockImplementation(async (message) => ({
-      ...message,
-      id: messageId,
-    }));
-
-    const result = await service.sendMessage(
-      workspaceId,
-      userId,
-      {
-        content: '   Hello workspace!   ',
-      },
+    chatMessagesRepository.save.mockImplementation(
+      (message: ChatMessage): Promise<ChatMessage> =>
+        Promise.resolve(
+          Object.assign(new ChatMessage(), message, { id: messageId }),
+        ),
     );
+
+    const result = await service.sendMessage(workspaceId, userId, {
+      content: '   Hello workspace!   ',
+    });
 
     expect(chatMessagesRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -126,13 +123,9 @@ describe('ChatService', () => {
 
   it('rejects a blank message', async () => {
     await expect(
-      service.sendMessage(
-        workspaceId,
-        userId,
-        {
-          content: '   ',
-        },
-      ),
+      service.sendMessage(workspaceId, userId, {
+        content: '   ',
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(chatMessagesRepository.save).not.toHaveBeenCalled();
@@ -144,13 +137,9 @@ describe('ChatService', () => {
     );
 
     await expect(
-      service.sendMessage(
-        workspaceId,
-        userId,
-        {
-          content: 'Hello',
-        },
-      ),
+      service.sendMessage(workspaceId, userId, {
+        content: 'Hello',
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(chatMessagesRepository.save).not.toHaveBeenCalled();
@@ -162,20 +151,16 @@ describe('ChatService', () => {
     );
 
     await expect(
-      service.sendMessage(
-        workspaceId,
-        userId,
-        {
-          content: 'Hello',
-        },
-      ),
+      service.sendMessage(workspaceId, userId, {
+        content: 'Hello',
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(chatMessagesRepository.save).not.toHaveBeenCalled();
   });
 
   it('lists workspace messages for a member', async () => {
-    const olderMessage = {
+    const olderMessage = Object.assign(new ChatMessage(), {
       id: '11111111-1111-4111-8111-111111111111',
       workspaceId,
       senderId: userId,
@@ -183,9 +168,9 @@ describe('ChatService', () => {
       createdAt: new Date('2026-10-30T15:00:00Z'),
       editedAt: null,
       deletedAt: null,
-    };
+    });
 
-    const newerMessage = {
+    const newerMessage = Object.assign(new ChatMessage(), {
       id: '22222222-2222-4222-8222-222222222222',
       workspaceId,
       senderId: userId,
@@ -193,42 +178,31 @@ describe('ChatService', () => {
       createdAt: new Date('2026-10-30T15:01:00Z'),
       editedAt: null,
       deletedAt: null,
-    };
+    });
 
-    /*
-     * Repository returns newest first.
-     * ChatService reverses the result so the API returns
-     * messages in chronological order.
-     */
-    chatMessagesRepository.find.mockResolvedValue([
-      newerMessage,
-      olderMessage,
-    ]);
+    // The service reverses the repository's newest-first result.
+    chatMessagesRepository.find.mockResolvedValue([newerMessage, olderMessage]);
 
-    const result = await service.listMessages(
-      workspaceId,
-      userId,
-      {},
-    );
+    const result = await service.listMessages(workspaceId, userId, {});
 
     expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
       workspaceId,
       userId,
     );
 
-    expect(chatMessagesRepository.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          workspaceId,
-        }),
-        order: {
-          createdAt: 'DESC',
-          id: 'DESC',
-        },
-        skip: 0,
-        take: 20,
-      }),
-    );
+    const findOptions = chatMessagesRepository.find.mock.calls[0]?.[0];
+
+    expect(findOptions).toMatchObject({
+      where: {
+        workspaceId,
+      },
+      order: {
+        createdAt: 'DESC',
+        id: 'DESC',
+      },
+      skip: 0,
+      take: 20,
+    });
 
     expect(result).toEqual([
       expect.objectContaining({
@@ -245,14 +219,10 @@ describe('ChatService', () => {
   it('uses page and limit when listing messages', async () => {
     chatMessagesRepository.find.mockResolvedValue([]);
 
-    await service.listMessages(
-      workspaceId,
-      userId,
-      {
-        page: 2,
-        limit: 10,
-      },
-    );
+    await service.listMessages(workspaceId, userId, {
+      page: 2,
+      limit: 10,
+    });
 
     expect(chatMessagesRepository.find).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -268,11 +238,7 @@ describe('ChatService', () => {
     );
 
     await expect(
-      service.listMessages(
-        workspaceId,
-        userId,
-        {},
-      ),
+      service.listMessages(workspaceId, userId, {}),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(chatMessagesRepository.find).not.toHaveBeenCalled();

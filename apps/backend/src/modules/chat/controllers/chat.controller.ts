@@ -35,11 +35,7 @@ export class ChatController {
     @Query() query: ListChatMessagesDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ChatMessageResponseDto[]> {
-    return this.chatService.listMessages(
-      workspaceId,
-      request.user.id,
-      query,
-    );
+    return this.chatService.listMessages(workspaceId, request.user.id, query);
   }
 
   @Post()
@@ -48,10 +44,6 @@ export class ChatController {
     @Body() dto: SendChatMessageDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ChatMessageResponseDto> {
-    return this.chatService.sendMessage(
-      workspaceId,
-      request.user.id,
-      dto,
-    );
+    return this.chatService.sendMessage(workspaceId, request.user.id, dto);
   }
 }

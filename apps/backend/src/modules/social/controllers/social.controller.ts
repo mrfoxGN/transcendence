@@ -55,11 +55,7 @@ export class SocialController {
     @Body() dto: SendDirectMessageDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<DirectMessageResponseDto> {
-    return this.socialService.sendMessage(
-      request.user.id,
-      conversationId,
-      dto,
-    );
+    return this.socialService.sendMessage(request.user.id, conversationId, dto);
   }
 
   @Get(':id/messages')

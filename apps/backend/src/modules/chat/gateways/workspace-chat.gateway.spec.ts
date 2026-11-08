@@ -86,13 +86,9 @@ describe('WorkspaceChatGateway', () => {
 
     await gateway.handleConnection(client as never);
 
-    expect(jwtService.verifyAsync).toHaveBeenCalledWith(
-      'valid-token',
-    );
+    expect(jwtService.verifyAsync).toHaveBeenCalledWith('valid-token');
 
-    expect(usersService.findForAuth).toHaveBeenCalledWith(
-      userId,
-    );
+    expect(usersService.findForAuth).toHaveBeenCalledWith(userId);
 
     expect(client.data.userId).toBe(userId);
     expect(client.disconnect).not.toHaveBeenCalled();
@@ -110,9 +106,7 @@ describe('WorkspaceChatGateway', () => {
   });
 
   it('disconnects when JWT verification fails', async () => {
-    jwtService.verifyAsync.mockRejectedValue(
-      new Error('Invalid token'),
-    );
+    jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
 
     const client = makeClient();
 
@@ -150,19 +144,14 @@ describe('WorkspaceChatGateway', () => {
     const client = makeClient();
     client.data.userId = userId;
 
-    await gateway.joinWorkspace(
-      client as never,
-      workspaceId,
-    );
+    await gateway.joinWorkspace(client as never, workspaceId);
 
     expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
       workspaceId,
       userId,
     );
 
-    expect(client.join).toHaveBeenCalledWith(
-      `workspace:${workspaceId}`,
-    );
+    expect(client.join).toHaveBeenCalledWith(`workspace:${workspaceId}`);
   });
 
   it('does not allow an outsider to join a workspace room', async () => {
@@ -174,10 +163,7 @@ describe('WorkspaceChatGateway', () => {
     client.data.userId = userId;
 
     await expect(
-      gateway.joinWorkspace(
-        client as never,
-        workspaceId,
-      ),
+      gateway.joinWorkspace(client as never, workspaceId),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(client.join).not.toHaveBeenCalled();
@@ -186,16 +172,11 @@ describe('WorkspaceChatGateway', () => {
   it('disconnects when an unauthenticated socket tries to join', async () => {
     const client = makeClient();
 
-    await gateway.joinWorkspace(
-      client as never,
-      workspaceId,
-    );
+    await gateway.joinWorkspace(client as never, workspaceId);
 
     expect(client.disconnect).toHaveBeenCalled();
     expect(client.join).not.toHaveBeenCalled();
-    expect(
-      workspacesService.findOneForUser,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.findOneForUser).not.toHaveBeenCalled();
   });
 
   it('emits a created message to the workspace room', () => {
@@ -205,11 +186,13 @@ describe('WorkspaceChatGateway', () => {
       emit,
     });
 
-    (gateway as unknown as {
-      server: {
-        to: jest.Mock;
-      };
-    }).server = {
+    (
+      gateway as unknown as {
+        server: {
+          to: jest.Mock;
+        };
+      }
+    ).server = {
       to,
     };
 
@@ -221,18 +204,10 @@ describe('WorkspaceChatGateway', () => {
       createdAt: new Date('2026-10-30T15:12:49.749Z'),
     };
 
-    gateway.emitMessageCreated(
-      workspaceId,
-      message,
-    );
+    gateway.emitMessageCreated(workspaceId, message);
 
-    expect(to).toHaveBeenCalledWith(
-      `workspace:${workspaceId}`,
-    );
+    expect(to).toHaveBeenCalledWith(`workspace:${workspaceId}`);
 
-    expect(emit).toHaveBeenCalledWith(
-      'workspace-message.created',
-      message,
-    );
+    expect(emit).toHaveBeenCalledWith('workspace-message.created', message);
   });
 });

@@ -117,9 +117,7 @@ export class GitHubOAuthService {
     }
 
     if (!code || code.length > 512) {
-      throw new BadRequestException(
-        'Invalid GitHub authorization code',
-      );
+      throw new BadRequestException('Invalid GitHub authorization code');
     }
 
     const clientId = this.configService.getOrThrow<string>(
@@ -158,25 +156,20 @@ export class GitHubOAuthService {
       !tokenResponse.access_token ||
       typeof tokenResponse.scope !== 'string'
     ) {
-      throw new BadRequestException(
-        'GitHub token exchange failed',
-      );
+      throw new BadRequestException('GitHub token exchange failed');
     }
 
     const accessToken = tokenResponse.access_token;
 
-    const githubUser = await this.fetchJson(
-      'https://api.github.com/user',
-      {
-        method: 'GET',
-        headers: {
-          Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${accessToken}`,
-          'User-Agent': 'Transcendence',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
+    const githubUser = await this.fetchJson('https://api.github.com/user', {
+      method: 'GET',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${accessToken}`,
+        'User-Agent': 'Transcendence',
+        'X-GitHub-Api-Version': '2022-11-28',
       },
-    );
+    });
 
     if (
       !this.isRecord(githubUser) ||
@@ -184,9 +177,7 @@ export class GitHubOAuthService {
       !Number.isSafeInteger(githubUser.id) ||
       typeof githubUser.login !== 'string'
     ) {
-      throw new BadGatewayException(
-        'Invalid GitHub user information',
-      );
+      throw new BadGatewayException('Invalid GitHub user information');
     }
 
     const setupSessionId = randomBytes(32).toString('base64url');
@@ -228,9 +219,7 @@ export class GitHubOAuthService {
       session.workspaceId !== workspaceId ||
       session.userId !== userId
     ) {
-      throw new ForbiddenException(
-        'Invalid or expired GitHub setup session',
-      );
+      throw new ForbiddenException('Invalid or expired GitHub setup session');
     }
 
     return session.accessToken;
@@ -240,10 +229,7 @@ export class GitHubOAuthService {
     this.setupSessions.delete(setupSessionId);
   }
 
-  private async fetchJson(
-    url: string,
-    options: RequestInit,
-  ): Promise<unknown> {
+  private async fetchJson(url: string, options: RequestInit): Promise<unknown> {
     let response: Response;
 
     try {
@@ -259,27 +245,17 @@ export class GitHubOAuthService {
     }
 
     if (!response.ok) {
-      throw new BadGatewayException(
-        'GitHub authentication request failed',
-      );
+      throw new BadGatewayException('GitHub authentication request failed');
     }
 
     try {
       return await response.json();
     } catch {
-      throw new BadGatewayException(
-        'Invalid GitHub response',
-      );
+      throw new BadGatewayException('Invalid GitHub response');
     }
   }
 
-  private isRecord(
-    value: unknown,
-  ): value is Record<string, unknown> {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value)
-    );
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }

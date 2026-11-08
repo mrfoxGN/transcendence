@@ -85,9 +85,7 @@ export class WorkspacesService {
     });
   }
 
-  async findAllForUser(
-    userId: string,
-  ): Promise<WorkspaceResponseDto[]> {
+  async findAllForUser(userId: string): Promise<WorkspaceResponseDto[]> {
     const workspaces = await this.dataSource
       .getRepository(Workspace)
       .createQueryBuilder('workspace')
@@ -101,23 +99,19 @@ export class WorkspacesService {
       .orderBy('workspace.createdAt', 'ASC')
       .getMany();
 
-    return workspaces.map((workspace) =>
-      WorkspaceMapper.toResponse(workspace),
-    );
+    return workspaces.map((workspace) => WorkspaceMapper.toResponse(workspace));
   }
 
   async findOneForUser(
     workspaceId: string,
     userId: string,
   ): Promise<WorkspaceResponseDto> {
-    const workspace = await this.dataSource
-      .getRepository(Workspace)
-      .findOne({
-        where: {
-          id: workspaceId,
-          deletedAt: IsNull(),
-        },
-      });
+    const workspace = await this.dataSource.getRepository(Workspace).findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -139,18 +133,13 @@ export class WorkspacesService {
     return WorkspaceMapper.toResponse(workspace);
   }
 
-  async assertOwner(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
-    const workspace = await this.dataSource
-      .getRepository(Workspace)
-      .findOne({
-        where: {
-          id: workspaceId,
-          deletedAt: IsNull(),
-        },
-      });
+  async assertOwner(workspaceId: string, userId: string): Promise<void> {
+    const workspace = await this.dataSource.getRepository(Workspace).findOne({
+      where: {
+        id: workspaceId,
+        deletedAt: IsNull(),
+      },
+    });
 
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -161,16 +150,12 @@ export class WorkspacesService {
     }
   }
 
-
   async update(
     workspaceId: string,
     userId: string,
     dto: UpdateWorkspaceDto,
   ): Promise<WorkspaceResponseDto> {
-    if (
-      dto.name === undefined &&
-      dto.description === undefined
-    ) {
+    if (dto.name === undefined && dto.description === undefined) {
       throw new BadRequestException('No changes provided');
     }
 
@@ -235,7 +220,6 @@ export class WorkspacesService {
     return WorkspaceMapper.toResponse(savedWorkspace);
   }
 
-
   async unarchive(
     workspaceId: string,
     userId: string,
@@ -265,11 +249,7 @@ export class WorkspacesService {
     return WorkspaceMapper.toResponse(savedWorkspace);
   }
 
-
-  async softDelete(
-    workspaceId: string,
-    userId: string,
-  ): Promise<void> {
+  async softDelete(workspaceId: string, userId: string): Promise<void> {
     const repository = this.dataSource.getRepository(Workspace);
 
     const workspace = await repository.findOne({
@@ -293,15 +273,11 @@ export class WorkspacesService {
     await repository.save(workspace);
   }
 
-
   async findMembers(
     workspaceId: string,
     userId: string,
   ): Promise<WorkspaceMemberResponseDto[]> {
-    const workspace = await this.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    const workspace = await this.findOneForUser(workspaceId, userId);
 
     const memberships = await this.dataSource
       .getRepository(WorkspaceMembership)
@@ -327,14 +303,12 @@ export class WorkspacesService {
     }));
   }
 
-
   async removeMember(
     workspaceId: string,
     currentUserId: string,
     memberUserId: string,
   ): Promise<void> {
-    const workspaceRepository =
-      this.dataSource.getRepository(Workspace);
+    const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
       where: {
@@ -352,9 +326,7 @@ export class WorkspacesService {
     }
 
     if (workspace.ownerId === memberUserId) {
-      throw new BadRequestException(
-        'Workspace owner cannot be removed',
-      );
+      throw new BadRequestException('Workspace owner cannot be removed');
     }
 
     const membershipRepository =
@@ -389,21 +361,17 @@ export class WorkspacesService {
     } catch (error) {
       this.logger.error(
         `Could not create MEMBER_REMOVED activity for user ${memberUserId}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
   }
-
 
   async createInvitation(
     workspaceId: string,
     currentUserId: string,
     dto: CreateWorkspaceInvitationDto,
   ): Promise<WorkspaceInvitationResponseDto> {
-    const workspaceRepository =
-      this.dataSource.getRepository(Workspace);
+    const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
       where: {
@@ -421,9 +389,7 @@ export class WorkspacesService {
     }
 
     if (dto.invitedUserId === currentUserId) {
-      throw new BadRequestException(
-        'Workspace owner cannot invite themselves',
-      );
+      throw new BadRequestException('Workspace owner cannot invite themselves');
     }
 
     await this.usersService.findById(dto.invitedUserId);
@@ -431,36 +397,30 @@ export class WorkspacesService {
     const membershipRepository =
       this.dataSource.getRepository(WorkspaceMembership);
 
-    const existingMembership =
-      await membershipRepository.findOne({
-        where: {
-          workspaceId,
-          userId: dto.invitedUserId,
-        },
-      });
+    const existingMembership = await membershipRepository.findOne({
+      where: {
+        workspaceId,
+        userId: dto.invitedUserId,
+      },
+    });
 
     if (existingMembership) {
-      throw new ConflictException(
-        'User is already a workspace member',
-      );
+      throw new ConflictException('User is already a workspace member');
     }
 
     const invitationRepository =
       this.dataSource.getRepository(WorkspaceInvitation);
 
-    const existingInvitation =
-      await invitationRepository.findOne({
-        where: {
-          workspaceId,
-          invitedUserId: dto.invitedUserId,
-          status: InvitationStatus.PENDING,
-        },
-      });
+    const existingInvitation = await invitationRepository.findOne({
+      where: {
+        workspaceId,
+        invitedUserId: dto.invitedUserId,
+        status: InvitationStatus.PENDING,
+      },
+    });
 
     if (existingInvitation) {
-      throw new ConflictException(
-        'Pending invitation already exists',
-      );
+      throw new ConflictException('Pending invitation already exists');
     }
 
     const invitation = invitationRepository.create({
@@ -476,8 +436,7 @@ export class WorkspacesService {
       createdAt: new Date(),
     });
 
-    const savedInvitation =
-      await invitationRepository.save(invitation);
+    const savedInvitation = await invitationRepository.save(invitation);
 
     try {
       await this.notificationsService.createForUser({
@@ -498,102 +457,85 @@ export class WorkspacesService {
       );
     }
 
-    return WorkspaceInvitationMapper.toResponse(
-      savedInvitation,
-    );
+    return WorkspaceInvitationMapper.toResponse(savedInvitation);
   }
-
 
   async acceptInvitation(
     workspaceId: string,
     invitationId: string,
     currentUserId: string,
   ): Promise<WorkspaceInvitationResponseDto> {
-    const result = await this.dataSource.transaction(
-      async (manager) => {
-        const workspaceRepository =
-          manager.getRepository(Workspace);
+    const result = await this.dataSource.transaction(async (manager) => {
+      const workspaceRepository = manager.getRepository(Workspace);
 
-        const invitationRepository =
-          manager.getRepository(WorkspaceInvitation);
+      const invitationRepository = manager.getRepository(WorkspaceInvitation);
 
-        const membershipRepository =
-          manager.getRepository(WorkspaceMembership);
+      const membershipRepository = manager.getRepository(WorkspaceMembership);
 
-        const workspace = await workspaceRepository.findOne({
-          where: {
-            id: workspaceId,
-            deletedAt: IsNull(),
-          },
-        });
+      const workspace = await workspaceRepository.findOne({
+        where: {
+          id: workspaceId,
+          deletedAt: IsNull(),
+        },
+      });
 
-        if (!workspace) {
-          throw new NotFoundException('Workspace not found');
-        }
+      if (!workspace) {
+        throw new NotFoundException('Workspace not found');
+      }
 
-        const invitation = await invitationRepository.findOne({
-          where: {
-            id: invitationId,
-            workspaceId,
-          },
-        });
+      const invitation = await invitationRepository.findOne({
+        where: {
+          id: invitationId,
+          workspaceId,
+        },
+      });
 
-        if (!invitation) {
-          throw new NotFoundException('Invitation not found');
-        }
+      if (!invitation) {
+        throw new NotFoundException('Invitation not found');
+      }
 
-        if (invitation.invitedUserId !== currentUserId) {
-          throw new ForbiddenException();
-        }
+      if (invitation.invitedUserId !== currentUserId) {
+        throw new ForbiddenException();
+      }
 
-        if (invitation.status !== InvitationStatus.PENDING) {
-          throw new ConflictException(
-            'Invitation is no longer pending',
-          );
-        }
+      if (invitation.status !== InvitationStatus.PENDING) {
+        throw new ConflictException('Invitation is no longer pending');
+      }
 
-        const existingMembership =
-          await membershipRepository.findOne({
-            where: {
-              workspaceId,
-              userId: currentUserId,
-            },
-          });
-
-        if (existingMembership) {
-          throw new ConflictException(
-            'User is already a workspace member',
-          );
-        }
-
-        const now = new Date();
-
-        const membership = membershipRepository.create({
-          id: randomUUID(),
+      const existingMembership = await membershipRepository.findOne({
+        where: {
           workspaceId,
           userId: currentUserId,
-          joinedAt: now,
-        });
+        },
+      });
 
-        await membershipRepository.save(membership);
+      if (existingMembership) {
+        throw new ConflictException('User is already a workspace member');
+      }
 
-        invitation.status = InvitationStatus.ACCEPTED;
-        invitation.respondedAt = now;
+      const now = new Date();
 
-        const savedInvitation =
-          await invitationRepository.save(invitation);
+      const membership = membershipRepository.create({
+        id: randomUUID(),
+        workspaceId,
+        userId: currentUserId,
+        joinedAt: now,
+      });
 
-        return {
-          response:
-            WorkspaceInvitationMapper.toResponse(
-              savedInvitation,
-            ),
-          invitedById: invitation.invitedById,
-          workspaceName: workspace.name,
-          membershipId: membership.id,
-        };
-      },
-    );
+      await membershipRepository.save(membership);
+
+      invitation.status = InvitationStatus.ACCEPTED;
+      invitation.respondedAt = now;
+
+      const savedInvitation = await invitationRepository.save(invitation);
+
+      return {
+        response: WorkspaceInvitationMapper.toResponse(savedInvitation),
+        invitedById: invitation.invitedById,
+        workspaceName: workspace.name,
+        membershipId: membership.id,
+      };
+    });
 
     if (result.invitedById) {
       try {
@@ -601,8 +543,7 @@ export class WorkspacesService {
           userId: result.invitedById,
           workspaceId,
           type: 'WORKSPACE_INVITATION_ACCEPTED',
-          message:
-            `Your invitation to ${result.workspaceName} was accepted`,
+          message: `Your invitation to ${result.workspaceName} was accepted`,
           relatedResourceType: 'workspace_invitation',
           relatedResourceId: invitationId,
           payload: {
@@ -612,9 +553,7 @@ export class WorkspacesService {
       } catch (error) {
         this.logger.error(
           `Failed to create invitation accepted notification for user ${result.invitedById}`,
-          error instanceof Error
-            ? error.stack
-            : String(error),
+          error instanceof Error ? error.stack : String(error),
         );
       }
     }
@@ -634,23 +573,19 @@ export class WorkspacesService {
     } catch (error) {
       this.logger.error(
         `Could not create MEMBER_JOINED activity for user ${currentUserId}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
 
     return result.response;
   }
 
-
   async rejectInvitation(
     workspaceId: string,
     invitationId: string,
     currentUserId: string,
   ): Promise<WorkspaceInvitationResponseDto> {
-    const workspaceRepository =
-      this.dataSource.getRepository(Workspace);
+    const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
       where: {
@@ -682,30 +617,23 @@ export class WorkspacesService {
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new ConflictException(
-        'Invitation is no longer pending',
-      );
+      throw new ConflictException('Invitation is no longer pending');
     }
 
     invitation.status = InvitationStatus.REJECTED;
     invitation.respondedAt = new Date();
 
-    const savedInvitation =
-      await invitationRepository.save(invitation);
+    const savedInvitation = await invitationRepository.save(invitation);
 
-    return WorkspaceInvitationMapper.toResponse(
-      savedInvitation,
-    );
+    return WorkspaceInvitationMapper.toResponse(savedInvitation);
   }
-
 
   async cancelInvitation(
     workspaceId: string,
     invitationId: string,
     currentUserId: string,
   ): Promise<WorkspaceInvitationResponseDto> {
-    const workspaceRepository =
-      this.dataSource.getRepository(Workspace);
+    const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
       where: {
@@ -737,22 +665,16 @@ export class WorkspacesService {
     }
 
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new ConflictException(
-        'Invitation is no longer pending',
-      );
+      throw new ConflictException('Invitation is no longer pending');
     }
 
     invitation.status = InvitationStatus.CANCELLED;
     invitation.respondedAt = new Date();
 
-    const savedInvitation =
-      await invitationRepository.save(invitation);
+    const savedInvitation = await invitationRepository.save(invitation);
 
-    return WorkspaceInvitationMapper.toResponse(
-      savedInvitation,
-    );
+    return WorkspaceInvitationMapper.toResponse(savedInvitation);
   }
-
 
   async getKanbanSettings(
     workspaceId: string,
@@ -760,8 +682,9 @@ export class WorkspacesService {
   ): Promise<WorkspaceKanbanSettingsResponseDto> {
     await this.findOneForUser(workspaceId, userId);
 
-    const settingsRepository =
-      this.dataSource.getRepository(WorkspaceKanbanSetting);
+    const settingsRepository = this.dataSource.getRepository(
+      WorkspaceKanbanSetting,
+    );
 
     const settings = await settingsRepository.findOne({
       where: {
@@ -770,16 +693,11 @@ export class WorkspacesService {
     });
 
     if (!settings) {
-      throw new NotFoundException(
-        'Kanban settings not found',
-      );
+      throw new NotFoundException('Kanban settings not found');
     }
 
-    return WorkspaceKanbanSettingsMapper.toResponse(
-      settings,
-    );
+    return WorkspaceKanbanSettingsMapper.toResponse(settings);
   }
-
 
   async updateKanbanSettings(
     workspaceId: string,
@@ -794,8 +712,7 @@ export class WorkspacesService {
       throw new BadRequestException('No changes provided');
     }
 
-    const workspaceRepository =
-      this.dataSource.getRepository(Workspace);
+    const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
       where: {
@@ -812,8 +729,9 @@ export class WorkspacesService {
       throw new ForbiddenException();
     }
 
-    const settingsRepository =
-      this.dataSource.getRepository(WorkspaceKanbanSetting);
+    const settingsRepository = this.dataSource.getRepository(
+      WorkspaceKanbanSetting,
+    );
 
     const settings = await settingsRepository.findOne({
       where: {
@@ -822,9 +740,7 @@ export class WorkspacesService {
     });
 
     if (!settings) {
-      throw new NotFoundException(
-        'Kanban settings not found',
-      );
+      throw new NotFoundException('Kanban settings not found');
     }
 
     if (dto.activeWipLimit !== undefined) {
@@ -841,12 +757,8 @@ export class WorkspacesService {
 
     settings.updatedAt = new Date();
 
-    const savedSettings =
-      await settingsRepository.save(settings);
+    const savedSettings = await settingsRepository.save(settings);
 
-    return WorkspaceKanbanSettingsMapper.toResponse(
-      savedSettings,
-    );
+    return WorkspaceKanbanSettingsMapper.toResponse(savedSettings);
   }
-
 }

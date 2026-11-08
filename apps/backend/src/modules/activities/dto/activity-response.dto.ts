@@ -5,6 +5,6 @@ export class ActivityResponseDto {
   actionType!: string;
   resourceType!: string | null;
   resourceId!: string | null;
-  metadata!: unknown | null;
+  metadata!: unknown;
   createdAt!: Date;
 }

@@ -17,21 +17,17 @@ jest.mock('@nestjs/typeorm', () => ({
 describe('NotificationsController', () => {
   let app: INestApplication;
 
-  const userId =
-    '11111111-1111-4111-8111-111111111111';
+  const userId = '11111111-1111-4111-8111-111111111111';
 
-  const notificationId =
-    '22222222-2222-4222-8222-222222222222';
+  const notificationId = '22222222-2222-4222-8222-222222222222';
 
   const notification = {
     id: notificationId,
-    workspaceId:
-      '33333333-3333-4333-8333-333333333333',
+    workspaceId: '33333333-3333-4333-8333-333333333333',
     type: 'TASK_ASSIGNED',
     message: 'You were assigned to Backend API',
     relatedResourceType: 'task',
-    relatedResourceId:
-      '44444444-4444-4444-8444-444444444444',
+    relatedResourceId: '44444444-4444-4444-8444-444444444444',
     payload: null,
     createdAt: new Date('2026-10-30T12:00:00Z'),
     readAt: null,
@@ -57,7 +53,9 @@ describe('NotificationsController', () => {
       .overrideGuard(JwtAuthGuard)
       .useValue({
         canActivate(context: ExecutionContext) {
-          const req = context.switchToHttp().getRequest();
+          const req = context
+            .switchToHttp()
+            .getRequest<{ user: { id: string } }>();
 
           req.user = {
             id: userId,
@@ -90,19 +88,15 @@ describe('NotificationsController', () => {
   });
 
   it('lists notifications', async () => {
-    notificationsService.findAll.mockResolvedValue([
-      notification,
-    ]);
+    notificationsService.findAll.mockResolvedValue([notification]);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?page=1&limit=20')
       .expect(200);
 
     expect(response.body).toHaveLength(1);
 
-    expect(
-      notificationsService.findAll,
-    ).toHaveBeenCalledWith(
+    expect(notificationsService.findAll).toHaveBeenCalledWith(
       userId,
       expect.objectContaining({
         page: 1,
@@ -112,17 +106,13 @@ describe('NotificationsController', () => {
   });
 
   it('lists unread notifications only', async () => {
-    notificationsService.findAll.mockResolvedValue([
-      notification,
-    ]);
+    notificationsService.findAll.mockResolvedValue([notification]);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?unreadOnly=true')
       .expect(200);
 
-    expect(
-      notificationsService.findAll,
-    ).toHaveBeenCalledWith(
+    expect(notificationsService.findAll).toHaveBeenCalledWith(
       userId,
       expect.objectContaining({
         unreadOnly: true,
@@ -131,23 +121,19 @@ describe('NotificationsController', () => {
   });
 
   it('rejects invalid pagination', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?page=0')
       .expect(400);
 
-    expect(
-      notificationsService.findAll,
-    ).not.toHaveBeenCalled();
+    expect(notificationsService.findAll).not.toHaveBeenCalled();
   });
 
   it('rejects invalid unreadOnly value', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/notifications?unreadOnly=test')
       .expect(400);
 
-    expect(
-      notificationsService.findAll,
-    ).not.toHaveBeenCalled();
+    expect(notificationsService.findAll).not.toHaveBeenCalled();
   });
 
   it('returns unread count', async () => {
@@ -155,7 +141,7 @@ describe('NotificationsController', () => {
       count: 3,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get('/notifications/unread-count')
       .expect(200);
 
@@ -163,9 +149,7 @@ describe('NotificationsController', () => {
       count: 3,
     });
 
-    expect(
-      notificationsService.countUnread,
-    ).toHaveBeenCalledWith(userId);
+    expect(notificationsService.countUnread).toHaveBeenCalledWith(userId);
   });
 
   it('marks one notification as read', async () => {
@@ -174,30 +158,24 @@ describe('NotificationsController', () => {
       readAt: new Date(),
     });
 
-    const response = await request(app.getHttpServer())
-      .patch(
-        `/notifications/${notificationId}/read`,
-      )
+    const response = await request(app.getHttpServer() as import('http').Server)
+      .patch(`/notifications/${notificationId}/read`)
       .expect(200);
 
-    expect(response.body.id).toBe(notificationId);
+    expect((response.body as { id: unknown }).id).toBe(notificationId);
 
-    expect(
-      notificationsService.markAsRead,
-    ).toHaveBeenCalledWith(
+    expect(notificationsService.markAsRead).toHaveBeenCalledWith(
       notificationId,
       userId,
     );
   });
 
   it('rejects invalid notification UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch('/notifications/not-a-uuid/read')
       .expect(400);
 
-    expect(
-      notificationsService.markAsRead,
-    ).not.toHaveBeenCalled();
+    expect(notificationsService.markAsRead).not.toHaveBeenCalled();
   });
 
   it('marks all notifications as read', async () => {
@@ -205,7 +183,7 @@ describe('NotificationsController', () => {
       updated: 4,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch('/notifications/read-all')
       .expect(200);
 
@@ -213,8 +191,6 @@ describe('NotificationsController', () => {
       updated: 4,
     });
 
-    expect(
-      notificationsService.markAllAsRead,
-    ).toHaveBeenCalledWith(userId);
+    expect(notificationsService.markAllAsRead).toHaveBeenCalledWith(userId);
   });
 });

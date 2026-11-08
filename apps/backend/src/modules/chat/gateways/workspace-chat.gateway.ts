@@ -67,16 +67,14 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
         return;
       }
 
-      client.data.userId = authUser.user.id;
+      const socketData = client.data as { userId?: unknown };
+      socketData.userId = authUser.user.id;
 
       await client.join(`user:${authUser.user.id}`);
 
       client.emit('workspace-chat.ready');
 
-      const timeout = setTimeout(
-        () => client.disconnect(),
-        expiresInMs,
-      );
+      const timeout = setTimeout(() => client.disconnect(), expiresInMs);
 
       client.once('disconnect', () => clearTimeout(timeout));
     } catch {
@@ -89,17 +87,15 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
     @MessageBody() workspaceId: string,
   ): Promise<void> {
-    const userId: unknown = client.data.userId;
+    const socketData = client.data as { userId?: unknown };
+    const userId = socketData.userId;
 
     if (typeof userId !== 'string') {
       client.disconnect();
       return;
     }
 
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     await client.join(`workspace:${workspaceId}`);
   }

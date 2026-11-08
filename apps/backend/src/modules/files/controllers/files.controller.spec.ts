@@ -1,31 +1,32 @@
-import { unlink, writeFile } from 'fs/promises';
 import {
   ExecutionContext,
   INestApplication,
   ValidationPipe,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { unlink, writeFile } from 'node:fs/promises';
+import type { Server } from 'node:http';
 import request from 'supertest';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { FilesController } from './files.controller';
 import { FilesService } from '../services/files.service';
+import { FilesController } from './files.controller';
 
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
 }));
 
+type UploadedFile = {
+  originalname: string;
+  buffer: Buffer;
+};
+
 describe('FilesController', () => {
   let app: INestApplication;
 
-  const workspaceId =
-    '11111111-1111-4111-8111-111111111111';
-
-  const fileId =
-    '22222222-2222-4222-8222-222222222222';
-
-  const userId =
-    '33333333-3333-4333-8333-333333333333';
+  const workspaceId = '11111111-1111-4111-8111-111111111111';
+  const fileId = '22222222-2222-4222-8222-222222222222';
+  const userId = '33333333-3333-4333-8333-333333333333';
 
   const fileResponse = {
     id: fileId,
@@ -47,6 +48,10 @@ describe('FilesController', () => {
     getDownloadInfo: jest.fn(),
   };
 
+  function httpServer(): Server {
+    return app.getHttpServer() as Server;
+  }
+
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [FilesController],
@@ -60,12 +65,11 @@ describe('FilesController', () => {
       .overrideGuard(JwtAuthGuard)
       .useValue({
         canActivate(context: ExecutionContext) {
-          const req = context.switchToHttp().getRequest();
+          const req = context
+            .switchToHttp()
+            .getRequest<{ user?: { id: string } }>();
 
-          req.user = {
-            id: userId,
-          };
-
+          req.user = { id: userId };
           return true;
         },
       })
@@ -95,20 +99,18 @@ describe('FilesController', () => {
   it('uploads a file', async () => {
     filesService.upload.mockResolvedValue(fileResponse);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post(`/workspaces/${workspaceId}/files`)
       .field('displayName', 'Project document')
-      .attach(
-        'file',
-        Buffer.from('hello'),
-        {
-          filename: 'document.pdf',
-          contentType: 'application/pdf',
-        },
-      )
+      .attach('file', Buffer.from('hello'), {
+        filename: 'document.pdf',
+        contentType: 'application/pdf',
+      })
       .expect(201);
 
-    expect(response.body).toMatchObject({
+    const body: unknown = response.body;
+
+    expect(body).toMatchObject({
       id: fileId,
       workspaceId,
       originalName: 'document.pdf',
@@ -116,12 +118,13 @@ describe('FilesController', () => {
 
     expect(filesService.upload).toHaveBeenCalledTimes(1);
 
-    const [
-      calledWorkspaceId,
-      calledUserId,
-      calledFile,
-      calledDto,
-    ] = filesService.upload.mock.calls[0];
+    const [calledWorkspaceId, calledUserId, calledFile, calledDto] =
+      filesService.upload.mock.calls[0] as [
+        string,
+        string,
+        UploadedFile,
+        unknown,
+      ];
 
     expect(calledWorkspaceId).toBe(workspaceId);
     expect(calledUserId).toBe(userId);
@@ -136,14 +139,10 @@ describe('FilesController', () => {
   });
 
   it('rejects an unknown upload field', async () => {
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post(`/workspaces/${workspaceId}/files`)
       .field('unknownField', 'test')
-      .attach(
-        'file',
-        Buffer.from('hello'),
-        'document.pdf',
-      )
+      .attach('file', Buffer.from('hello'), 'document.pdf')
       .expect(400);
 
     expect(filesService.upload).not.toHaveBeenCalled();
@@ -152,13 +151,13 @@ describe('FilesController', () => {
   it('lists workspace files', async () => {
     filesService.findAll.mockResolvedValue([fileResponse]);
 
-    const response = await request(app.getHttpServer())
-      .get(
-        `/workspaces/${workspaceId}/files?page=1&limit=20`,
-      )
+    const response = await request(httpServer())
+      .get(`/workspaces/${workspaceId}/files?page=1&limit=20`)
       .expect(200);
 
-    expect(response.body).toHaveLength(1);
+    const body: unknown = response.body;
+
+    expect(body).toHaveLength(1);
 
     expect(filesService.findAll).toHaveBeenCalledWith(
       workspaceId,
@@ -171,10 +170,8 @@ describe('FilesController', () => {
   });
 
   it('rejects invalid pagination', async () => {
-    await request(app.getHttpServer())
-      .get(
-        `/workspaces/${workspaceId}/files?page=0&limit=20`,
-      )
+    await request(httpServer())
+      .get(`/workspaces/${workspaceId}/files?page=0&limit=20`)
       .expect(400);
 
     expect(filesService.findAll).not.toHaveBeenCalled();
@@ -183,13 +180,13 @@ describe('FilesController', () => {
   it('gets one file metadata', async () => {
     filesService.findOne.mockResolvedValue(fileResponse);
 
-    const response = await request(app.getHttpServer())
-      .get(
-        `/workspaces/${workspaceId}/files/${fileId}`,
-      )
+    const response = await request(httpServer())
+      .get(`/workspaces/${workspaceId}/files/${fileId}`)
       .expect(200);
 
-    expect(response.body.id).toBe(fileId);
+    const body: unknown = response.body;
+
+    expect(body).toMatchObject({ id: fileId });
 
     expect(filesService.findOne).toHaveBeenCalledWith(
       workspaceId,
@@ -201,10 +198,8 @@ describe('FilesController', () => {
   it('deletes a file with 204', async () => {
     filesService.remove.mockResolvedValue(undefined);
 
-    await request(app.getHttpServer())
-      .delete(
-        `/workspaces/${workspaceId}/files/${fileId}`,
-      )
+    await request(httpServer())
+      .delete(`/workspaces/${workspaceId}/files/${fileId}`)
       .expect(204);
 
     expect(filesService.remove).toHaveBeenCalledWith(
@@ -217,10 +212,7 @@ describe('FilesController', () => {
   it('downloads a file', async () => {
     const temporaryPath = '/tmp/files-controller-test.txt';
 
-    await writeFile(
-      temporaryPath,
-      Buffer.from('hello'),
-    );
+    await writeFile(temporaryPath, Buffer.from('hello'));
 
     filesService.getDownloadInfo.mockResolvedValue({
       absolutePath: temporaryPath,
@@ -230,15 +222,11 @@ describe('FilesController', () => {
     });
 
     try {
-      const response = await request(app.getHttpServer())
-        .get(
-          `/workspaces/${workspaceId}/files/${fileId}/download`,
-        )
+      const response = await request(httpServer())
+        .get(`/workspaces/${workspaceId}/files/${fileId}/download`)
         .expect(200);
 
-      expect(response.headers['content-type']).toContain(
-        'text/plain',
-      );
+      expect(response.headers['content-type']).toContain('text/plain');
 
       expect(response.headers['content-disposition']).toBe(
         'attachment; filename="document.txt"',
@@ -246,9 +234,7 @@ describe('FilesController', () => {
 
       expect(response.text).toBe('hello');
 
-      expect(
-        filesService.getDownloadInfo,
-      ).toHaveBeenCalledWith(
+      expect(filesService.getDownloadInfo).toHaveBeenCalledWith(
         workspaceId,
         fileId,
         userId,
@@ -259,16 +245,12 @@ describe('FilesController', () => {
   });
 
   it('rejects invalid workspace UUID', async () => {
-    await request(app.getHttpServer())
-      .get('/workspaces/not-a-uuid/files')
-      .expect(400);
+    await request(httpServer()).get('/workspaces/not-a-uuid/files').expect(400);
   });
 
   it('rejects invalid file UUID', async () => {
-    await request(app.getHttpServer())
-      .get(
-        `/workspaces/${workspaceId}/files/not-a-uuid`,
-      )
+    await request(httpServer())
+      .get(`/workspaces/${workspaceId}/files/not-a-uuid`)
       .expect(400);
   });
 });

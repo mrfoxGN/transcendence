@@ -7,10 +7,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  AppRole,
-  UserStatus,
-} from '../../../database/enums/database.enums';
+import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 
 jest.mock('@nestjs/typeorm', () => ({
@@ -34,177 +31,163 @@ function makeUser(): User {
 
 describe('UsersService', () => {
   it('returns 404 when updating a missing user', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockResolvedValue(null),
-  };
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(null),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
 
-  await expect(
-    service.updateProfile('missing-id', { username: 'newname' }),
-  ).rejects.toThrow(NotFoundException);
-});
-
-it('rejects an empty update and a null username', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockImplementation(async () => makeUser()),
-  };
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
-  const id = makeUser().id;
-
-  await expect(service.updateProfile(id, new UpdateProfileDto())).rejects.toThrow(
-    BadRequestException,
-  );
-
-  await expect(
-    service.updateProfile(id, { username: null } as never),
-  ).rejects.toThrow(BadRequestException);
-});
-
-it('updates allowed fields and returns a safe response', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockResolvedValue(makeUser()),
-    existsBy: jest.fn().mockResolvedValue(false),
-    save: jest.fn().mockImplementation(async (user) => user),
-  };
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
-
-  const response = await service.updateProfile(makeUser().id, {
-    username: 'newname',
-    email: 'new@example.com',
-    avatarUrl: null,
+    await expect(
+      service.updateProfile('missing-id', { username: 'newname' }),
+    ).rejects.toThrow(NotFoundException);
   });
 
-  expect(response.username).toBe('newname');
-  expect(response.email).toBe('new@example.com');
-  expect(response.avatarUrl).toBeNull();
-  expect(response).not.toHaveProperty('passwordHash');
-});
+  it('rejects an empty update and a null username', async () => {
+    const repository = {
+      findOneBy: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve(makeUser())),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+    const id = makeUser().id;
 
-it('rejects an existing username', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockResolvedValue(makeUser()),
-    existsBy: jest.fn().mockResolvedValue(true),
-    save: jest.fn(),
-  };
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
+    await expect(
+      service.updateProfile(id, new UpdateProfileDto()),
+    ).rejects.toThrow(BadRequestException);
 
-  await expect(
-    service.updateProfile(makeUser().id, { username: 'taken' }),
-  ).rejects.toThrow(ConflictException);
+    await expect(
+      service.updateProfile(id, { username: null } as never),
+    ).rejects.toThrow(BadRequestException);
+  });
 
-  expect(repository.save).not.toHaveBeenCalled();
-});
+  it('updates allowed fields and returns a safe response', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      existsBy: jest.fn().mockResolvedValue(false),
+      save: jest
+        .fn()
+        .mockImplementation((user: unknown) => Promise.resolve(user)),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
 
-it('rejects an existing email', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockResolvedValue(makeUser()),
-    existsBy: jest.fn().mockResolvedValue(true),
-    save: jest.fn(),
-  };
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
+    const response = await service.updateProfile(makeUser().id, {
+      username: 'newname',
+      email: 'new@example.com',
+      avatarUrl: null,
+    });
 
-  await expect(
-    service.updateProfile(makeUser().id, { email: 'taken@example.com' }),
-  ).rejects.toThrow(ConflictException);
+    expect(response.username).toBe('newname');
+    expect(response.email).toBe('new@example.com');
+    expect(response.avatarUrl).toBeNull();
+    expect(response).not.toHaveProperty('passwordHash');
+  });
 
-  expect(repository.save).not.toHaveBeenCalled();
-});
+  it('rejects an existing username', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      existsBy: jest.fn().mockResolvedValue(true),
+      save: jest.fn(),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
 
-it('returns a conflict if MySQL rejects an update duplicate', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockResolvedValue(makeUser()),
-    existsBy: jest.fn().mockResolvedValue(false),
-    save: jest.fn().mockRejectedValue(
-      new QueryFailedError('UPDATE', [], {
-        code: 'ER_DUP_ENTRY',
-      }),
-    ),
-  };
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
+    await expect(
+      service.updateProfile(makeUser().id, { username: 'taken' }),
+    ).rejects.toThrow(ConflictException);
 
-  await expect(
-    service.updateProfile(makeUser().id, { username: 'newname' }),
-  ).rejects.toThrow(ConflictException);
-});
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects an existing email', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      existsBy: jest.fn().mockResolvedValue(true),
+      save: jest.fn(),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+
+    await expect(
+      service.updateProfile(makeUser().id, { email: 'taken@example.com' }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('returns a conflict if MySQL rejects an update duplicate', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      existsBy: jest.fn().mockResolvedValue(false),
+      save: jest.fn().mockRejectedValue(
+        new QueryFailedError('UPDATE', [], {
+          code: 'ER_DUP_ENTRY',
+        }),
+      ),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+
+    await expect(
+      service.updateProfile(makeUser().id, { username: 'newname' }),
+    ).rejects.toThrow(ConflictException);
+  });
   it('returns 404 when a user does not exist', async () => {
-  const repository = {
-    findOneBy: jest.fn().mockResolvedValue(null),
-  };
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(null),
+    };
 
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
+    const service = new UsersService(repository as unknown as Repository<User>);
 
-  await expect(
-    service.findById('missing-user-id'),
-  ).rejects.toThrow(NotFoundException);
-});
+    await expect(service.findById('missing-user-id')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
   it('returns a conflict if the database rejects a duplicate', async () => {
-  const repository = {
-    findOne: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockImplementation((user) => user),
-    save: jest.fn().mockRejectedValue(
-      new QueryFailedError('INSERT', [], {
-        code: 'ER_DUP_ENTRY',
+    const repository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((user: unknown) => user),
+      save: jest.fn().mockRejectedValue(
+        new QueryFailedError('INSERT', [], {
+          code: 'ER_DUP_ENTRY',
+        }),
+      ),
+    };
+
+    const service = new UsersService(repository as unknown as Repository<User>);
+
+    await expect(
+      service.create({
+        username: 'khaled',
+        email: 'khaled@example.com',
+        password: 'example-password',
       }),
-    ),
-  };
-
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
-
-  await expect(
-    service.create({
-      username: 'khaled',
-      email: 'khaled@example.com',
-      password: 'example-password',
-    }),
-  ).rejects.toThrow(ConflictException);
-});
+    ).rejects.toThrow(ConflictException);
+  });
   it('rejects an existing username or email', async () => {
-  const repository = {
-    findOne: jest.fn().mockResolvedValue({ id: 'existing-user' }),
-    create: jest.fn(),
-    save: jest.fn(),
-  };
+    const repository = {
+      findOne: jest.fn().mockResolvedValue({ id: 'existing-user' }),
+      create: jest.fn(),
+      save: jest.fn(),
+    };
 
-  const service = new UsersService(
-    repository as unknown as Repository<User>,
-  );
+    const service = new UsersService(repository as unknown as Repository<User>);
 
-  await expect(
-    service.create({
-      username: 'khaled',
-      email: 'khaled@example.com',
-      password: 'example-password',
-    }),
-  ).rejects.toThrow(ConflictException);
+    await expect(
+      service.create({
+        username: 'khaled',
+        email: 'khaled@example.com',
+        password: 'example-password',
+      }),
+    ).rejects.toThrow(ConflictException);
 
-  expect(repository.save).not.toHaveBeenCalled();
-});
+    expect(repository.save).not.toHaveBeenCalled();
+  });
   it('hashes a password and never returns the hash', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((user) => user),
-      save: jest.fn().mockImplementation(async (user) => user),
+      create: jest.fn().mockImplementation((user: unknown) => user),
+      save: jest
+        .fn()
+        .mockImplementation((user: unknown) => Promise.resolve(user)),
     };
 
-    const service = new UsersService(
-      repository as unknown as Repository<User>,
-    );
+    const service = new UsersService(repository as unknown as Repository<User>);
 
     const response = await service.create({
       username: 'khaled',
@@ -212,7 +195,7 @@ it('returns a conflict if MySQL rejects an update duplicate', async () => {
       password: 'example-password',
     });
 
-    const savedUser = repository.save.mock.calls[0][0] as User;
+    const savedUser = (repository.save.mock.calls as unknown[][])[0][0] as User;
 
     expect(savedUser.passwordHash).not.toBe('example-password');
     expect(

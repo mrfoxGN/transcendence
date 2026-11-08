@@ -36,9 +36,7 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class FilesController {
-  constructor(
-    private readonly filesService: FilesService,
-  ) {}
+  constructor(private readonly filesService: FilesService) {}
 
   @Post()
   @ApiConsumes('multipart/form-data')
@@ -62,12 +60,7 @@ export class FilesController {
     @Body()
     dto: UploadWorkspaceFileDto,
   ): Promise<WorkspaceFileResponseDto> {
-    return this.filesService.upload(
-      workspaceId,
-      request.user.id,
-      file,
-      dto,
-    );
+    return this.filesService.upload(workspaceId, request.user.id, file, dto);
   }
 
   @Get()
@@ -81,11 +74,7 @@ export class FilesController {
     @Query()
     query: ListWorkspaceFilesDto,
   ): Promise<WorkspaceFileResponseDto[]> {
-    return this.filesService.findAll(
-      workspaceId,
-      request.user.id,
-      query,
-    );
+    return this.filesService.findAll(workspaceId, request.user.id, query);
   }
   @Delete(':fileId')
   @HttpCode(204)
@@ -99,11 +88,7 @@ export class FilesController {
     @Req()
     request: AuthenticatedRequest,
   ): Promise<void> {
-    await this.filesService.remove(
-      workspaceId,
-      fileId,
-      request.user.id,
-    );
+    await this.filesService.remove(workspaceId, fileId, request.user.id);
   }
 
   @Get(':fileId/download')
@@ -131,19 +116,14 @@ export class FilesController {
       file.mimeType ?? 'application/octet-stream',
     );
 
-    response.setHeader(
-      'Content-Length',
-      file.sizeBytes,
-    );
+    response.setHeader('Content-Length', file.sizeBytes);
 
     response.setHeader(
       'Content-Disposition',
       `attachment; filename="${file.originalName.replace(/["\\]/g, '_')}"`,
     );
 
-    return new StreamableFile(
-      createReadStream(file.absolutePath),
-    );
+    return new StreamableFile(createReadStream(file.absolutePath));
   }
 
   @Get(':fileId')
@@ -157,11 +137,6 @@ export class FilesController {
     @Req()
     request: AuthenticatedRequest,
   ): Promise<WorkspaceFileResponseDto> {
-    return this.filesService.findOne(
-      workspaceId,
-      fileId,
-      request.user.id,
-    );
+    return this.filesService.findOne(workspaceId, fileId, request.user.id);
   }
-
 }

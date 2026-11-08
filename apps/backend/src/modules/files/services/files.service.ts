@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
@@ -56,26 +57,18 @@ export class FilesService {
       const task = await this.tasksService.findById(dto.taskId, userId);
 
       if (task.workspaceId !== workspaceId) {
-        throw new BadRequestException(
-          'Task does not belong to this workspace',
-        );
+        throw new BadRequestException('Task does not belong to this workspace');
       }
     }
 
     const id = randomUUID();
     const storageFileName = randomUUID();
 
-    const workspaceStorageDirectory = join(
-      this.storageRoot,
-      workspaceId,
-    );
+    const workspaceStorageDirectory = join(this.storageRoot, workspaceId);
 
     const storageKey = `${workspaceId}/${storageFileName}`;
 
-    const absolutePath = join(
-      workspaceStorageDirectory,
-      storageFileName,
-    );
+    const absolutePath = join(workspaceStorageDirectory, storageFileName);
 
     await mkdir(workspaceStorageDirectory, {
       recursive: true,
@@ -100,8 +93,7 @@ export class FilesService {
     let savedFile: WorkspaceFile;
 
     try {
-      savedFile =
-        await this.workspaceFilesRepository.save(workspaceFile);
+      savedFile = await this.workspaceFilesRepository.save(workspaceFile);
     } catch (error) {
       await unlink(absolutePath).catch(() => undefined);
       throw error;
@@ -123,9 +115,7 @@ export class FilesService {
     } catch (error) {
       this.logger.error(
         `Could not create FILE_UPLOADED activity for file ${savedFile.id}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
 
@@ -137,10 +127,7 @@ export class FilesService {
     userId: string,
     query: ListWorkspaceFilesDto,
   ): Promise<WorkspaceFileResponseDto[]> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -167,10 +154,7 @@ export class FilesService {
     fileId: string,
     userId: string,
   ): Promise<WorkspaceFileResponseDto> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {
@@ -192,11 +176,10 @@ export class FilesService {
     fileId: string,
     userId: string,
   ): Promise<void> {
-    const workspace =
-      await this.workspacesService.findOneForUser(
-        workspaceId,
-        userId,
-      );
+    const workspace = await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {
@@ -210,25 +193,68 @@ export class FilesService {
       throw new NotFoundException('File not found');
     }
 
-    if (
-      file.uploaderId !== userId &&
-      workspace.ownerId !== userId
-    ) {
+    if (file.uploaderId !== userId && workspace.ownerId !== userId) {
       throw new ForbiddenException(
         'Only the uploader or workspace owner can delete this file',
       );
     }
 
+    const absolutePath = join(this.storageRoot, file.storageKey);
+
+    // Delete the physical file before marking it as deleted.
+    // If deletion fails, keep the database record active so
+    // the user can retry the DELETE request.
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await unlink(absolutePath);
+        break;
+      } catch (error) {
+        const code =
+          error instanceof Error && 'code' in error
+            ? String(error.code)
+            : 'UNKNOWN';
+
+        // The file was already removed.
+        // We can safely continue with the database update.
+        if (code === 'ENOENT') {
+          this.logger.warn(`Physical file already missing for file ${file.id}`);
+          break;
+        }
+
+        // Retry only transient filesystem errors.
+        const retryable = code === 'EBUSY' || code === 'EAGAIN';
+
+        if (retryable && attempt < 3) {
+          this.logger.warn(
+            `Retrying physical deletion for file ${file.id} ` +
+              `(attempt ${attempt}, code ${code})`,
+          );
+
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, attempt * 200),
+          );
+
+          continue;
+        }
+
+        // Never silently ignore filesystem errors.
+        this.logger.error(
+          `Physical deletion failed for file ${file.id} ` +
+            `in workspace ${workspaceId} (code: ${code})`,
+          error instanceof Error ? error.stack : String(error),
+        );
+
+        throw new ServiceUnavailableException(
+          'Unable to delete file from storage. Please retry.',
+        );
+      }
+    }
+
+    // Only mark the file as deleted after physical cleanup.
     file.deletedAt = new Date();
 
     await this.workspaceFilesRepository.save(file);
-
-    const absolutePath = join(
-      this.storageRoot,
-      file.storageKey,
-    );
-
-    await unlink(absolutePath).catch(() => undefined);
 
     try {
       await this.activitiesService.create({
@@ -246,9 +272,7 @@ export class FilesService {
     } catch (error) {
       this.logger.error(
         `Could not create FILE_DELETED activity for file ${file.id}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
   }
@@ -263,10 +287,7 @@ export class FilesService {
     mimeType: string | null;
     sizeBytes: string;
   }> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {
@@ -280,10 +301,7 @@ export class FilesService {
       throw new NotFoundException('File not found');
     }
 
-    const absolutePath = join(
-      this.storageRoot,
-      file.storageKey,
-    );
+    const absolutePath = join(this.storageRoot, file.storageKey);
 
     try {
       await access(absolutePath);
@@ -299,9 +317,7 @@ export class FilesService {
     };
   }
 
-  private toResponse(
-    file: WorkspaceFile,
-  ): WorkspaceFileResponseDto {
+  private toResponse(file: WorkspaceFile): WorkspaceFileResponseDto {
     return {
       id: file.id,
       workspaceId: file.workspaceId,

@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Header,
-  Param,
   ParseUUIDPipe,
   Post,
   Query,
@@ -38,23 +37,14 @@ export class GitHubController {
     @Query('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<{ authorizationUrl: string }> {
-    return this.githubOAuthService.begin(
-      workspaceId,
-      request.user.id,
-    );
+    return this.githubOAuthService.begin(workspaceId, request.user.id);
   }
 
   @Get('callback')
   @Header('Cache-Control', 'no-store')
   @Header('Referrer-Policy', 'no-referrer')
-  callback(
-    @Query('code') code?: string,
-    @Query('state') state?: string,
-  ) {
-    return this.githubOAuthService.complete(
-      code ?? '',
-      state ?? '',
-    );
+  callback(@Query('code') code?: string, @Query('state') state?: string) {
+    return this.githubOAuthService.complete(code ?? '', state ?? '');
   }
 
   @Post('available-repositories')
@@ -70,5 +60,4 @@ export class GitHubController {
       dto.setupSessionId,
     );
   }
-
 }

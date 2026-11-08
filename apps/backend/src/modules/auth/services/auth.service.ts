@@ -44,9 +44,9 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
-  const user = await this.validateCredentials(dto);
+    const user = await this.validateCredentials(dto);
 
-  return {
+    return {
       accessToken: await this.jwtService.signAsync({
         sub: user.id,
         tokenVersion: user.tokenVersion,

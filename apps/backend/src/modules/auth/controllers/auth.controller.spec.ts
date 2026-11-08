@@ -7,12 +7,13 @@ import {
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
+import type { Server } from 'node:http';
 import request from 'supertest';
 
 import { UserStatus } from '../../../database/enums/database.enums';
-import { UsersService } from '../../users/services/users.service';
-import { DirectChatGateway } from '../../social/gateways/direct-chat.gateway';
 import { WorkspaceChatGateway } from '../../chat/gateways/workspace-chat.gateway';
+import { DirectChatGateway } from '../../social/gateways/direct-chat.gateway';
+import { UsersService } from '../../users/services/users.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
 import { AuthController } from './auth.controller';
@@ -53,6 +54,10 @@ describe('Auth endpoints', () => {
 
   let app: INestApplication;
   let jwtService: JwtService;
+
+  function httpServer(): Server {
+    return app.getHttpServer() as Server;
+  }
 
   beforeAll(async () => {
     user.passwordHash = await argon2.hash(password);
@@ -109,19 +114,21 @@ describe('Auth endpoints', () => {
       password,
     };
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post('/auth/register')
       .send(input)
       .expect(201);
 
+    const body: unknown = response.body;
+
     expect(usersService.create).toHaveBeenCalledWith(input);
-    expect(response.body.id).toBe(id);
-    expect(response.body).not.toHaveProperty('passwordHash');
-    expect(response.body).not.toHaveProperty('tokenVersion');
+    expect(body).toMatchObject({ id });
+    expect(body).not.toHaveProperty('passwordHash');
+    expect(body).not.toHaveProperty('tokenVersion');
   });
 
   it('rejects invalid registration data', async () => {
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post('/auth/register')
       .send({
         username: 'ab',
@@ -134,7 +141,7 @@ describe('Auth endpoints', () => {
   });
 
   it('rejects forbidden registration fields', async () => {
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post('/auth/register')
       .send({
         username: 'khaled',
@@ -152,7 +159,7 @@ describe('Auth endpoints', () => {
       new ConflictException('Username or email already exists'),
     );
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post('/auth/register')
       .send({ username: 'khaled', email, password })
       .expect(409);
@@ -161,16 +168,26 @@ describe('Auth endpoints', () => {
   it('logs in and returns a JWT containing the user ID and version', async () => {
     usersService.findByEmail.mockResolvedValue(user);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post('/auth/login')
       .send({ email, password })
       .expect(200);
 
-    expect(typeof response.body.accessToken).toBe('string');
+    const body: unknown = response.body;
 
-    const payload = await jwtService.verifyAsync(
-      response.body.accessToken,
-    );
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('accessToken' in body) ||
+      typeof body.accessToken !== 'string'
+    ) {
+      throw new Error('Login response must contain an access token');
+    }
+
+    const payload = await jwtService.verifyAsync<{
+      sub?: unknown;
+      tokenVersion?: unknown;
+    }>(body.accessToken);
 
     expect(payload.sub).toBe(id);
     expect(payload.tokenVersion).toBe(0);
@@ -178,7 +195,7 @@ describe('Auth endpoints', () => {
   });
 
   it('rejects invalid login data', async () => {
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post('/auth/login')
       .send({ email: 'not-an-email', password: '' })
       .expect(400);
@@ -189,23 +206,25 @@ describe('Auth endpoints', () => {
   it('returns 401 for an unknown email', async () => {
     usersService.findByEmail.mockResolvedValue(null);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post('/auth/login')
       .send({ email, password })
       .expect(401);
 
-    expect(response.body.message).toBe('Invalid credentials');
+    const body: unknown = response.body;
+    expect(body).toMatchObject({ message: 'Invalid credentials' });
   });
 
   it('returns 401 for a wrong password', async () => {
     usersService.findByEmail.mockResolvedValue(user);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post('/auth/login')
       .send({ email, password: 'wrong-password' })
       .expect(401);
 
-    expect(response.body.message).toBe('Invalid credentials');
+    const body: unknown = response.body;
+    expect(body).toMatchObject({ message: 'Invalid credentials' });
   });
 
   it('returns 401 for a disabled account', async () => {
@@ -214,12 +233,13 @@ describe('Auth endpoints', () => {
       status: UserStatus.DISABLED,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post('/auth/login')
       .send({ email, password })
       .expect(401);
 
-    expect(response.body.message).toBe('Invalid credentials');
+    const body: unknown = response.body;
+    expect(body).toMatchObject({ message: 'Invalid credentials' });
   });
 
   it('returns the current profile with a valid token', async () => {
@@ -233,27 +253,27 @@ describe('Auth endpoints', () => {
       tokenVersion: 0,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(response.body).toEqual(profile);
-    expect(response.body).not.toHaveProperty('passwordHash');
-    expect(response.body).not.toHaveProperty('tokenVersion');
+    const body: unknown = response.body;
+
+    expect(body).toEqual(profile);
+    expect(body).not.toHaveProperty('passwordHash');
+    expect(body).not.toHaveProperty('tokenVersion');
     expect(usersService.findForAuth).toHaveBeenCalledWith(id);
   });
 
   it('rejects a profile request without a token', async () => {
-    await request(app.getHttpServer())
-      .get('/auth/profile')
-      .expect(401);
+    await request(httpServer()).get('/auth/profile').expect(401);
 
     expect(usersService.findForAuth).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid token', async () => {
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', 'Bearer invalid-token')
       .expect(401);
@@ -267,7 +287,7 @@ describe('Auth endpoints', () => {
       { expiresIn: -1 },
     );
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -278,7 +298,7 @@ describe('Auth endpoints', () => {
   it('rejects an old token without a version', async () => {
     const token = await jwtService.signAsync({ sub: id });
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -296,7 +316,7 @@ describe('Auth endpoints', () => {
       tokenVersion: 0,
     });
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -315,7 +335,7 @@ describe('Auth endpoints', () => {
       tokenVersion: 0,
     });
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -332,7 +352,7 @@ describe('Auth endpoints', () => {
       tokenVersion: 0,
     });
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -341,13 +361,16 @@ describe('Auth endpoints', () => {
   it('logs out and rejects the same token afterward', async () => {
     let databaseVersion = 0;
 
-    usersService.findForAuth.mockImplementation(async () => ({
-      user: profile,
-      tokenVersion: databaseVersion,
-    }));
+    usersService.findForAuth.mockImplementation(() =>
+      Promise.resolve({
+        user: profile,
+        tokenVersion: databaseVersion,
+      }),
+    );
 
-    usersService.revokeTokens.mockImplementation(async () => {
+    usersService.revokeTokens.mockImplementation(() => {
       databaseVersion += 1;
+      return Promise.resolve();
     });
 
     const token = await jwtService.signAsync({
@@ -355,17 +378,19 @@ describe('Auth endpoints', () => {
       tokenVersion: 0,
     });
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    const response = await request(app.getHttpServer())
+    const response = await request(httpServer())
       .post('/auth/logout')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(response.body).toEqual({
+    const body: unknown = response.body;
+
+    expect(body).toEqual({
       message: 'Logout successful',
       loggedOut: true,
     });
@@ -373,7 +398,7 @@ describe('Auth endpoints', () => {
     expect(directChatGateway.disconnectUser).toHaveBeenCalledWith(id);
     expect(workspaceChatGateway.disconnectUser).toHaveBeenCalledWith(id);
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -382,13 +407,16 @@ describe('Auth endpoints', () => {
   it('rejects a second logout with the same token', async () => {
     let databaseVersion = 0;
 
-    usersService.findForAuth.mockImplementation(async () => ({
-      user: profile,
-      tokenVersion: databaseVersion,
-    }));
+    usersService.findForAuth.mockImplementation(() =>
+      Promise.resolve({
+        user: profile,
+        tokenVersion: databaseVersion,
+      }),
+    );
 
-    usersService.revokeTokens.mockImplementation(async () => {
+    usersService.revokeTokens.mockImplementation(() => {
       databaseVersion += 1;
+      return Promise.resolve();
     });
 
     const token = await jwtService.signAsync({
@@ -396,12 +424,12 @@ describe('Auth endpoints', () => {
       tokenVersion: 0,
     });
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post('/auth/logout')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    await request(app.getHttpServer())
+    await request(httpServer())
       .post('/auth/logout')
       .set('Authorization', `Bearer ${token}`)
       .expect(401);

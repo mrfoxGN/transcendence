@@ -1,9 +1,7 @@
-import {
-  INestApplication,
-  ValidationPipe,
-} from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import type { Server } from 'node:http';
 import request from 'supertest';
 
 import { UserStatus } from '../../../database/enums/database.enums';
@@ -107,7 +105,7 @@ describe('Chat endpoints', () => {
   });
 
   it('returns 401 when sending without a JWT', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .post(`/workspaces/${workspaceId}/messages`)
       .send({
         content: 'Hello workspace!',
@@ -118,7 +116,7 @@ describe('Chat endpoints', () => {
   });
 
   it('returns 400 for an invalid workspace UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .post('/workspaces/not-a-uuid/messages')
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -130,7 +128,7 @@ describe('Chat endpoints', () => {
   });
 
   it('sends a workspace message', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as Server)
       .post(`/workspaces/${workspaceId}/messages`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -138,15 +136,13 @@ describe('Chat endpoints', () => {
       })
       .expect(201);
 
-    expect(chatService.sendMessage).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-      {
-        content: 'Hello workspace!',
-      },
-    );
+    expect(chatService.sendMessage).toHaveBeenCalledWith(workspaceId, userId, {
+      content: 'Hello workspace!',
+    });
 
-    expect(response.body).toEqual(
+    const body: unknown = response.body;
+
+    expect(body).toEqual(
       expect.objectContaining({
         id: messageId,
         workspaceId,
@@ -157,7 +153,7 @@ describe('Chat endpoints', () => {
   });
 
   it('returns 400 when content is empty', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .post(`/workspaces/${workspaceId}/messages`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -169,7 +165,7 @@ describe('Chat endpoints', () => {
   });
 
   it('rejects unknown fields', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .post(`/workspaces/${workspaceId}/messages`)
       .set('Authorization', `Bearer ${token}`)
       .send({
@@ -182,7 +178,7 @@ describe('Chat endpoints', () => {
   });
 
   it('lists workspace messages', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as Server)
       .get(`/workspaces/${workspaceId}/messages`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -193,36 +189,33 @@ describe('Chat endpoints', () => {
       {},
     );
 
-    expect(response.body).toHaveLength(1);
+    const body: unknown = response.body;
 
-    expect(response.body[0]).toEqual(
+    expect(body).toHaveLength(1);
+    expect(body).toEqual([
       expect.objectContaining({
         id: messageId,
         workspaceId,
         senderId: userId,
         content: 'Hello workspace!',
       }),
-    );
+    ]);
   });
 
   it('passes pagination to the service', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get(`/workspaces/${workspaceId}/messages?page=2&limit=10`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(chatService.listMessages).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-      {
-        page: 2,
-        limit: 10,
-      },
-    );
+    expect(chatService.listMessages).toHaveBeenCalledWith(workspaceId, userId, {
+      page: 2,
+      limit: 10,
+    });
   });
 
   it('rejects invalid pagination', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as Server)
       .get(`/workspaces/${workspaceId}/messages?page=0&limit=101`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
