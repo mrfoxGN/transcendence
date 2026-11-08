@@ -150,7 +150,7 @@
 .landing .github-detail { padding-block: 32px var(--section-space); }
 .landing .faq { padding-top: 0; padding-bottom: var(--section-space); }
 
-.landing .site-footer { padding-block: 40px; }
+
 .landing .repo-branch { flex-wrap: wrap; }
 .landing .scene-window { min-height: 250px; }
 .landing .scene-note { min-height: 66px; }
@@ -280,3 +280,39 @@
 }
 .story-closing .button { color: var(--ink); background: white; }
 .story-closing .button:hover { background: #f2ebff; }
+
+.site-footer {
+ margin: 0 clamp(8px, 1.5vw, 24px) clamp(8px, 1.5vw, 24px);
+ padding: clamp(28px, 5vw, 60px) 0 22px;
+ border-radius: clamp(16px, 3vw, 30px);
+ color: #eef2ff;
+ background:
+  radial-gradient(ellipse at 100% 110%, #994476, transparent 43%),
+  radial-gradient(ellipse at 88% 115%, #49439c, transparent 59%),
+  #0f172a;
+}
+.footer-main {
+ display: grid;
+ grid-template-columns: minmax(0, 1fr) minmax(200px, .5fr);
+ gap: 30px;
+ padding-bottom: clamp(24px, 4vw, 44px);
+}
+.site-footer .brand { color: white; font-size: clamp(24px, 3vw, 36px); }
+.footer-brand p { margin-top: 12px; color: #d2d9ef; }
+.footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.footer-links h2 { margin-bottom: 10px; color: white; font-size: 15px; }
+.footer-links ul { display: grid; gap: 8px; }
+.footer-bottom {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ gap: 12px;
+ padding-top: 16px;
+ border-top: 1px solid #ffffff45;
+ font-size: 13px;
+}
+.footer-bottom a { display: inline-flex; align-items: center; gap: 5px; }
+.site-footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 600px) {
+ .footer-main { grid-template-columns: minmax(0, 1fr); }
+}

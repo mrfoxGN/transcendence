@@ -1,12 +1,14 @@
 import { sampleRepository } from './sampleData';
 import { ScrollStack } from './ScrollStack';
 import './github-showcase.css';
-import { FileCode, GitBranch, GitCommitHorizontal, Github, Plus } from 'lucide-react';
+import { FileCode, GitBranch, GitCommitHorizontal, Github, Minus, Plus } from 'lucide-react';
 
 const questions = [
+  { question: 'Can I connect a private repository?', answer: 'DevUP currently supports eligible public GitHub repositories. A workspace owner can connect one repository per workspace. The browser handoff for first-time setup is still in development.' },
+  { question: 'How do commits refresh?', answer: 'Workspace members can refresh recent commits manually. DevUP stores those commits so members can browse them from the workspace.' },
+  { question: 'Can I see file diffs in DevUP?', answer: 'DevUP shows commit details. Open the commit on GitHub to view its changed files and line-by-line diff.' },
   { question: 'How does the work-in-progress limit work?', answer: 'The board counts tasks in In Progress and Review. When the workspace reaches its limit, the team needs to finish active work before starting another ready task.' },
-  { question: 'Can I connect a GitHub repository?', answer: 'A workspace owner can link one eligible public repository through GitHub authorization. Workspace members can view branches and stored commits and manually refresh recent commits. The browser handoff for first-time setup is still in development.' },
-  { question: 'Can I talk to someone outside the workspace chat?', answer: 'Yes. Direct messages are separate from workspace chat, so you can continue a private conversation while switching between workspaces.' },
+  { question: 'Are direct messages separate from team chat?', answer: 'Yes. Direct messages are separate from workspace chat, so you can continue a private conversation while switching between workspaces.' },
 ];
 
 export function LandingDetails() {
@@ -65,9 +67,12 @@ export function LandingDetails() {
         </div>
       </section>
       <section className="faq section-wrap" aria-labelledby="faq-title">
-        <div className="section-intro"><h2 id="faq-title">Questions about DevUP</h2></div>
-        <div className="faq-list">{questions.map(({ question, answer }) => (
-          <details key={question}><summary>{question}<Plus size={18} /></summary><p>{answer}</p></details>
+        <div className="section-intro"><h2 id="faq-title">Questions about DevUP</h2><p>A few details about your workspace and GitHub setup.</p></div>
+        <div className="faq-list">{questions.map(({ question, answer }, index) => (
+          <details key={question} name="devup-faq" open={index === 0}>
+            <summary>{question}<Plus className="faq-plus" size={20} aria-hidden="true" /><Minus className="faq-minus" size={20} aria-hidden="true" /></summary>
+            <p>{answer}</p>
+          </details>
         ))}</div>
       </section>
     </>

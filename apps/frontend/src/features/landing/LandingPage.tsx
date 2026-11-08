@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
 import { BoardPreview } from './BoardPreview';
 import { ProductScenes } from './ProductScenes';
 import { LandingDetails } from './LandingDetails';
@@ -16,7 +16,7 @@ export function LandingPage() {
     const fragment = window.location.hash.slice(1);
     if (fragment) document.getElementById(fragment)?.scrollIntoView({ behavior: 'instant' });
   }, []);
-  return <div className="landing">
+  return <div className="landing" id="top">
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="landing-navbar">
       <div className="landing-header section-wrap">
@@ -52,7 +52,30 @@ export function LandingPage() {
       <ProductScenes />
       <LandingDetails />
     </main>
-    <footer className="site-footer section-wrap"><Brand /><span>A shared space for work in motion.</span><a href="#hero-heading">Back to top ?</a></footer>
+    <footer className="site-footer">
+      <div className="section-wrap">
+        <div className="footer-main">
+          <div className="footer-brand">
+            <Brand />
+            <p>A shared space for work in motion.</p>
+          </div>
+          <nav className="footer-links" aria-label="Footer navigation">
+            <div>
+              <h2>Explore</h2>
+              <ul><li><a href="#preview">The board</a></li><li><a href="#features">Workspace</a></li><li><a href="#github">GitHub</a></li></ul>
+            </div>
+            <div>
+              <h2>Account</h2>
+              <ul><li><a href="/login">Log in</a></li><li><a href="/register">Sign up</a></li></ul>
+            </div>
+          </nav>
+        </div>
+        <div className="footer-bottom">
+          <span>&copy; DevUP</span>
+          <a href="#top">Back to top <ArrowUp size={15} aria-hidden="true" /></a>
+        </div>
+      </div>
+    </footer>
   </div>;
 }
 export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
