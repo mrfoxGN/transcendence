@@ -1,15 +1,24 @@
 import { sampleProject } from './sampleData';
-import { Check, ClipboardList, FileText, Folder, MessageSquare, PanelRight, Paperclip } from 'lucide-react';
+import { CalendarDays, Check, ClipboardList, FileText, Folder, MessageSquare, PanelRight, Paperclip } from 'lucide-react';
+
+function TaskBadge() {
+  return <span className="scene-task-badge">{sampleProject.taskId}</span>;
+}
 
 function TaskScene() {
   return <div className="scene-stack">
     <div className="scene-window">
       <div className="scene-bar"><PanelRight size={16} /> {sampleProject.workspace} <span>/</span> {sampleProject.taskId}</div>
       <div className="scene-content">
-        <span className="scene-status"><i /> In progress</span>
+        <div className="scene-task-meta"><span className="scene-status"><i /> In progress</span><TaskBadge /></div>
         <h4>{sampleProject.taskTitle}</h4>
         <p>Add email and password fields, with clear validation messages.</p>
-        <div className="scene-person"><img src="/team/chat.jpg" alt="" /><div><strong>Amina</strong><small>Assignee</small></div></div>
+        <ul className="scene-checklist" aria-label="Task checklist">
+          <li><Check size={14} aria-hidden="true" /> Add email and password fields</li>
+          <li><Check size={14} aria-hidden="true" /> Show inline validation errors</li>
+          <li><span aria-hidden="true" /> Review at mobile widths</li>
+        </ul>
+        <div className="scene-person"><img src="/team/chat.jpg" alt="" /><div><strong>Amina</strong><small>Assignee</small></div><span className="scene-due"><CalendarDays size={14} aria-hidden="true" /> Apr 12</span></div>
       </div>
     </div>
     <div className="scene-note"><MessageSquare size={17} /><div><strong>Task comment</strong><p>Can we show the error under the email field?</p></div></div>
@@ -21,11 +30,11 @@ function ChatScene() {
     <div className="scene-window">
       <div className="scene-bar"><MessageSquare size={16} /> Workspace chat <span>/</span> Studio North</div>
       <div className="scene-content scene-chat">
-        <div className="scene-message"><img src="/team/chat.jpg" alt="" /><div><strong>Amina</strong><p>DEV-12 is taking shape. The login form is in progress.</p></div></div>
-        <div className="scene-message"><img src="/team/board.jpg" alt="" /><div><strong>Noah</strong><p>I'll check it on a narrow screen this afternoon.</p></div></div>
+        <div className="scene-message"><img src="/team/chat.jpg" alt="" /><div><strong>Amina</strong> <small className="scene-time">10:24</small><p>The login form is in progress.</p><TaskBadge /></div></div>
+        <div className="scene-message"><img src="/team/board.jpg" alt="" /><div><strong>Noah</strong> <small className="scene-time">10:27</small><p>I'll check it on a narrow screen this afternoon.</p></div></div>
       </div>
     </div>
-    <div className="scene-note"><Check size={17} /><div><strong>DEV-12</strong><p>Build login page in progress</p></div></div>
+    <div className="scene-note"><Check size={17} /><div><strong>Task update</strong><p>{sampleProject.taskTitle} in progress</p></div></div>
   </div>;
 }
 
@@ -34,11 +43,11 @@ function FilesScene() {
     <div className="scene-window">
       <div className="scene-bar"><Folder size={16} /> Notes and files <span>/</span> Studio North</div>
       <div className="scene-content">
-        <div className="scene-file"><FileText size={22} /><div><strong>Login review notes</strong><small>Workspace note</small></div></div>
-        <div className="scene-file"><Paperclip size={22} /><div><strong>login-mobile.png</strong><small>Workspace file</small></div></div>
+        <div className="scene-file"><FileText size={22} /><div><strong>Login review notes</strong><small>Workspace note · Updated by Amina</small></div><span className="scene-file-kind">Note</span></div>
+        <div className="scene-file"><Paperclip size={22} /><div><strong>login-mobile.png</strong><small>PNG · 182 KB · Added by Noah</small></div><span className="scene-file-kind">File</span></div>
       </div>
     </div>
-    <div className="scene-note"><FileText size={17} /><div><strong>{sampleProject.taskId} review decision</strong><p>Keep the email error below the field.</p></div></div>
+    <div className="scene-note"><FileText size={17} /><div><div className="scene-task-meta"><strong>Review decision</strong><TaskBadge /></div><p>Keep the email error below the field.</p></div></div>
   </div>;
 }
 
