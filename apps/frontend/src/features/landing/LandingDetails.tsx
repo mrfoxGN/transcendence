@@ -1,9 +1,10 @@
 import { AnimatedHeading } from './AnimatedHeading';
+import { LandingReviews } from './LandingReviews';
 import { useEffect, useRef, useState } from 'react';
 import { useInView, useReducedMotion } from 'framer-motion';
 import { sampleProject, sampleRepository } from './sampleData';
 import './github-showcase.css';
-import { FileCode, GitBranch, GitCommitHorizontal, Github, Minus, Pause, Play, Plus } from 'lucide-react';
+import { FileCode, GitBranch, GitCommitHorizontal, Github, Minus, Plus } from 'lucide-react';
 
 const questions = [
   { question: 'Can I connect a private repository?', answer: 'DevUP currently supports eligible public GitHub repositories. A workspace owner can connect one repository per workspace. The browser handoff for first-time setup is still in development.' },
@@ -23,12 +24,11 @@ const steps = [
 export function LandingDetails() {
   const [step, setStep] = useState(0);
   const [run, setRun] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [pageVisible, setPageVisible] = useState(!document.hidden);
   const controls = useRef<HTMLDivElement>(null);
   const inView = useInView(controls, { amount: .22 });
   const reduced = useReducedMotion();
-  const playing = inView && pageVisible && !paused && !reduced;
+  const playing = inView && pageVisible && !reduced;
 
 
   useEffect(() => {
@@ -96,13 +96,8 @@ export function LandingDetails() {
               </button>
             ))}
           </div>
-          {!reduced && <button type="button" className="github-autoplay" onClick={() => setPaused(value => !value)}
-            aria-label={paused ? 'Resume GitHub walkthrough' : 'Pause GitHub walkthrough'}>
-            {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
-            {paused ? 'Resume' : 'Pause'}
-          </button>}
         </div>
-        <div id="github-feature-preview" ref={controls} className="github-feature" data-step={step} data-playing={playing} data-paused={paused}>
+        <div id="github-feature-preview" ref={controls} className="github-feature" data-step={step} data-playing={playing}>
           <div className="github-feature-copy-stack">
             {steps.map(({ label, title, description }, index) => (
               <div className="github-feature-copy" key={label} data-active={index === step} inert={index !== step}>
@@ -125,6 +120,7 @@ export function LandingDetails() {
           </div>
         </div>
       </section>
+      <LandingReviews />
       <section className="faq section-wrap" aria-labelledby="faq-title">
         <div className="section-intro"><h2 id="faq-title">Questions about DevUP</h2><p>A few details about your workspace and GitHub setup.</p></div>
         <div className="faq-list">{questions.map(({ question, answer }, index) => (

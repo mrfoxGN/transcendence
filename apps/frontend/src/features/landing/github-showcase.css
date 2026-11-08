@@ -1,4 +1,4 @@
-.github-showcase { --github-demo-duration: 4.5s; padding-block: var(--section-space); }
+.github-showcase { --github-demo-duration: 4.5s; padding-block: var(--section-space) clamp(24px, 4vw, 48px); }
 .github-showcase-heading { margin: 0 auto clamp(20px, 4vw, 44px); text-align: center; }
 .github-showcase-heading h2 { font-size: clamp(36px, 6vw, 74px); line-height: 1.05; letter-spacing: -.06em; text-wrap: balance; }
 .github-showcase-heading p { margin-top: 14px; color: var(--muted); line-height: 1.6; }
@@ -42,8 +42,7 @@
   .github-stepper [aria-current="step"] .github-step-progress { stroke-dashoffset: 0; }
 }
 @keyframes github-step-outline { to { stroke-dashoffset: 0; } }
-.github-autoplay { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 10px; margin-top: 3px; border: 1px solid #d6dce8; border-radius: 9px; background: white; color: var(--ink); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
-.github-stepper button:focus-visible, .github-autoplay:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.github-stepper button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
 .github-feature {
   --github-accent: #5139a5;
@@ -80,7 +79,6 @@
 .github-demo-result { animation: github-demo-result var(--github-demo-duration) ease both; }
 @keyframes github-demo-result { 0%, 24% { opacity: .68; translate: 0 5px; } 38%, 100% { opacity: 1; translate: 0; } }
 .github-feature[data-playing="false"] :is([data-demo-target], .github-demo-result, [data-demo-motion]) { animation-play-state: paused; }
-.github-feature[data-paused="true"] :is(.github-demo-result, [data-demo-motion]) { opacity: 1 !important; translate: none !important; clip-path: none !important; }
 
 
 .github-panel {
