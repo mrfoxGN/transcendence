@@ -1,0 +1,115 @@
+.github-showcase {
+  padding-block: var(--section-space);
+}
+
+.github-showcase-heading {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  margin-bottom: clamp(30px, 5vw, 60px);
+  text-align: center;
+}
+
+.github-showcase-heading h2 {
+  font-size: clamp(34px, 6vw, 74px);
+  line-height: 1.05;
+  letter-spacing: -.06em;
+  text-wrap: balance;
+}
+
+.github-stack {
+  width: min(calc(100% - 32px), 1440px);
+  margin-inline: auto;
+
+}
+
+.github-card {
+  display: grid;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 76px);
+  min-height: clamp(340px, 39vw, 490px);
+  padding: clamp(20px, 5vw, 74px);
+  border-radius: clamp(18px, 3vw, 36px);
+  background: var(--github-card-color);
+  color: var(--ink);
+  box-shadow: 0 6px 18px #17285618;
+}
+
+.github-card--blue { --github-card-color: var(--hero-blue); }
+.github-card--violet { --github-card-color: var(--hero-violet); }
+.github-card--pink { --github-card-color: var(--hero-pink); }
+.github-card--green { --github-card-color: #a3f460; }
+
+.github-card h3 {
+  font-size: clamp(32px, 5vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -.055em;
+  text-wrap: balance;
+}
+
+.github-card p { max-width: 37ch; margin-top: 16px; line-height: 1.55; }
+
+.github-panel {
+  min-width: 0;
+  padding: clamp(14px, 2.4vw, 28px);
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 12px 32px #17285620;
+}
+
+.github-panel h4, .github-panel dl div, .github-panel dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.github-panel h4 { flex-wrap: wrap; font-size: clamp(15px, 2vw, 21px); }
+.github-panel dl { margin: 14px 0 0; }
+.github-panel dl div { justify-content: space-between; flex-wrap: wrap; padding: 11px 0; border-top: 1px solid #e5ebf5; }
+.github-panel dd { margin: 0; font-weight: 650; }
+.github-panel small { padding: 4px 8px; border-radius: 999px; background: #eef0f8; font-size: 11px; font-weight: 650; }
+.github-files { margin: 12px 0; padding: 0; list-style: none; font-size: 12px; }
+.github-files li { padding: 6px 8px; }
+.github-files li:first-child { border-radius: 6px; background: #edf3ff; }
+
+.github-diff {
+  margin: 0;
+  overflow-x: auto;
+  padding: 8px 0;
+  border-radius: 8px;
+  background: #f8faff;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.github-diff code { display: block; min-width: max-content; }
+.github-diff span { display: block; padding: 2px 10px; }
+.github-diff-removed { background: #ffe5e8; color: #8b2338; }
+.github-diff-added { background: #e4f8e8; color: #155c32; }
+
+.godui-stack { position: relative; isolation: isolate; }
+.godui-stack-track { position: sticky; display: grid; place-items: center; pointer-events: none; }
+.godui-stack-page { min-height: 100svh; padding-top: var(--navbar-height); }
+.godui-stack-contained { height: 100%; }
+.godui-stack-overflow { overflow-y: auto; }
+.godui-stack-card { width: 100%; will-change: transform; pointer-events: auto; }
+.godui-stack:not(.godui-stack-overflow)::after {
+  content: '';
+  display: block;
+  height: 24svh;
+}
+
+.godui-stack-page .github-card { min-height: min(62svh, 540px); }
+
+@media (max-height: 679px) {
+  .github-card { gap: 16px; padding: clamp(16px, 3vw, 32px); }
+  .github-card h3 { font-size: clamp(28px, 5vw, 52px); }
+  .github-card p { margin-top: 10px; }
+  .github-panel dl div { padding-block: 8px; }
+}
+
+@media (max-width: 760px) {
+  .github-card { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .godui-stack-page .github-card { min-height: 0; }
+}
