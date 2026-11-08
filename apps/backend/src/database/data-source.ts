@@ -1,5 +1,9 @@
 import 'reflect-metadata';
+import { extname, join } from 'node:path';
 import { DataSource } from 'typeorm';
+
+// Use TypeScript in development and compiled JavaScript in production.
+const extension = extname(__filename);
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -13,8 +17,8 @@ export const AppDataSource = new DataSource({
 
   synchronize: false,
 
-  entities: ['src/**/*.entity.ts'],
-  migrations: ['src/database/migrations/*.ts'],
+  entities: [join(__dirname, '..', '**', `*.entity${extension}`)],
+  migrations: [join(__dirname, 'migrations', `*${extension}`)],
 
   migrationsTableName: 'typeorm_migrations',
 });

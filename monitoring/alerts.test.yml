@@ -1,0 +1,2800 @@
+rule_files:
+- /rules/alerts.yml
+evaluation_interval: 15s
+tests:
+- name: healthy incl completed migrate
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS) or vector(0)
+    eval_time: 20m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: HostCpuHigh
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+3x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="HostCpuHigh",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HostCpuHigh",alertstate="firing"}) or vector(0)
+    eval_time: 16m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: HostMemoryLow
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 5x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="HostMemoryLow",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="HostMemoryLow",alertstate="firing"}) or vector(0)
+    eval_time: 6m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: RootDiskLow
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 5x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="RootDiskLow",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="RootDiskLow",alertstate="firing"}) or vector(0)
+    eval_time: 6m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: MySQLConnectionsHigh
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 90x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="MySQLConnectionsHigh",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="MySQLConnectionsHigh",alertstate="firing"}) or vector(0)
+    eval_time: 6m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: TlsCertificateExpiring
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 604800x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="TlsCertificateExpiring",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="TlsCertificateExpiring",alertstate="firing"}) or vector(0)
+    eval_time: 11m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: BackendHttpsUnavailable pending firing resolved
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 0x2 1x27
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="BackendHttpsUnavailable",alertstate="pending"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="BackendHttpsUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="BackendHttpsUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="BackendHttpsUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: BackendHttpsUnavailable missing
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="BackendHttpsUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: MySQLUnavailable pending firing resolved
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 0x2 1x27
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="MySQLUnavailable",alertstate="pending"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="MySQLUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="MySQLUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="MySQLUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: MySQLUnavailable missing
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="MySQLUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: DockerStateUnavailable pending firing resolved
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 0x2 1x27
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="DockerStateUnavailable",alertstate="pending"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="DockerStateUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 30s
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="DockerStateUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="DockerStateUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 4m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: DockerStateUnavailable missing
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="DockerStateUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: target down
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: '0x30'
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="MonitoringTargetDown",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: target removed
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="MonitoringTargetMissing",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: host metrics missing
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="HostMetricsMissing",alertstate="firing"}) or vector(0)
+    eval_time: 3m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: container stopped
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ProductionContainerUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: container removed
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ProductionContainerUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: unknown state avoids service flood
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: '0x30'
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ProductionContainerUnavailable",alertstate="firing"}) or vector(0)
+    eval_time: 2m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: observed three restarts
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 0 1 2 3x27
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ContainerRestartBurst",alertstate="firing"}) or vector(0)
+    eval_time: 3m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+  - expr: count(ALERTS{alertname="ContainerRestartBurst",alertstate="firing"}) or vector(0)
+    eval_time: 5m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+  - expr: count(ALERTS{alertname="ContainerRestartBurst",alertstate="firing"}) or vector(0)
+    eval_time: 20m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: counter reset is not a burst
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 6x3 0 1x25
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ContainerRestartBurst",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: old count is not a new burst
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 8x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ContainerRestartBurst",alertstate="firing"}) or vector(0)
+    eval_time: 10m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: 5xx significant traffic
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: 0+20x30
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ApiServerErrorsHigh",alertstate="firing"}) or vector(0)
+    eval_time: 6m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: 5xx tiny traffic
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: '0x30'
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: 0+1x30
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ApiServerErrorsHigh",alertstate="firing"}) or vector(0)
+    eval_time: 6m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: no API traffic
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: '0x30'
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ApiServerErrorsHigh",alertstate="firing"}) or vector(0)
+    eval_time: 6m
+    exp_samples:
+    - labels: '{}'
+      value: 0
+- name: ApiLogParseErrors
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: 0+1x30
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="ApiLogParseErrors",alertstate="firing"}) or vector(0)
+    eval_time: 3m
+    exp_samples:
+    - labels: '{}'
+      value: 1
+- name: PrometheusRuleEvaluationErrors
+  interval: 1m
+  input_series:
+  - series: up{job="prometheus",instance="prometheus:test"}
+    values: 1x30
+  - series: up{job="node",instance="node:test"}
+    values: 1x30
+  - series: up{job="cadvisor",instance="cadvisor:test"}
+    values: 1x30
+  - series: up{job="blackbox-exporter",instance="blackbox-exporter:test"}
+    values: 1x30
+  - series: up{job="backend-https",instance="backend-https:test"}
+    values: 1x30
+  - series: up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: up{job="docker-state",instance="docker-state:test"}
+    values: 1x30
+  - series: up{job="nginxlog",instance="nginxlog:test"}
+    values: 1x30
+  - series: probe_success{job="backend-https",instance="https://nginx/health"}
+    values: 1x30
+  - series: mysql_up{job="mysql",instance="mysql:test"}
+    values: 1x30
+  - series: docker_state_up{job="docker-state",instance="docker:test"}
+    values: 1x30
+  - series: node_cpu_seconds_total{job="node",instance="host",mode="idle",cpu="0"}
+    values: 0+30x30
+  - series: node_memory_MemAvailable_bytes{job="node",instance="host"}
+    values: 50x30
+  - series: node_memory_MemTotal_bytes{job="node",instance="host"}
+    values: 100x30
+  - series: node_filesystem_avail_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 50x30
+  - series: node_filesystem_size_bytes{job="node",instance="host",mountpoint="/",fstype="ext4"}
+    values: 100x30
+  - series: mysql_global_status_threads_connected{job="mysql",instance="mysql:test"}
+    values: 10x30
+  - series: mysql_global_variables_max_connections{job="mysql",instance="mysql:test"}
+    values: 100x30
+  - series: api_http_response_count_total{job="nginxlog",status="200"}
+    values: 0+60x30
+  - series: api_http_response_count_total{job="nginxlog",status="500"}
+    values: '0x30'
+  - series: api_parse_errors_total{job="nginxlog"}
+    values: '0x30'
+  - series: probe_ssl_earliest_cert_expiry{job="backend-https"}
+    values: 2592000x30
+  - series: prometheus_rule_evaluation_failures_total{job="prometheus"}
+    values: 0+1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="backend",container_id="backend-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysql",container_id="mysql-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginx",container_id="nginx-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="prometheus",container_id="prometheus-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="grafana",container_id="grafana-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="node-exporter",container_id="node-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="cadvisor",container_id="cadvisor-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="blackbox-exporter",container_id="blackbox-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="mysqld-exporter",container_id="mysqld-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="docker-state-exporter",container_id="docker-state-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: 1x30
+  - series: docker_container_restart_count{job="docker-state",project="transcendence-prod",service="nginxlog-exporter",container_id="nginxlog-exporter-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="migrate",container_id="migration-id"}
+    values: '0x30'
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="status-page",container_id="status-page-id"}
+    values: 1x30
+  - series: docker_container_running{job="docker-state",project="transcendence-prod",service="docker-api-proxy",container_id="docker-api-proxy-id"}
+    values: 1x30
+  promql_expr_test:
+  - expr: count(ALERTS{alertname="PrometheusRuleEvaluationErrors",alertstate="firing"}) or vector(0)
+    eval_time: 3m
+    exp_samples:
+    - labels: '{}'
+      value: 1

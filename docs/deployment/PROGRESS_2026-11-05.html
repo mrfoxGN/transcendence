@@ -1,0 +1,1273 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تقرير تقدم أعمال DevOps — محدث حتى 7 نوفمبر 2026</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f5f8; color: #182433; font-family: "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, Arial, sans-serif; font-size: 18px; line-height: 2; direction: rtl; text-align: right; }
+main { max-width: 1080px; margin: 36px auto; padding: 42px 48px; background: white; border: 1px solid #dfe5ed; border-radius: 14px; }
+h1 { font-size: 30px; line-height: 1.7; color: #143e65; margin-top: 0; }
+h2 { margin-top: 46px; padding-bottom: 8px; border-bottom: 2px solid #e3eaf2; font-size: 25px; color: #143e65; }
+h3 { margin-top: 30px; font-size: 21px; }
+p, li, td { overflow-wrap: anywhere; }
+ul, ol { padding-right: 30px; padding-left: 0; }
+li { margin: 9px 0; }
+code { direction: ltr; unicode-bidi: isolate; display: inline-block; font-family: Consolas, "Liberation Mono", monospace; font-size: .85em; background: #eef2f7; color: #153d5a; border-radius: 4px; padding: 0 6px; line-height: 1.8; max-width: 100%; overflow-wrap: anywhere; }
+pre { direction: ltr; unicode-bidi: isolate; text-align: left; background: #132335; color: #ecf2f8; border-radius: 8px; padding: 18px 20px; overflow-x: auto; line-height: 1.7; }
+pre code { display: block; background: transparent; color: inherit; padding: 0; white-space: pre; overflow-wrap: normal; }
+table { width: 100%; border-collapse: collapse; font-size: 16px; margin: 24px 0; }
+th, td { text-align: right; vertical-align: top; border: 1px solid #dbe3ed; padding: 12px 14px; }
+th { background: #eaf0f7; color: #143e65; }
+tr:nth-child(even) td { background: #f8fafc; }
+strong { color: #143e65; }
+@media(max-width:700px) { body { font-size: 16px; } main { margin: 0; padding: 24px 18px; border-radius: 0; } h1 { font-size: 25px; } h2 { font-size: 22px; } table { font-size: 14px; } th, td { padding: 8px; } }
+@media print { body { background: white; font-size: 12pt; } main { max-width: none; margin: 0; padding: 0; border: 0; } h2, h3 { break-after: avoid; } tr, pre { break-inside: avoid; } }
+</style>
+</head>
+<body><main><h1>تقرير تقدم أعمال <code>DevOps</code></h1>
+<p><strong>تاريخ الأعمال:</strong> 5 نوفمبر 2026
+<strong>آخر تحديث:</strong> 7 نوفمبر 2026
+<strong>المسؤول:</strong> مصطفى — مسؤول <code>DevOps</code></p>
+<p>يوثق هذا التقرير الأعمال المنجزة، والاختبارات التي نجحت، والمهام المتبقية. ويستند إلى خطة الفريق ووثيقة تسليم المهام، مع التمييز بينهما وبين المتطلبات الرسمية لمشروع التخرج، الإصدار 21.2.</p>
+<h2>1. الوضع الحالي</h2>
+<p>أصبح <code>backend</code> يعمل محلياً من <code>production Docker image</code>، خلف <code>Nginx reverse proxy</code> باستخدام <code>HTTPS</code>. وتُنفَّذ <code>database migrations</code> قبل بدء التطبيق. كما تبقى بيانات <code>database</code> و<code>uploaded files</code> محفوظة عند إعادة إنشاء <code>containers</code>.</p>
+<p>نجحت اختبارات <code>restart</code> بعد التعطل، و<code>backup</code>، و<code>restore</code> في بيئة <code>isolated</code>. وبذلك اكتملت قاعدة التشغيل المحلية للـ<code>backend</code>، بينما لا يزال تشغيل التطبيق الكامل وبعض مهام <code>monitoring</code> و<code>automation</code> قيد الإنجاز.</p>
+<h2>2. القرارات والحدود المتفق عليها</h2>
+<ul>
+<li>يستمر العمل محلياً باستخدام العنوان <code>https://localhost</code>.</li>
+<li>لا يشترط الموضوع الرسمي شراء <code>domain name</code>، أو استئجار <code>VPS</code>، أو نشر <code>public staging</code>. كما لا ينص على أن التشغيل يجب أن يكون محلياً حصراً.</li>
+<li>تظل <code>public staging</code> جزءاً اختيارياً من خطة الفريق، وليست عائقاً أمام استكمال العمل المحلي.</li>
+<li>يجب استخدام <code>HTTPS/TLS</code> للاتصالات الخارجية مع <code>backend</code>. ويجوز أن يبقى الاتصال الداخلي بين <code>containers</code> دون <code>encryption</code>.</li>
+<li>تُحافَظ على <code>architecture</code> الحالية: <code>modular monolith</code>. ولا يعني تعدد <code>containers</code> اعتماد <code>architecture</code> <code>microservices</code>.</li>
+<li>لن تُجرى تغييرات أخرى في <code>backend code</code>. وأي احتياج يتعلق بـ<code>metrics</code> أو إعدادات <code>CORS</code> أو <code>readiness check</code> يُنسَّق مع المسؤول عنه.</li>
+<li>أُلغي تعديل <code>health check</code> الذي كان يستعلم عن <code>database</code>، وأُزيل اختباره. لذلك لا يزال المسار <code>/health</code> يشير إلى أن التطبيق يعمل فقط.</li>
+<li>بقيت تغييرات إعداد <code>migrations</code> وأمر تشغيلها في <code>production</code>، التي تمت الموافقة عليها سابقاً.</li>
+<li>يُنفَّذ <code>CI/CD</code> في نهاية الخطة، بعد استقرار الإجراءات اليدوية.</li>
+</ul>
+<h2>3. الأعمال المنجزة</h2>
+<h3>3.1. قراءة الوثائق وفحص المشروع</h3>
+<p><strong>ما دور هذه الخطوة؟</strong> تحديد ما يطلبه التقييم، وما اختاره الفريق، وما هو موجود بالفعل في <code>repository</code>. فوجود مهمة في خطة الفريق لا يعني بالضرورة أنها شرط رسمي.</p>
+<p><strong>لماذا احتجناها؟</strong> لتجنب إعادة إنجاز إعداد يعمل، أو إضافة بنية خارجية غير مطلوبة. ومن أمثلتها توضيح أن <code>public staging</code> ليست شرطاً في الموضوع الرسمي المرفق.</p>
+<p>تمت مراجعة الوثائق الثلاث التالية، ثم مقارنة محتواها بملفات المشروع الفعلية:</p>
+<ul>
+<li><code>en.subject.pdf</code>: المتطلبات الرسمية ومعايير التقييم.</li>
+<li><code>devops.pdf</code>: خطة مراحل <code>DevOps</code>.</li>
+<li><code>mustapha_work.pdf</code>: الأعمال السابقة والمسؤوليات المتبقية.</li>
+</ul>
+<p>تأكدنا من وجود التقنيات التالية: <code>NestJS</code> و<code>TypeORM</code> و<code>MySQL 8.4</code> و<code>Socket.IO</code>، إضافة إلى إعداد <code>development Compose</code> الذي يضم <code>services</code> <code>database</code> و<code>migrations</code> و<code>backend</code>.</p>
+<p>كانت <code>development environment</code> و<code>migrations</code> الأولية تعملان بالفعل؛ لذلك انطلقنا من الإعداد الموجود بدلاً من إعادة بنائه.</p>
+<h3>3.2. إعداد <code>production image</code></h3>
+<p><strong>ما دور <code>Dockerfile</code>؟</strong> هو وصف لطريقة إعداد <code>Docker image</code>: ما نسخة <code>Node.js</code> المستخدمة، وما <code>dependencies</code> المطلوب تثبيتها، وكيف يُبنى <code>code</code>، وما الأمر الذي يبدأ التشغيل. أما <code>image</code> فهي النتيجة المبنية، و<code>container</code> هو نسخة تعمل منها.</p>
+<p><strong>لماذا ملف مستقل عن <code>Dockerfile.dev</code>؟</strong> في <code>development</code> نحتاج <code>watch mode</code> لإعادة التشغيل عند تعديل <code>code</code>. أما في <code>production</code> فنحتاج تشغيل النسخة المبنية بصورة مستقرة، دون أدوات التطوير أو الاعتماد على ملفات الجهاز.</p>
+<table>
+<thead>
+<tr>
+<th>الجزء</th>
+<th>دوره في الإعداد الذي أنجزناه</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build stage</code></td>
+<td>تثبيت <code>dependencies</code> وتشغيل <code>npm run build</code> لإنتاج ملفات <code>JavaScript</code> داخل <code>dist</code></td>
+</tr>
+<tr>
+<td><code>npm ci</code></td>
+<td>تثبيت الإصدارات المحددة في <code>package-lock.json</code> بصورة قابلة للتكرار</td>
+</tr>
+<tr>
+<td><code>npm prune --omit=dev</code></td>
+<td>إزالة <code>devDependencies</code> بعد اكتمال <code>build</code></td>
+</tr>
+<tr>
+<td><code>runtime stage</code></td>
+<td>الاحتفاظ بالتطبيق المبني و<code>dependencies</code> اللازمة للتشغيل</td>
+</tr>
+<tr>
+<td><code>USER node</code></td>
+<td>تشغيل التطبيق دون <code>root permissions</code> لتقليل الصلاحيات</td>
+</tr>
+<tr>
+<td><code>EXPOSE 3000</code></td>
+<td>توثيق <code>port</code> الذي يستخدمه التطبيق؛ لا يفتح هذا <code>port</code> على الجهاز</td>
+</tr>
+<tr>
+<td><code>CMD</code></td>
+<td>تحديد الأمر الافتراضي الذي يبدأ التطبيق: تشغيل <code>dist/main.js</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>مثال:</strong> نأخذ <code>image</code> نفسها إلى جهاز آخر، فنشغّل التطبيق ببيئة <code>Node.js</code> و<code>dependencies</code> الموجودة داخلها. وتبقى <code>environment variables</code> و<code>volumes</code> إعدادات منفصلة نمررها عند التشغيل.</p>
+<p>أُنشئ ملف بناء <code>production image</code>:</p>
+<pre><code class="language-text">apps/backend/Dockerfile
+</code></pre>
+<p>يتكون البناء من مرحلتين:</p>
+<ol>
+<li>تثبيت <code>dependencies</code>، وترجمة <code>code</code> إلى ملفات قابلة للتشغيل، ثم إزالة <code>devDependencies</code>.</li>
+<li>نسخ التطبيق المبني و<code>production dependencies</code> إلى <code>runtime image</code>.</li>
+</ol>
+<p>يعمل <code>backend</code> بالمستخدم <code>node</code>، دون <code>watch mode</code>، ودون ربط <code>source code</code> من الجهاز. كما أُعد مجلد قابل للكتابة لحفظ <code>uploaded files</code>.</p>
+<p><strong>نتيجة التحقق:</strong> نجح بناء <code>production image</code>. وأبلغ فحص <code>dependencies</code> عن 36 مشكلة أمنية في التثبيت الكامل، و6 بعد إزالة <code>devDependencies</code>. لم تُراجَع هذه النتائج تفصيلياً ولم تُعالَج بعد.</p>
+<h3>3.3. تهيئة <code>database migrations</code> للـ<code>production</code></h3>
+<p><strong>ما دور <code>migrations</code>؟</strong> تطبيق تغييرات منظمة على <code>database schema</code>، مثل إنشاء <code>table</code> أو إضافة <code>column</code>. يتابع <code>TypeORM</code> ما نُفذ منها في <code>typeorm_migrations</code> ويطبق التغييرات غير المنفذة بالترتيب.</p>
+<p><strong>من ينشئ <code>database</code> نفسها؟</strong> في إعدادنا، تقوم <code>MySQL image</code> بإنشائها عند أول تهيئة لـ<code>volume</code>، اعتماداً على <code>MYSQL_DATABASE</code>. ثم تأتي <code>migrations</code> لإعداد <code>tables</code> والتعديلات التي يحتاجها التطبيق.</p>
+<p><strong>ما دور <code>data-source.ts</code>؟</strong> إعطاء <code>TypeORM</code> بيانات الاتصال ومواقع <code>entities</code> و<code>migrations</code>. كان يبحث داخل <code>src</code> عن ملفات <code>.ts</code>، بينما <code>production image</code> تحتوي الملفات المبنية داخل <code>dist</code> بامتداد <code>.js</code>؛ لذلك عدلنا طريقة إيجادها.</p>
+<p><strong>ما دور الأمر الجديد؟</strong> يشغّل <code>TypeORM CLI</code> باستخدام <code>JavaScript</code> المبني، دون الاعتماد على <code>ts-node</code> لتشغيل ملفات <code>TypeScript</code>.</p>
+<p><strong>مثال:</strong> إذا احتاج إصدار جديد إلى <code>column</code> إضافي، يجب نجاح <code>migration</code> قبل تشغيل <code>backend</code> الذي سيستعمل ذلك <code>column</code>. وإذا فشلت، يمنع ترتيب التشغيل بدء <code>backend</code> الجديد.</p>
+<p><strong>حدود مسؤوليتك:</strong> إعداد طريقة التشغيل ومتابعة النتيجة من مسؤولية <code>DevOps</code>. أما كتابة التغييرات في <code>schema</code> فتُنسَّق مع مسؤول <code>backend</code>. ويمكن لـ<code>Node.js</code> تنفيذ <code>SQL queries</code> مباشرة؛ استخدام <code>TypeORM</code> اختيار لتنظيم العمل وليس شرطاً تفرضه اللغة.</p>
+<p>عُدِّل ملف إعداد الاتصال و<code>migrations</code> التالي:</p>
+<pre><code class="language-text">apps/backend/src/database/data-source.ts
+</code></pre>
+<p>أصبحت المسارات تُحدَّد انطلاقاً من موقع ملف الإعداد، وبالامتداد الموافق للنسخة المستخدمة: ملفات <code>TypeScript</code> في <code>development</code>، وملفات <code>JavaScript</code> المبنية في <code>production</code>.</p>
+<p>أُضيف أمر تشغيل <code>migrations</code> في <code>production</code> إلى إعدادات <code>package.json</code>:</p>
+<pre><code class="language-bash">npm run migration:run:prod
+</code></pre>
+<p>لم يتغير محتوى <code>migrations</code> نفسها، وبقيت أوامر <code>development</code> وإعداد منع تعديل الجداول تلقائياً كما كانت.</p>
+<p><strong>نتيجة التحقق:</strong> عثر النظام داخل <code>production image</code> على 24 <code>entity</code> و3 <code>migrations</code> مبنية، دون تحميل أداة تشغيل ملفات <code>development</code>. كما اكتمل تنفيذ <code>migrations</code> بنجاح في <code>local environment</code>.</p>
+<h3>3.4. إنشاء إعداد مستقل لـ<code>production containers</code></h3>
+<p><strong>ما دور <code>Compose</code>؟</strong> وصف <code>services</code> التي تعمل معاً: ما <code>image</code> كل واحدة، وما <code>command</code> و<code>environment variables</code> و<code>volumes</code> و<code>networks</code> الخاصة بها، وبأي ترتيب تبدأ.</p>
+<p><strong>لماذا نحتاجه بعد <code>Dockerfile</code>؟</strong> يبني <code>Dockerfile</code> صورة التطبيق فقط. أما <code>Compose</code> فيشغل التطبيق مع <code>MySQL</code> و<code>Nginx</code> ويصلها ببعضها.</p>
+<p><strong>لماذا يستخدم <code>migrate</code> و<code>backend</code> الصورة نفسها؟</strong> تحتوي <code>image</code> كود التطبيق وملفات <code>migrations</code> معاً. يشغّل <code>backend</code> الأمر الافتراضي للسيرفر، بينما يستبدل <code>migrate</code> ذلك بأمر الترحيلات عبر إعداد <code>command</code>، ثم يخرج. الصورة واحدة، لكنهما <code>containers</code> مستقلان.</p>
+<p><strong>ما دور <code>depends_on</code>؟</strong> انتظار الشروط المحددة: نجاح <code>MySQL health check</code>، ثم انتهاء <code>migrate</code> بـ<code>exit code 0</code>، ثم جاهزية <code>backend</code> قبل تشغيل <code>Nginx</code>.</p>
+<p><strong>ما دور <code>networks</code>؟</strong> تمكين <code>containers</code> من الوصول إلى بعضها بأسماء <code>services</code>. لهذا يستعمل <code>backend</code> العنوان <code>mysql</code> للاتصال بـ<code>database</code>، ويستعمل <code>Nginx</code> العنوان <code>backend:3000</code>.</p>
+<p><strong>لماذا عزل <code>database network</code>؟</strong> لجعل الوصول إلى <code>MySQL</code> داخلياً، دون نشر <code>port 3306</code> على الجهاز. كما يمنح اسم <code>Compose project</code> بيئة الإنتاج موارد مستقلة عن <code>development</code>.</p>
+<p>أُنشئ الملف التالي، مع إبقاء إعداد <code>development</code> مستقلاً:</p>
+<pre><code class="language-text">docker-compose.prod.yml
+</code></pre>
+<p>اسم <code>Compose project</code>:</p>
+<pre><code class="language-text">transcendence-prod
+</code></pre>
+<table>
+<thead>
+<tr>
+<th><code>service</code></th>
+<th>مسؤوليتها</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mysql</code></td>
+<td>تشغيل <code>database</code>، مع <code>persistent volume</code> و<code>health check</code> ب<code>SQL query</code> فعلي</td>
+</tr>
+<tr>
+<td><code>migrate</code></td>
+<td>تنفيذ <code>migrations</code> ثم الخروج بنجاح</td>
+</tr>
+<tr>
+<td><code>backend</code></td>
+<td>تشغيل التطبيق باستخدام <code>production image</code> نفسها</td>
+</tr>
+<tr>
+<td><code>nginx</code></td>
+<td>استقبال الطلبات، وتوفير <code>TLS</code>، وتوجيهها إلى التطبيق</td>
+</tr>
+</tbody>
+</table>
+<p>ترتيب البدء هو: جاهزية <code>database</code>، ثم نجاح <code>migrations</code>، ثم جاهزية التطبيق، ثم بدء <code>Nginx reverse proxy</code>.</p>
+<p>لا تنشر <code>database</code> ولا التطبيق <code>ports</code> مباشرة على الجهاز. وينشر <code>Nginx reverse proxy</code> الـ<code>ports</code> 80 و443 على عنوان الجهاز المحلي فقط. كما عُزلت <code>network</code> <code>database</code> عن <code>external network</code>.</p>
+<h3>3.5. اختبار <code>persistent storage</code></h3>
+<p><strong>ما دور <code>volume</code>؟</strong> حفظ البيانات خارج العمر المؤقت لـ<code>container</code>. لذلك يمكن حذف <code>container</code> وإعادة إنشائه مع ربط <code>volume</code> نفسه، فتعود البيانات الموجودة.</p>
+<p><strong>لماذا نحتاج اثنين؟</strong> يخزن <code>MySQL volume</code> بيانات <code>database</code>، بينما يخزن <code>backend storage volume</code> محتوى <code>uploaded files</code>. وجود معلومات ملف داخل <code>database</code> لا يعني أن الملف نفسه محفوظ فيها.</p>
+<p><strong>مثال:</strong> يحتوي <code>database</code> اسم وثيقة ومسارها وصاحبها، بينما يوجد محتواها داخل <code>storage volume</code>. يجب الحفاظ على الاثنين كي يبقى تنزيل الوثيقة ممكناً بعد <code>deployment</code>.</p>
+<p><strong>ما الذي أثبته الاختبار؟</strong> أن استبدال <code>containers</code> لا يحذف البيانات المرتبطة بـ<code>volumes</code>. لكنه لا يحمي من حذف <code>volume</code> أو تلف القرص؛ وهنا نحتاج <code>backup</code>.</p>
+<p>أُعدت وحدتا <code>volume</code> مستقلتان عن <code>development environment</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>volume</code></th>
+<th>محتواها</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transcendence-prod_mysql_data</code></td>
+<td>بيانات <code>database</code></td>
+</tr>
+<tr>
+<td><code>transcendence-prod_backend_storage</code></td>
+<td><code>uploaded files</code> داخل مجلد <code>storage</code></td>
+</tr>
+</tbody>
+</table>
+<p>أُضيف <code>record</code> مؤقت وملف تجريبي، ثم أُعيد إنشاء <code>containers</code> الخاصة بـ<code>MySQL</code> و<code>migrate</code> و<code>backend</code>. تغيرت معرفات <code>containers</code>، بينما بقيت <code>volumes</code> نفسها، وبقي <code>record</code> والملف محفوظين. وأُزيلت بيانات الاختبار بعد التحقق.</p>
+<p>يثبت ذلك استمرار البيانات عند استبدال <code>containers</code>. أما الحماية من حذف <code>volumes</code> أو فقدان الجهاز فتتطلب <code>backups</code> مستقلة.</p>
+<h3>3.6. إعداد <code>Nginx reverse proxy</code> و<code>local TLS</code></h3>
+<p><strong>ما دور <code>Nginx</code>؟</strong> أن يكون نقطة دخول واحدة: يستقبل <code>requests</code>، ويدير <code>HTTPS</code>، ثم يمرر الطلب إلى <code>backend</code>. يستعمل إعدادنا <code>Nginx image</code> جاهزة، لذلك لم نحتج إلى <code>Dockerfile</code> خاص بها.</p>
+<p><strong>ما دور <code>nginx.conf</code>؟</strong> تحديد <code>ports</code> وقواعد <code>routing</code> وملفات <code>TLS</code> وطريقة تمرير <code>WebSocket</code>. تُربط هذه الإعدادات داخل <code>container</code> للقراءة فقط باستعمال <code>ro</code>.</p>
+<table>
+<thead>
+<tr>
+<th>العنصر</th>
+<th>دوره</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>port 80</code></td>
+<td>استقبال <code>HTTP</code> وإرجاع <code>redirect</code> إلى <code>HTTPS</code></td>
+</tr>
+<tr>
+<td><code>port 443</code></td>
+<td>استقبال <code>HTTPS</code> وإنهاء اتصال <code>TLS</code> عند <code>Nginx</code></td>
+</tr>
+<tr>
+<td><code>proxy_pass</code></td>
+<td>إرسال الطلب إلى <code>backend:3000</code> عبر <code>Docker network</code></td>
+</tr>
+<tr>
+<td><code>fullchain.pem</code></td>
+<td>تقديم <code>TLS certificate</code> إلى العميل للتحقق من هوية العنوان</td>
+</tr>
+<tr>
+<td><code>privkey.pem</code></td>
+<td>المفتاح السري الذي يستخدمه <code>Nginx</code> في <code>TLS handshake</code>؛ لا يُشارك ولا يُحفظ في <code>Git</code></td>
+</tr>
+<tr>
+<td><code>Upgrade</code> و<code>Connection</code></td>
+<td>السماح بانتقال الاتصال من <code>HTTP</code> إلى <code>WebSocket</code></td>
+</tr>
+<tr>
+<td><code>client_max_body_size</code></td>
+<td>تحديد الحجم الأقصى للطلب قبل إرساله إلى <code>backend</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>لماذا الشهادة المحلية؟</strong> نحتاج <code>HTTPS</code> أثناء العمل على <code>localhost</code>. شهادة <code>self-signed</code> توفر التشفير، لكن المتصفح لا يثق بها تلقائياً. لذلك استخدم الاختبار <code>CA trust</code> صريحاً للشهادة المحلية.</p>
+<p><strong>مهم:</strong> كتابة <code>443:80</code> في <code>Compose</code> لا تنشئ <code>TLS</code>. يلزم <code>443:443</code> مع إعداد <code>listen 443 ssl</code> والشهادة والمفتاح. بعد إنهاء <code>TLS</code> يستطيع <code>Nginx</code> التواصل داخلياً مع <code>backend</code> باستخدام <code>HTTP</code> وفق متطلبات الموضوع.</p>
+<p>أُنشئ ملف إعداد <code>Nginx reverse proxy</code>:</p>
+<pre><code class="language-text">nginx/nginx.conf
+</code></pre>
+<p>يشمل الإعداد:</p>
+<ul>
+<li>تحويل طلبات <code>HTTP</code> إلى اتصال <code>HTTPS</code>، باستخدام <code>HTTP status code</code> 308.</li>
+<li>دعم <code>TLS 1.2</code> و<code>TLS 1.3</code>.</li>
+<li>توجيه الطلبات إلى التطبيق على الـ<code>internal port</code> 3000.</li>
+<li>دعم <code>WebSocket upgrade</code> إلى اتصال <code>WebSocket</code>.</li>
+<li>تمرير معلومات الطلب وإضافة بعض <code>security headers</code>.</li>
+<li>السماح بطلب حجمه 11 <code>MiB</code> لاستيعاب ملف حجمه 10 <code>MiB</code> مع بيانات النموذج الإضافية.</li>
+</ul>
+<p>وُلِّدت شهادة <code>self-signed TLS</code> محلية، صالحة لاسم الجهاز المحلي وعنوانه، داخل المجلد التالي:</p>
+<pre><code class="language-text">nginx/certs/
+</code></pre>
+<p>حُمي <code>private key</code> باستخدام <code>permissions</code> <code>600</code>، واستُثني المجلد من التتبع في <code>Git</code>. <code>TLS certificate</code> صالحة لمدة سنة، وتجديدها حالياً يدوي.</p>
+<p><strong>نتيجة التحقق:</strong> نجح فحص إعداد <code>Nginx reverse proxy</code>، وعمل <code>health check</code> عبر اتصال <code>HTTPS</code>، ونجح تحويل اتصال <code>HTTP</code>. ويظهر تحذير المتصفح إذا لم تكن شهادة <code>TLS</code> المحلية موثوقة لديه.</p>
+<h3>3.7. اختبار اتصال <code>Socket.IO</code> عبر <code>TLS</code></h3>
+<p><strong>ما دور <code>Socket.IO</code>؟</strong> إبقاء اتصال يسمح بإرسال <code>events</code> بين العميل و<code>backend</code> دون انتظار طلب منفصل لكل تحديث، كما في المحادثة والتنبيهات.</p>
+<p><strong>لماذا اختباره خلف <code>Nginx</code>؟</strong> قد تعمل <code>API requests</code> العادية بينما تفشل ترقية <code>WebSocket</code> بسبب إعدادات <code>proxy</code>. لذلك لا يكفي نجاح <code>/health</code> لإثبات صحة الاتصال اللحظي.</p>
+<p><strong>ما الذي اختبرناه؟</strong> بدأ <code>client</code> باستخدام <code>HTTPS polling</code>، ثم انتقل إلى <code>WSS</code>. واستخدم <code>JWT</code> يثبت هوية الحساب، بينما أكد وصول <code>workspace-chat.ready</code> قبول الاتصال من التطبيق.</p>
+<p><strong>الفرق بين <code>JWT</code> و<code>TLS</code>:</strong> يحدد <code>JWT</code> هوية المستخدم، بينما يحمي <code>TLS</code> الاتصال أثناء النقل. نحتاج الاثنين لأنهما يؤديان وظيفتين مختلفتين.</p>
+<p>أُنشئ حساب مؤقت، ونُفِّذ <code>login</code> عبر اتصال <code>HTTPS</code> مع التحقق من شهادة <code>TLS</code> المحلية. ثم استُخدم <code>JWT</code> للاتصال، ووصل <code>event</code> تأكيد جاهزية المحادثة:</p>
+<pre><code class="language-text">workspace-chat.ready
+</code></pre>
+<p>تأكدنا من <code>WebSocket upgrade</code> من <code>polling</code> إلى اتصال <code>WSS</code> عبر <code>Nginx reverse proxy</code>. وبعد الاختبار نُفِّذ <code>logout</code> وحُذف الحساب المؤقت.</p>
+<p>شمل الاختبار الاتصال و<code>authentication</code> و<code>WebSocket upgrade</code>؛ ولم يشمل تبادل الرسائل بين عدة مستخدمين.</p>
+<h3>3.8. اختبار <code>recovery</code> بعد التوقف</h3>
+<p><strong>ما دور <code>restart: unless-stopped</code>؟</strong> إعادة تشغيل <code>container</code> إذا انتهت عملية التشغيل، ما لم يكن قد أُوقف عمداً. وهو لا يعيد تنفيذ <code>migrations</code> تلقائياً عند كل <code>restart</code> للـ<code>backend</code>.</p>
+<p><strong>لماذا اختبرنا <code>MySQL restart</code> أيضاً؟</strong> لأن عودة <code>container</code> إلى العمل لا تكفي؛ يجب أن يستعيد التطبيق الاتصال بـ<code>database</code> ويستقبل <code>requests</code> بصورة صحيحة.</p>
+<p><strong>لماذا استخدمنا <code>login request</code>؟</strong> مسار <code>/health</code> الحالي يعيد استجابة ثابتة. أما محاولة <code>login</code> فتصل إلى <code>database</code> للبحث عن الحساب، لذلك ساعدت على التحقق من عودة الاتصال الفعلي.</p>
+<p><strong>حدود الإعداد:</strong> وصف <code>container</code> بأنه <code>unhealthy</code> لا يجبر Docker وحده على تنفيذ <code>restart</code>. تعتمد سياسة <code>restart</code> هنا على انتهاء عملية <code>container</code>، لا على نتيجة <code>health check</code> فقط.</p>
+<ul>
+<li>أُوقفت <code>backend process</code> فجأة لمحاكاة <code>crash</code>. فأعاد نظام <code>containers</code> تشغيله تلقائياً.</li>
+<li>أُعيد تشغيل <code>database</code>، وانتُظر نجاح <code>health check</code> الخاص بها.</li>
+<li>تم التحقق من عودة اتصال <code>HTTPS</code>، ومن قدرة التطبيق على تنفيذ طلب <code>login</code> يعتمد على <code>database</code>.</li>
+</ul>
+<p>استُخدمت بيانات دخول غير صحيحة، وكانت <code>HTTP status code</code> المتوقع 401. وقد أثبت ذلك وصول التطبيق إلى <code>database</code>، بدلاً من الاعتماد على مسار <code>health check</code> وحده.</p>
+<p>لم يُعدَّل <code>backend code</code> ولم تُحذف بياناته الموجودة خلال هذه الاختبارات.</p>
+<h3>3.9. استكمال مثال <code>environment variables</code> ودليل التشغيل</h3>
+<p><strong>ما دور <code>.env</code>؟</strong> تمرير إعدادات و<code>secrets</code> دون تثبيتها داخل <code>source code</code> أو <code>image</code>، مثل بيانات اتصال <code>database</code> و<code>JWT_SECRET</code>.</p>
+<p><strong>ما دور <code>.env.example</code>؟</strong> تعريف أسماء الإعدادات المطلوبة وتقديم قيم غير سرية تساعد عضواً آخر على إعداد بيئته. لا يحتوي نسخة من <code>secrets</code> الحقيقية.</p>
+<p><strong>ما دور <code>.gitignore</code>؟</strong> منع إضافة الملفات المحلية إلى <code>Git</code> بصورة اعتيادية. لذلك استثنينا <code>.env</code> و<code>private keys</code> و<code>backups</code>. وهو لا يشفر الملفات ولا يحميها وحده من الوصول على الجهاز.</p>
+<p><strong>لماذا كتبنا دليل التشغيل؟</strong> حتى يستطيع شخص آخر تشغيل البيئة وفحصها والتعامل مع <code>logs</code> دون الاعتماد على ذاكرة شخص واحد. وما زال <code>README</code> الكامل يحتاج معلومات الفريق والخصائص والـ<code>modules</code>.</p>
+<p>أُعيد إنشاء مثال <code>environment variables</code> بالقيم الافتراضية العادية، مع ترك <code>secrets</code> فارغة:</p>
+<pre><code class="language-text">.env.example
+</code></pre>
+<p>شمل المثال <code>JWT_SECRET</code> المطلوب وإعدادات التكامل الاختيارية. ولم يتغير ملف <code>secrets</code> الفعلي.</p>
+<p>كُتب دليل التشغيل المحلي، وأُضيف رابطه إلى ملف <code>README</code> الرئيسي:</p>
+<pre><code class="language-text">docs/deployment/LOCAL_PRODUCTION.md
+</code></pre>
+<p>يوثق الدليل المتطلبات، وإعداد البيئة و<code>TLS certificate</code>، والتشغيل، و<code>logs</code>، والفحوصات، و<code>storage</code>، والإيقاف دون حذف البيانات. ولا يزال ملف <code>README</code> الكامل المطلوب في الموضوع الرسمي غير مكتمل.</p>
+<h3>3.10. إعداد <code>backup</code> و<code>restore</code> واختبارهما</h3>
+<p><strong>ما دور <code>backup</code>؟</strong> الاحتفاظ بنسخة مستقلة يمكن الرجوع إليها إذا حُذفت البيانات أو تلفت. أما <code>restore</code> فهو إعادة تكوين <code>database</code> والملفات انطلاقاً من تلك النسخة.</p>
+<p><strong>لماذا يوقف <code>backup.sh</code> التطبيق مؤقتاً؟</strong> حتى لا تتغير بيانات ملف أو معلوماته داخل <code>database</code> بين لحظة نسخ الأولى والثانية. الهدف أخذ لقطة متناسقة، مع افتراض عدم وجود عمليات أخرى تكتب مباشرة في <code>database</code> أثناء النسخ.</p>
+<table>
+<thead>
+<tr>
+<th>ناتج <code>backup</code></th>
+<th>ما الذي يحتويه أو يثبته؟</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>database.sql.gz</code></td>
+<td>أوامر <code>SQL</code> لإعادة إنشاء <code>tables</code> واسترجاع البيانات، ينتجها <code>mysqldump</code> ثم يضغطها <code>gzip</code></td>
+</tr>
+<tr>
+<td><code>files.tar.gz</code></td>
+<td>أرشيف لمحتوى <code>storage</code>، بما فيه <code>uploaded files</code></td>
+</tr>
+<tr>
+<td><code>backend-image.txt</code></td>
+<td>معرف <code>backend image</code> المستخدمة وقت النسخ، للمساعدة على مطابقة إصدار التطبيق</td>
+</tr>
+<tr>
+<td><code>mysql-image.txt</code></td>
+<td>معرف <code>MySQL image</code> المستخدمة وقت النسخ</td>
+</tr>
+<tr>
+<td><code>SHA256SUMS</code></td>
+<td>بصمات <code>checksums</code> للتحقق من عدم تغير الملفات مقارنة بالنسخة المسجلة</td>
+</tr>
+</tbody>
+</table>
+<p><strong>تنبيه لفهم الملفات:</strong> لا تخزن ملفات معرفات <code>images</code> الصور نفسها. كما أن الضغط و<code>checksums</code> لا يعنيان أن محتوى <code>backup</code> مشفر؛ لذلك تبقى النسخة بيانات خاصة تحتاج الحماية.</p>
+<p><strong>ما دور <code>restore-test.sh</code>؟</strong> إنشاء <code>Compose project</code> جديد و<code>volumes</code> جديدة، واستيراد <code>SQL</code> واستخراج الملفات، ثم تشغيل الخدمات وفحص الوصول إلى <code>database</code> وحالة <code>migrations</code>. ويرفض الكتابة فوق موارد موجودة لحماية البيئة الأصلية.</p>
+<p><strong>لماذا حذفنا بيانات الاختبار من المصدر قبل <code>restore</code>؟</strong> لإثبات أن السجل والملف رجعا فعلاً من <code>backup</code>، وليس لأن الاختبار ما زال يقرأ النسخة الأصلية.</p>
+<p><strong>ما الذي لا يزال ناقصاً؟</strong> <code>scheduled backups</code> و<code>retention policy</code> و<code>off-machine copy</code> وإجراء واضح لاستبدال بيئة متضررة بأخرى مسترجعة. النسخ محفوظة حالياً على الجهاز نفسه، و<code>restore-test</code> يتحقق من الاسترجاع المعزول فقط.</p>
+<p>أُنشئت الأدوات التالية:</p>
+<table>
+<thead>
+<tr>
+<th>الملف</th>
+<th>وظيفته</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/backup.sh</code></td>
+<td>إيقاف الكتابة مؤقتاً، ونسخ <code>database</code> والملفات، وحساب <code>checksums</code>، ثم تنفيذ <code>restart</code> على التطبيق حتى عند فشل النسخ</td>
+</tr>
+<tr>
+<td><code>scripts/restore-test.sh</code></td>
+<td>التحقق من النسخة وتنفيذ <code>restore</code> لها في مجموعة <code>containers</code> جديدة ومعزولة، مع رفض الكتابة فوق موارد موجودة أو استخدام اسم بيئة <code>production</code></td>
+</tr>
+<tr>
+<td><code>docs/deployment/BACKUP_AND_RESTORE.md</code></td>
+<td>شرح الاستعمال والتحقق والحدود الحالية</td>
+</tr>
+</tbody>
+</table>
+<p>استُثني مجلد <code>backups</code> من التتبع، وأُنشئت النسخ باستخدام <code>permissions</code> محدودة.</p>
+<p>تسلسل الاختبار:</p>
+<ol>
+<li>إنشاء <code>record</code> وملف مؤقتين.</li>
+<li>أخذ <code>backup</code> منهما مع بقية البيانات.</li>
+<li>حذف <code>record</code> والملف من البيئة الأصلية.</li>
+<li>تنفيذ <code>restore</code> للنسخة في <code>volumes</code> جديدة ومعزولة.</li>
+<li>التأكد من عودة <code>record</code> والملف بالمحتوى نفسه.</li>
+<li>التحقق من الاتصال بالـ<code>database</code> وحالة <code>migrations</code>.</li>
+<li>إزالة موارد الاختبار وأخذ نسخة نظيفة من البيئة الأصلية.</li>
+</ol>
+<p><strong>نتيجة التحقق:</strong> نجحت الدورة كاملة. وصُحح خطأ أولي في صياغة أمر <code>backup</code>، وحُذفت نسخته غير المكتملة. كما أُزيلت <code>containers</code> و<code>volumes</code> والبيانات المؤقتة الخاصة بالاختبار.</p>
+<p>احتُفظ بنسخة محلية نظيفة في المسار التالي وقت إعداد التقرير:</p>
+<pre><code class="language-text">backups/20261105T204732Z-BioNJE/
+</code></pre>
+<p>أكد فحص 5 نوفمبر سلامة <code>checksums</code>، وصحة ال<code>services</code> الأصلية، وعمل اتصال <code>HTTPS</code>. كان <code>backup</code> يدوياً حينها. أُنجزت لاحقاً الجدولة اليومية و<code>retention policy</code> كما توضح تحديثات 6 و7 نوفمبر؛ وتبقى النسخة خارج الجهاز متبقية.</p>
+<h2>4. حالة المراحل الواردة في خطة الفريق</h2>
+<p>تعني عبارة «مكتمل محلياً» أن الجزء المحلي المذكور نُفِّذ واختُبر، ولا تعني اكتمال التطبيق كله أو تنفيذ <code>deployment</code> له على الإنترنت.</p>
+<p>حُدث هذا الجدول وقائمة المهام التالية حتى أعمال 7 نوفمبر 2026. أما الأقسام التاريخية فتصف وضع المشروع في تاريخها.</p>
+<table>
+<thead>
+<tr>
+<th>المرحلة</th>
+<th>الموضوع</th>
+<th>الحالة</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>production Docker image</code></td>
+<td>مكتملة محلياً</td>
+</tr>
+<tr>
+<td>2</td>
+<td>إعداد <code>production Compose</code></td>
+<td>مكتمل للـ<code>backend</code>؛ ربط <code>frontend</code> متبقٍّ</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>Docker networks</code></td>
+<td>مكتملة محلياً</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>MySQL persistent storage</code></td>
+<td>مكتمل محلياً</td>
+</tr>
+<tr>
+<td>5</td>
+<td>تشغيل <code>migrations</code></td>
+<td>مكتمل محلياً</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>persistent storage</code> للملفات</td>
+<td>مكتمل محلياً</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>environment variables</code></td>
+<td>المثال وإعدادات <code>production</code> جاهزان؛ البيئة الإضافية تحتاج أسراراً مستقلة</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>Nginx reverse proxy</code></td>
+<td>مكتمل محلياً</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>HTTPS/TLS</code></td>
+<td>مكتمل محلياً؛ تجديد <code>TLS certificate</code> يدوي</td>
+</tr>
+<tr>
+<td>10</td>
+<td>تمرير اتصالات <code>Socket.IO</code></td>
+<td>نجح الاتصال و<code>authentication</code> و<code>upgrade</code>؛ اختبار الرسائل الكامل متبقٍّ</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>public staging</code></td>
+<td>اختيارية حالياً وغير مفروضة في الموضوع الرسمي</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>health checks</code></td>
+<td>الفحوصات الأساسية موجودة؛ <code>status page</code> و<code>readiness check</code> الأشمل متبقيان</td>
+</tr>
+<tr>
+<td>13</td>
+<td>سياسة <code>restart</code></td>
+<td>اختُبر <code>backend crash</code> وتنفيذ <code>restart</code> على <code>database</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>database backup</code></td>
+<td>يعمل يدوياً وتلقائياً يومياً عند <code>03:00</code> بتوقيت النظام، مع الاحتفاظ بآخر 7 نسخ سليمة؛ النسخة خارج الجهاز متبقية</td>
+</tr>
+<tr>
+<td>15</td>
+<td>اختبار <code>database restore</code></td>
+<td>نجح في بيئة <code>isolated</code></td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>file backup</code></td>
+<td>نجح <code>backup</code> و<code>restore</code>؛ النسخة خارج الجهاز متبقية</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>logs</code></td>
+<td>اكتملت إعدادات <code>Docker log rotation</code> وتقليل بيانات <code>Nginx access logs</code>؛ وُثقت نواقص <code>application logging</code> لفريق <code>Backend</code>، و<code>ELK</code> مرتبط باختيار وحدته</td>
+</tr>
+<tr>
+<td>18</td>
+<td><code>monitoring</code></td>
+<td>نجحت مراقبة الموارد والاتصال وrestart counts وAPI errors؛ وتبقى alerts.</td>
+</tr>
+<tr>
+<td>19</td>
+<td>أمن <code>server</code></td>
+<td>العزل المحلي والتشغيل دون <code>permissions</code> <code>root</code> موجودان؛ المراجعة العامة متبقية، ولا حاجة حالياً لإعداد <code>remote server</code></td>
+</tr>
+<tr>
+<td>20</td>
+<td>أمن <code>deployment</code> للتطبيق</td>
+<td><code>TLS</code> وبعض <code>security headers</code> موجودة؛ مراجعة الحدود و<code>secrets</code> متبقية</td>
+</tr>
+<tr>
+<td>21</td>
+<td><code>CORS</code></td>
+<td>تحتاج التنسيق مع مسؤولي <code>frontend</code> و<code>backend</code></td>
+</tr>
+<tr>
+<td>22</td>
+<td><code>smoke tests</code></td>
+<td>نجحت فحوصات يدوية؛ إجراء اختبار قابل للتكرار متبقٍّ</td>
+</tr>
+<tr>
+<td>23</td>
+<td>إجراءات <code>deployment</code></td>
+<td>التشغيل المحلي موثق؛ تحديد <code>image tags</code> و<code>deployment</code> للتطبيق الكامل متبقيان</td>
+</tr>
+<tr>
+<td>24</td>
+<td><code>rollback</code></td>
+<td>لم يُنجز؛ <code>restore</code> المعزول ليس بديلاً عنه</td>
+</tr>
+<tr>
+<td>25</td>
+<td><code>GitHub webhooks</code></td>
+<td>مرتبط بالخصائص المختارة؛ يحتاج استقبال الإشعارات عنواناً يمكن للخدمة الخارجية الوصول إليه</td>
+</tr>
+<tr>
+<td>26</td>
+<td><code>OAuth callback URL</code></td>
+<td>إعداد <code>HTTPS routing</code> المحلي جاهز؛ اختبار <code>authentication</code> الفعلية متبقٍّ</td>
+</tr>
+<tr>
+<td>27</td>
+<td><code>failure tests</code></td>
+<td>اختُبر استبدال <code>containers</code> و<code>backend crash</code> وتنفيذ <code>restart</code> على <code>database</code>؛ السيناريوهات الأوسع متبقية</td>
+</tr>
+<tr>
+<td>28</td>
+<td>توثيق التشغيل</td>
+<td>دليلا التشغيل و<code>backup</code> جاهزان؛ إجراءات الحوادث و<code>rollback</code> وملف <code>README</code> الكامل متبقية</td>
+</tr>
+<tr>
+<td>الأخيرة</td>
+<td><code>CI/CD</code></td>
+<td>متبقٍّ؛ يُنفَّذ بعد استقرار الإجراءات اليدوية</td>
+</tr>
+</tbody>
+</table>
+<h2>5. المهام المتبقية حسب الأولوية</h2>
+<ol>
+<li>ترتيب نسخة محمية من <code>backup</code> خارج الجهاز؛ اكتملت الجدولة اليومية و<code>retention policy</code> واختبار <code>restore</code> المعزول.</li>
+<li>متابعة نواقص <code>application logging</code> مع فريق <code>Backend</code>؛ اكتمل <code>Docker log rotation</code> وإعداد <code>Nginx access logs</code>. ويلزم <code>centralized logging</code> باستخدام حزمة <code>ELK</code> إذا اختار الفريق احتساب الوحدة الكبرى الخاصة بها.</li>
+<li>تحديد نطاق <code>monitoring</code>. وعند اختيار وحدة <code>Prometheus/Grafana</code> الكبرى، يلزم جمع <code>metrics</code> و<code>dashboards</code> مخصصة و<code>alerts</code> وتأمين الولوج. وتعديلات <code>application metrics</code> من مسؤولية صاحب <code>backend</code>.</li>
+<li>استكمال <code>status page</code> وإجراءات <code>disaster recovery</code> للوحدة الصغرى المختارة. اكتملت <code>automated backups</code>، ولكن مسار <code>health check</code> ونجاح <code>backup</code> وحدهما لا يكملان الوحدة.</li>
+<li>تنسيق إعدادات <code>CORS</code> وربط <code>frontend</code> ومتطلبات التكامل الخارجي، ثم اختبار <code>multi-user support</code> والمتصفح عند جاهزية الخصائص.</li>
+<li>اعتماد <code>image tags</code> واضحة للإصدارات، وتوثيق <code>deployment</code>، وتجربة <code>rollback</code> مع مراعاة توافق <code>database</code>، واستكمال دليل <code>disaster recovery</code>.</li>
+<li>تحويل الفحوصات اليدوية إلى إجراء قابل للتكرار، واستكمال <code>failure tests</code> المناسبة.</li>
+<li>استكمال ملف <code>README</code> للمشروع بالإنجليزية، بما يشمل الأدوار والمساهمات و<code>architecture</code> والخصائص والوحدات وحساب النقاط والتشغيل واستخدام الذكاء الاصطناعي.</li>
+<li>إضافة فحوصات <code>CI</code> ونشر <code>images</code> وإضافة <code>deployment automation</code> المتفق عليها في نهاية الخطة.</li>
+</ol>
+<p><strong>حجم العمل المتبقي:</strong> لا توجد نسبة إنجاز أو مدة موثوقة حالياً؛ إذ يتوقف الجهد على الوحدات الاختيارية التي سيعتمدها الفريق وعلى جاهزية <code>frontend</code>. أساس التشغيل المحلي يعمل، وتتركز المهام المتبقية في <code>monitoring</code> و<code>automation</code> و<code>release management</code> والتعافي.</p>
+<p>تُحسب نقاط التقييم الرسمي بصورة مستقلة وفق الوحدات المكتملة؛ فعدد المراحل في هذا التقرير لا يساوي عدد النقاط.</p>
+<h2>6. كيف ترتبط الأجزاء ببعضها؟</h2>
+<h3>أثناء إعداد التطبيق</h3>
+<pre><code class="language-text">source code + package-lock.json
+              |
+              v
+          Dockerfile
+              |
+              v
+    production Docker image
+         /             \
+        v               v
+migrate container   backend container
+</code></pre>
+<p>يبني <code>Dockerfile</code> الصورة. ثم يشغّل <code>Compose</code> منها <code>migrate</code> بأمر الترحيلات و<code>backend</code> بأمر تشغيل التطبيق، إلى جانب <code>MySQL</code> و<code>Nginx</code>.</p>
+<h3>أثناء استقبال طلب من المستخدم</h3>
+<pre><code class="language-text">client
+  |
+  | HTTPS / WSS :443
+  v
+Nginx + TLS certificate + private key
+  |
+  | HTTP / WebSocket (internal network)
+  v
+backend :3000
+  |                 |
+  v                 v
+MySQL           uploaded files
+  |                 |
+  v                 v
+mysql_data      backend_storage
+</code></pre>
+<p>يصل الطلب المشفر إلى <code>Nginx</code> أولاً، ثم يُمرَّر إلى <code>backend</code>. وينفذ <code>backend</code> منطق التطبيق ويتعامل مع <code>database</code> أو الملفات حسب الطلب. وتحتفظ <code>volumes</code> بالبيانات عند استبدال <code>containers</code>.</p>
+<h3>أثناء حماية البيانات</h3>
+<pre><code class="language-text">MySQL + backend_storage
+           |
+           v
+       backup.sh
+           |
+           v
+      backup directory
+           |
+           v
+    restore-test.sh
+           |
+           v
+isolated containers + new volumes
+</code></pre>
+<p>تختبر هذه الدورة قابلية استرجاع البيانات. أما <code>rollback</code> لإصدار سابق من التطبيق فهو إجراء آخر يحتاج توافق <code>code</code> و<code>database schema</code>.</p>
+<h3>المفاهيم التي تناولناها</h3>
+<ul>
+<li>الفرق بين <code>watch mode</code> أثناء <code>development</code> وتشغيل النسخة المبنية في <code>production</code>.</li>
+<li><code>multi-stage build</code>، وسبب الاكتفاء بمرحلتين في هذا المشروع.</li>
+<li>الفرق بين <code>image</code> و<code>container</code>، واستخدام <code>image</code> واحدة لتشغيل <code>backend</code> أو <code>migrations</code>.</li>
+<li>إعداد <code>DataSource</code>، و<code>entities</code>، و<code>migrations</code>، و<code>migration history</code>.</li>
+<li>ترتيب التشغيل المعتمد على <code>health checks</code>، ومعنى انتهاء <code>service</code> ب<code>exit code 0</code>.</li>
+<li><code>internal networks</code>، ونشر <code>ports</code>، والفرق بين توثيق الـ<code>port</code> وفتحه فعلياً.</li>
+<li>الفرق بين <code>persistent volumes</code> و<code>backups</code>.</li>
+<li><code>Nginx reverse proxy</code>، و<code>TLS certificate</code>، و<code>private key</code>، وتحويل الاتصالات وترقيتها.</li>
+<li>الفرق بين تنفيذ <code>restart</code> على <code>container</code> تلقائياً وإعادة الاتصال بالـ<code>database</code>.</li>
+<li>الفرق بين <code>backup</code> و<code>restore</code>، وفحص <code>backup integrity</code>، وأهمية اختبار التعافي في بيئة <code>isolated</code>.</li>
+</ul>
+<h2>7. الملفات الرئيسية</h2>
+<pre><code class="language-text">apps/backend/Dockerfile
+apps/backend/src/database/data-source.ts
+apps/backend/package.json
+docker-compose.prod.yml
+nginx/nginx.conf
+.env.example
+.gitignore
+scripts/backup.sh
+scripts/restore-test.sh
+docs/deployment/LOCAL_PRODUCTION.md
+docs/deployment/BACKUP_AND_RESTORE.md
+</code></pre>
+<p>تخص تغييرات ملف إعداد <code>database</code> وإعدادات <code>package.json</code> تهيئة <code>migrations</code> التي تمت الموافقة عليها سابقاً.</p>
+<p>وقت إعداد التقرير، لم تكن تغييرات الجلسة قد حُفظت في <code>commit</code> في <code>repository</code>. ويجب استثناء ملف <code>secrets</code> و<code>private keys</code> وأرشيفات <code>backup</code> من أي <code>commit</code>.</p>
+<h2>8. تحديث بتاريخ 6 نوفمبر 2026: إضافة <code>automated backups</code></h2>
+<p>تعكس الأقسام السابقة حالة العمل بتاريخ 5 نوفمبر. وفي 6 نوفمبر أُضيفت الأعمال التالية، ولذلك لم يعد <code>backup</code> مقتصراً على التشغيل اليدوي:</p>
+<ul>
+<li>تثبيت <code>cron job</code> يومي عند <code>03:00</code> وفق <code>system timezone</code>، التي تم التحقق من أنها <code>Africa/Casablanca</code>.</li>
+<li>إضافة <code>scripts/scheduled-backup.sh</code> لتشغيل <code>backup.sh</code> وتسجيل <code>SUCCESS</code> أو <code>FAILED</code> أو <code>SKIPPED</code> في <code>logs</code>.</li>
+<li>إضافة <code>flock</code> إلى <code>backup.sh</code> لمنع تداخل <code>manual backup</code> مع <code>scheduled backup</code>.</li>
+<li>إضافة <code>scripts/prune-backups.py</code> للاحتفاظ بآخر 7 نسخ مكتملة ذات <code>checksums</code> صحيحة وحذف النسخ المكتملة الأقدم. تبقى النسخ غير المكتملة أو التالفة للفحص اليدوي.</li>
+<li>إضافة <code>scripts/install-backup-cron.sh</code> لتثبيت الجدولة أو تحديثها دون تكرارها ودون حذف أي <code>cron jobs</code> أخرى.</li>
+<li>تقييد حجم <code>scheduler log</code> مع الاحتفاظ بملف سابق.</li>
+</ul>
+<p><strong>دور <code>cron</code>:</strong> تشغيل الأمر في وقت محدد حتى دون فتح جلسة طرفية. ويظل الجهاز وDocker بحاجة إلى العمل عند الموعد؛ إذا كان الجهاز مطفأ فلا يعوض <code>cron</code> العادي الموعد الفائت تلقائياً.</p>
+<p><strong>التأثير أثناء التنفيذ:</strong> ما زال <code>backup.sh</code> يوقف <code>backend</code> مؤقتاً للحصول على نسخة متناسقة من <code>database</code> و<code>uploaded files</code>، ثم يعيد تشغيله. إضافة الجدولة لا تلغي هذا التوقف القصير.</p>
+<p><strong>مسار <code>logs</code>:</strong></p>
+<pre><code class="language-text">backups/scheduled-backup.log
+</code></pre>
+<p><strong>الوضع بالنسبة إلى الـ<code>Minor module</code>:</strong> أصبح جزء <code>automated backups</code> منفذاً؛ ما زالت <code>status page</code> وإجراءات <code>disaster recovery</code> الكاملة بحاجة إلى الاستكمال. كما تبقى <code>off-machine copies</code> و<code>failure notifications</code> غير مهيأتين. لم يتغير <code>backend code</code>.</p>
+<h2>9. تحديث بتاريخ 7 نوفمبر 2026: تبسيط ملفات <code>backup</code></h2>
+<p>جُمعت وظائف النسخ والجدولة و<code>logs</code> و<code>retention</code> وتثبيت <code>cron</code> في ملف واحد هو <code>scripts/backup.sh</code>. وبقي <code>scripts/restore-test.sh</code> مستقلاً. أصبح عدد ملفات هذه الأدوات اثنين بدلاً من خمسة، دون نقل <code>scheduler</code> إلى <code>Compose</code>.</p>
+<table>
+<thead>
+<tr>
+<th>الأمر</th>
+<th>وظيفته</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>./scripts/backup.sh</code></td>
+<td>تنفيذ <code>manual backup</code> مع منع التداخل والاحتفاظ بآخر 7 نسخ سليمة</td>
+</tr>
+<tr>
+<td><code>./scripts/backup.sh --scheduled</code></td>
+<td>تنفيذ <code>backup</code> مع تسجيل نتيجة التشغيل في <code>scheduler logs</code></td>
+</tr>
+<tr>
+<td><code>./scripts/backup.sh --install-cron</code></td>
+<td>تثبيت أو تحديث <code>cron job</code> اليومية</td>
+</tr>
+</tbody>
+</table>
+<p>أُزيلت الملفات التالية بعد دمج وظائفها:</p>
+<pre><code class="language-text">scripts/scheduled-backup.sh
+scripts/prune-backups.py
+scripts/install-backup-cron.sh
+</code></pre>
+<p>حُدثت <code>crontab</code> لتشغيل <code>backup.sh --scheduled</code> مباشرة. لم يتغير الموعد: <code>03:00</code> بتوقيت النظام <code>Africa/Casablanca</code>. ولم تتغير صيغة <code>backup</code> أو طريقة <code>restore</code> أو مسارات <code>logs</code>، ولم يُعدَّل <code>backend code</code>.</p>
+<p>نجحت اختبارات <code>retention</code> على بيانات مؤقتة ومنع التداخل وتسجيل <code>SKIPPED</code>. ونجح التنفيذ الفعلي عبر <code>cron</code> بعد الدمج، مع التحقق من <code>checksums</code> للنسخة الجديدة وإزالة سطر الاختبار المؤقت. توثيق 6 نوفمبر أعلاه يصف الملفات قبل دمجها؛ الأوامر في هذا القسم هي المعتمدة الآن.</p>
+<h2>10. تحديث بتاريخ 7 نوفمبر 2026: إعداد <code>Docker log rotation</code></h2>
+<h3>الدور والسبب</h3>
+<p>تسجل <code>services</code> أحداث التشغيل وأخطاءها في <code>stdout</code> و<code>stderr</code>، ويجمعها Docker. تساعد هذه <code>logs</code> على تحديد مصدر المشكلة: هل فشل <code>Nginx</code> في الاتصال بـ<code>backend</code>، أم ظهرت مشكلة داخل التطبيق أو <code>MySQL</code> أو <code>migrations</code>؟</p>
+<p>قبل التعديل كانت الخدمات الأربع تستعمل <code>json-file</code> دون حدود حجم صريحة. أُضيف الإعداد نفسه لكل <code>service</code> في <code>docker-compose.prod.yml</code>:</p>
+<pre><code class="language-yaml">logging:
+  driver: json-file
+  options:
+    max-size: &quot;10m&quot;
+    max-file: &quot;3&quot;
+</code></pre>
+<h3>كيف يعمل؟</h3>
+<ul>
+<li>يحفظ <code>json-file logging driver</code> مخرجات <code>container</code> في ملفات يديرها Docker على الجهاز.</li>
+<li>عند وصول ملف <code>log</code> إلى حدود <code>10 MB</code>، ينشئ Docker ملفاً جديداً تلقائياً.</li>
+<li>يحتفظ بما يصل إلى 3 ملفات لكل <code>container</code>، شاملة الملف الحالي، ويحذف الأقدم عند الحاجة.</li>
+<li>السعة التقريبية <code>30 MB</code> لكل <code>container</code>، وليست للمشروع كله. ولا يتعلق هذا الإعداد بـ<code>database volumes</code> أو <code>backup retention</code>.</li>
+<li>لا يحتاج <code>rotation</code> إلى <code>cron</code> أو <code>scripts</code> إضافية، ولا يجمع ملفات داخلية أخرى لا تُكتب إلى <code>stdout</code> أو <code>stderr</code>.</li>
+</ul>
+<h3>قراءة <code>logs</code></h3>
+<pre><code class="language-bash">docker compose -f docker-compose.prod.yml logs --follow --timestamps --tail=100 backend
+</code></pre>
+<p>يمكن استبدال <code>backend</code> باسم <code>nginx</code> أو <code>mysql</code> أو <code>migrate</code>. ويوقف <code>Ctrl+C</code> عرض <code>logs</code> فقط، ولا يوقف <code>container</code>.</p>
+<h3>التطبيق والحدود</h3>
+<p>يتطلب تغيير إعداد <code>logging</code> إعادة إنشاء <code>containers</code>؛ لا يكفي <code>restart</code>. يُطبق الإعداد مع الاحتفاظ بنفس <code>images</code> و<code>volumes</code>، واستعمال <code>backup lock</code> لمنع التداخل مع النسخ. لا يحتفظ هذا الإعداد بـ<code>logs</code> الخاصة بالـ<code>containers</code> المحذوفة؛ يلزم تصديرها مسبقاً عند الحاجة إليها.</p>
+<p>هذه الخطوة تضبط <code>local log rotation</code> فقط، ولا تكمل <code>ELK Major</code>. تبقى <code>centralized logging</code> و<code>archiving</code> وتنسيق <code>application logs</code> حسب الوحدات المختارة والتنسيق مع مسؤول <code>backend</code>. ولا يتغير <code>backend code</code>.</p>
+<p><strong>نتيجة التحقق:</strong> أُعيد إنشاء الخدمات الأربع بنجاح، وتأكدنا من تطبيق <code>json-file</code> و<code>max-size: 10m</code> و<code>max-file: 3</code> فعلياً على كل <code>container</code> ومن إمكانية قراءة <code>logs</code>. بقيت <code>image IDs</code> و<code>volume names</code> كما كانت، وعاد <code>MySQL</code> و<code>backend</code> إلى <code>healthy</code>، وانتهى <code>migrate</code> بالرمز صفر، ونجح <code>HTTPS health request</code> مع التحقق من الشهادة. لم نولد <code>logs</code> ضخمة لاختبار الوصول إلى حد الحجم؛ التحقق شمل إعدادات Docker الفعلية وعمل الخدمات.</p>
+<h2>11. تحديث بتاريخ 7 نوفمبر 2026: مراجعة <code>Backend logging</code> والتجارب الفعلية</h2>
+<h3>المرجع وتقسيم المسؤوليات</h3>
+<p>رُوجعت مرحلة 17 في <code>devops.pdf</code>، وقسم <code>Structured Logging</code> وتقسيم المسؤوليات في <code>mustapha_work.pdf</code>، ومتطلبات <code>DevOps</code> في <code>en.subject.pdf</code>. توصي خطة الفريق بتسجيل وقت الحدث و<code>level</code> و<code>service</code> والرسالة و<code>stack trace</code> عند الحاجة، مع تغطية الأحداث المهمة. وتؤكد وثيقة التسليم عدم تسجيل <code>passwords</code> أو <code>tokens</code> أو <code>secrets</code> أو <code>cookies</code>.</p>
+<p>هذه توصيات خطة الفريق ووثيقة التسليم؛ أما وحدة <code>ELK Major</code> في الموضوع الرسمي فلها متطلبات مستقلة تشمل التجميع والتخزين والعرض و<code>retention</code> و<code>archiving</code> وتأمين الوصول. لا يكمل <code>Docker log rotation</code> هذه الوحدة وحده.</p>
+<p>اتُّفق على مراجعة الـ PDFs قبل كل مرحلة، وشرح نطاق التغيير قبل تنفيذه، وذكر جميع الملفات والإجراءات التي تغيرت بعد التنفيذ. لا يُعدَّل <code>Backend code</code>؛ يتولى فريق <code>Backend</code> محتوى <code>application logs</code> وسلوك التطبيق، ويتولى مسؤول <code>DevOps</code> إعدادات البنية التشغيلية. يمكن متابعة مراحل <code>DevOps</code> مع توثيق النواقص وإحالتها إلى الفريق، دون اعتبار <code>application logging</code> مكتملة.</p>
+<h3>ما أثبتته القراءة وما أثبتته التجربة</h3>
+<table>
+<thead>
+<tr>
+<th>الموضوع</th>
+<th>النتيجة</th>
+<th>نوع التحقق</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Application startup</code></td>
+<td>ظهرت رسائل البدء مع <code>timestamp</code> و<code>level</code> و<code>context</code></td>
+<td>قراءة <code>logs</code> الفعلية</td>
+</tr>
+<tr>
+<td>فشل الاتصال بـ<code>Database</code> عند البدء</td>
+<td>يوجد تسجيل مع <code>stack trace</code> و<code>retry</code> في <code>NestJS/TypeORM</code></td>
+<td>قراءة التنفيذ الموجود داخل <code>production image</code>؛ لم نوقف <code>Database</code> في هذه المراجعة</td>
+</tr>
+<tr>
+<td>فشل <code>Migration</code></td>
+<td>يسجل <code>TypeORM</code> الخطأ ويخرج بالرمز <code>1</code></td>
+<td>قراءة التنفيذ؛ لم نفتعل فشل <code>migration</code></td>
+</tr>
+<tr>
+<td><code>Unexpected HTTP errors</code></td>
+<td>يسجل <code>NestJS</code> الأخطاء غير المعالجة؛ لا يسجل تلقائياً كل <code>HTTP exception</code></td>
+<td>قراءة <code>exception handler</code> الموجود في <code>image</code></td>
+</tr>
+<tr>
+<td><code>Login</code> غير صحيح</td>
+<td>استجابة <code>401 Invalid credentials</code> مع صفر أسطر جديدة في <code>Backend logs</code> أثناء الاختبار</td>
+<td>طلب فعلي عبر <code>HTTPS</code> مع التحقق من الشهادة وبريد وهمي فريد</td>
+</tr>
+<tr>
+<td><code>Socket.IO</code> مع <code>token</code> غير صالح</td>
+<td>نجح اتصال <code>Engine.IO</code> ثم حدث <code>Socket.IO disconnect</code>، مع صفر أسطر جديدة في <code>Backend logs</code> أثناء الاختبار</td>
+<td>اتصال فعلي مباشر بالـ<code>Backend</code> داخل <code>container</code>؛ لم يكن اختباراً جديداً لـ<code>Nginx</code></td>
+</tr>
+<tr>
+<td><code>Request ID</code></td>
+<td>لم نجد إعداداً يربط الطلب بين <code>Nginx</code> و<code>Backend</code></td>
+<td>فحص الإعدادات و<code>code</code></td>
+</tr>
+<tr>
+<td><code>Webhook processing</code></td>
+<td>وُجد <code>database schema</code>، ولم نجد <code>handler</code> لمعالجة <code>webhook</code> ضمن الملفات المفحوصة</td>
+<td>فحص <code>code</code>؛ لا يوجد اختبار فعلي لهذه الخاصية</td>
+</tr>
+</tbody>
+</table>
+<p>رفض <code>login</code> و<code>Socket.IO</code> في هذين الاختبارين عمل بصورة صحيحة؛ الملاحظة هي غياب تسجيل الرفض في <code>Backend logs</code>. وقد تظهر معلومات الطلب الأساسية في <code>Nginx access logs</code>، وهي ليست بديلاً عن سبب الحدث داخل التطبيق.</p>
+<h3>فهم مشكلة حذف <code>files</code> من الصفر</h3>
+<p>لكل <code>uploaded file</code> محتوى فعلي في <code>storage</code> و<code>record</code> في <code>Database</code> يصف اسمه ومالكه ومساره. في <code>FilesService.remove()</code> يُحفظ <code>deletedAt</code> أولاً، ثم تُجرّب إزالة المحتوى الفعلي. يسمى تعليم الـ<code>record</code> بهذه الطريقة <code>soft delete</code>.</p>
+<p>يستعمل التنفيذ الحالي:</p>
+<pre><code class="language-ts">await unlink(absolutePath).catch(() =&gt; undefined);
+</code></pre>
+<p>يحاول <code>unlink</code> حذف الـ<code>file</code>. وإذا فشل، تتجاهل <code>catch</code> الخطأ وتسمح باستمرار التنفيذ. لذلك يمكن أن يصبح الـ<code>record</code> معلماً كمحذوف بينما يبقى المحتوى في <code>storage</code>، ثم تُنشأ <code>FILE_DELETED activity</code> وتعود العملية بنجاح. عند تكرار هذا الفشل يمكن أن تتراكم ملفات لا تظهر للمستخدم وتستهلك المساحة. لا يعني ذلك أن جميع عمليات الحذف تفشل.</p>
+<p><strong>التجربة الفعلية المعزولة:</strong> شُغلت النسخة المبنية من <code>FilesService</code> الموجودة في <code>production image</code> داخل <code>Node.js process</code> منفصلة. استُعمل <code>repository</code> في الذاكرة ومحاكاة للخدمات التابعة، مع <code>file</code> حقيقي مؤقت داخل <code>/tmp</code>. مُنعت صلاحية الحذف من المجلد، وتأكدنا أن النظام يرجع <code>EACCES</code> عند محاولة حذفه بالمستخدم <code>node</code> ذي <code>UID 1000</code>.</p>
+<p>أعادت <code>remove()</code> النجاح، وحفظت <code>deletedAt</code> في <code>repository</code> التجريبية، وطلبت إنشاء <code>FILE_DELETED activity</code>، بينما بقي الـ<code>file</code> موجوداً ولم تُستدعَ وظائف <code>service logger</code>. هذا اختبار لسلوك الخدمة المبنية مع فشل حقيقي في <code>filesystem</code>، وليس اختبار <code>HTTP</code> كاملاً ولا دليلاً على وجود ملفات عالقة حالياً في بيانات المشروع.</p>
+<p>أُعيدت صلاحية المجلد المؤقت وحُذف بعد الاختبار. لم تُستخدم بيانات <code>MySQL</code> أو <code>storage volume</code> الخاصة بالمشروع، ولم يُعدَّل <code>Backend code</code> أو يُعد تشغيله. نجح طلب <code>/health</code> عبر <code>HTTPS</code> بعد التجارب بالرمز <code>200</code>.</p>
+<h3>المتابعة مع فريق <code>Backend</code></h3>
+<p>أُعدت رسالة بالإنجليزية ليُرسلها مصطفى إلى الفريق، توضح نتيجة تجربة الحذف ونقص تسجيل رفض <code>Authentication</code> و<code>Socket.IO</code>، وتطلب مراجعة معالجة فشل الحذف وتسجيله و<code>retry</code> المناسب. لم تُرسل الرسالة إلى الفريق عبر أي أداة. يبقى القرار والتنفيذ داخل التطبيق من مسؤولية الفريق، ويمكن مواصلة بقية أعمال <code>DevOps</code> بالتوازي.</p>
+<h2>12. تحديث بتاريخ 7 نوفمبر 2026: تقليل البيانات الحساسة في <code>Nginx access logs</code></h2>
+<h3>ما المشكلة؟</h3>
+<p>يمر طلب <code>GitHub OAuth callback</code> عبر <code>Nginx</code> وقد يحتوي على <code>query parameters</code> مثل <code>code</code> و<code>state</code>. الـ<code>code</code> قيمة مؤقتة تُستخدم للحصول على <code>access token</code>، والـ<code>state</code> يساعد في ربط الرد بعملية <code>OAuth</code> التي بدأها التطبيق.</p>
+<p>كان <code>access log format</code> الافتراضي يسجل سطر الطلب كاملاً، وقد يشمل هذه القيم. كما أن <code>Referer</code> قد يحتوي على <code>URL</code> مع قيم حساسة. أكدت المراجعة وجود هذا الاحتمال في الإعداد، ولم تثبت تسجيل <code>OAuth code</code> حقيقي. يحمي <code>HTTPS</code> الاتصال أثناء النقل، لكنه لا يمنع <code>Nginx</code> من تسجيل الطلب بعد فك تشفيره.</p>
+<h3>ما الذي تغير وما دور كل جزء؟</h3>
+<p>أُضيف إلى قسم <code>http</code> في <code>nginx/nginx.conf</code>:</p>
+<pre><code class="language-nginx">log_format app_access '$remote_addr [$time_iso8601] '
+                      '&quot;$request_method $uri $server_protocol&quot; '
+                      '$status $body_bytes_sent '
+                      'request_time=$request_time '
+                      'upstream_time=$upstream_response_time';
+access_log /dev/stdout app_access;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>الإعداد</th>
+<th>دوره</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>log_format app_access</code></td>
+<td>تعريف صيغة محددة لسطر <code>access log</code></td>
+</tr>
+<tr>
+<td><code>$remote_addr</code></td>
+<td>عنوان الطرف المتصل كما يراه <code>Nginx</code></td>
+</tr>
+<tr>
+<td><code>$time_iso8601</code></td>
+<td>وقت الطلب مع معلومات المنطقة الزمنية</td>
+</tr>
+<tr>
+<td><code>$request_method</code></td>
+<td>نوع الطلب مثل <code>GET</code> أو <code>POST</code></td>
+</tr>
+<tr>
+<td><code>$uri</code></td>
+<td>الـ<code>path</code> بعد <code>normalization</code> دون <code>query parameters</code></td>
+</tr>
+<tr>
+<td><code>$server_protocol</code></td>
+<td>نسخة <code>HTTP</code></td>
+</tr>
+<tr>
+<td><code>$status</code></td>
+<td>رمز النتيجة مثل <code>200</code> أو <code>401</code></td>
+</tr>
+<tr>
+<td><code>$body_bytes_sent</code></td>
+<td>حجم المحتوى المرسل دون <code>response headers</code></td>
+</tr>
+<tr>
+<td><code>$request_time</code></td>
+<td>مدة معالجة الطلب كاملة لدى <code>Nginx</code> بالثواني</td>
+</tr>
+<tr>
+<td><code>$upstream_response_time</code></td>
+<td>مدة الاستجابة من <code>Backend</code>؛ تظهر <code>-</code> عند عدم الاتصال به، مثل <code>redirect</code></td>
+</tr>
+<tr>
+<td><code>access_log /dev/stdout app_access</code></td>
+<td>استعمال الصيغة في <code>HTTP</code> و<code>HTTPS</code> وإرسال الأسطر إلى Docker لتطبيق <code>log rotation</code> الحالي</td>
+</tr>
+</tbody>
+</table>
+<p>لا تتضمن الصيغة <code>query parameters</code> أو <code>Referer</code> أو <code>User-Agent</code> أو <code>Authorization</code> أو <code>cookies</code> أو <code>request body</code>. ويظل الـ<code>path</code> مسجلاً، لذلك يجب ألا يحتوي هو نفسه على <code>secrets</code>.</p>
+<p>مثال بقيم وهمية يوضح الفرق:</p>
+<pre><code class="language-text">Before: GET /github/callback?code=EXAMPLE_CODE&amp;state=EXAMPLE_STATE HTTP/1.1
+After:  GET /github/callback HTTP/1.1
+</code></pre>
+<p>تصل <code>query parameters</code> كاملة إلى <code>Backend</code>، ويحتفظ بها <code>HTTP to HTTPS redirect</code> أيضاً. التغيير في التسجيل فقط، ولم يُعدَّل <code>Backend code</code> أو <code>proxy_pass</code> أو <code>Compose</code>.</p>
+<h3>كيف طُبق الإعداد وكيف اختُبر؟</h3>
+<p>نجح <code>nginx -t</code> أولاً، ثم طُبق <code>nginx -s reload</code>. بقي <code>container ID</code> ووقت بدء الـ<code>container</code> كما هما؛ لم يحدث <code>container restart</code> أو إعادة إنشاء. يسمح <code>graceful reload</code> بتطبيق الإعداد مع إنهاء أعمال الـ<code>workers</code> القديمة تدريجياً.</p>
+<p>أُرسلت طلبات بقيم اختبارية فريدة في <code>code</code> و<code>state</code> و<code>Referer</code> و<code>User-Agent</code> و<code>Cookie</code> و<code>Authorization</code>، ثم فُحصت <code>logs</code> الجديدة:</p>
+<ul>
+<li>نجح <code>/health</code> عبر <code>HTTPS</code> بالرمز <code>200</code> مع التحقق من شهادة <code>TLS</code>.</li>
+<li>أعاد <code>HTTP</code> الرمز <code>308</code> مع الاحتفاظ بالـ<code>query</code> الأصلية في <code>Location</code>.</li>
+<li>نجح <code>Engine.IO polling handshake</code> بالرمز <code>200</code> عبر <code>Nginx</code>. ويثبت ذلك وصول قيمتي <code>EIO</code> و<code>transport</code> المطلوبتين إلى <code>Backend</code>؛ لا يمثل هذا اختبار <code>WebSocket upgrade</code> أو <code>OAuth</code> كاملاً.</li>
+<li>أُغلقت <code>Engine.IO session</code> التجريبية بعد التحقق.</li>
+<li>ظهرت أسطر الطلبات مع الـ<code>path</code> و<code>status</code> و<code>timings</code>، دون القيم الوهمية أو <code>query parameters</code>.</li>
+<li>بقي <code>Backend</code> و<code>MySQL</code> بحالة <code>healthy</code>، و<code>migrate</code> منتهياً بالرمز <code>0</code>.</li>
+</ul>
+<p><strong>حدود الإصلاح:</strong> يشمل <code>access logs</code> الجديدة. لا يعيد كتابة <code>logs</code> السابقة ولا يمسحها، ولا يغير <code>Nginx error logs</code> أو <code>Backend logs</code>. وقد تتضمن <code>error logs</code> تفاصيل الطلب عند بعض الأعطال؛ لم نفتعل هذه الأعطال في اختبار الإصلاح، ولذلك لا يمثل هذا ضماناً عاماً لإخفاء جميع <code>secrets</code> من جميع <code>logs</code>.</p>
+<p>اعتمد الإعداد على <a href="https://nginx.org/en/docs/http/ngx_http_log_module.html">توثيق Nginx الخاص بـ logging</a>، وطريقة تطبيقه على <a href="https://nginx.org/en/docs/control.html">توثيق Nginx الخاص بـ reload</a>.</p>
+<h3>الملفات والإجراءات الخاصة بهذا التحديث</h3>
+<ul>
+<li>عُدّل <code>nginx/nginx.conf</code> لإعداد <code>access logs</code>.</li>
+<li>عُدّل <code>docs/deployment/LOCAL_PRODUCTION.md</code> لتوثيق الإعداد وطريقة <code>reload</code> وحدوده.</li>
+<li>عُدّل هذا التقرير <code>docs/deployment/PROGRESS_2026-11-05.md</code>، وأُعيد توليد نسخته <code>HTML</code> مع الحفاظ على اتجاه العربية وكتابة مصطلحات <code>IT</code> بالإنجليزية.</li>
+<li>صُحح جدول التقدم وقائمة المهام المتبقية ليعكسا اكتمال <code>automatic backup</code> و<code>retention</code> و<code>log rotation</code>، وأُضيفت نتائج مراجعة <code>Backend</code> وتجاربها وتقسيم المسؤوليات.</li>
+<li>لم تُضف أو تُحذف ملفات من المشروع في هذا التحديث. الإجراء التشغيلي هو <code>Nginx reload</code> وطلبات الاختبار؛ لم يتغير <code>cron</code> أو <code>Backend code</code> أو بيانات <code>Database</code> أو <code>storage</code>.</li>
+</ul>
+<h2>13. تحديث بتاريخ 7 نوفمبر 2026: الفحص اليدوي لـ Monitoring</h2>
+<p>رُوجعت المرحلة 18 من خطة الفريق، ثم أُخذت قياسات فعلية دون تعديل الملفات أو إعادة تشغيل الخدمات. عند نحو <code>13:01 UTC</code> كان <code>Backend</code> و<code>MySQL</code> بحالة <code>healthy</code>، وكان <code>Nginx</code> يعمل، وانتهى <code>migrate</code> بالرمز <code>0</code> كما هو متوقع.</p>
+<table>
+<thead>
+<tr>
+<th>الفحص</th>
+<th>النتيجة وقت القياس</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HTTPS /health</code></td>
+<td>استجابة <code>200</code> مع التحقق من الشهادة</td>
+</tr>
+<tr>
+<td><code>Restarts</code></td>
+<td>العدد <code>0</code> للـ containers الحالية منذ آخر إعادة إنشائها</td>
+</tr>
+<tr>
+<td><code>Disk</code></td>
+<td>استعمال <code>26%</code>، ومساحة متاحة تقارب <code>165 GB</code></td>
+</tr>
+<tr>
+<td><code>RAM</code></td>
+<td>المتاح نحو <code>2 GiB</code> من أصل <code>7.1 GiB</code></td>
+</tr>
+<tr>
+<td><code>Swap</code></td>
+<td>استعمال نحو <code>3.3 GiB</code> من أصل <code>4 GiB</code></td>
+</tr>
+<tr>
+<td><code>Backend</code></td>
+<td>استهلاك <code>CPU 0.02%</code> و<code>RAM 29 MiB</code> تقريباً</td>
+</tr>
+<tr>
+<td><code>MySQL</code></td>
+<td>استهلاك <code>CPU 1.14%</code> و<code>RAM 60 MiB</code> تقريباً</td>
+</tr>
+<tr>
+<td><code>Nginx</code></td>
+<td>استهلاك <code>CPU 0%</code> و<code>RAM 13 MiB</code> تقريباً</td>
+</tr>
+<tr>
+<td><code>API errors</code></td>
+<td>لم توجد طلبات في آخر 15 دقيقة، فلا تكفي العينة للحكم على نسبة الأخطاء</td>
+</tr>
+</tbody>
+</table>
+<p>هذه لقطة تاريخية، وليست <code>load test</code> ولا ضماناً للسعة. استعمال <code>Swap</code> وحده لا يثبت وجود ضغط مستمر أو أن التطبيق هو السبب. لا يكشف فحص واحد المشاكل التي تظهر وتختفي بين القياسات.</p>
+<p>لم يُنفذ اقتراح <code>monitoring script</code> مع <code>cron</code>. اختار مصطفى <code>Prometheus/Grafana</code>، ووافق على البدء بالخدمتين وربطهما وتأمين الوصول والتخزين الدائم. تبقى <code>exporters</code> و<code>dashboards</code> و<code>alerts</code> خطوات لاحقة.</p>
+<h2>14. تحديث بتاريخ 7 نوفمبر 2026: أساس Prometheus وGrafana</h2>
+<h3>دور المكونات</h3>
+<p>يجمع <code>Prometheus</code> قياسات رقمية بصورة دورية ويحتفظ بتاريخها. يستعلم <code>Grafana</code> عن هذه القياسات لعرضها. لا يجمع <code>Grafana</code> قياسات الجهاز والتطبيق تلقائياً بمجرد تشغيله.</p>
+<pre><code class="language-text">Browser -&gt; HTTPS Nginx /grafana/ -&gt; Grafana -&gt; Prometheus
+                                              |
+                                              v
+                                    Prometheus self-metrics
+</code></pre>
+<p>الـ target الوحيد في هذه الخطوة هو <code>Prometheus</code> نفسه. تعني نتيجة <code>1</code> للاستعلام التالي نجاح جمع قياساته، ولا تعني أن <code>Backend</code> أو <code>MySQL</code> سليم:</p>
+<pre><code class="language-promql">up{job=&quot;prometheus&quot;}
+</code></pre>
+<h3>الملفات والإعدادات</h3>
+<table>
+<thead>
+<tr>
+<th>الملف</th>
+<th>دوره</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker-compose.prod.yml</code></td>
+<td>إضافة الخدمتين و<code>health checks</code> و<code>volumes</code> و<code>resource limits</code> وشبكة <code>monitoring</code> داخلية</td>
+</tr>
+<tr>
+<td><code>monitoring/prometheus.yml</code></td>
+<td>إعداد جمع القياسات كل <code>15 seconds</code> من <code>Prometheus</code> نفسه</td>
+</tr>
+<tr>
+<td><code>monitoring/grafana-datasource.yml</code></td>
+<td>إضافة <code>Prometheus data source</code> تلقائياً إلى <code>Grafana</code> بعنوان <code>http://prometheus:9090</code></td>
+</tr>
+<tr>
+<td><code>nginx/nginx.conf</code></td>
+<td>توجيه <code>/grafana/</code> عبر <code>HTTPS</code> الحالي مع دعم <code>connection upgrade</code></td>
+</tr>
+<tr>
+<td><code>.env.example</code></td>
+<td>تعريف متغيرات <code>Grafana</code> دون أسرار فعلية</td>
+</tr>
+<tr>
+<td><code>.env</code></td>
+<td>حفظ كلمة السر والمفتاح السري المولدين محلياً؛ يبقى خارج <code>Git</code> وبصلاحيات <code>600</code></td>
+</tr>
+<tr>
+<td><code>docs/deployment/LOCAL_PRODUCTION.md</code></td>
+<td>شرح التشغيل والوصول و<code>retention</code> والحدود الحالية</td>
+</tr>
+<tr>
+<td><code>PROGRESS_2026-11-05.md</code> ونسخة <code>HTML</code></td>
+<td>توثيق المراجعة والإعدادات والنتائج؛ يبقى <code>Markdown</code> بالإنجليزية و<code>HTML</code> بالعربية</td>
+</tr>
+</tbody>
+</table>
+<p>الإصدارات المثبتة هي <code>prom/prometheus:v3.16.0</code> و<code>grafana/grafana:12.4.14</code>، اعتماداً على معلومات الإصدارات الرسمية. يُعرّف ملف <code>provisioning</code> مصدر القياسات باسم <code>Prometheus</code> و<code>UID prometheus</code>، ويجعله افتراضياً وغير قابل للتعديل من الواجهة لأن الملف يديره.</p>
+<h3>الوصول والحماية</h3>
+<p>عنوان الواجهة هو <code>https://localhost/grafana/</code>. اسم المستخدم الأولي <code>admin</code>، وكلمة السر موجودة في <code>.env</code> تحت <code>GRAFANA_ADMIN_PASSWORD</code>. وُلّد <code>GRAFANA_SECRET_KEY</code> مستقلاً لحماية الأسرار التي يخزنها <code>Grafana</code>، ويجب الاحتفاظ به. لا تُعرض القيم السرية في التقرير.</p>
+<p>عُطّل <code>anonymous access</code> و<code>self-registration</code>، وفُرض <code>HTTPS</code> على <code>session cookies</code>. متغيرات الحساب الأولي تُستعمل عند تهيئة <code>volume</code> جديدة؛ تعديل كلمة السر في <code>.env</code> لاحقاً لا يعيد تعيين كلمة سر حساب موجود، ويجب استعمال إدارة الحسابات داخل <code>Grafana</code>.</p>
+<p>لا توجد <code>host ports</code> جديدة للخدمتين. يستعمل <code>Grafana</code> شبكة <code>monitoring</code> الداخلية للاتصال بـ<code>Prometheus</code> وشبكة <code>application</code> للوصول من <code>Nginx</code>. يُحل اسم <code>Grafana</code> عبر <code>Docker DNS</code> وقت الطلب حتى لا يمنع توقفه بدء <code>Nginx</code> أو تشغيل مسارات <code>Backend</code>.</p>
+<h3>التخزين والموارد</h3>
+<ul>
+<li>يحفظ <code>prometheus_data</code> تاريخ القياسات داخل <code>/prometheus</code>.</li>
+<li>يحفظ <code>grafana_data</code> المستخدمين والإعدادات و<code>dashboards</code> المستقبلية داخل <code>/var/lib/grafana</code>.</li>
+<li>يحتفظ <code>Prometheus</code> بالقياسات حتى 7 أيام، مع حد <code>512 MB</code> للـ stored blocks. تحتاج <code>WAL</code> و<code>head data</code> مساحة إضافية؛ ليس ذلك سقفاً صارماً لحجم الـ volume كله.</li>
+<li>حد <code>RAM</code> الأولي <code>256 MiB</code> لـ<code>Prometheus</code> و<code>512 MiB</code> لـ<code>Grafana</code>، مع حد <code>CPU</code> واحد لكل خدمة. تُراجع هذه الحدود عند توسيع المراقبة.</li>
+<li>تطبق الخدمتان <code>log rotation</code> بحجم <code>10 MB</code> و3 ملفات، مع إسقاط <code>Linux capabilities</code> ومنع اكتساب صلاحيات إضافية.</li>
+<li>لا يشمل <code>backup script</code> الحالي بيانات المراقبة؛ فهو ينسخ بيانات التطبيق و<code>uploaded files</code>. تبقى طريقة استرجاع بيانات المراقبة عملاً منفصلاً.</li>
+</ul>
+<h3>ما الذي بقي؟</h3>
+<p>لم تُضف بعد <code>exporters</code> الخاصة بالجهاز والـ containers و<code>MySQL</code> و<code>HTTPS</code>. وتبقى قياسات <code>API error rate</code> و<code>custom dashboards</code> و<code>alert rules</code> ووجهة الإشعارات. تشغيل الخدمتين وحده لا يكمل <code>Monitoring Major</code>، وأي <code>instrumentation</code> يتطلب تعديل التطبيق يبقى من مسؤولية فريق <code>Backend</code>.</p>
+<h3>نتائج الاختبارات والإجراءات التشغيلية</h3>
+<ul>
+<li>نجح فحص <code>Compose</code> و<code>promtool check config</code>.</li>
+<li>فشلت البداية باستعمال <code>Grafana 13.3.0</code> عند <code>data-source provisioning</code> برسالة <code>data source not found</code>. استُعمل الإصدار الرسمي المحدّث <code>12.4.14</code>، وأُعيدت تهيئة <code>Grafana volume</code> الجديدة لهذه المحاولة فقط؛ لم تمس أي بيانات سابقة للتطبيق. قد تبقى image المحاولة الأولى في Docker cache.</li>
+<li>أصبحت الخدمتان <code>healthy</code>، ونجح فحص <code>Nginx</code> ثم <code>reload</code>.</li>
+<li>نجح تحميل صفحة <code>login</code> وملف <code>JavaScript</code> عبر <code>HTTPS</code> تحت <code>/grafana/</code>، مع التحقق من الشهادة.</li>
+<li>رُفض الوصول إلى <code>data-source API</code> دون حساب بالرمز <code>401</code>. نجح <code>admin login</code> الفعلي وأُنشئت <code>secure session cookie</code>.</li>
+<li>نجح <code>data-source health check</code>، وأعاد الاستعلام عبر <code>Grafana</code> قيمة <code>1</code> لـ<code>up{job=&quot;prometheus&quot;}</code>.</li>
+<li>أُعيد إنشاء containers المراقبة فقط للتحقق من <code>persistence</code>. تغيرت معرفاتها مع الاحتفاظ بالـ volumes نفسها، ونجح الدخول مجدداً واسترجاع قياس بتاريخ سابق لإعادة الإنشاء.</li>
+<li>لم تتغير معرفات أو أوقات بدء containers الخاصة بـ<code>Backend</code> و<code>MySQL</code> و<code>migrate</code> و<code>Nginx</code>. بقي <code>HTTPS /health</code> يعمل بالرمز <code>200</code>، وتطابقت بصمات <code>Backend code</code> مع النسخة قبل العمل.</li>
+<li>أُغلقت جلسة الدخول التجريبية. لم تُنشأ <code>cron job</code> جديدة أو <code>exporters</code> أو <code>custom dashboards</code> أو <code>alert rules</code> أو إشعارات خارجية.</li>
+</ul>
+<p>أُضيف ملفان داخل <code>monitoring/</code>. وعُدّل <code>production Compose</code> و<code>Nginx configuration</code> و<code>.env.example</code> و<code>.env</code> المحلية الخاصة (متغيرات Grafana والصلاحيات) ودليل التشغيل وتقارير التقدم الإنجليزية والعربية. لم يُحذف أي ملف من المشروع. شملت إجراءات Docker تحميل images وإنشاء شبكة monitoring وvolumes جديدة وتشغيل واختبار الخدمات وإجراء <code>Nginx reload</code>.</p>
+<h2>15. تحديث 7 نوفمبر 2026: Dashboard تلقائية في Grafana</h2>
+<p>تعرض صفحة <strong>Home</strong> الآن <strong>Transcendence - Monitoring Overview</strong> تلقائياً. تتجدد البيانات كل <strong>15 ثانية</strong>، ويعرض النطاق الافتراضي آخر <strong>15 دقيقة</strong>. لا تحتاج إلى كتابة queries. إذا كانت صفحة Explore مفتوحة مسبقاً، اضغط Home أو افتح <a href="https://localhost/grafana/d/transcendence-monitoring/transcendence-monitoring-overview">Dashboard مباشرة</a>.</p>
+<p>تحتوي Dashboard على توضيح لنطاق المراقبة، وأربع بطاقات وأربعة graphs. تعرض حالة scrape الخاصة بـPrometheus، واستهلاك process من RAM وCPU، وuptime، وتاريخ RAM وCPU، ومدة scrape، وعدد time series النشطة. تُحسب CPU كنسبة من core واحدة بمتوسط خمس دقائق. هذه قياسات Prometheus نفسها؛ لا تعني أن Backend أو MySQL يعملان، ولا تمثل موارد الجهاز كاملة. كما أن scrape duration ليست API latency.</p>
+<h3>دور الملفات</h3>
+<ul>
+<li><code>monitoring/grafana-dashboards.yml</code>: ملف جديد يعرّف provisioning لتحميل Dashboard تلقائياً.</li>
+<li><code>monitoring/dashboards/monitoring-overview.json</code>: ملف جديد يحتوي panels وqueries وrefresh interval.</li>
+<li><code>docker-compose.prod.yml</code>: أُضيفت mounts بصلاحية القراءة فقط، وإعداد اختيار Dashboard بوصفها Home.</li>
+<li><code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقارير التقدم الإنجليزية والعربية: وُثّقت طريقة الاستخدام والتحقق وحدود المراقبة.</li>
+</ul>
+<p>تُراجع Grafana ملفات provisioning كل 30 ثانية. حُفظ تعريف Dashboard في المشروع، وعُطّل حفظ التعديلات من UI؛ التعديلات الدائمة تكون في JSON.</p>
+<h3>التحقق والإجراءات</h3>
+<p>أُعيد إنشاء Grafana فقط مع الاحتفاظ بالـvolume الحالية، وأصبحت healthy. أثبتت اختبارات API بعد login وجود Dashboard وتسعة panels واختيارها لـHome وإعداد refresh كل 15 ثانية. أعادت queries الست المختلفة data حقيقية، ونجحت أيضاً عبر API التي تستخدمها panels. بقيت container IDs وأوقات بدء Backend وMySQL وmigrate وNginx كما هي، وأعاد HTTPS health الرمز 200. أُغلقت جلسة الاختبار.</p>
+<p>لم يتغير Backend code أو credentials أو Nginx، ولم يُحذف أي ملف من المشروع. لم يُتحقق بصرياً من العرض لأن browser المدمج لا يثق في local certificate؛ استُخدمت شهادة المشروع للتحقق من الاتصال أثناء اختبارات API.</p>
+<p>لم تكتمل Phase 18 بعد: تبقى exporters وقياسات الجهاز والـcontainers وMySQL وHTTPS وAPI errors وdashboards الخاصة بها وalerts.</p>
+
+<h2>16. تحديث 7 نوفمبر 2026: مراقبة موارد الجهاز</h2>
+<p>بعد مراجعة متطلبات Monitoring في الملفات الثلاثة، أُضيفت service باسم <strong>Node Exporter</strong> باستخدام image <code>prom/node-exporter:v1.12.1</code>. تقرأ هذه الخدمة CPU وRAM وfilesystems الخاصة بالجهاز، ويجمع Prometheus القياسات من <code>node-exporter:9100</code> كل 15 ثانية، ثم تعرضها Grafana تلقائياً.</p>
+<h3>كيف تصل إلى قياسات الجهاز؟</h3>
+<p>رُبطت <code>/proc</code> و<code>/sys</code> و<code>/</code> من الجهاز داخل container بواسطة read-only bind mounts. تشير إعدادات <code>path.procfs</code> و<code>path.sysfs</code> و<code>path.rootfs</code> إلى هذه المسارات. تسمح <code>rslave</code> بمتابعة تغييرات submounts. تعمل service بالمستخدم <code>65534:65534</code>، مع read-only root filesystem وإسقاط Linux capabilities ومنع privilege escalation. لها حد 128 MiB من RAM ونصف CPU، وتوجد في شبكة monitoring الداخلية دون نشر port على الجهاز. لم نحتج إلى Dockerfile أو volume جديدة لحفظ البيانات؛ Prometheus يحفظ التاريخ. هذا الإعداد مخصص لـLinux Docker host، وتتيح mounts للخدمة قراءة معلومات من الجهاز.</p>
+<h3>ماذا تعرض Dashboard؟</h3>
+<p>أُضيفت تسعة panels فوق قياسات Prometheus السابقة، فأصبح العدد 18 بما فيها لوحة الشرح:</p>
+<ul>
+<li>حالة scrape الخاصة بـNode Exporter؛ UP تعني الوصول إلى metrics endpoint، ولا تثبت صحة Backend.</li>
+<li>Host CPU: متوسط الوقت غير الخامل عبر جميع logical CPUs خلال خمس دقائق، ويشمل I/O wait. يحتاج إلى scrape مرتين على الأقل.</li>
+<li>Host RAM used: النسبة المحسوبة من <code>MemAvailable</code> و<code>MemTotal</code>؛ الذاكرة القابلة للاسترجاع تُحسب ضمن المتاح. لا تشمل swap.</li>
+<li>Root filesystem used / reserved: المساحة غير المتاحة للمستخدم العادي، بما فيها المساحة المحجوزة؛ لذلك قد تختلف عن نسبة <code>df</code>.</li>
+<li>تاريخ CPU وRAM، والمساحة المتاحة لكل filesystem، وRAM المتاحة والإجمالية.</li>
+</ul>
+<p>هذه قياسات الجهاز بكامل برامجه، بما فيها البرامج خارج Docker. بقيت قياسات Prometheus في الجزء السفلي بعناوين توضح الفرق. افتح Dashboard وأجرِ refresh مرة واحدة لتحميل layout الجديدة؛ بعدها تتجدد البيانات كل 15 ثانية.</p>
+<h3>الاختبارات والإجراءات</h3>
+<p>نجح Compose validation وفحص Prometheus configuration. شُغّلت Node Exporter الجديدة، وأُرسل SIGHUP إلى Prometheus لإعادة تحميل الإعداد دون إيقافه. حمّلت Grafana التعديلات عبر provisioning تلقائياً.</p>
+<p>نجح login عبر HTTPS، وظهرت Dashboard بوصفها Home مع 18 panels وrefresh كل 15 ثانية. أعادت queries الثلاث عشرة المختلفة data حقيقية، ونجحت عبر API الخاصة بـpanels. كانت Node Exporter في حالة UP ونجحت collectors المفعّلة.</p>
+<p>طابقت RAM الإجمالية قيمة النظام، نحو 7.06 GiB، وطابق عدد CPU القيمة الفعلية: ثمانية logical CPUs. تطابق حجم root filesystem تماماً، وتقاربت المساحة المتاحة ضمن هامش 128 MiB لاختلاف وقت القياس؛ كانت نحو 161.41 GiB أثناء الاختبار. تأكدنا من عدم نشر ports ومن read-only mounts وتشغيل service بمستخدم غير root.</p>
+<p>بقيت معرفات وأوقات بدء Backend وMySQL وmigrate وNginx كما هي، وأعاد HTTPS health الرمز 200. أُغلقت جلسة الاختبار. كان التحقق عبر Grafana API مع شهادة المشروع؛ لم يُجرَ تحقق بصري من browser.</p>
+<h3>الملفات التي تغيرت</h3>
+<ul>
+<li><code>docker-compose.prod.yml</code>: إضافة Node Exporter وقيود التشغيل وmounts والشبكة.</li>
+<li><code>monitoring/prometheus.yml</code>: إضافة target الخاصة بـNode Exporter.</li>
+<li><code>monitoring/dashboards/monitoring-overview.json</code>: إضافة panels الجهاز وتحديث شرح النطاق.</li>
+<li><code>docs/deployment/LOCAL_PRODUCTION.md</code>: توثيق التشغيل وتعريف القياسات والتحقق.</li>
+<li><code>docs/deployment/PROGRESS_2026-11-05.md</code>: تحديث التقرير الإنجليزي.</li>
+<li><code>docs/deployment/PROGRESS_2026-11-05.html</code>: تحديث هذا الشرح العربي.</li>
+</ul>
+<p>لم يُضف أو يُحذف أي ملف من المشروع، ولم تتغير credentials أو Backend code. استُخدم ملف اختبار مؤقت داخل <code>/tmp</code>.</p>
+<p>لم تكتمل Monitoring بعد؛ تبقى مراقبة Backend وMySQL وcontainer restarts وAPI errors وalerts. الألوان داخل Dashboard لا تعني وجود alert rules أو إشعارات.</p>
+
+<h2>17. تحديث 7 نوفمبر 2026: قياسات كل Container</h2>
+<p>بعد مراجعة PDFs الثلاثة، أُضيفت <strong>cAdvisor v0.60.6</strong> داخل شبكة monitoring، وأُضيف target لها في Prometheus. تجمع CPU وRAM وNetwork وDisk I/O لكل Container. أصبحت Dashboard تحتوي على 26 panels، منها ثمانية جديدة: حالة cAdvisor وعدد Containers وستة graphs للقياسات.</p>
+<p>تُعرض أسماء Containers كاملة، بما فيها Dev وProduction. كانت تسعة Containers خدامة أثناء الاختبار. Container ديال migrate متوقفة بعد إتمام عملها، لذلك لا توجد لها قياسات usage حالية. قد تبقى أسماء قديمة في التاريخ، وغياب data لا يعني أن الخدمة سليمة أو أن الاستهلاك صفر.</p>
+<h3>معنى القياسات</h3>
+<ul>
+<li>CPU بنسبة 100% تعني core واحدة، ويمكن أن تتجاوز 100%. القيمة متوسط خمس دقائق وليست نسبة من CPU limit.</li>
+<li>RAM working set تعني memory usage بعد طرح inactive file cache؛ ليست process RSS.</li>
+<li>Network received/sent تعرض bytes في الثانية لكل Container.</li>
+<li>Disk read/write I/O تعرض نشاط القراءة والكتابة، وليس حجم volume أو المساحة الحرة.</li>
+</ul>
+<h3>الإعداد والصلاحيات</h3>
+<p>تعمل cAdvisor دون port منشور ودون privileged mode، مع read-only root filesystem وإسقاط capabilities ومنع privilege escalation، وحد 256 MiB من RAM ونصف CPU. فُعّلت فقط قياسات CPU وmemory وnetwork وdiskIO. اقتصرت Docker labels المصدّرة على Compose project وservice.</p>
+<p>تقرأ معلومات الجهاز وDocker عبر mounts للقراءة فقط: root filesystem وsysfs وDocker storage وDocker socket وcontainerd socket. احتاج Docker الحالي إلى containerd socket لكي تتعرف cAdvisor على Containers؛ فشل التعرف أولاً ثم نجح بعد إضافة mount وإعادة إنشاء cAdvisor وحدها. <strong>Read-only mount للـsocket لا يمنع API من إجراء تغييرات</strong>؛ هذه sockets تمنح accès قوياً للـdaemon، لذلك تبقى الخدمة داخل الشبكة ويجب الوثوق في image المستخدمة. لا تتوفر OOM events دون <code>/dev/kmsg</code>، ولم نضفها في هذه الخطوة.</p>
+<h3>الاختبارات</h3>
+<p>نجح Compose validation وpromtool. أعادت queries الإحدى والعشرون المختلفة data حقيقية عبر Grafana وAPI الخاصة بـpanels. بعد دورة provisioning ظهرت 26 panels وrefresh كل 15 ثانية في Home. غطت metrics الست جميع Containers التسعة الخدامة. وافقت RAM working set قيم docker stats ضمن هامش الأكبر من 32 MiB أو 25% بسبب وقت القياس وطريقة الحساب؛ هذا فحص تقريبي وليس قياساً متزامناً دقيقاً.</p>
+<p>بقيت container IDs وأوقات بدء Backend وMySQL وmigrate وNginx كما هي، وأعاد HTTPS health الرمز 200. لم يتغير Backend code أو credentials. استُخدمت API للتحقق، ولم يُجرَ تحقق بصري من browser.</p>
+<h3>الملفات والإجراءات</h3>
+<p>عُدّلت ستة ملفات موجودة: <code>docker-compose.prod.yml</code> و<code>monitoring/prometheus.yml</code> و<code>monitoring/dashboards/monitoring-overview.json</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> والتقرير English وهذا التقرير العربي. لم يُضف أو يُحذف أي ملف من المشروع؛ استُخدم script تجريبي داخل <code>/tmp</code>.</p>
+<p>حُمّلت image وشُغّلت cAdvisor ثم أُعيد إنشاؤها لإضافة containerd socket. أُعيد تحميل Prometheus بواسطة SIGHUP، وقرأت Grafana ملف Dashboard تلقائياً دون restart.</p>
+<p>ما زالت مراقبة Backend وMySQL health وrestart count وAPI errors وalerts غير مكتملة. قياسات usage لا تعوّض هذه الفحوص.</p>
+
+<h2>18. الاقتصار على Production</h2>
+<p>أُوقفت Containers الخاصة بـDev: <code>backend</code> و<code>mysql</code> التابعة لمشروع Compose باسم <code>transcendence</code>. حُفظت Containers وvolumes والبيانات وملفات Dev لإعادة استعمالها عند الحاجة.</p>
+<p>أُضيف filter إلى queries الخاصة بـcAdvisor لعرض مشروع <code>transcendence-prod</code> فقط، حتى إذا شُغّلت Dev مجدداً. لم يُحذف تاريخ القياسات من Prometheus؛ يخضع لمدة retention المعتادة. قياسات الجهاز تبقى شاملة لكل البرامج الخدامة.</p>
+<p>عُدّل Dashboard JSON ودليل التشغيل وتقارير التقدم الإنجليزية والعربية فقط.</p>
+
+<h2>19. مراقبة Backend عبر HTTPS</h2>
+<p>بعد مراجعة PDFs الثلاثة، أُضيفت <strong>Blackbox Exporter v0.29.1</strong>. ترسل طلب GET إلى <code>https://nginx/health</code> عبر شبكة Docker، وتتحقق من TLS وHTTP 200 ووجود <code>status: ok</code> و<code>service: backend</code> في الجواب. تُرفض redirects وHTTP غير المشفّر، والمهلة خمس ثوانٍ.</p>
+<h3>كيف تتعامل مع localhost والشهادة؟</h3>
+<p>تستعمل Docker DNS للوصول إلى Nginx، وترسل HTTP Host وTLS server name بقيمة <code>localhost</code> لمطابقة الشهادة الحالية. رُبطت الشهادة العامة بوصفها CA موثوقة؛ لم يُربط private key ولم يُعطّل TLS verification. لا نستعمل localhost كعنوان الاتصال داخل container لأنه يشير إلى container نفسها.</p>
+<p>المسار هو: Prometheus ثم Blackbox Exporter ثم HTTPS Nginx ثم Backend. جواب <code>/health</code> ثابت، لذلك لا يؤكد اتصال MySQL. هذا فحص داخلي لا يختبر host port forwarding أو الوصول من خارج الجهاز أو ثقة browser في الشهادة.</p>
+<h3>الإعداد وDashboard</h3>
+<p>تعمل الخدمة داخل شبكتي monitoring وapplication دون port منشور، بالمستخدم <code>65534:65534</code>، مع read-only filesystem وإسقاط capabilities ومنع privilege escalation وحد 128 MiB ونصف CPU. أُضيف job لقياسات exporter وjob للفحص الفعلي؛ <code>probe_success</code> هي نتيجة فحص Backend، بينما <code>up</code> الخاصة بـexporter تعني فقط إمكانية جمع metrics منها.</p>
+<p>أُضيفت ستة panels: حالة exporter وحالة Backend وHTTP code والأيام الباقية للشهادة ومدة الفحص وتاريخ التوفر. أصبحت Home تحتوي على 32 panels وتتجدد كل 15 ثانية. مدة الفحص لا تمثل latency لجميع API requests. تُسجل طلبات الفحص العادية داخل Nginx access logs.</p>
+<h3>الاختبارات</h3>
+<p>نجح config validation وتشغيل exporter. أعادت queries السبع والعشرون المختلفة data فعلية عبر Grafana وAPI الخاصة بـpanels. أعاد الفحص المجدول success 1 وHTTP 200 مع TLS، وظهرت مدة صلاحية الشهادة.</p>
+<p>نجحت اختبارات الفشل دون إيقاف Production: مسار غير موجود وHTTP بلا TLS وport مسدود أعادت كلها success 0. تعثر DNS مرة في wget التجريبي رغم نجاح الفحص المجدول؛ استُخدم IP الداخلي المقروء من Docker لإكمال الاختبارات، وبقي الإعداد الدائم يستعمل Docker DNS.</p>
+<p>غطت cAdvisor ثمانية Containers ديال Production. بقيت معرفات وأوقات بدء خدمات التطبيق كما هي، ونجح HTTPS health من الجهاز بالرمز 200. لم يُجرَ تحقق بصري من browser؛ استُخدمت API.</p>
+<h3>الملفات والإجراءات</h3>
+<p>أُضيف <code>monitoring/blackbox.yml</code>. عُدّلت ملفات <code>docker-compose.prod.yml</code> و<code>monitoring/prometheus.yml</code> و<code>monitoring/dashboards/monitoring-overview.json</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقارير التقدم الإنجليزية والعربية. لم يُحذف أي ملف، ولم يتغير Backend code أو credentials أو Nginx configuration.</p>
+<p>حُمّلت image وشُغّلت الخدمة الجديدة، وأُعيد تحميل Prometheus بإشارة SIGHUP. قرأت Grafana Dashboard تلقائياً. أُجريت الاختبارات بواسطة scripts مؤقتة داخل <code>/tmp</code>، ولم تُضف targets دائمة لاختبارات الفشل.</p>
+<p>تبقى MySQL health وrestart counts وAPI errors وalerts لاستكمال Monitoring.</p>
+
+<h2>20. مراقبة MySQL بحساب مخصص</h2>
+<p>بعد مراجعة PDFs الثلاثة، أُضيفت <strong>mysqld-exporter v0.21.0</strong> وربطتها Prometheus بـjob باسم <code>mysql</code>. تقرأ الخدمة global status وglobal variables فقط؛ عُطلت collectors الافتراضية الأخرى.</p>
+<h3>الحساب والصلاحيات</h3>
+<p>أُنشئ حساب <code>monitoring_exporter</code>@<code>%</code> بصلاحية <strong>USAGE فقط</strong> وحد أقصى ثلاثة connections. يستطيع تسجيل الدخول وقراءة status المطلوبة في MySQL 8.4، ولا يملك صلاحية قراءة أو كتابة جداول التطبيق. تسمح <code>%</code> بعناوين Docker المتغيرة، مع عزل الشبكة وكلمة مرور مستقلة.</p>
+<p>حُفظت password عشوائية مستقلة باسم <code>MYSQL_EXPORTER_PASSWORD</code> في <code>.env</code> الخاصة، وأُضيف المتغير فارغاً إلى <code>.env.example</code>. تُمرر للخدمة الجديدة فقط. يستطيع Docker administrator الاطلاع على environment؛ لا يمثل هذا secret vault.</p>
+<p>أُضيف <code>scripts/setup-mysql-monitoring.py</code> لإعادة تجهيز الحساب عند بناء MySQL جديدة أو استرجاعها إلى volume جديدة. يستعمل root داخل MySQL لإدارة حساب المراقبة وحده، ويحجب مخرجات SQL التي قد تكشف secrets، ويرفض الحساب الموجود إذا كانت له grants غير متوقعة. لا تحتوي application backups على system accounts، لذلك وُثقت إعادة تجهيز الحساب في دليل recovery. لا يُشغّل هذا script على مشروع restore-test لأنه يستهدف Production صراحة.</p>
+<h3>الإعداد وDashboard</h3>
+<p>الخدمة داخل شبكتي database وmonitoring دون host port، وتعمل بمستخدم <code>65534:65534</code> مع read-only filesystem وإسقاط capabilities ومنع privilege escalation وحد 128 MiB ونصف CPU. مهلة query ثلاث ثوانٍ وحد pool اتصالان لكل scrape.</p>
+<p>أُضيفت ثمانية panels: حالة exporter وحالة MySQL connection وعدد clients والحد الأقصى للاتصالات وclient statements في الثانية وتاريخ connections وuptime وrunning threads. أصبحت Dashboard تحتوي على 40 panels وتتجدد كل 15 ثانية.</p>
+<p><code>up</code> الخاصة بـjob تعني أن exporter متاحة، بينما <code>mysql_up</code> تعني نجاح login/ping إلى MySQL بحساب المراقبة. هذا لا يثبت أن Backend تستعمل credentials صحيحة أو أن جميع queries ديال التطبيق ناجحة. تشمل العدادات global حركة health checks وmonitoring أيضاً.</p>
+<h3>الاختبارات والإجراءات</h3>
+<p>نجح config validation، وأعادت queries الأربع والثلاثون المختلفة data عبر Grafana وAPI الخاصة بـpanels. نجح الاتصال الحقيقي وأعاد port خاطئ mysql_up 0 دون إيقاف MySQL. تأكدنا من USAGE وحد الاتصالات الثلاثة، وفشل SELECT LIMIT 0 على جدول التطبيق بالخطأ 1142، دون قراءة rows. طابقت قيمة max_connections قيمة MySQL الفعلية.</p>
+<p>غطت cAdvisor تسعة Containers خدامة ديال Production. بقيت معرفات وأوقات بدء خدمات التطبيق كما هي ونجح HTTPS health بالرمز 200. لم يُجرَ تحقق بصري من browser؛ استُخدمت API.</p>
+<p>أُضيف ملف setup فقط. عُدّلت production Compose وPrometheus configuration وDashboard JSON و<code>.env</code> و<code>.env.example</code> ودليل التشغيل ودليل backup/recovery والتقريران English والعربي. لم يُحذف أي ملف. أُنشئ حساب MySQL واحد وحُمّلت image وشُغّلت exporter وأُعيد تحميل Prometheus. لم يتغير Backend code أو schema أو application tables أو credentials الموجودة. استُخدمت scripts مؤقتة داخل <code>/tmp</code> للتحقق.</p>
+<p>تبقى restart counts وAPI errors وalerts لاستكمال Monitoring.</p>
+
+<h2>21. Docker restart counts والحالة الحالية</h2>
+<p>بعد مراجعة متطلبات PDFs، أُضيف <code>monitoring/docker-state-exporter.mjs</code>. هو exporter مستقل يستعمل Node built-in modules فقط، ويقرأ RestartCount وRunning مباشرة من Docker API v1.45 عبر طلبات GET ثابتة. يقتصر على مشروع <code>transcendence-prod</code> ويتحقق من project label بعد inspect أيضاً. لا يصدر environment variables أو محتوى inspect الكامل ولا يسمح للمتصفح باختيار Docker API أو target أخرى.</p>
+<h3>الصلاحيات وطريقة التشغيل</h3>
+<p>تعمل الخدمة على شبكة monitoring دون host port، باستخدام Node 22 image مثبتة بـdigest. الـroot filesystem والـscript والـsocket مرتبطة للقراءة فقط، مع إسقاط capabilities ومنع privilege escalation وحد 64 MiB وربع CPU. تعمل بالمستخدم root لفتح Docker socket. <strong>Read-only socket mount لا يفرض read-only Docker API</strong>؛ هذا accès قوي، حتى وإن كان البرنامج يستعمل GET فقط. لم نستعمل privileged mode.</p>
+<h3>معنى القياسات</h3>
+<p>أُضيفت أربع panels: نجاح جمع الحالة وRestartCount لكل Container وتاريخه وRunning state. أصبح العدد 44 panels، مع refresh كل 15 ثانية. تستثني لوحة Running خدمة migrate لأنها تتوقف بشكل طبيعي بعد نجاحها.</p>
+<p>RestartCount هي قيمة Docker الخاصة بالـContainer الحالية، وليست مجموع restarts منذ بداية المشروع. قد تعود للصفر بعد إعادة إنشاء Container أو reset لآلية restart. لذلك metric من نوع gauge وتحمل container ID لتمييز التاريخ. لا نستنتج منها عدداً شاملاً لكل manual restart. Running تساوي 1 لا تعني صحة التطبيق، والـContainer المحذوفة لا تنتج series حالية.</p>
+<p>إذا تعذر الوصول إلى Docker، تُعرض <code>docker_state_up=0</code> وتُحذف قياسات Containers من تلك الاستجابة بدلاً من إعادة استعمال بيانات قديمة. أما <code>up</code> الخاصة بـPrometheus فتتحقق من الوصول إلى exporter نفسها.</p>
+<h3>الاختبارات الفعلية</h3>
+<p>نجح config validation، وطابقت RestartCount وRunning القيم الفعلية لـ11 Container في Production، منها عشرة خدامة وmigrate متوقفة بنجاح. أعادت queries السبع والثلاثون المختلفة data عبر Grafana وAPI الخاصة بـpanels. بقيت معرفات وأوقات بدء خدمات التطبيق كما هي ونجح HTTPS health بالرمز 200.</p>
+<p>أُنشئت Container مؤقتة معزولة بسياسة <code>on-failure:2</code>، وفشلت وأُعيد تشغيلها مرتين فعلياً. عرض exporter تجريبي منفصل العدد 2 والحالة stopped، واستثنى Production. رُفض POST بالرمز 405 وأعاد مسار Docker غير مسموح 404. exporter تجريبي آخر بلا socket أعاد collection DOWN دون قياسات قديمة. أُزيلت Containers التجريبية الثلاث دون volumes أو ports منشورة. قد يبقى تاريخها لدى cAdvisor حتى انتهاء retention، ولا تظهر في Dashboard المفلترة لـProduction.</p>
+<h3>الملفات والإجراءات</h3>
+<p>أُضيف ملف exporter فقط. عُدّل <code>docker-compose.prod.yml</code> و<code>monitoring/prometheus.yml</code> وDashboard JSON ودليل التشغيل والتقريران English والعربي. شُغّلت الخدمة الجديدة وأُعيد تحميل Prometheus، وقرأت Grafana الملف تلقائياً. لم يتغير Backend code أو credentials أو database schema أو accounts، ولم يُحذف أي ملف من المشروع. استُخدمت scripts تحقق مؤقتة داخل <code>/tmp</code>. لم يُجرَ تحقق بصري من browser؛ استُخدمت API.</p>
+<p>تبقى API errors وAlerts لاستكمال Monitoring.</p>
+
+<h2>22. مراقبة API requests وerrors عبر Nginx</h2>
+<p>بعد مراجعة متطلبات Monitoring في PDFs الثلاثة، أُضيف Nginx log exporter v1.11.0. ترسل Nginx إليه stream إضافية ومحدودة عبر UDP syslog داخل Docker، مع الإبقاء على stdout logs وrotation كما هما.</p>
+<h3>البيانات والنطاق</h3>
+<p>تحتوي الرسالة على method محدودة القيم، ومسار وبروتوكول ثابتين لأغراض parser، وstatus وحجم الرد وrequest time. لا تُرسل URL الحقيقية أو IP ديال المستخدم أو query أو headers أو cookies أو body. تُجمع requests ديال HTTPS الموجهة إلى Backend، باستثناء <code>/health</code> وGrafana وSocket.IO. لا تدخل HTTP redirects أو requests التي تتجاوز Nginx. خاص مراجعة هاد النطاق ملي نزيدو Frontend routing.</p>
+<p>أُضيفت ثمانية panels: حالة exporter وعدد responses المرصودة وrequests في الثانية ونسبة 5xx وrates حسب status ونسب 4xx و5xx ومتوسط المدة وparse errors. أصبحت Home فيها 52 panels و44 query مختلفة، مع refresh كل 15 ثانية. نافذة rates خمس دقائق. بلا traffic، النسبة والمتوسط ما عندهمش قيمة وكيبان No traffic / no data. 4xx يمكن تكون أخطاء client أو authentication متوقعة، ماشي دائماً مشكل فـBackend.</p>
+<h3>الإعداد والحدود</h3>
+<p>الخدمة داخل application وmonitoring بلا host ports ولا Docker socket ولا volume جديدة. تعمل بمستخدم 65534، مع read-only root/config وإسقاط capabilities ومنع privilege escalation وحد 128 MiB ونصف CPU. Labels محدودة فـmethod وstatus وenvironment ثابتة، بلا مسارات حقيقية.</p>
+<p>UDP لا يضمن تسليم كل رسالة ولا يعاود المفقود بعد downtime. counters كتعود للصفر ملي exporter كتعاود تشعل؛ Prometheus كيتعامل مع reset المرصود ولكن ما كيرجعش الأحداث الضائعة. هادي رؤية تشغيلية، ماشي سجل محاسبي دقيق. exporter UP وparse errors صفر ما كيضمنوش أن كل الرسائل وصلات.</p>
+<p>Nginx كتحل اسم exporter عند تحميل config؛ <strong>من بعد إعادة إنشاء exporter وتبدل IP، خاص Nginx reload</strong>. أُضيفت dependency فـCompose باش تكون exporter موجودة قبل startup ديال Nginx.</p>
+<h3>الاختبارات والإجراءات</h3>
+<p>نجح config validation ديال Compose وNginx وPrometheus. شُغّلت الخدمة الجديدة، ودار Nginx graceful reload وPrometheus SIGHUP. Grafana قرات Dashboard تلقائياً.</p>
+<p>requests حقيقية وآمنة فـProduction رجعات وتحسبات 200 و401 و404. Nginx وexporter مؤقتتان ومعزولتان رجعات وتحسبات 200 و404 و503 بالضبط، وتأكدنا من استثناء health/Grafana/Socket.IO وغياب marker داخل URL عن metrics. تحيدات الموارد التجريبية وconfig المؤقتة. ما تسببناش فـ5xx ديال Production.</p>
+<p>queries الأربع والأربعون أعطت data عبر Grafana وAPI ديال panels بعد traffic تجريبية. فحص المتوسط بلا traffic ما عطاش sample، وهذا سلوك مقصود. نجحت الاستثناءات حتى على Nginx ديال Production وبقات parse errors صفر. بقات بعض أسماء Containers التجريبية المحذوفة مؤقتاً فـcache ديال cAdvisor؛ الفحص باستعمال filter ديال Production طابق 11 Container خدامة. ما تبدلاتش معرفات أو أوقات بدء خدمات التطبيق ونجح HTTPS health بالرمز 200. التحقق كان عبر API، بلا معاينة بصرية فـbrowser.</p>
+<h3>الملفات</h3>
+<p>أُضيف <code>monitoring/nginxlog.yml</code>. عُدّل <code>docker-compose.prod.yml</code> و<code>nginx/nginx.conf</code> و<code>monitoring/prometheus.yml</code> وDashboard JSON ودليل التشغيل والتقريران English والعربي. لم يُحذف أي ملف ولم يتغير Backend code أو credentials أو database tables أو accounts. استُخدمت scripts مؤقتة داخل <code>/tmp</code>، وrequests التجريبية بقات ضمن logs وmetrics حسب retention المعتادة.</p>
+<p>تبقى <strong>Alerts واختباراتها</strong> لاستكمال Monitoring.</p>
+
+<h2>23. إضافة Alerts إلى Monitoring</h2>
+<p>راجعنا ملفات PDF الثلاثة قبل هذه المرحلة. أصبح Prometheus يقيّم <strong>16 Alert rules</strong> واثنتين من Recording rules كل 15 ثانية.</p>
+<p>تراقب القواعد اتصال Backend عبر HTTPS، وحالة MySQL، وDocker، والخدمات المطلوبة، وغياب metrics، وضغط CPU، والمساحة المتاحة من RAM وDisk، وتكرار restart، وعدد MySQL connections، ونسبة API 5xx، وأخطاء قراءة logs، وقرب انتهاء TLS certificate، وأخطاء تقييم القواعد.</p>
+<h3>كيف تعمل Alerts؟</h3>
+<ul>
+<li><strong>pending:</strong> ظهر الشرط، لكن مدة الانتظار لم تكتمل.</li>
+<li><strong>firing:</strong> استمر الشرط طوال مدة الانتظار.</li>
+<li><strong>resolved:</strong> عاد الوضع الطبيعي، فيختفي Alert من جدول الحالات النشيطة.</li>
+</ul>
+<p>مثلاً: استمرار انقطاع Backend لمدة دقيقة يؤدي إلى firing. ارتفاع CPU فوق 90% يحتاج عشر دقائق، وانخفاض RAM أو Disk المتاحة تحت 10% يحتاج خمس دقائق. ارتفاع API 5xx فوق 5% يحتاج دقيقتين، مع وجود 20 request على الأقل خلال خمس دقائق. توجد جميع الشروط في Operating guide.</p>
+<h3>ماذا يظهر في Grafana؟</h3>
+<p>أضفنا أربع Panels: عدد firing، وعدد pending، والوقت منذ آخر تقييم لقواعد Monitoring، وجدول Alerts النشيطة. أصبح Dashboard يحتوي على 56 Panels. الجدول الفارغ لا يكفي وحده للحكم بأن كل شيء سليم؛ يجب أن تكون metrics حديثة وأن يعمل الاتصال بـ Prometheus.</p>
+<p>هذه قواعد يديرها Prometheus وتعرضها Grafana داخل Dashboard. لم نضف Email أو Discord أو Alertmanager؛ التنبيهات محلية فقط إلى حين اختيار وجهة خارجية. عند توقف الجهاز بالكامل أو Prometheus، نحتاج Monitoring مستقلاً لإرسال تنبيه.</p>
+<h3>التحقق والتغييرات</h3>
+<p>نجحت 26 حالة اختبار بواسطة promtool. أكد الفحص الفعلي عبر HTTPS أن القواعد الست عشرة سليمة، وأن Queries تعمل، وأن Production لا تحتوي حالياً على Alert نشيط، وأن Backend يعيد HTTP 200. لم ننجز فحصاً بصرياً داخل Browser.</p>
+<p>أعدنا إنشاء Prometheus فقط لإضافة mount لملف القواعد، مع الاحتفاظ بـ Volume البيانات. قرأت Grafana تحديث Dashboard تلقائياً. لم نغير Backend code أو Database schema أو credentials. احتاج test fixture المؤقت إلى تصحيح Content-Type الخاص بـ metrics؛ لم يكن هذا خطأ في Production.</p>
+<p>أضفنا ملفي <code>monitoring/alerts.yml</code> و<code>monitoring/alerts.test.yml</code>. وعدّلنا <code>docker-compose.prod.yml</code> و<code>monitoring/prometheus.yml</code> و<code>monitoring/dashboards/monitoring-overview.json</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقريري Progress بصيغتي Markdown وHTML. لم نحذف أي ملف من المشروع.</p>
+<p>يمكن أن يؤدي Backup يوقف Backend لأكثر من دقيقة إلى Alert صحيح. تبقى عتبات التنبيه قابلة للمراجعة بحسب الاستعمال الفعلي، كما أن إرسال logs بواسطة UDP قد يفقد بعض البيانات.</p>
+
+<p>نجح الاختبار المباشر النهائي باستعمال قاعدة Backend الحقيقية داخل Prometheus معزول: انتقل Alert من <code>pending</code> إلى <code>firing</code> ثم <code>resolved</code> بعد recovery. أزلنا containers وconfiguration المؤقتة بعد الاختبار. احتاج test أيضاً إلى انتظار readiness قبل قراءة API. بقيت containers الخاصة بـ Backend وMySQL وmigrate وNginx بنفس IDs ووقت التشغيل. اكتملت قواعد Alerts المحلية واختباراتها؛ الإرسال الخارجي غير مهيأ.</p>
+<h2>24. التحقق من Local Production — 2026-11-07</h2>
+<p>نجح Restore لآخر Backup داخل stack معزول. اشتغلت migrations وBackend، ثم أعدنا إنشاء MySQL وmigrate وBackend داخل هذا الـstack. بقي محتوى جميع Tables مطابقاً، وبقي ملف اختبار داخل storage محفوظاً.</p>
+<p><strong>حدّ الاختبار:</strong> كانت Backup تحتوي على صفر uploaded files، لذلك اختبرنا بقاء الملفات بواسطة ملف مؤقت. لم نختبر بهذه العملية upload/download flow الكامل للتطبيق.</p>
+<p>تحققنا فعلياً من الخدمات وHTTPS ورفض login غير صحيح وGrafana و56 Dashboard panels و16 Alert rules، بالإضافة إلى Log rotation وPorts المحلية. كان عدد Alerts النشيطة صفراً. وجدنا Backup cron يومياً في 03:00 وcron service نشطة، وسجلاً لنجاح التنفيذ في 2026-11-07. لم ننفذ Backup جديدة لأنها توقف Backend مؤقتاً.</p>
+<p>أزلنا containers وvolumes وnetworks الخاصة بالاختبار فقط. لم تتغير IDs أو أوقات تشغيل أي container في Production، ولم نعدل Backend code أو Compose أو credentials أو بيانات Production.</p>
+<p>أضفنا التقرير الإنجليزي <code>docs/deployment/VALIDATION_2026-11-07.md</code> وحدّثنا تقريري Progress. أنشأنا helpers مؤقتة داخل <code>/tmp</code>. أضافت Requests الاختبار أحداثاً عادية إلى Logs وMetrics.</p>
+<p>يبقى Release versioning وRollback وStatus page وDisaster recovery الكاملة ونسخة Backup خارج الجهاز، إضافة إلى Frontend واختبارات التطبيق الكاملة وCI. المرحلة التالية المقترحة هي إعداد Release images قابلة للتعريف وخطة Rollback؛ نجاح Restore لا يعوّض اختبار Rollback.</p>
+
+<h2>25. Release versioning وRollback — 2026-11-07</h2>
+<p>راجعنا متطلبات Deployment وRollback في PDFs. أضفنا <code>BACKEND_IMAGE</code> إلى Compose لكي يستعمل Backend وmigrate نفس image المختارة. بقيت القيمة الافتراضية <code>transcendence-backend:prod</code>، ولم نعدل <code>.env</code> أو containers الخاصة بـ Production.</p>
+<p>حفظنا image الحالية تحت tag هو <code>transcendence-backend:release-20261107-014b112ae18a</code>. هذا tag مرتبط بـ Image ID الموجودة فعلياً؛ لا ننسبه إلى Git commit لأن Workspace فيها تغييرات غير محفوظة في commit. يحتفظ الدليل الجديد بالـID الكاملة.</p>
+<p>عدّلنا Restore script لكي يتحقق من image التي سيستعملها Compose فعلياً. إذا لم تطابق Backup، يرفض العملية قبل إنشاء containers.</p>
+<h3>التجربة الفعلية</h3>
+<p>أنشأنا stack معزولاً من Backup موجودة، ثم شغلنا image مؤقتة تتوقف عمداً بخطأ. فشل readiness كما توقعنا. أعدنا Backend إلى image السابقة، فعاد healthy وبقي محتوى Database وملف اختبار في storage محفوظين. لم نغير schema أثناء التجربة؛ توافق migrations يجب التحقق منه مع كل release.</p>
+<p>أزلنا containers وvolumes وnetworks المؤقتة والـimage المعطوبة. احتفظنا بـtag النسخة السليمة. بقيت كل containers في Production بنفس IDs وأوقات التشغيل، ونجح HTTPS health برمز 200. حفظ tag محلي لا يعوّض نسخة خارج الجهاز.</p>
+<h3>الملفات</h3>
+<p>أضفنا <code>docs/deployment/RELEASE_AND_ROLLBACK.md</code>. وعدّلنا <code>.env.example</code> و<code>docker-compose.prod.yml</code> و<code>scripts/restore-test.sh</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> و<code>docs/deployment/BACKUP_AND_RESTORE.md</code> وتقريري Progress. لم نعدل Backend code ولم نحذف ملفات من المشروع. أنشأنا helpers مؤقتة داخل <code>/tmp</code>.</p>
+<p>الدليل يشرح حفظ النسخ، وDeployment، والتوقف المؤقت أثناء تبديل Backend، وإعادة تحميل Nginx، والتحقق من migrations قبل Rollback. لا ينفذ Restore أو migration reversal تلقائياً.</p>
+
+<h2>26. Makefile وRestart بالتحديث الجديد</h2>
+<p>عدّلنا Makefile ليستعمل Production Compose. أصبحت الأوامر الأساسية <code>make up</code> و<code>make build</code> و<code>make update</code> و<code>make restart</code> و<code>make status</code> و<code>make logs</code> و<code>make health</code> و<code>make backup</code>. أوامر clean وfclean أصبحت محدودة بهذا المشروع وتحافظ على volumes وimages.</p>
+<p>وجدنا جزءاً من Compose ملصوقاً في آخر Dockerfile؛ أزلناه وأصلحنا CMD حتى ينجح build. لم نعدل Backend application code.</p>
+<p>نفذنا <code>make update</code> باستخدام image جديدة اسمها <code>transcendence-backend:release-20261107-664624a-devops1</code>. نجح build، وكانت MySQL healthy، ولم توجد migrations pending. توقف Backend مؤقتاً واستُبدل بالنسخة الجديدة ثم عاد healthy. نجحت إعادة تحميل Nginx وفحص HTTPS برمز 200، ونجح query فعلي إلى Database.</p>
+<p>سجلنا BACKEND_IMAGE الجديدة في <code>.env</code> مع الحفاظ على بقية القيم وصلاحية 600. احتفظنا بالنسخة السابقة. لم ننفذ Backup جديدة أو نحذف بيانات. أظهر build ست dependency vulnerabilities؛ لم نغير dependencies. لم نختبر جميع سيناريوهات تعديل حذف الملفات الذي جاء من Backend team.</p>
+<p>الملفات المعدلة: <code>Makefile</code> و<code>apps/backend/Dockerfile</code> و<code>.env</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> و<code>docs/deployment/RELEASE_AND_ROLLBACK.md</code> وتقريرا Progress. لم نضف أو نحذف ملفات من المشروع في هذه المرحلة.</p>
+
+<h2>27. Status page — 2026-11-08</h2>
+<p>أضفنا <a href="https://localhost/status">Status page</a> لعرض حالة Backend وDatabase ووقت آخر فحص وOverall status. تتحدث تلقائياً كل 15 ثانية، مع زر Refresh. تقرأ خدمة مستقلة نتائج Prometheus، دون تعديل Backend code.</p>
+<ul>
+<li><strong>Operational:</strong> قياس حديث ناجح، مع scrape ناجح.</li>
+<li><strong>Unavailable:</strong> قياس حديث يؤكد فشل الخدمة، مع scrape ناجح.</li>
+<li><strong>Unknown:</strong> بيانات غائبة أو أقدم من 60 ثانية، أو فشل collector، أو انقطاع Prometheus، أو timeout.</li>
+</ul>
+<p>نستعمل وقت scrape الحقيقي، وليس وقت تنفيذ Query فقط. عند فشل Browser في تحديث الحالة، لا يحتفظ بإشارة نجاح قديمة؛ وتنتهي صلاحية القياسات المعروضة محلياً أيضاً. لا نعرض credentials أو raw metrics أو عناوين داخلية.</p>
+<p>تشغل container مستقلة بمستخدم غير root وfilesystem للقراءة فقط، بلا host ports أو Docker socket أو Database credentials. شغلنا status-page وحدها وأعدنا تحميل Nginx وPrometheus، دون إعادة تشغيل Backend. أضفنا الخدمة إلى Alerts واستثنينا زيارات الصفحة من API counters.</p>
+<p>نجحت اختبارات HTTPS وأظهرت الخدمتين Operational. نجحت اختبارات HTTP لحالات down وUnknown وstale وtimeout والردود غير الصالحة، بالإضافة إلى اختبارات Alert rules الست والعشرين. تأكدنا أن زيارات الصفحة لا تغير API response counters. تعذرت المعاينة البصرية لأن Browser tool منعت فتح الملف المحلي؛ لم نتجاوز المنع.</p>
+<p><strong>الحدود:</strong> Backend health لا يثبت جميع وظائف التطبيق، وMySQL check لا يثبت اتصال Backend نفسه بها. إذا توقف Nginx أو الجهاز، قد لا تُفتح الصفحة. WebSocket وGitHub غير مراقبين هنا، ولا يوجد Incident history. تبقى Disaster recovery ونسخة Backup خارج الجهاز؛ Minor لم تكتمل كلها بعد.</p>
+<p><strong>المضاف:</strong> <code>monitoring/status/server.mjs</code> و<code>monitoring/status/index.html</code> و<code>monitoring/status/server.test.mjs</code>.</p>
+<p><strong>المعدّل:</strong> <code>docker-compose.prod.yml</code> و<code>nginx/nginx.conf</code> و<code>monitoring/alerts.yml</code> و<code>monitoring/alerts.test.yml</code> و<code>monitoring/dashboards/monitoring-overview.json</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقريرا Progress. لم نحذف ملفات المشروع. أُغلقت خوادم HTTP المؤقتة بعد الاختبارات؛ Requests الاختبار أنتجت Logs عادية.</p>
+
+<h2>28. Disaster recovery — 2026-11-08</h2>
+<p>راجعنا Phases 14–16 و27–28 من DevOps plan، وقسم Disaster Recovery من ملف المهام، ومتطلب Minor في Subject. أضفنا دليلاً لحالات توقف container، وRelease معطوبة، وفقدان Database أو الملفات، وفقدان الجهاز. خطة تحويل Production إلى volumes مسترجعة موثقة، لكنها لم تنفذ أو تُختبر بالكامل.</p>
+<p>أنشأنا داخل stack معزول metadata تجريبية وملفين: ملفاً نصياً بحجم 52 bytes وملف binary بحجم 1 MiB. أخذنا Backup متناسقة، ثم حذفنا volumes المصدر التجريبية لمحاكاة فقدان البيانات. استرجعنا Backup داخل stack ثانية، فطابقت الملفات SHA-256 والأحجام الأصلية، وطابقت metadata القيم المتوقعة. نجحت migrations وDatabase access وBackend health.</p>
+<p>استغرق Restore والتحقق 33 ثانية لهذه البيانات الصغيرة والصور الموجودة محلياً؛ ليس هذا ضماناً لوقت Recovery الحقيقي. أزلنا موارد الاختبار وBackup التجريبية. بقيت جميع containers في Production بنفس IDs وأوقات التشغيل، ولم نعدل Backend code أو بيانات Production.</p>
+<p>اختار المستخدم USB أوDisque externe للنسخة الخارجية، لكنه غير متوفر حالياً. لذلك لم ننشئ نسخة خارج الجهاز ولم نهيئ Export تلقائياً. ما زال هذا الجزء معلقاً. الاختبار لم يشمل upload/download flow الحقيقي أو فقدان الجهاز كاملاً.</p>
+<p><strong>الملف المضاف:</strong> <code>docs/deployment/DISASTER_RECOVERY.md</code>.</p>
+<p><strong>الملفات المعدلة:</strong> <code>docs/deployment/BACKUP_AND_RESTORE.md</code> وتقريرا Progress بصيغتي Markdown وHTML. لم نغير scripts أوCompose أوsecrets. أنشأنا helper ونتيجة مختصرة داخل <code>/tmp</code>، وأزلنا archive التجريبية بعد النجاح.</p>
+
+<h2>29. نسخة Recovery محلية — 2026-11-08</h2>
+<p>بناءً على اختيار المستخدم، نسخنا آخر Backup سليمة إلى <code>backups/local-recovery/20261107T114102Z-peIeih/</code>. تحققنا من تطابق الملفات الخمسة بواسطة SHA-256 ومن سلامة archives الأصلية. صلاحيات المجلد 700 والملفات 600، والمسار مستثنى من Git.</p>
+<p>هذه نسخة من Snapshot بتاريخ 2026-11-07، وليست Backup جديدة لبيانات اليوم. لم نوقف Production. بقيت على نفس القرص، لكنها خارج اختيار Retention التلقائية. النسخ يدوي وغير مبرمج للتحديث؛ لا يحمي من فقدان القرص كاملاً.</p>
+<p>الملفات المنسوخة: <code>database.sql.gz</code> و<code>files.tar.gz</code> و<code>backend-image.txt</code> و<code>mysql-image.txt</code> و<code>SHA256SUMS</code>. ملفات Image IDs لا تحتوي Docker images نفسها، ولم ننسخ secrets أوTLS keys هنا.</p>
+<p>حدّثنا Recovery guide وBackup guide وتقريري Progress. لم نغير code أوCompose أوscripts أوالنسخ الأصلية، ولم نحذف أي ملف.</p>
+
+<h2>30. Security review وإصلاحات DevOps — 2026-11-08</h2>
+<p>راجعنا Phases 19–20 واختبرنا Ports وTLS وHeaders وPermissions وDependencies فعلياً. التفاصيل موجودة في <code>docs/deployment/SECURITY_REVIEW_2026-11-08.md</code>.</p>
+<p>استبدلنا Passwords المتطابقة والقصيرة الخاصة بـMySQL user وroot بقيمتين عشوائيتين مختلفتين، كل واحدة 64 hexadecimal characters. حدّثنا الحسابات داخل MySQL و<code>.env</code> مع الحفاظ على صلاحية 600. حجزنا Backup lock خلال العملية لتجنب تزامن Backup. الحسابات القديمة داخل Development volumes لم تتغير.</p>
+<p>أضفنا <code>no-new-privileges</code> إلى Backend وmigrate وMySQL وNginx، وحذفنا capabilities من Backend وmigrate. حددنا Memory/CPU: Backend وmigrate بـ512 MiB و1 CPU، MySQL بـ768 MiB و1 CPU، Nginx بـ128 MiB و0.5 CPU. هذه حدود أولية تحتاج مراجعة تحت load حقيقي.</p>
+<p>أضفنا Rate limit إلى <code>/auth/login</code> فقط: خمس Requests في الدقيقة لكل IP مع burst5، والزيادة تعيد 429. عناوين IP المشتركة تتشارك الحد. حجبنا Header الخاص بـExpress. لا يشمل هذا Rate limit باقي routes.</p>
+<p>أعدنا إنشاء الخدمات الأربع مع الحفاظ على images وvolumes؛ حصل توقف قصير للصيانة. نجح اتصال Backend بـDatabase والكلمات الجديدة، وسالت migrations بـexit0 دون تغييرات pending. أكد Runtime الحدود والحماية. أعادت ثماني محاولات login تجريبية ستة ردود 401 ثم ردين 429؛ بقيت health وStatus page خدامتين.</p>
+<p><strong>الباقي:</strong> ست packages متأثرة وفق npm audit (ثلاث High وثلاث Moderate) تحتاج معالجة من Backend team. Docker sockets داخل Monitoring ما زالت صلاحية حساسة؛ <code>:ro</code> لا يجعل API للقراءة فقط. وثقنا الأمر ولم ندّع إصلاحه. لم نغير Backend code أوdependencies ولم نرسل رسالة للفريق.</p>
+<p><strong>الملف المضاف:</strong> <code>docs/deployment/SECURITY_REVIEW_2026-11-08.md</code>.</p>
+<p><strong>المعدل:</strong> <code>docker-compose.prod.yml</code> و<code>nginx/nginx.conf</code> و<code>.env</code> و<code>.env.example</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقريرا Progress. لا توجد volumes أوبيانات محذوفة. أنشأنا helpers مؤقتة داخل <code>/tmp</code> دون طباعة passwords.</p>
+
+<h2>31. Docker API proxy — 2026-11-08</h2>
+<p>أضفنا وسيطاً محدوداً بين Docker وMonitoring. يسمح فقط بطلبات القراءة التي يحتاجها collectors، ويرفض create وdelete وexec وقراءة الملفات وlogs وغيرها. يحذف Env وCmd وHealth logs من inspect responses. يوجد داخل Network داخلية منفصلة بلا host port.</p>
+<p>Docker-state exporter أصبح يعمل بمستخدم غير root وبلا socket mount. cAdvisor أصبح يستعمل proxy بدل Docker socket؛ حذفنا mounts ديال <code>/</code> و<code>/var/lib/docker</code> وDocker socket، واكتفينا بـhost /proc و/sys للقياسات.</p>
+<p><strong>حدود الحماية:</strong> cAdvisor ما زال يحتاج containerd socket في هذا الجهاز. هذه صلاحية حساسة لا يتحكم فيها Docker HTTP proxy. والـproxy نفسه ما زال يملك Docker socket، لذلك يبقى مكوّناً موثوقاً. لم ندّع إلغاء كل صلاحيات runtime.</p>
+<p>نجحت اختبارات منع الطلبات وتنقية البيانات ضد daemon وهمي. ونجحت تجربة مؤقتة فعلية لـcollectors قبل التفعيل، مع بقاء CPU وRAM وNetwork وDisk I/O metrics. أزلنا containers التجريبية، وشغلنا proxy وأعدنا إنشاء collectorين فقط. لم نوقف Backend أوMySQL أوNginx. نجحت اختبارات Alert rules الست والعشرين بعد إضافة الخدمة المتوقعة.</p>
+<p><strong>المضاف:</strong> <code>monitoring/docker-api-proxy.mjs</code> و<code>monitoring/docker-api-proxy.test.mjs</code>.</p>
+<p><strong>المعدل:</strong> <code>docker-compose.prod.yml</code> و<code>monitoring/docker-state-exporter.mjs</code> و<code>monitoring/alerts.yml</code> و<code>monitoring/alerts.test.yml</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> و<code>docs/deployment/SECURITY_REVIEW_2026-11-08.md</code> وتقريرا Progress. لم نغير Backend code أوsecrets أوvolumes التطبيق. توجد helpers مؤقتة داخل <code>/tmp</code>.</p>
+
+<p>بعد التفعيل تأكدنا من وجود Resource metrics للخدمات الـ13 العاملة في Production، ومن Restart counters. بقيت IDs وأوقات تشغيل كل الخدمات الأخرى ثابتة. نجح التحقق من Prometheus rules وإعادة تحميلها. Network الخاصة بـproxy تضم proxy وcAdvisor وDocker-state exporter فقط، بلا port منشور على الجهاز.</p>
+<h2>32. اختبارات Smoke tests المعزولة — 2026-11-08</h2>
+<p>راجعنا Phase 22 في DevOps Plan، الصفحة المطبوعة 14. شغّلنا نفس Backend image المختارة لـProduction داخل Compose project مؤقت، مع MySQL وVolumes مستقلة. اكتملت Migrations قبل الاختبار.</p>
+<ul>
+<li>نجح طلب Health، وأعاد Profile دون Authentication الرمز 401 كما هو متوقع.</li>
+<li>أنشأنا حساباً تجريبياً، ونجح Login باستخدام بيانات صحيحة. أعاد Profile بيانات الحساب نفسه.</li>
+<li>نجحت قراءة Workspaces وإنشاء Workspace تجريبية.</li>
+<li>نجح Upload لملف، وظهر في القائمة. أعاد Download نفس المحتوى تماماً.</li>
+<li>أعدنا إنشاء Backend container التجريبي مع الاحتفاظ بالـVolumes. نجح Login مجدداً، وبقيت Workspace والملف متاحين بالمحتوى نفسه. هذا يؤكد استمرار البيانات بعد استبدال Backend container.</li>
+<li>نجح حذف الملف عبر API: أعاد 204، واختفى الملف من القائمة، وأعاد Download بعد الحذف 404.</li>
+</ul>
+<p><strong>حدود الاختبار:</strong> استعملنا HTTP مباشرة داخل Backend container التجريبي. لم يختبر هذا السيناريو Nginx أوTLS أوBrowser CORS أوSocket.IO أوGitHub أوالضغط المتزامن. تحققنا من حذف الملف عبر API، ولم نفحص الحذف الفعلي من Storage بشكل مستقل. لم نعد إنشاء MySQL في هذا الاختبار.</p>
+<p>حذفنا Containers وNetworks والـVolumes المؤقتة بعد انتهاء الاختبار. بقيت IDs وأوقات تشغيل Production كما كانت؛ لم نعد تشغيل خدماتها أو نغير Backend code أوSecrets.</p>
+<p><strong>الملفات المعدلة:</strong> تقريران فقط: <code>PROGRESS_2026-11-05.md</code> و<code>PROGRESS_2026-11-05.html</code>. استعملنا Runner مؤقتاً في <code>/tmp/transcendence-smoke.py</code> وحفظنا نتيجته في <code>/tmp/transcendence-smoke-result.json</code>. لم نضف اختباراً مجدولاً.</p>
+
+<h2>33. اختبار Socket.IO عبر Nginx وTLS — 2026-11-08</h2>
+<p>راجعنا Phase 22 في DevOps Plan، الصفحة المطبوعة 14، التي تشير إلى اختبار Socket.IO. شغّلنا بيئة معزولة تستعمل Backend image المختارة وإعدادات Nginx الحالية، مع Database وVolumes مؤقتة وHTTPS port محلي مؤقت. وثقنا Certificate المحلية صراحة، وأبقينا TLS verification مفعلاً.</p>
+<ul>
+<li>أنشأنا حساباً وWorkspace تجريبيين عبر HTTPS.</li>
+<li>رفض Backend الاتصالات دون Token أو باستعمال Token غير صالح.</li>
+<li>اتصل جهادا Client بنفس الحساب، واستقبلا <code>workspace-chat.ready</code> ثم انضما إلى Workspace.</li>
+<li>نجح الاتصال المباشر بـWSS، ونجح أيضاً الانتقال من Polling إلى WebSocket.</li>
+<li>أرسلنا رسالة Chat عبر HTTP API. حفظها Backend في Database ثم بث <code>workspace-message.created</code> إلى Clientين؛ تطابق محتوى الرسالة وID وWorkspace.</li>
+<li>استقبلنا Heartbeat، واستمر الاتصال بعد 30 ثانية. وصلت رسالة ثانية بنجاح.</li>
+<li>أكدت Nginx logs استجابات <code>101</code> الخاصة بـWebSocket upgrade.</li>
+</ul>
+<p><strong>المعنى:</strong> إعدادات Nginx الحالية تسمح بمرور Socket.IO عبر TLS، ونجح سيناريو Workspace Chat فعلي. لم نحتج إلى تعديل Backend code أوNginx config.</p>
+<p><strong>حدود الاختبار:</strong> استعملنا جلستين للحساب نفسه. لم نختبر صلاحيات مستخدمين مختلفين أوBrowser CORS أوانقطاع الشبكة وإعادة الاتصال أوToken expiry أوDirect Chat أوNotifications أوLoad. لا يعيد Join event تأكيداً، لذلك انتظر Runner نصف ثانية قبل إرسال الرسالة.</p>
+<p>حذفنا Containers وNetworks والـVolumes التجريبية، وكذلك Compose file المؤقتة التي احتوت Environment values وكانت بصلاحيات 600. بقيت Production IDs وأوقات التشغيل دون تغيير.</p>
+<p><strong>الملفات المعدلة:</strong> <code>PROGRESS_2026-11-05.md</code> و<code>PROGRESS_2026-11-05.html</code> فقط داخل المشروع. توجد أدوات الاختبار المؤقتة ونتيجته وSocket.IO client داخل <code>/tmp/transcendence-socket-test/</code>. لم نغير Dependencies الخاصة بالمشروع، ولم نضف اختباراً مجدولاً.</p>
+
+<h2>34. إعداد CI بسيط للـBackend — 2026-11-08</h2>
+<p>راجعنا القسم 34.1 من DevOps Plan، في الصفحتين المطبوعتين 19 و20. أضفنا Workflow واحداً في <code>.github/workflows/backend-ci.yml</code>، يعمل عند Push أوPull Request، ويمكن تشغيله يدوياً من GitHub بعد رفعه.</p>
+<p><strong>دور الخطوات:</strong></p>
+<ol>
+<li><code>npm ci</code>: تثبيت Dependencies وفق Lockfile.</li>
+<li><code>Lint</code>: فحص Code style وقواعد الجودة دون تعديل الملفات.</li>
+<li><code>Unit tests</code>: تشغيل الاختبارات الحالية للتأكد من السلوك المتوقع.</li>
+<li><code>Build</code>: تحويل TypeScript وتجهيز Backend للتشغيل.</li>
+<li><code>Docker build</code>: التأكد من إمكانية إنشاء Production image.</li>
+</ol>
+<p>يستعمل Workflow إصدار Node 22 مثل Dockerfile، وصلاحية قراءة Repository فقط، ومدة قصوى 20 دقيقة. يلغي Run القديم إذا بدأ Run أحدث على Ref نفسه. لا ينشر Image ولا ينفذ Deployment ولا يحتاج Production secrets.</p>
+<p><strong>نتائج التجربة المحلية:</strong> نجح Install، ونجحت 583 Tests موزعة على 26 Suites، ونجح Backend build وDocker build. لكن Lint فشل بسبب 1416 Errors و153 Warnings في الكود الحالي، ومنها Formatting issues. لم نعدل Backend code، ولم نعطل الفحص.</p>
+<p><strong>مهم:</strong> شغّلنا الفحوص محلياً بشكل مستقل لمعرفة نتيجة كل واحد. أما Workflow على GitHub فسيتوقف عند Lint حالياً، ويعطي FAIL حتى يعالج فريق Backend الأخطاء. لم نرفع الملفات إلى GitHub ولم ننفذ GitHub-hosted run؛ وجود الملف محلياً لا يفعّل CI بعد.</p>
+<p><strong>المضاف:</strong> <code>.github/workflows/backend-ci.yml</code>.</p>
+<p><strong>المعدل:</strong> <code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقريرا Progress بصيغتي Markdown وHTML.</p>
+<p>استعملنا نسخة مؤقتة وNode 22 container للاختبار؛ حذف Container نفسه عند الانتهاء. بقيت Logs داخل <code>/tmp/transcendence-ci-tj4bgflj/backend/</code>، وبقيت Image بتاغ <code>transcendence-backend:ci-check-20261108</code> وBuild cache للفحص. لم نعد تشغيل Production أو نغير Secrets أوBackend dependencies.</p>
+
+<h2>35. إضافة Migration verification إلى CI — 2026-11-08</h2>
+<p>راجعنا القسم 12.4 من <code>mustapha_work.pdf</code>. أضفنا Job مستقلة إلى Workflow نفسها، لتشغيل MySQL 8.4 مؤقتة ثم Build وتطبيق Migrations بالطريقة المستعملة في Production. بيانات الاتصال تجريبية، وليست Production secrets.</p>
+<p><strong>ما الذي نتحقق منه؟</strong> وجود Migrations ضمن الملفات المترجمة، وتطبيقها جميعاً، وتطابق عددها مع Migration history، وإمكانية قراءة جدول <code>users</code>. نعيد تشغيل Migrations أيضاً ونتأكد أن عدد التغييرات الجديدة يساوي صفراً.</p>
+<p><strong>نتيجة التجربة الفعلية:</strong> نجحت Migrations الثلاث على Database جديدة وخاوية. نجح فحص جدول users، ولم تطبق الإعادة أي Migration جديدة. استعملنا Node 22 وخطوات Build وMigration وVerification المستخرجة من Workflow نفسها، مع Dependencies المثبتة في اختبار CI السابق. الاتصال المحلي كان عبر Network معزولة؛ أما GitHub runner فيستعمل Port محلية لخدمة MySQL.</p>
+<p>حذفنا Database التجريبية وContainers وNetwork بعد الاختبار. بقيت Production IDs وأوقات التشغيل كما كانت. لم نعدل Backend code أوDependencies. الاختبار يؤكد إنشاء Schema جديدة؛ لا يثبت سلامة Upgrade لبيانات قديمة أوRollback.</p>
+<p>Job الجديدة مستقلة، لذلك يمكن أن تنجح حتى لو فشل Lint في Job الأخرى. لكن النتيجة العامة لـCI تبقى FAIL بسبب Lint. لم ننفذ Workflow على GitHub، ولم نعمل Commit أوPush.</p>
+<p><strong>الملفات المعدلة:</strong> <code>.github/workflows/backend-ci.yml</code> و<code>docs/deployment/LOCAL_PRODUCTION.md</code> وتقريرا Progress. لم نضف ملفات جديدة داخل المشروع. أدوات التجربة وLogs والنتيجة بقيت مؤقتاً داخل <code>/tmp</code>.</p>
+
+</main></body>
+</html>

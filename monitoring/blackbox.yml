@@ -1,0 +1,20 @@
+modules:
+  backend_https:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      follow_redirects: false
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false
+      fail_if_not_ssl: true
+      headers:
+        Host: localhost
+      tls_config:
+        ca_file: /etc/blackbox/local-ca.pem
+        server_name: localhost
+        insecure_skip_verify: false
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"ok"'
+        - '"service"\s*:\s*"backend"'

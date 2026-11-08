@@ -1,0 +1,53 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Collect Prometheus self-metrics and Linux host CPU, memory and filesystems.
+# cAdvisor supplies usage; Blackbox probes the HTTPS backend health route.
+# MySQL status uses a dedicated account; Docker restart counts use its state API.
+# Alert rules are evaluated locally; outbound delivery is configured separately.
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  - job_name: blackbox-exporter
+    static_configs:
+      - targets: ["blackbox-exporter:9115"]
+
+  - job_name: backend-https
+    metrics_path: /probe
+    params:
+      module: [backend_https]
+    static_configs:
+      - targets: ["https://nginx/health"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: mysql
+    static_configs:
+      - targets: ["mysqld-exporter:9104"]
+
+  - job_name: docker-state
+    static_configs:
+      - targets: ["docker-state-exporter:9105"]
+
+  - job_name: nginxlog
+    static_configs:
+      - targets: ["nginxlog-exporter:4040"]
