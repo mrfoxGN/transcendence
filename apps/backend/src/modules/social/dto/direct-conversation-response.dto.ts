@@ -1,4 +1,3 @@
-
 export class DirectConversationResponseDto {
   id!: string;
   otherUserId!: string;

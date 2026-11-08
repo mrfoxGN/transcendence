@@ -103,9 +103,7 @@ export class TasksService {
     } catch (error) {
       this.logger.error(
         `Could not create TASK_CREATED activity for task ${savedTask.id}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
 
@@ -364,9 +362,7 @@ export class TasksService {
     } catch (error) {
       this.logger.error(
         `Could not create TASK_STATUS_CHANGED activity for task ${taskId}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
 

@@ -42,9 +42,9 @@ describe('GitHubTokenCryptoService', () => {
     const service = createService(encryptionKey);
     const encrypted = service.encrypt(token, repositoryId);
 
-    expect(() =>
-      service.decrypt(encrypted, otherRepositoryId),
-    ).toThrow(InternalServerErrorException);
+    expect(() => service.decrypt(encrypted, otherRepositoryId)).toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('rejects tampered encrypted credentials', () => {
@@ -57,24 +57,24 @@ describe('GitHubTokenCryptoService', () => {
     ciphertext[0] ^= 0xff;
     parts[3] = ciphertext.toString('base64url');
 
-    expect(() =>
-      service.decrypt(parts.join('.'), repositoryId),
-    ).toThrow(InternalServerErrorException);
+    expect(() => service.decrypt(parts.join('.'), repositoryId)).toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('rejects a missing encryption key', () => {
     const service = createService();
 
-    expect(() =>
-      service.encrypt(token, repositoryId),
-    ).toThrow(InternalServerErrorException);
+    expect(() => service.encrypt(token, repositoryId)).toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('rejects an invalid encryption key', () => {
     const service = createService('invalid-key');
 
-    expect(() =>
-      service.encrypt(token, repositoryId),
-    ).toThrow(InternalServerErrorException);
+    expect(() => service.encrypt(token, repositoryId)).toThrow(
+      InternalServerErrorException,
+    );
   });
 });

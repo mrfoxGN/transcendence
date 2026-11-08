@@ -105,8 +105,8 @@ describe('FilesService', () => {
     } as Express.Multer.File;
 
     it('uploads a workspace file', async () => {
-      repository.create.mockImplementation((value) => value);
-      repository.save.mockImplementation((value) => value);
+      repository.create.mockImplementation((value: unknown) => value);
+      repository.save.mockImplementation((value: unknown) => value);
 
       const result = await service.upload(
         workspaceId,
@@ -115,9 +115,10 @@ describe('FilesService', () => {
         {},
       );
 
-      expect(
-        workspacesService.findOneForUser,
-      ).toHaveBeenCalledWith(workspaceId, userId);
+      expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
+        workspaceId,
+        userId,
+      );
 
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -136,27 +137,35 @@ describe('FilesService', () => {
       expect(result.uploaderId).toBe(userId);
       expect(result.originalName).toBe('document.pdf');
 
-      expect(
-        activitiesService.create,
-      ).toHaveBeenCalledWith(
-        expect.objectContaining({
-          workspaceId,
-          actorUserId: userId,
-          actionType: 'FILE_UPLOADED',
-          resourceType: 'workspace_file',
-          resourceId: expect.any(String),
-          metadata: expect.objectContaining({
-            displayName: 'document.pdf',
-            originalName: 'document.pdf',
-            taskId: null,
-          }),
-        }),
-      );
+      const calls = activitiesService.create.mock.calls as unknown[][];
+      const activityCall = calls[0]?.[0];
+
+      expect(activityCall).toMatchObject({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'FILE_UPLOADED',
+        resourceType: 'workspace_file',
+        metadata: {
+          displayName: 'document.pdf',
+          originalName: 'document.pdf',
+          taskId: null,
+        },
+      });
+
+      if (
+        typeof activityCall !== 'object' ||
+        activityCall === null ||
+        !('resourceId' in activityCall)
+      ) {
+        throw new Error('Activity call must include a resource ID');
+      }
+
+      expect(typeof activityCall.resourceId).toBe('string');
     });
 
     it('still uploads when activity creation fails', async () => {
-      repository.create.mockImplementation((value) => value);
-      repository.save.mockImplementation((value) => value);
+      repository.create.mockImplementation((value: unknown) => value);
+      repository.save.mockImplementation((value: unknown) => value);
 
       activitiesService.create.mockRejectedValue(
         new Error('Activity unavailable'),
@@ -164,11 +173,13 @@ describe('FilesService', () => {
 
       jest
         .spyOn(
-          (service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }).logger,
+          (
+            service as unknown as {
+              logger: {
+                error: (...args: unknown[]) => void;
+              };
+            }
+          ).logger,
           'error',
         )
         .mockImplementation(() => undefined);
@@ -182,21 +193,13 @@ describe('FilesService', () => {
 
       expect(result.workspaceId).toBe(workspaceId);
       expect(result.originalName).toBe('document.pdf');
-
       expect(repository.save).toHaveBeenCalledTimes(1);
-      expect(
-        activitiesService.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(activitiesService.create).toHaveBeenCalledTimes(1);
     });
 
     it('rejects upload when file is missing', async () => {
       await expect(
-        service.upload(
-          workspaceId,
-          userId,
-          undefined,
-          {},
-        ),
+        service.upload(workspaceId, userId, undefined, {}),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -208,27 +211,17 @@ describe('FilesService', () => {
         workspaceId,
       });
 
-      repository.create.mockImplementation((value) => value);
-      repository.save.mockImplementation((value) => value);
+      repository.create.mockImplementation((value: unknown) => value);
+      repository.save.mockImplementation((value: unknown) => value);
 
-      const result = await service.upload(
-        workspaceId,
-        userId,
-        uploadedFile,
-        { taskId },
-      );
-
-      expect(tasksService.findById).toHaveBeenCalledWith(
+      const result = await service.upload(workspaceId, userId, uploadedFile, {
         taskId,
-        userId,
-      );
+      });
 
+      expect(tasksService.findById).toHaveBeenCalledWith(taskId, userId);
       expect(repository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          taskId,
-        }),
+        expect.objectContaining({ taskId }),
       );
-
       expect(result.taskId).toBe(taskId);
     });
 
@@ -241,12 +234,7 @@ describe('FilesService', () => {
       });
 
       await expect(
-        service.upload(
-          workspaceId,
-          userId,
-          uploadedFile,
-          { taskId },
-        ),
+        service.upload(workspaceId, userId, uploadedFile, { taskId }),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(repository.save).not.toHaveBeenCalled();
@@ -257,23 +245,18 @@ describe('FilesService', () => {
     it('returns workspace files', async () => {
       repository.find.mockResolvedValue([storedFile]);
 
-      const result = await service.findAll(
+      const result = await service.findAll(workspaceId, userId, {});
+
+      expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
         workspaceId,
         userId,
-        {},
       );
-
-      expect(
-        workspacesService.findOneForUser,
-      ).toHaveBeenCalledWith(workspaceId, userId);
-
       expect(repository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           skip: 0,
           take: 20,
         }),
       );
-
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe(fileId);
     });
@@ -281,14 +264,10 @@ describe('FilesService', () => {
     it('applies pagination', async () => {
       repository.find.mockResolvedValue([]);
 
-      await service.findAll(
-        workspaceId,
-        userId,
-        {
-          page: 3,
-          limit: 10,
-        },
-      );
+      await service.findAll(workspaceId, userId, {
+        page: 3,
+        limit: 10,
+      });
 
       expect(repository.find).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -303,11 +282,7 @@ describe('FilesService', () => {
     it('returns file metadata', async () => {
       repository.findOne.mockResolvedValue(storedFile);
 
-      const result = await service.findOne(
-        workspaceId,
-        fileId,
-        userId,
-      );
+      const result = await service.findOne(workspaceId, fileId, userId);
 
       expect(result.id).toBe(fileId);
       expect(result.workspaceId).toBe(workspaceId);
@@ -317,38 +292,24 @@ describe('FilesService', () => {
       repository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.findOne(
-          workspaceId,
-          fileId,
-          userId,
-        ),
+        service.findOne(workspaceId, fileId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   describe('remove', () => {
     it('allows uploader to delete file', async () => {
-      repository.findOne.mockResolvedValue({
-        ...storedFile,
-      });
+      repository.findOne.mockResolvedValue({ ...storedFile });
+      repository.save.mockImplementation((value: unknown) => value);
 
-      repository.save.mockImplementation((value) => value);
+      await service.remove(workspaceId, fileId, userId);
 
-      await service.remove(
-        workspaceId,
-        fileId,
-        userId,
-      );
+      const calls = repository.save.mock.calls as unknown[][];
+      const savedFile = calls[0]?.[0] as { deletedAt: unknown };
 
-      expect(repository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deletedAt: expect.any(Date),
-        }),
-      );
+      expect(savedFile.deletedAt).toBeInstanceOf(Date);
 
-      expect(
-        activitiesService.create,
-      ).toHaveBeenCalledWith({
+      expect(activitiesService.create).toHaveBeenCalledWith({
         workspaceId,
         actorUserId: userId,
         actionType: 'FILE_DELETED',
@@ -363,11 +324,8 @@ describe('FilesService', () => {
     });
 
     it('still deletes when activity creation fails', async () => {
-      repository.findOne.mockResolvedValue({
-        ...storedFile,
-      });
-
-      repository.save.mockImplementation((value) => value);
+      repository.findOne.mockResolvedValue({ ...storedFile });
+      repository.save.mockImplementation((value: unknown) => value);
 
       activitiesService.create.mockRejectedValue(
         new Error('Activity unavailable'),
@@ -375,32 +333,26 @@ describe('FilesService', () => {
 
       jest
         .spyOn(
-          (service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }).logger,
+          (
+            service as unknown as {
+              logger: {
+                error: (...args: unknown[]) => void;
+              };
+            }
+          ).logger,
           'error',
         )
         .mockImplementation(() => undefined);
 
       await expect(
-        service.remove(
-          workspaceId,
-          fileId,
-          userId,
-        ),
+        service.remove(workspaceId, fileId, userId),
       ).resolves.toBeUndefined();
 
-      expect(repository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deletedAt: expect.any(Date),
-        }),
-      );
+      const calls = repository.save.mock.calls as unknown[][];
+      const savedFile = calls[0]?.[0] as { deletedAt: unknown };
 
-      expect(
-        activitiesService.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(savedFile.deletedAt).toBeInstanceOf(Date);
+      expect(activitiesService.create).toHaveBeenCalledTimes(1);
     });
 
     it('allows workspace owner to delete another user file', async () => {
@@ -416,13 +368,9 @@ describe('FilesService', () => {
         uploaderId: '66666666-6666-4666-8666-666666666666',
       });
 
-      repository.save.mockImplementation((value) => value);
+      repository.save.mockImplementation((value: unknown) => value);
 
-      await service.remove(
-        workspaceId,
-        fileId,
-        ownerId,
-      );
+      await service.remove(workspaceId, fileId, ownerId);
 
       expect(repository.save).toHaveBeenCalled();
     });
@@ -441,11 +389,7 @@ describe('FilesService', () => {
       });
 
       await expect(
-        service.remove(
-          workspaceId,
-          fileId,
-          memberId,
-        ),
+        service.remove(workspaceId, fileId, memberId),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       expect(repository.save).not.toHaveBeenCalled();
@@ -455,31 +399,23 @@ describe('FilesService', () => {
       repository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.remove(
-          workspaceId,
-          fileId,
-          userId,
-        ),
+        service.remove(workspaceId, fileId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
   describe('getDownloadInfo', () => {
     it('returns secure download information', async () => {
       repository.findOne.mockResolvedValue(storedFile);
       mockedAccess.mockResolvedValue(undefined);
 
-      const result = await service.getDownloadInfo(
+      const result = await service.getDownloadInfo(workspaceId, fileId, userId);
+
+      expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
         workspaceId,
-        fileId,
         userId,
       );
-
-      expect(
-        workspacesService.findOneForUser,
-      ).toHaveBeenCalledWith(workspaceId, userId);
-
       expect(repository.findOne).toHaveBeenCalled();
-
       expect(result).toEqual(
         expect.objectContaining({
           originalName: 'document.pdf',
@@ -487,38 +423,24 @@ describe('FilesService', () => {
           sizeBytes: '5',
         }),
       );
-
-      expect(result.absolutePath).toContain(
-        storedFile.storageKey,
-      );
+      expect(result.absolutePath).toContain(storedFile.storageKey);
     });
 
     it('throws when file metadata does not exist', async () => {
       repository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.getDownloadInfo(
-          workspaceId,
-          fileId,
-          userId,
-        ),
+        service.getDownloadInfo(workspaceId, fileId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws when physical file is missing', async () => {
       repository.findOne.mockResolvedValue(storedFile);
-      mockedAccess.mockRejectedValue(
-        new Error('missing file'),
-      );
+      mockedAccess.mockRejectedValue(new Error('missing file'));
 
       await expect(
-        service.getDownloadInfo(
-          workspaceId,
-          fileId,
-          userId,
-        ),
+        service.getDownloadInfo(workspaceId, fileId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
-
 });

@@ -1,52 +1,41 @@
+import { Activity } from '../entities/activity.entity';
 import { ActivitiesService } from './activities.service';
 
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
 }));
 
-describe('ActivitiesService', () => {
-  const workspaceId =
-    '11111111-1111-4111-8111-111111111111';
-
-  const actorUserId =
-    '22222222-2222-4222-8222-222222222222';
-
-  let repository: {
-    create: jest.Mock;
-    save: jest.Mock;
-    find: jest.Mock;
+function makeRepository() {
+  return {
+    create: jest.fn((data: Partial<Activity>): Activity =>
+      Object.assign(new Activity(), data),
+    ),
+    save: jest.fn((entity: Activity): Promise<Activity> =>
+      Promise.resolve(entity),
+    ),
+    find: jest.fn((): Promise<Activity[]> => Promise.resolve([])),
   };
+}
 
+describe('ActivitiesService', () => {
+  const workspaceId = '11111111-1111-4111-8111-111111111111';
+  const actorUserId = '22222222-2222-4222-8222-222222222222';
+
+  let repository: ReturnType<typeof makeRepository>;
   let service: ActivitiesService;
 
   beforeEach(() => {
-    repository = {
-      create: jest.fn(),
-      save: jest.fn(),
-      find: jest.fn(),
-    };
-
-    service = new ActivitiesService(
-      repository as never,
-    );
+    repository = makeRepository();
+    service = new ActivitiesService(repository as never);
   });
 
   it('creates an activity', async () => {
-    repository.create.mockImplementation(
-      (data) => data,
-    );
-
-    repository.save.mockImplementation(
-      async (entity) => entity,
-    );
-
     const result = await service.create({
       workspaceId,
       actorUserId,
       actionType: 'FILE_UPLOADED',
       resourceType: 'workspace_file',
-      resourceId:
-        '33333333-3333-4333-8333-333333333333',
+      resourceId: '33333333-3333-4333-8333-333333333333',
       metadata: {
         fileName: 'report.pdf',
       },
@@ -58,8 +47,7 @@ describe('ActivitiesService', () => {
         actorUserId,
         actionType: 'FILE_UPLOADED',
         resourceType: 'workspace_file',
-        resourceId:
-          '33333333-3333-4333-8333-333333333333',
+        resourceId: '33333333-3333-4333-8333-333333333333',
         metadata: {
           fileName: 'report.pdf',
         },
@@ -67,21 +55,12 @@ describe('ActivitiesService', () => {
     );
 
     expect(repository.save).toHaveBeenCalledTimes(1);
-
     expect(result.workspaceId).toBe(workspaceId);
     expect(result.actorUserId).toBe(actorUserId);
     expect(result.actionType).toBe('FILE_UPLOADED');
   });
 
   it('uses null defaults for optional activity fields', async () => {
-    repository.create.mockImplementation(
-      (data) => data,
-    );
-
-    repository.save.mockImplementation(
-      async (entity) => entity,
-    );
-
     const result = await service.create({
       workspaceId,
       actionType: 'SYSTEM_EVENT',
@@ -102,7 +81,7 @@ describe('ActivitiesService', () => {
 
   it('lists workspace activities newest first with pagination', async () => {
     const activities = [
-      {
+      Object.assign(new Activity(), {
         id: 'activity-1',
         workspaceId,
         actorUserId,
@@ -111,18 +90,15 @@ describe('ActivitiesService', () => {
         resourceId: null,
         metadata: null,
         createdAt: new Date(),
-      },
+      }),
     ];
 
     repository.find.mockResolvedValue(activities);
 
-    const result = await service.findAllForWorkspace(
-      workspaceId,
-      {
-        page: 2,
-        limit: 10,
-      },
-    );
+    const result = await service.findAllForWorkspace(workspaceId, {
+      page: 2,
+      limit: 10,
+    });
 
     expect(repository.find).toHaveBeenCalledWith({
       where: {
@@ -136,8 +112,6 @@ describe('ActivitiesService', () => {
     });
 
     expect(result).toHaveLength(1);
-    expect(result[0].actionType).toBe(
-      'FILE_UPLOADED',
-    );
+    expect(result[0].actionType).toBe('FILE_UPLOADED');
   });
 });

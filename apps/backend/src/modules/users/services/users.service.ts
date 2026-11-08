@@ -8,22 +8,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
-import {
-  IsNull,
-  QueryFailedError,
-  Repository,
-} from 'typeorm';
+import { IsNull, QueryFailedError, Repository } from 'typeorm';
 
-import {
-  AppRole,
-  UserStatus,
-} from '../../../database/enums/database.enums';
+import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { User } from '../entities/user.entity';
 import { UserMapper } from '../mappers/user.mapper';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
-
 
 function isDuplicateError(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) {
@@ -89,9 +81,7 @@ export class UsersService {
     });
   }
 
-  async create(
-    createUserDto: CreateUserDto,
-  ): Promise<UserResponseDto> {
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     // 1. Check username and email
     const existingUser = await this.usersRepository.findOne({
       where: [
@@ -101,15 +91,11 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException(
-        'Username or email already exists',
-      );
+      throw new ConflictException('Username or email already exists');
     }
 
     // 2. Hash the password
-    const passwordHash = await argon2.hash(
-      createUserDto.password,
-    );
+    const passwordHash = await argon2.hash(createUserDto.password);
 
     // 3. Create the entity
     const now = new Date();
@@ -135,9 +121,7 @@ export class UsersService {
       return UserMapper.toResponse(savedUser);
     } catch (error: unknown) {
       if (isDuplicateError(error)) {
-        throw new ConflictException(
-          'Username or email already exists',
-        );
+        throw new ConflictException('Username or email already exists');
       }
 
       throw error;

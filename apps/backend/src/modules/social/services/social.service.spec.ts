@@ -5,17 +5,13 @@ jest.mock('@nestjs/typeorm', () => ({
 }));
 
 describe('SocialService sendMessage notifications', () => {
-  const senderId =
-    '11111111-1111-4111-8111-111111111111';
+  const senderId = '11111111-1111-4111-8111-111111111111';
 
-  const recipientId =
-    '22222222-2222-4222-8222-222222222222';
+  const recipientId = '22222222-2222-4222-8222-222222222222';
 
-  const conversationId =
-    '33333333-3333-4333-8333-333333333333';
+  const conversationId = '33333333-3333-4333-8333-333333333333';
 
-  const messageId =
-    '44444444-4444-4444-8444-444444444444';
+  const messageId = '44444444-4444-4444-8444-444444444444';
 
   let service: SocialService;
 
@@ -95,9 +91,7 @@ describe('SocialService sendMessage notifications', () => {
             deletedAt: null,
           }),
 
-          save: jest.fn().mockImplementation(
-            async (_entity, value) => value,
-          ),
+          save: jest.fn().mockImplementation(async (_entity, value) => value),
 
           update: jest.fn().mockResolvedValue({
             affected: 1,
@@ -116,19 +110,13 @@ describe('SocialService sendMessage notifications', () => {
       id: 'notification-id',
     });
 
-    const result = await service.sendMessage(
-      senderId,
-      conversationId,
-      {
-        content: 'Hello',
-      },
-    );
+    const result = await service.sendMessage(senderId, conversationId, {
+      content: 'Hello',
+    });
 
     expect(result.id).toBe(messageId);
 
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledWith({
+    expect(notificationsService.createForUser).toHaveBeenCalledWith({
       userId: recipientId,
       workspaceId: null,
       type: 'DIRECT_MESSAGE',
@@ -145,17 +133,11 @@ describe('SocialService sendMessage notifications', () => {
   it('does not notify the sender', async () => {
     mockSuccessfulTransaction();
 
-    await service.sendMessage(
-      senderId,
-      conversationId,
-      {
-        content: 'Hello',
-      },
-    );
+    await service.sendMessage(senderId, conversationId, {
+      content: 'Hello',
+    });
 
-    expect(
-      notificationsService.createForUser,
-    ).not.toHaveBeenCalledWith(
+    expect(notificationsService.createForUser).not.toHaveBeenCalledWith(
       expect.objectContaining({
         userId: senderId,
       }),
@@ -171,31 +153,25 @@ describe('SocialService sendMessage notifications', () => {
 
     jest
       .spyOn(
-        (service as unknown as {
-          logger: {
-            error: (...args: unknown[]) => void;
-          };
-        }).logger,
+        (
+          service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }
+        ).logger,
         'error',
       )
       .mockImplementation(() => undefined);
 
-    const result = await service.sendMessage(
-      senderId,
-      conversationId,
-      {
-        content: 'Hello',
-      },
-    );
+    const result = await service.sendMessage(senderId, conversationId, {
+      content: 'Hello',
+    });
 
     expect(result.id).toBe(messageId);
 
-    expect(
-      directChatGateway.emitMessageCreated,
-    ).toHaveBeenCalled();
+    expect(directChatGateway.emitMessageCreated).toHaveBeenCalled();
 
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledTimes(1);
+    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
   });
 });

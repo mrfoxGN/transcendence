@@ -1,8 +1,8 @@
 export class WorkspaceKanbanSettingsResponseDto {
   workspaceId!: string;
   activeWipLimit!: number;
-  definitionOfReady!: unknown | null;
-  definitionOfDone!: unknown | null;
+  definitionOfReady!: unknown;
+  definitionOfDone!: unknown;
   createdAt!: Date;
   updatedAt!: Date;
 }

@@ -26,8 +26,7 @@ describe('GitHubOAuthService', () => {
   const configValues: Record<string, string> = {
     GITHUB_OAUTH_CLIENT_ID: 'test-client-id',
     GITHUB_OAUTH_CLIENT_SECRET: 'test-client-secret',
-    GITHUB_OAUTH_CALLBACK_URL:
-      'http://localhost:3000/github/callback',
+    GITHUB_OAUTH_CALLBACK_URL: 'http://localhost:3000/github/callback',
   };
 
   const workspacesService = {
@@ -98,13 +97,9 @@ describe('GitHubOAuthService', () => {
     expect(url.origin).toBe('https://github.com');
     expect(url.pathname).toBe('/login/oauth/authorize');
 
-    expect(url.searchParams.get('client_id')).toBe(
-      'test-client-id',
-    );
+    expect(url.searchParams.get('client_id')).toBe('test-client-id');
 
-    expect(url.searchParams.get('scope')).toBe(
-      'read:user',
-    );
+    expect(url.searchParams.get('scope')).toBe('read:user');
   });
 
   it('rejects non-workspace owners', async () => {
@@ -112,9 +107,9 @@ describe('GitHubOAuthService', () => {
       new ForbiddenException(),
     );
 
-    await expect(
-      service.begin(workspaceId, userId),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.begin(workspaceId, userId)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('generates secure OAuth state and PKCE parameters', async () => {
@@ -125,9 +120,7 @@ describe('GitHubOAuthService', () => {
     expect(state.length).toBeGreaterThanOrEqual(32);
     expect(challenge).toHaveLength(43);
 
-    expect(
-      url.searchParams.get('code_challenge_method'),
-    ).toBe('S256');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
   });
 
   it('rejects unknown OAuth states', async () => {
@@ -141,21 +134,19 @@ describe('GitHubOAuthService', () => {
 
     const now = Date.now();
 
-    jest.spyOn(Date, 'now').mockReturnValue(
-      now + 6 * 60 * 1000,
-    );
+    jest.spyOn(Date, 'now').mockReturnValue(now + 6 * 60 * 1000);
 
-    await expect(
-      service.complete('test-code', state),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.complete('test-code', state)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejects empty authorization codes', async () => {
     const { state } = await startOAuth();
 
-    await expect(
-      service.complete('', state),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.complete('', state)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('exchanges the code and verifies the GitHub user', async () => {
@@ -163,10 +154,7 @@ describe('GitHubOAuthService', () => {
 
     const fetchMock = mockGitHubSuccess();
 
-    const result = await service.complete(
-      'test-code',
-      state,
-    );
+    const result = await service.complete('test-code', state);
 
     expect(result.githubUserId).toBe('123456');
     expect(result.githubLogin).toBe('octocat');
@@ -186,13 +174,9 @@ describe('GitHubOAuthService', () => {
       .update(verifier!)
       .digest('base64url');
 
-    expect(expectedChallenge).toBe(
-      url.searchParams.get('code_challenge'),
-    );
+    expect(expectedChallenge).toBe(url.searchParams.get('code_challenge'));
 
-    expect(JSON.stringify(result)).not.toContain(
-      'gho_test_token',
-    );
+    expect(JSON.stringify(result)).not.toContain('gho_test_token');
   });
 
   it('prevents OAuth state replay', async () => {
@@ -202,9 +186,9 @@ describe('GitHubOAuthService', () => {
 
     await service.complete('test-code', state);
 
-    await expect(
-      service.complete('test-code', state),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.complete('test-code', state)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('binds setup sessions to the correct workspace and user', async () => {
@@ -212,10 +196,7 @@ describe('GitHubOAuthService', () => {
 
     mockGitHubSuccess();
 
-    const result = await service.complete(
-      'test-code',
-      state,
-    );
+    const result = await service.complete('test-code', state);
 
     const token = await service.getSetupAccessToken(
       result.setupSessionId,
@@ -239,23 +220,14 @@ describe('GitHubOAuthService', () => {
 
     mockGitHubSuccess();
 
-    const result = await service.complete(
-      'test-code',
-      state,
-    );
+    const result = await service.complete('test-code', state);
 
     const now = Date.now();
 
-    jest.spyOn(Date, 'now').mockReturnValue(
-      now + 11 * 60 * 1000,
-    );
+    jest.spyOn(Date, 'now').mockReturnValue(now + 11 * 60 * 1000);
 
     await expect(
-      service.getSetupAccessToken(
-        result.setupSessionId,
-        workspaceId,
-        userId,
-      ),
+      service.getSetupAccessToken(result.setupSessionId, workspaceId, userId),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -272,21 +244,19 @@ describe('GitHubOAuthService', () => {
       ),
     );
 
-    await expect(
-      service.complete('test-code', state),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.complete('test-code', state)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('handles GitHub connection failures', async () => {
     const { state } = await startOAuth();
 
-    jest.spyOn(globalThis, 'fetch').mockRejectedValueOnce(
-      new Error('Connection failed'),
-    );
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('Connection failed'));
 
-    await expect(
-      service.complete('test-code', state),
-    ).rejects.toBeInstanceOf(
+    await expect(service.complete('test-code', state)).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
   });

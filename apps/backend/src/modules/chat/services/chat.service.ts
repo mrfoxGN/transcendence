@@ -19,7 +19,6 @@ export class ChatService {
     private readonly workspaceChatGateway: WorkspaceChatGateway,
   ) {}
 
-
   async listMessages(
     workspaceId: string,
     userId: string,
@@ -90,10 +89,7 @@ export class ChatService {
       createdAt: saved.createdAt,
     };
 
-    this.workspaceChatGateway.emitMessageCreated(
-      workspaceId,
-      response,
-    );
+    this.workspaceChatGateway.emitMessageCreated(workspaceId, response);
 
     return response;
   }

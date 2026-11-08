@@ -31,7 +31,13 @@ import { GitHubSyncService } from './services/github-sync.service';
     ]),
   ],
   controllers: [GitHubController, WorkspaceGitHubController],
-  providers: [GitHubTokenCryptoService, GitHubService, GitHubApiService, GitHubOAuthService, GitHubSyncService],
+  providers: [
+    GitHubTokenCryptoService,
+    GitHubService,
+    GitHubApiService,
+    GitHubOAuthService,
+    GitHubSyncService,
+  ],
   exports: [GitHubService],
 })
 export class GitHubModule {}

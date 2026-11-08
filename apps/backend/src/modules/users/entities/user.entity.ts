@@ -53,7 +53,7 @@ export class User {
   status!: UserStatus;
 
   @Column({
-  name: 'token_version',
+    name: 'token_version',
     type: 'int',
     default: 0,
   })

@@ -76,9 +76,7 @@ describe('Users endpoints', () => {
   });
 
   it('GET requires a token', async () => {
-    await request(app.getHttpServer())
-      .get(`/users/${id}`)
-      .expect(401);
+    await request(app.getHttpServer()).get(`/users/${id}`).expect(401);
 
     expect(usersService.findForAuth).not.toHaveBeenCalled();
   });

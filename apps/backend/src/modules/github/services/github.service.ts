@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -39,23 +45,16 @@ export class GitHubService {
     userId: string,
     setupSessionId: string,
   ): Promise<PublicGitHubRepository[]> {
-    await this.workspacesService.assertOwner(
+    await this.workspacesService.assertOwner(workspaceId, userId);
+
+    const accessToken = await this.githubOAuthService.getSetupAccessToken(
+      setupSessionId,
       workspaceId,
       userId,
     );
 
-    const accessToken =
-      await this.githubOAuthService.getSetupAccessToken(
-        setupSessionId,
-        workspaceId,
-        userId,
-      );
-
-    return this.githubApiService.listAdminPublicRepositories(
-      accessToken,
-    );
+    return this.githubApiService.listAdminPublicRepositories(accessToken);
   }
-
 
   async connectPublicRepository(
     workspaceId: string,
@@ -64,30 +63,23 @@ export class GitHubService {
     githubRepositoryId: string,
   ): Promise<ConnectedRepositoryResponseDto> {
     // Verify Transcendence workspace ownership.
-    await this.workspacesService.assertOwner(
+    await this.workspacesService.assertOwner(workspaceId, userId);
+
+    // Verify the temporary OAuth session belongs to
+    // this workspace and Transcendence user.
+    const accessToken = await this.githubOAuthService.getSetupAccessToken(
+      setupSessionId,
       workspaceId,
       userId,
     );
 
-    // Verify the temporary OAuth session belongs to
-    // this workspace and Transcendence user.
-    const accessToken =
-      await this.githubOAuthService.getSetupAccessToken(
-        setupSessionId,
-        workspaceId,
-        userId,
-      );
-
     // Fetch current repository permissions from GitHub.
     // Never trust only the selected repository ID.
     const availableRepositories =
-      await this.githubApiService.listAdminPublicRepositories(
-        accessToken,
-      );
+      await this.githubApiService.listAdminPublicRepositories(accessToken);
 
     const selected = availableRepositories.find(
-      (repository) =>
-        repository.githubRepositoryId === githubRepositoryId,
+      (repository) => repository.githubRepositoryId === githubRepositoryId,
     );
 
     if (!selected) {
@@ -97,13 +89,12 @@ export class GitHubService {
     }
 
     // V1: allow one active repository per workspace.
-    const activeConnection =
-      await this.connectedRepositories.findOne({
-        where: {
-          workspaceId,
-          disconnectedAt: IsNull(),
-        },
-      });
+    const activeConnection = await this.connectedRepositories.findOne({
+      where: {
+        workspaceId,
+        disconnectedAt: IsNull(),
+      },
+    });
 
     if (activeConnection) {
       throw new ConflictException(
@@ -112,13 +103,12 @@ export class GitHubService {
     }
 
     // Do not silently reactivate previously disconnected rows.
-    const previousConnection =
-      await this.connectedRepositories.findOne({
-        where: {
-          workspaceId,
-          githubRepositoryId: selected.githubRepositoryId,
-        },
-      });
+    const previousConnection = await this.connectedRepositories.findOne({
+      where: {
+        workspaceId,
+        githubRepositoryId: selected.githubRepositoryId,
+      },
+    });
 
     if (previousConnection) {
       throw new ConflictException(
@@ -146,21 +136,16 @@ export class GitHubService {
       disconnectedAt: null,
     });
 
-    connection.encryptedOAuthToken =
-      this.githubTokenCryptoService.encrypt(
-        accessToken,
-        connection.id,
-      );
-
-    const saved = await this.connectedRepositories.save(
-      connection,
+    connection.encryptedOAuthToken = this.githubTokenCryptoService.encrypt(
+      accessToken,
+      connection.id,
     );
+
+    const saved = await this.connectedRepositories.save(connection);
 
     // The OAuth setup session is no longer needed
     // after successful repository linking.
-    this.githubOAuthService.deleteSetupSession(
-      setupSessionId,
-    );
+    this.githubOAuthService.deleteSetupSession(setupSessionId);
 
     return {
       id: saved.id,
@@ -174,7 +159,6 @@ export class GitHubService {
     };
   }
 
-
   async getWorkspaceRepository(
     workspaceId: string,
     userId: string,
@@ -184,10 +168,7 @@ export class GitHubService {
     }
   > {
     // Only workspace members can view the connection.
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     // Read stored data without calling the GitHub API.
     const repository = await this.connectedRepositories.findOne({
@@ -229,16 +210,11 @@ export class GitHubService {
       limit < 1 ||
       limit > 100
     ) {
-      throw new BadRequestException(
-        'Invalid pagination parameters',
-      );
+      throw new BadRequestException('Invalid pagination parameters');
     }
 
     // Verify workspace membership.
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     // Read the connected repository from MySQL.
     const repository = await this.connectedRepositories.findOne({
@@ -255,18 +231,17 @@ export class GitHubService {
     }
 
     // Read stored commits. No GitHub API request.
-    const [commits, total] =
-      await this.repositoryCommits.findAndCount({
-        where: {
-          repositoryId: repository.id,
-        },
-        order: {
-          committedAt: 'DESC',
-          sha: 'DESC',
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
+    const [commits, total] = await this.repositoryCommits.findAndCount({
+      where: {
+        repositoryId: repository.id,
+      },
+      order: {
+        committedAt: 'DESC',
+        sha: 'DESC',
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
     return {
       items: commits.map((commit) => ({
@@ -289,10 +264,7 @@ export class GitHubService {
     workspaceId: string,
     userId: string,
   ): Promise<{ repository: ConnectedRepository; accessToken: string }> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const repository = await this.connectedRepositories.findOne({
       select: {
@@ -346,10 +318,7 @@ export class GitHubService {
     userId: string,
   ): Promise<PublicGitHubBranch[]> {
     const { repository, accessToken } =
-      await this.getConnectedRepositoryForMember(
-        workspaceId,
-        userId,
-      );
+      await this.getConnectedRepositoryForMember(workspaceId, userId);
 
     return this.githubApiService.listBranches(
       repository.ownerLogin,
@@ -357,5 +326,4 @@ export class GitHubService {
       accessToken,
     );
   }
-
 }

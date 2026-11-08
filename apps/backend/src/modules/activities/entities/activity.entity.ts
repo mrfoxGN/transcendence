@@ -78,7 +78,7 @@ export class Activity {
     type: 'json',
     nullable: true,
   })
-  metadata!: unknown | null;
+  metadata!: unknown;
 
   @Column({
     name: 'created_at',

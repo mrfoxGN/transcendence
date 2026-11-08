@@ -48,9 +48,7 @@ export class SocialService {
     }
 
     const [userAId, userBId] =
-      userId < otherUser.id
-        ? [userId, otherUser.id]
-        : [otherUser.id, userId];
+      userId < otherUser.id ? [userId, otherUser.id] : [otherUser.id, userId];
 
     const existing = await this.conversationsRepository.findOneBy({
       userAId,
@@ -136,8 +134,7 @@ export class SocialService {
 
     if (
       !conversation ||
-      (conversation.userAId !== userId &&
-        conversation.userBId !== userId)
+      (conversation.userAId !== userId && conversation.userBId !== userId)
     ) {
       throw new NotFoundException('Conversation not found');
     }
@@ -231,9 +228,7 @@ export class SocialService {
     }
 
     const recipientId =
-      result.userAId === senderId
-        ? result.userBId
-        : result.userAId;
+      result.userAId === senderId ? result.userBId : result.userAId;
 
     try {
       await this.notificationsService.createForUser({
@@ -269,8 +264,7 @@ export class SocialService {
 
     if (
       !conversation ||
-      (conversation.userAId !== userId &&
-        conversation.userBId !== userId)
+      (conversation.userAId !== userId && conversation.userBId !== userId)
     ) {
       throw new NotFoundException('Conversation not found');
     }

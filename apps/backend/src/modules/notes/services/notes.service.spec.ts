@@ -180,16 +180,13 @@ describe('NotesService', () => {
   });
 
   it('lets the creator update the title', async () => {
-    repository.findOne.mockResolvedValueOnce(makeNote()).mockResolvedValueOnce(
-      makeNote({ title: 'Changed' }),
-    );
+    repository.findOne
+      .mockResolvedValueOnce(makeNote())
+      .mockResolvedValueOnce(makeNote({ title: 'Changed' }));
 
-    const result = await service.update(
-      workspaceId,
-      noteId,
-      creatorId,
-      { title: '  Changed  ' },
-    );
+    const result = await service.update(workspaceId, noteId, creatorId, {
+      title: '  Changed  ',
+    });
 
     expect(repository.update).toHaveBeenCalledWith(
       expect.objectContaining({ id: noteId, workspaceId }),
@@ -199,9 +196,9 @@ describe('NotesService', () => {
   });
 
   it('lets the workspace owner clear the content', async () => {
-    repository.findOne.mockResolvedValueOnce(makeNote()).mockResolvedValueOnce(
-      makeNote({ content: null }),
-    );
+    repository.findOne
+      .mockResolvedValueOnce(makeNote())
+      .mockResolvedValueOnce(makeNote({ content: null }));
 
     const result = await service.update(workspaceId, noteId, ownerId, {
       content: null,
@@ -239,9 +236,9 @@ describe('NotesService', () => {
   it('rejects deletion by a member who is not creator or owner', async () => {
     repository.findOne.mockResolvedValue(makeNote());
 
-    await expect(
-      service.remove(workspaceId, noteId, memberId),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.remove(workspaceId, noteId, memberId)).rejects.toThrow(
+      ForbiddenException,
+    );
 
     expect(repository.update).not.toHaveBeenCalled();
   });

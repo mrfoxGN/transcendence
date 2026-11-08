@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { IsNull, Repository } from 'typeorm';
@@ -17,7 +14,7 @@ interface CreateNotificationInput {
   message: string;
   relatedResourceType?: string | null;
   relatedResourceId?: string | null;
-  payload?: unknown | null;
+  payload?: unknown;
 }
 
 @Injectable()
@@ -36,17 +33,14 @@ export class NotificationsService {
       workspaceId: input.workspaceId ?? null,
       type: input.type,
       message: input.message,
-      relatedResourceType:
-        input.relatedResourceType ?? null,
-      relatedResourceId:
-        input.relatedResourceId ?? null,
+      relatedResourceType: input.relatedResourceType ?? null,
+      relatedResourceId: input.relatedResourceId ?? null,
       payload: input.payload ?? null,
       createdAt: new Date(),
       readAt: null,
     });
 
-    const saved =
-      await this.notificationsRepository.save(notification);
+    const saved = await this.notificationsRepository.save(notification);
 
     return this.toResponse(saved);
   }
@@ -69,32 +63,26 @@ export class NotificationsService {
             userId,
           };
 
-    const notifications =
-      await this.notificationsRepository.find({
-        where,
-        order: {
-          createdAt: 'DESC',
-          id: 'DESC',
-        },
-        skip,
-        take: limit,
-      });
+    const notifications = await this.notificationsRepository.find({
+      where,
+      order: {
+        createdAt: 'DESC',
+        id: 'DESC',
+      },
+      skip,
+      take: limit,
+    });
 
-    return notifications.map((notification) =>
-      this.toResponse(notification),
-    );
+    return notifications.map((notification) => this.toResponse(notification));
   }
 
-  async countUnread(
-    userId: string,
-  ): Promise<{ count: number }> {
-    const count =
-      await this.notificationsRepository.count({
-        where: {
-          userId,
-          readAt: IsNull(),
-        },
-      });
+  async countUnread(userId: string): Promise<{ count: number }> {
+    const count = await this.notificationsRepository.count({
+      where: {
+        userId,
+        readAt: IsNull(),
+      },
+    });
 
     return { count };
   }
@@ -103,62 +91,50 @@ export class NotificationsService {
     notificationId: string,
     userId: string,
   ): Promise<NotificationResponseDto> {
-    const notification =
-      await this.notificationsRepository.findOne({
-        where: {
-          id: notificationId,
-          userId,
-        },
-      });
+    const notification = await this.notificationsRepository.findOne({
+      where: {
+        id: notificationId,
+        userId,
+      },
+    });
 
     if (!notification) {
-      throw new NotFoundException(
-        'Notification not found',
-      );
+      throw new NotFoundException('Notification not found');
     }
 
     if (!notification.readAt) {
       notification.readAt = new Date();
 
-      await this.notificationsRepository.save(
-        notification,
-      );
+      await this.notificationsRepository.save(notification);
     }
 
     return this.toResponse(notification);
   }
 
-  async markAllAsRead(
-    userId: string,
-  ): Promise<{ updated: number }> {
-    const result =
-      await this.notificationsRepository.update(
-        {
-          userId,
-          readAt: IsNull(),
-        },
-        {
-          readAt: new Date(),
-        },
-      );
+  async markAllAsRead(userId: string): Promise<{ updated: number }> {
+    const result = await this.notificationsRepository.update(
+      {
+        userId,
+        readAt: IsNull(),
+      },
+      {
+        readAt: new Date(),
+      },
+    );
 
     return {
       updated: result.affected ?? 0,
     };
   }
 
-  private toResponse(
-    notification: Notification,
-  ): NotificationResponseDto {
+  private toResponse(notification: Notification): NotificationResponseDto {
     return {
       id: notification.id,
       workspaceId: notification.workspaceId,
       type: notification.type,
       message: notification.message,
-      relatedResourceType:
-        notification.relatedResourceType,
-      relatedResourceId:
-        notification.relatedResourceId,
+      relatedResourceType: notification.relatedResourceType,
+      relatedResourceId: notification.relatedResourceId,
       payload: notification.payload,
       createdAt: notification.createdAt,
       readAt: notification.readAt,

@@ -16,9 +16,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { ConnectRepositoryDto } from '../dto/connect-repository.dto';
 import { ConnectedRepositoryResponseDto } from '../dto/connected-repository-response.dto';
-import type {
-  PublicGitHubBranch,
-} from '../services/github-api.service';
+import type { PublicGitHubBranch } from '../services/github-api.service';
 import { GitHubService } from '../services/github.service';
 import { GitHubSyncService } from '../services/github-sync.service';
 import type { GitHubSyncResult } from '../services/github-sync.service';
@@ -70,12 +68,8 @@ export class WorkspaceGitHubController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<GitHubSyncResult> {
-    return this.githubSyncService.syncRepository(
-      workspaceId,
-      request.user.id,
-    );
+    return this.githubSyncService.syncRepository(workspaceId, request.user.id);
   }
-
 
   @Get('commits')
   listWorkspaceCommits(
@@ -102,5 +96,4 @@ export class WorkspaceGitHubController {
       request.user.id,
     );
   }
-
 }

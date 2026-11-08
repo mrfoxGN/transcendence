@@ -26,9 +26,7 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class NotificationsController {
-  constructor(
-    private readonly notificationsService: NotificationsService,
-  ) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
   async findAll(
@@ -38,10 +36,7 @@ export class NotificationsController {
     @Query()
     query: ListNotificationsDto,
   ): Promise<NotificationResponseDto[]> {
-    return this.notificationsService.findAll(
-      request.user.id,
-      query,
-    );
+    return this.notificationsService.findAll(request.user.id, query);
   }
 
   @Get('unread-count')
@@ -49,9 +44,7 @@ export class NotificationsController {
     @Req()
     request: AuthenticatedRequest,
   ): Promise<{ count: number }> {
-    return this.notificationsService.countUnread(
-      request.user.id,
-    );
+    return this.notificationsService.countUnread(request.user.id);
   }
 
   @Patch('read-all')
@@ -59,9 +52,7 @@ export class NotificationsController {
     @Req()
     request: AuthenticatedRequest,
   ): Promise<{ updated: number }> {
-    return this.notificationsService.markAllAsRead(
-      request.user.id,
-    );
+    return this.notificationsService.markAllAsRead(request.user.id);
   }
 
   @Patch(':id/read')

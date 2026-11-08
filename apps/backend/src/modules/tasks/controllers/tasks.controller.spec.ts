@@ -347,7 +347,9 @@ describe('TasksController HTTP', () => {
   });
 
   beforeEach(() => {
-    usersService.findForAuth.mockReset().mockResolvedValue({ user, tokenVersion: 0 });
+    usersService.findForAuth
+      .mockReset()
+      .mockResolvedValue({ user, tokenVersion: 0 });
     for (const route of routes) {
       tasksService[route.method].mockReset().mockResolvedValue(route.response);
     }

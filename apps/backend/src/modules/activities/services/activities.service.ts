@@ -13,7 +13,7 @@ export interface CreateActivityInput {
   actionType: string;
   resourceType?: string | null;
   resourceId?: string | null;
-  metadata?: unknown | null;
+  metadata?: unknown;
 }
 
 @Injectable()
@@ -23,9 +23,7 @@ export class ActivitiesService {
     private readonly activitiesRepository: Repository<Activity>,
   ) {}
 
-  async create(
-    input: CreateActivityInput,
-  ): Promise<ActivityResponseDto> {
+  async create(input: CreateActivityInput): Promise<ActivityResponseDto> {
     const activity = this.activitiesRepository.create({
       id: randomUUID(),
       workspaceId: input.workspaceId,
@@ -60,14 +58,10 @@ export class ActivitiesService {
       take: limit,
     });
 
-    return activities.map((activity) =>
-      this.toResponse(activity),
-    );
+    return activities.map((activity) => this.toResponse(activity));
   }
 
-  private toResponse(
-    activity: Activity,
-  ): ActivityResponseDto {
+  private toResponse(activity: Activity): ActivityResponseDto {
     return {
       id: activity.id,
       workspaceId: activity.workspaceId,

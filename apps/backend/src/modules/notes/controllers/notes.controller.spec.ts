@@ -43,9 +43,9 @@ describe('NotesController', () => {
     const response = { id: noteId, title: dto.title };
     create.mockResolvedValue(response);
 
-    await expect(
-      controller.create(workspaceId, dto, request),
-    ).resolves.toBe(response);
+    await expect(controller.create(workspaceId, dto, request)).resolves.toBe(
+      response,
+    );
 
     expect(create).toHaveBeenCalledWith(workspaceId, userId, dto);
   });
@@ -69,11 +69,7 @@ describe('NotesController', () => {
       controller.findOne(workspaceId, noteId, request),
     ).resolves.toBe(response);
 
-    expect(findOne).toHaveBeenCalledWith(
-      workspaceId,
-      noteId,
-      userId,
-    );
+    expect(findOne).toHaveBeenCalledWith(workspaceId, noteId, userId);
   });
 
   it('passes update data and the authenticated user to the service', async () => {
@@ -85,12 +81,7 @@ describe('NotesController', () => {
       controller.update(workspaceId, noteId, dto, request),
     ).resolves.toBe(response);
 
-    expect(update).toHaveBeenCalledWith(
-      workspaceId,
-      noteId,
-      userId,
-      dto,
-    );
+    expect(update).toHaveBeenCalledWith(workspaceId, noteId, userId, dto);
   });
 
   it('passes both IDs and the authenticated user to remove', async () => {
@@ -100,10 +91,6 @@ describe('NotesController', () => {
       controller.remove(workspaceId, noteId, request),
     ).resolves.toBeUndefined();
 
-    expect(remove).toHaveBeenCalledWith(
-      workspaceId,
-      noteId,
-      userId,
-    );
+    expect(remove).toHaveBeenCalledWith(workspaceId, noteId, userId);
   });
 });

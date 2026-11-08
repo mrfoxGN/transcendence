@@ -219,10 +219,7 @@ describe('WorkspacesService', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    const result = await service.findOneForUser(
-      workspaceId,
-      ownerId,
-    );
+    const result = await service.findOneForUser(workspaceId, ownerId);
 
     expect(result.id).toBe(workspaceId);
     expect(result.ownerId).toBe(ownerId);
@@ -247,9 +244,9 @@ describe('WorkspacesService', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.findOneForUser(workspaceId, ownerId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.findOneForUser(workspaceId, ownerId)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('returns 403 when the user is not a workspace member', async () => {
@@ -277,9 +274,9 @@ describe('WorkspacesService', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.findOneForUser(workspaceId, ownerId),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.findOneForUser(workspaceId, ownerId)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });
 
@@ -315,14 +312,10 @@ describe('WorkspacesService update', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    const response = await service.update(
-      workspaceId,
-      ownerId,
-      {
-        name: 'Updated Name',
-        description: 'Updated description',
-      },
-    );
+    const response = await service.update(workspaceId, ownerId, {
+      name: 'Updated Name',
+      description: 'Updated description',
+    });
 
     expect(workspace.name).toBe('Updated Name');
     expect(workspace.description).toBe('Updated description');
@@ -342,9 +335,9 @@ describe('WorkspacesService update', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.update(workspaceId, ownerId, {}),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.update(workspaceId, ownerId, {})).rejects.toThrow(
+      BadRequestException,
+    );
 
     expect(dataSource.getRepository).not.toHaveBeenCalled();
   });
@@ -362,11 +355,7 @@ describe('WorkspacesService update', () => {
     const service = new WorkspacesService(dataSource);
 
     await expect(
-      service.update(
-        workspaceId,
-        ownerId,
-        { name: 'Updated Name' },
-      ),
+      service.update(workspaceId, ownerId, { name: 'Updated Name' }),
     ).rejects.toThrow(NotFoundException);
 
     expect(repository.save).not.toHaveBeenCalled();
@@ -385,17 +374,12 @@ describe('WorkspacesService update', () => {
     const service = new WorkspacesService(dataSource);
 
     await expect(
-      service.update(
-        workspaceId,
-        otherUserId,
-        { name: 'Unauthorized Name' },
-      ),
+      service.update(workspaceId, otherUserId, { name: 'Unauthorized Name' }),
     ).rejects.toThrow(ForbiddenException);
 
     expect(repository.save).not.toHaveBeenCalled();
   });
 });
-
 
 describe('WorkspacesService archive/unarchive/delete', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -429,10 +413,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    const response = await service.archive(
-      workspaceId,
-      ownerId,
-    );
+    const response = await service.archive(workspaceId, ownerId);
 
     expect(workspace.archivedAt).toBeInstanceOf(Date);
     expect(workspace.updatedAt).toBeInstanceOf(Date);
@@ -452,9 +433,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.archive(workspaceId, ownerId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.archive(workspaceId, ownerId)).rejects.toThrow(
+      NotFoundException,
+    );
 
     expect(repository.save).not.toHaveBeenCalled();
   });
@@ -471,9 +452,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.archive(workspaceId, otherUserId),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.archive(workspaceId, otherUserId)).rejects.toThrow(
+      ForbiddenException,
+    );
 
     expect(repository.save).not.toHaveBeenCalled();
   });
@@ -493,10 +474,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    const response = await service.unarchive(
-      workspaceId,
-      ownerId,
-    );
+    const response = await service.unarchive(workspaceId, ownerId);
 
     expect(workspace.archivedAt).toBeNull();
     expect(repository.save).toHaveBeenCalledWith(workspace);
@@ -515,9 +493,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.unarchive(workspaceId, ownerId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.unarchive(workspaceId, ownerId)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('returns 403 when a non-owner tries to unarchive', async () => {
@@ -535,9 +513,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.unarchive(workspaceId, otherUserId),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.unarchive(workspaceId, otherUserId)).rejects.toThrow(
+      ForbiddenException,
+    );
 
     expect(repository.save).not.toHaveBeenCalled();
   });
@@ -556,10 +534,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await service.softDelete(
-      workspaceId,
-      ownerId,
-    );
+    await service.softDelete(workspaceId, ownerId);
 
     expect(workspace.deletedAt).toBeInstanceOf(Date);
     expect(workspace.updatedAt).toBeInstanceOf(Date);
@@ -578,9 +553,9 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.softDelete(workspaceId, ownerId),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.softDelete(workspaceId, ownerId)).rejects.toThrow(
+      NotFoundException,
+    );
 
     expect(repository.save).not.toHaveBeenCalled();
   });
@@ -597,14 +572,13 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    await expect(
-      service.softDelete(workspaceId, otherUserId),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.softDelete(workspaceId, otherUserId)).rejects.toThrow(
+      ForbiddenException,
+    );
 
     expect(repository.save).not.toHaveBeenCalled();
   });
 });
-
 
 describe('WorkspacesService members', () => {
   const userId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -643,15 +617,9 @@ describe('WorkspacesService members', () => {
       archivedAt: null,
     });
 
-    const result = await service.findMembers(
-      workspaceId,
-      userId,
-    );
+    const result = await service.findMembers(workspaceId, userId);
 
-    expect(service.findOneForUser).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
+    expect(service.findOneForUser).toHaveBeenCalledWith(workspaceId, userId);
 
     expect(membershipRepository.find).toHaveBeenCalledWith({
       where: {
@@ -715,10 +683,7 @@ describe('WorkspacesService members', () => {
       archivedAt: null,
     });
 
-    const result = await service.findMembers(
-      workspaceId,
-      userId,
-    );
+    const result = await service.findMembers(workspaceId, userId);
 
     expect(result[0].isOwner).toBe(false);
   });
@@ -734,18 +699,17 @@ describe('WorkspacesService members', () => {
 
     const service = new WorkspacesService(dataSource);
 
-    jest.spyOn(service, 'findOneForUser').mockRejectedValue(
-      new ForbiddenException(),
-    );
+    jest
+      .spyOn(service, 'findOneForUser')
+      .mockRejectedValue(new ForbiddenException());
 
-    await expect(
-      service.findMembers(workspaceId, userId),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.findMembers(workspaceId, userId)).rejects.toThrow(
+      ForbiddenException,
+    );
 
     expect(membershipRepository.find).not.toHaveBeenCalled();
   });
 });
-
 
 describe('WorkspacesService removeMember', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -809,11 +773,7 @@ describe('WorkspacesService removeMember', () => {
       activitiesService as never,
     );
 
-    await service.removeMember(
-      workspaceId,
-      ownerId,
-      memberId,
-    );
+    await service.removeMember(workspaceId, ownerId, memberId);
 
     expect(membershipRepository.findOne).toHaveBeenCalledWith({
       where: {
@@ -822,9 +782,7 @@ describe('WorkspacesService removeMember', () => {
       },
     });
 
-    expect(membershipRepository.remove).toHaveBeenCalledWith(
-      membership,
-    );
+    expect(membershipRepository.remove).toHaveBeenCalledWith(membership);
 
     expect(activitiesService.create).toHaveBeenCalledWith({
       workspaceId,
@@ -837,7 +795,6 @@ describe('WorkspacesService removeMember', () => {
       },
     });
   });
-
 
   it('still removes the member when activity creation fails', async () => {
     const membership = {
@@ -871,9 +828,7 @@ describe('WorkspacesService removeMember', () => {
     } as unknown as DataSource;
 
     const activitiesService = {
-      create: jest.fn().mockRejectedValue(
-        new Error('Activity unavailable'),
-      ),
+      create: jest.fn().mockRejectedValue(new Error('Activity unavailable')),
     };
 
     const service = new WorkspacesService(
@@ -885,30 +840,24 @@ describe('WorkspacesService removeMember', () => {
 
     jest
       .spyOn(
-        (service as unknown as {
-          logger: {
-            error: (...args: unknown[]) => void;
-          };
-        }).logger,
+        (
+          service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }
+        ).logger,
         'error',
       )
       .mockImplementation(() => undefined);
 
     await expect(
-      service.removeMember(
-        workspaceId,
-        ownerId,
-        memberId,
-      ),
+      service.removeMember(workspaceId, ownerId, memberId),
     ).resolves.toBeUndefined();
 
-    expect(
-      membershipRepository.remove,
-    ).toHaveBeenCalledWith(membership);
+    expect(membershipRepository.remove).toHaveBeenCalledWith(membership);
 
-    expect(
-      activitiesService.create,
-    ).toHaveBeenCalledTimes(1);
+    expect(activitiesService.create).toHaveBeenCalledTimes(1);
   });
 
   it('returns 404 when workspace does not exist', async () => {
@@ -923,11 +872,7 @@ describe('WorkspacesService removeMember', () => {
     const service = new WorkspacesService(dataSource);
 
     await expect(
-      service.removeMember(
-        workspaceId,
-        ownerId,
-        memberId,
-      ),
+      service.removeMember(workspaceId, ownerId, memberId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -943,11 +888,7 @@ describe('WorkspacesService removeMember', () => {
     const service = new WorkspacesService(dataSource);
 
     await expect(
-      service.removeMember(
-        workspaceId,
-        memberId,
-        ownerId,
-      ),
+      service.removeMember(workspaceId, memberId, ownerId),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -963,11 +904,7 @@ describe('WorkspacesService removeMember', () => {
     const service = new WorkspacesService(dataSource);
 
     await expect(
-      service.removeMember(
-        workspaceId,
-        ownerId,
-        ownerId,
-      ),
+      service.removeMember(workspaceId, ownerId, ownerId),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -998,17 +935,12 @@ describe('WorkspacesService removeMember', () => {
     const service = new WorkspacesService(dataSource);
 
     await expect(
-      service.removeMember(
-        workspaceId,
-        ownerId,
-        memberId,
-      ),
+      service.removeMember(workspaceId, ownerId, memberId),
     ).rejects.toThrow(NotFoundException);
 
     expect(membershipRepository.remove).not.toHaveBeenCalled();
   });
 });
-
 
 describe('WorkspacesService createInvitation', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -1080,17 +1012,11 @@ describe('WorkspacesService createInvitation', () => {
       notificationsService,
     );
 
-    const response = await service.createInvitation(
-      workspaceId,
-      ownerId,
-      {
-        invitedUserId,
-      },
-    );
-
-    expect(usersService.findById).toHaveBeenCalledWith(
+    const response = await service.createInvitation(workspaceId, ownerId, {
       invitedUserId,
-    );
+    });
+
+    expect(usersService.findById).toHaveBeenCalledWith(invitedUserId);
 
     expect(membershipRepository.findOne).toHaveBeenCalledWith({
       where: {
@@ -1120,9 +1046,7 @@ describe('WorkspacesService createInvitation', () => {
       }),
     );
 
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledWith({
+    expect(notificationsService.createForUser).toHaveBeenCalledWith({
       userId: invitedUserId,
       workspaceId,
       type: 'WORKSPACE_INVITATION',
@@ -1181,9 +1105,9 @@ describe('WorkspacesService createInvitation', () => {
     } as unknown as UsersService;
 
     const notificationsService = {
-      createForUser: jest.fn().mockRejectedValue(
-        new Error('Notification unavailable'),
-      ),
+      createForUser: jest
+        .fn()
+        .mockRejectedValue(new Error('Notification unavailable')),
     } as unknown as NotificationsService;
 
     const service = new WorkspacesService(
@@ -1194,38 +1118,28 @@ describe('WorkspacesService createInvitation', () => {
 
     jest
       .spyOn(
-        (service as unknown as {
-          logger: {
-            error: (...args: unknown[]) => void;
-          };
-        }).logger,
+        (
+          service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }
+        ).logger,
         'error',
       )
       .mockImplementation(() => undefined);
 
-    const response = await service.createInvitation(
-      workspaceId,
-      ownerId,
-      {
-        invitedUserId,
-      },
-    );
-
-    expect(
-      invitationRepository.save,
-    ).toHaveBeenCalledTimes(1);
-
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledTimes(1);
-
-    expect(response.status).toBe(
-      InvitationStatus.PENDING,
-    );
-
-    expect(response.invitedUserId).toBe(
+    const response = await service.createInvitation(workspaceId, ownerId, {
       invitedUserId,
-    );
+    });
+
+    expect(invitationRepository.save).toHaveBeenCalledTimes(1);
+
+    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
+
+    expect(response.status).toBe(InvitationStatus.PENDING);
+
+    expect(response.invitedUserId).toBe(invitedUserId);
   });
 
   it('returns 404 when workspace does not exist', async () => {
@@ -1241,17 +1155,10 @@ describe('WorkspacesService createInvitation', () => {
       findById: jest.fn(),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(
-      dataSource,
-      usersService,
-    );
+    const service = new WorkspacesService(dataSource, usersService);
 
     await expect(
-      service.createInvitation(
-        workspaceId,
-        ownerId,
-        { invitedUserId },
-      ),
+      service.createInvitation(workspaceId, ownerId, { invitedUserId }),
     ).rejects.toThrow(NotFoundException);
 
     expect(usersService.findById).not.toHaveBeenCalled();
@@ -1270,17 +1177,12 @@ describe('WorkspacesService createInvitation', () => {
       findById: jest.fn(),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(
-      dataSource,
-      usersService,
-    );
+    const service = new WorkspacesService(dataSource, usersService);
 
     await expect(
-      service.createInvitation(
-        workspaceId,
-        invitedUserId,
-        { invitedUserId: ownerId },
-      ),
+      service.createInvitation(workspaceId, invitedUserId, {
+        invitedUserId: ownerId,
+      }),
     ).rejects.toThrow(ForbiddenException);
 
     expect(usersService.findById).not.toHaveBeenCalled();
@@ -1299,17 +1201,12 @@ describe('WorkspacesService createInvitation', () => {
       findById: jest.fn(),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(
-      dataSource,
-      usersService,
-    );
+    const service = new WorkspacesService(dataSource, usersService);
 
     await expect(
-      service.createInvitation(
-        workspaceId,
-        ownerId,
-        { invitedUserId: ownerId },
-      ),
+      service.createInvitation(workspaceId, ownerId, {
+        invitedUserId: ownerId,
+      }),
     ).rejects.toThrow(BadRequestException);
 
     expect(usersService.findById).not.toHaveBeenCalled();
@@ -1325,22 +1222,15 @@ describe('WorkspacesService createInvitation', () => {
     } as unknown as DataSource;
 
     const usersService = {
-      findById: jest.fn().mockRejectedValue(
-        new NotFoundException('User not found'),
-      ),
+      findById: jest
+        .fn()
+        .mockRejectedValue(new NotFoundException('User not found')),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(
-      dataSource,
-      usersService,
-    );
+    const service = new WorkspacesService(dataSource, usersService);
 
     await expect(
-      service.createInvitation(
-        workspaceId,
-        ownerId,
-        { invitedUserId },
-      ),
+      service.createInvitation(workspaceId, ownerId, { invitedUserId }),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -1377,17 +1267,10 @@ describe('WorkspacesService createInvitation', () => {
       }),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(
-      dataSource,
-      usersService,
-    );
+    const service = new WorkspacesService(dataSource, usersService);
 
     await expect(
-      service.createInvitation(
-        workspaceId,
-        ownerId,
-        { invitedUserId },
-      ),
+      service.createInvitation(workspaceId, ownerId, { invitedUserId }),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -1433,21 +1316,13 @@ describe('WorkspacesService createInvitation', () => {
       }),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(
-      dataSource,
-      usersService,
-    );
+    const service = new WorkspacesService(dataSource, usersService);
 
     await expect(
-      service.createInvitation(
-        workspaceId,
-        ownerId,
-        { invitedUserId },
-      ),
+      service.createInvitation(workspaceId, ownerId, { invitedUserId }),
     ).rejects.toThrow(ConflictException);
   });
 });
-
 
 describe('WorkspacesService acceptInvitation', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -1520,9 +1395,7 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
     const usersService = {} as UsersService;
@@ -1563,19 +1436,13 @@ describe('WorkspacesService acceptInvitation', () => {
 
     expect(membershipRepository.save).toHaveBeenCalledTimes(1);
 
-    expect(invitation.status).toBe(
-      InvitationStatus.ACCEPTED,
-    );
+    expect(invitation.status).toBe(InvitationStatus.ACCEPTED);
 
     expect(invitation.respondedAt).toBeInstanceOf(Date);
 
-    expect(invitationRepository.save).toHaveBeenCalledWith(
-      invitation,
-    );
+    expect(invitationRepository.save).toHaveBeenCalledWith(invitation);
 
-    expect(response.status).toBe(
-      InvitationStatus.ACCEPTED,
-    );
+    expect(response.status).toBe(InvitationStatus.ACCEPTED);
 
     expect(response.respondedAt).toBeInstanceOf(Date);
 
@@ -1591,14 +1458,11 @@ describe('WorkspacesService acceptInvitation', () => {
       },
     });
 
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledWith({
+    expect(notificationsService.createForUser).toHaveBeenCalledWith({
       userId: ownerId,
       workspaceId,
       type: 'WORKSPACE_INVITATION_ACCEPTED',
-      message:
-        'Your invitation to Transcendence Workspace was accepted',
+      message: 'Your invitation to Transcendence Workspace was accepted',
       relatedResourceType: 'workspace_invitation',
       relatedResourceId: invitationId,
       payload: {
@@ -1644,15 +1508,13 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
     const notificationsService = {
-      createForUser: jest.fn().mockRejectedValue(
-        new Error('Notification unavailable'),
-      ),
+      createForUser: jest
+        .fn()
+        .mockRejectedValue(new Error('Notification unavailable')),
     } as unknown as NotificationsService;
 
     const activitiesService = {
@@ -1670,11 +1532,13 @@ describe('WorkspacesService acceptInvitation', () => {
 
     jest
       .spyOn(
-        (service as unknown as {
-          logger: {
-            error: (...args: unknown[]) => void;
-          };
-        }).logger,
+        (
+          service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }
+        ).logger,
         'error',
       )
       .mockImplementation(() => undefined);
@@ -1685,21 +1549,14 @@ describe('WorkspacesService acceptInvitation', () => {
       invitedUserId,
     );
 
-    expect(response.status).toBe(
-      InvitationStatus.ACCEPTED,
-    );
+    expect(response.status).toBe(InvitationStatus.ACCEPTED);
 
     expect(membershipRepository.save).toHaveBeenCalledTimes(1);
 
-    expect(invitation.status).toBe(
-      InvitationStatus.ACCEPTED,
-    );
+    expect(invitation.status).toBe(InvitationStatus.ACCEPTED);
 
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledTimes(1);
+    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
   });
-
 
   it('still accepts the invitation when activity creation fails', async () => {
     const invitation = makeInvitation();
@@ -1738,9 +1595,7 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
     const notificationsService = {
@@ -1750,9 +1605,7 @@ describe('WorkspacesService acceptInvitation', () => {
     } as unknown as NotificationsService;
 
     const activitiesService = {
-      create: jest.fn().mockRejectedValue(
-        new Error('Activity unavailable'),
-      ),
+      create: jest.fn().mockRejectedValue(new Error('Activity unavailable')),
     };
 
     const service = new WorkspacesService(
@@ -1764,11 +1617,13 @@ describe('WorkspacesService acceptInvitation', () => {
 
     jest
       .spyOn(
-        (service as unknown as {
-          logger: {
-            error: (...args: unknown[]) => void;
-          };
-        }).logger,
+        (
+          service as unknown as {
+            logger: {
+              error: (...args: unknown[]) => void;
+            };
+          }
+        ).logger,
         'error',
       )
       .mockImplementation(() => undefined);
@@ -1779,23 +1634,15 @@ describe('WorkspacesService acceptInvitation', () => {
       invitedUserId,
     );
 
-    expect(response.status).toBe(
-      InvitationStatus.ACCEPTED,
-    );
+    expect(response.status).toBe(InvitationStatus.ACCEPTED);
 
     expect(membershipRepository.save).toHaveBeenCalledTimes(1);
 
-    expect(invitation.status).toBe(
-      InvitationStatus.ACCEPTED,
-    );
+    expect(invitation.status).toBe(InvitationStatus.ACCEPTED);
 
-    expect(
-      notificationsService.createForUser,
-    ).toHaveBeenCalledTimes(1);
+    expect(notificationsService.createForUser).toHaveBeenCalledTimes(1);
 
-    expect(
-      activitiesService.create,
-    ).toHaveBeenCalledTimes(1);
+    expect(activitiesService.create).toHaveBeenCalledTimes(1);
   });
 
   it('returns 404 when workspace does not exist', async () => {
@@ -1804,28 +1651,17 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const manager = {
-      getRepository: jest.fn().mockReturnValue(
-        workspaceRepository,
-      ),
+      getRepository: jest.fn().mockReturnValue(workspaceRepository),
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.acceptInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.acceptInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -1853,22 +1689,13 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.acceptInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.acceptInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -1898,22 +1725,13 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.acceptInvitation(
-        workspaceId,
-        invitationId,
-        ownerId,
-      ),
+      service.acceptInvitation(workspaceId, invitationId, ownerId),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -1944,22 +1762,13 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.acceptInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.acceptInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -2003,34 +1812,20 @@ describe('WorkspacesService acceptInvitation', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(
-        async (callback) => callback(manager),
-      ),
+      transaction: jest.fn(async (callback) => callback(manager)),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.acceptInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.acceptInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(ConflictException);
 
-    expect(
-      membershipRepository.create,
-    ).not.toHaveBeenCalled();
+    expect(membershipRepository.create).not.toHaveBeenCalled();
 
-    expect(
-      membershipRepository.save,
-    ).not.toHaveBeenCalled();
+    expect(membershipRepository.save).not.toHaveBeenCalled();
   });
 });
-
 
 describe('WorkspacesService rejectInvitation', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -2092,10 +1887,7 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     const response = await service.rejectInvitation(
       workspaceId,
@@ -2103,19 +1895,13 @@ describe('WorkspacesService rejectInvitation', () => {
       invitedUserId,
     );
 
-    expect(invitation.status).toBe(
-      InvitationStatus.REJECTED,
-    );
+    expect(invitation.status).toBe(InvitationStatus.REJECTED);
 
     expect(invitation.respondedAt).toBeInstanceOf(Date);
 
-    expect(invitationRepository.save).toHaveBeenCalledWith(
-      invitation,
-    );
+    expect(invitationRepository.save).toHaveBeenCalledWith(invitation);
 
-    expect(response.status).toBe(
-      InvitationStatus.REJECTED,
-    );
+    expect(response.status).toBe(InvitationStatus.REJECTED);
   });
 
   it('returns 404 when rejecting from a missing workspace', async () => {
@@ -2124,22 +1910,13 @@ describe('WorkspacesService rejectInvitation', () => {
     };
 
     const dataSource = {
-      getRepository: jest.fn().mockReturnValue(
-        workspaceRepository,
-      ),
+      getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.rejectInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.rejectInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -2166,17 +1943,10 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.rejectInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.rejectInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -2203,17 +1973,10 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.rejectInvitation(
-        workspaceId,
-        invitationId,
-        ownerId,
-      ),
+      service.rejectInvitation(workspaceId, invitationId, ownerId),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -2243,21 +2006,13 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.rejectInvitation(
-        workspaceId,
-        invitationId,
-        invitedUserId,
-      ),
+      service.rejectInvitation(workspaceId, invitationId, invitedUserId),
     ).rejects.toThrow(ConflictException);
   });
 });
-
 
 describe('WorkspacesService cancelInvitation', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -2313,10 +2068,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     const response = await service.cancelInvitation(
       workspaceId,
@@ -2324,16 +2076,10 @@ describe('WorkspacesService cancelInvitation', () => {
       ownerId,
     );
 
-    expect(invitation.status).toBe(
-      InvitationStatus.CANCELLED,
-    );
+    expect(invitation.status).toBe(InvitationStatus.CANCELLED);
     expect(invitation.respondedAt).toBeInstanceOf(Date);
-    expect(invitationRepository.save).toHaveBeenCalledWith(
-      invitation,
-    );
-    expect(response.status).toBe(
-      InvitationStatus.CANCELLED,
-    );
+    expect(invitationRepository.save).toHaveBeenCalledWith(invitation);
+    expect(response.status).toBe(InvitationStatus.CANCELLED);
   });
 
   it('returns 404 when workspace does not exist', async () => {
@@ -2343,17 +2089,10 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.cancelInvitation(
-        workspaceId,
-        invitationId,
-        ownerId,
-      ),
+      service.cancelInvitation(workspaceId, invitationId, ownerId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -2364,17 +2103,10 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.cancelInvitation(
-        workspaceId,
-        invitationId,
-        otherUserId,
-      ),
+      service.cancelInvitation(workspaceId, invitationId, otherUserId),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -2395,17 +2127,10 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.cancelInvitation(
-        workspaceId,
-        invitationId,
-        ownerId,
-      ),
+      service.cancelInvitation(workspaceId, invitationId, ownerId),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -2429,21 +2154,13 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.cancelInvitation(
-        workspaceId,
-        invitationId,
-        ownerId,
-      ),
+      service.cancelInvitation(workspaceId, invitationId, ownerId),
     ).rejects.toThrow(ConflictException);
   });
 });
-
 
 describe('WorkspacesService kanban settings', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -2484,37 +2201,25 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
-    jest.spyOn(service, 'findOneForUser').mockResolvedValue(
-      makeWorkspace() as any,
-    );
+    jest
+      .spyOn(service, 'findOneForUser')
+      .mockResolvedValue(makeWorkspace() as any);
 
-    const result = await service.getKanbanSettings(
-      workspaceId,
-      memberId,
-    );
+    const result = await service.getKanbanSettings(workspaceId, memberId);
 
-    expect(service.findOneForUser).toHaveBeenCalledWith(
-      workspaceId,
-      memberId,
-    );
+    expect(service.findOneForUser).toHaveBeenCalledWith(workspaceId, memberId);
     expect(result.activeWipLimit).toBe(3);
     expect(result.workspaceId).toBe(workspaceId);
   });
 
   it('returns 403 when non-member reads kanban settings', async () => {
-    const service = new WorkspacesService(
-      {} as DataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService({} as DataSource, {} as UsersService);
 
-    jest.spyOn(service, 'findOneForUser').mockRejectedValue(
-      new ForbiddenException(),
-    );
+    jest
+      .spyOn(service, 'findOneForUser')
+      .mockRejectedValue(new ForbiddenException());
 
     await expect(
       service.getKanbanSettings(workspaceId, memberId),
@@ -2528,14 +2233,11 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
-    jest.spyOn(service, 'findOneForUser').mockResolvedValue(
-      makeWorkspace() as any,
-    );
+    jest
+      .spyOn(service, 'findOneForUser')
+      .mockResolvedValue(makeWorkspace() as any);
 
     await expect(
       service.getKanbanSettings(workspaceId, ownerId),
@@ -2564,43 +2266,25 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
-    const result = await service.updateKanbanSettings(
-      workspaceId,
-      ownerId,
-      {
-        activeWipLimit: 5,
-        definitionOfReady: ['requirements clear'],
-        definitionOfDone: ['tests pass'],
-      },
-    );
+    const result = await service.updateKanbanSettings(workspaceId, ownerId, {
+      activeWipLimit: 5,
+      definitionOfReady: ['requirements clear'],
+      definitionOfDone: ['tests pass'],
+    });
 
     expect(result.activeWipLimit).toBe(5);
-    expect(result.definitionOfReady).toEqual([
-      'requirements clear',
-    ]);
-    expect(result.definitionOfDone).toEqual([
-      'tests pass',
-    ]);
+    expect(result.definitionOfReady).toEqual(['requirements clear']);
+    expect(result.definitionOfDone).toEqual(['tests pass']);
     expect(settingsRepository.save).toHaveBeenCalled();
   });
 
   it('returns 400 for empty kanban settings update', async () => {
-    const service = new WorkspacesService(
-      {} as DataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService({} as DataSource, {} as UsersService);
 
     await expect(
-      service.updateKanbanSettings(
-        workspaceId,
-        ownerId,
-        {},
-      ),
+      service.updateKanbanSettings(workspaceId, ownerId, {}),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -2611,17 +2295,10 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.updateKanbanSettings(
-        workspaceId,
-        ownerId,
-        { activeWipLimit: 5 },
-      ),
+      service.updateKanbanSettings(workspaceId, ownerId, { activeWipLimit: 5 }),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -2632,17 +2309,12 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.updateKanbanSettings(
-        workspaceId,
-        memberId,
-        { activeWipLimit: 5 },
-      ),
+      service.updateKanbanSettings(workspaceId, memberId, {
+        activeWipLimit: 5,
+      }),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -2665,17 +2337,10 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(
-      dataSource,
-      {} as UsersService,
-    );
+    const service = new WorkspacesService(dataSource, {} as UsersService);
 
     await expect(
-      service.updateKanbanSettings(
-        workspaceId,
-        ownerId,
-        { activeWipLimit: 5 },
-      ),
+      service.updateKanbanSettings(workspaceId, ownerId, { activeWipLimit: 5 }),
     ).rejects.toThrow(NotFoundException);
   });
 });

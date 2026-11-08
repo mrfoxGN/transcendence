@@ -1,7 +1,4 @@
-import {
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
@@ -71,13 +68,9 @@ describe('GitHubService - Repository Connection', () => {
     ]);
 
     connectedRepositories.findOne.mockResolvedValue(null);
-
-    connectedRepositories.create.mockImplementation(
-      (data: object) => data,
-    );
-
-    connectedRepositories.save.mockImplementation(
-      async (data: object) => data,
+    connectedRepositories.create.mockImplementation((data: object) => data);
+    connectedRepositories.save.mockImplementation((data: object) =>
+      Promise.resolve(data),
     );
 
     service = new GitHubService(
@@ -104,10 +97,7 @@ describe('GitHubService - Repository Connection', () => {
 
     expect(result.githubRepositoryId).toBe('1376091667');
     expect(result.fullName).toBe('mrfoxGN/transcendence');
-    expect(result.visibility).toBe(
-      RepositoryVisibility.PUBLIC,
-    );
-
+    expect(result.visibility).toBe(RepositoryVisibility.PUBLIC);
     expect(connectedRepositories.save).toHaveBeenCalledTimes(1);
   });
 
@@ -125,10 +115,7 @@ describe('GitHubService - Repository Connection', () => {
       new ForbiddenException(),
     );
 
-    await expect(connect()).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-
+    await expect(connect()).rejects.toBeInstanceOf(ForbiddenException);
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 
@@ -137,22 +124,14 @@ describe('GitHubService - Repository Connection', () => {
       new ForbiddenException(),
     );
 
-    await expect(connect()).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-
+    await expect(connect()).rejects.toBeInstanceOf(ForbiddenException);
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 
   it('rejects repositories without admin permission', async () => {
-    githubApiService.listAdminPublicRepositories.mockResolvedValueOnce(
-      [],
-    );
+    githubApiService.listAdminPublicRepositories.mockResolvedValueOnce([]);
 
-    await expect(connect()).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-
+    await expect(connect()).rejects.toBeInstanceOf(ForbiddenException);
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 
@@ -161,10 +140,7 @@ describe('GitHubService - Repository Connection', () => {
       id: 'existing-repository',
     });
 
-    await expect(connect()).rejects.toBeInstanceOf(
-      ConflictException,
-    );
-
+    await expect(connect()).rejects.toBeInstanceOf(ConflictException);
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 
@@ -176,10 +152,7 @@ describe('GitHubService - Repository Connection', () => {
         disconnectedAt: new Date(),
       });
 
-    await expect(connect()).rejects.toBeInstanceOf(
-      ConflictException,
-    );
-
+    await expect(connect()).rejects.toBeInstanceOf(ConflictException);
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 
@@ -205,9 +178,9 @@ describe('GitHubService - Repository Connection', () => {
   it('deletes the setup session after successful connection', async () => {
     await connect();
 
-    expect(
-      githubOAuthService.deleteSetupSession,
-    ).toHaveBeenCalledWith(setupSessionId);
+    expect(githubOAuthService.deleteSetupSession).toHaveBeenCalledWith(
+      setupSessionId,
+    );
   });
 
   it('preserves the setup session if database insertion fails', async () => {
@@ -215,13 +188,8 @@ describe('GitHubService - Repository Connection', () => {
       new Error('Database unavailable'),
     );
 
-    await expect(connect()).rejects.toThrow(
-      'Database unavailable',
-    );
-
-    expect(
-      githubOAuthService.deleteSetupSession,
-    ).not.toHaveBeenCalled();
+    await expect(connect()).rejects.toThrow('Database unavailable');
+    expect(githubOAuthService.deleteSetupSession).not.toHaveBeenCalled();
   });
 
   it('does not save a repository when GitHub fails', async () => {
@@ -229,10 +197,7 @@ describe('GitHubService - Repository Connection', () => {
       new Error('GitHub unavailable'),
     );
 
-    await expect(connect()).rejects.toThrow(
-      'GitHub unavailable',
-    );
-
+    await expect(connect()).rejects.toThrow('GitHub unavailable');
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 });

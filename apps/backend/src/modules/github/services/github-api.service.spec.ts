@@ -33,17 +33,13 @@ describe('GitHubApiService', () => {
   });
 
   it('retrieves and maps a public repository', async () => {
-    const fetchMock = jest.spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify(publicRepository), {
-          status: 200,
-        }),
-      );
-
-    const result = await service.getPublicRepository(
-      'octocat',
-      'Hello-World',
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(publicRepository), {
+        status: 200,
+      }),
     );
+
+    const result = await service.getPublicRepository('octocat', 'Hello-World');
 
     expect(result).toEqual({
       githubRepositoryId: '123456',
@@ -91,9 +87,9 @@ describe('GitHubApiService', () => {
   });
 
   it('handles repositories that do not exist', async () => {
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 404 }),
-    );
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 404 }));
 
     await expect(
       service.getPublicRepository('octocat', 'missing'),
@@ -101,9 +97,9 @@ describe('GitHubApiService', () => {
   });
 
   it('handles GitHub rate limiting', async () => {
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 429 }),
-    );
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 429 }));
 
     await expect(
       service.getPublicRepository('octocat', 'Hello-World'),
@@ -111,9 +107,9 @@ describe('GitHubApiService', () => {
   });
 
   it('handles GitHub server errors', async () => {
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('{}', { status: 500 }),
-    );
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 500 }));
 
     await expect(
       service.getPublicRepository('octocat', 'Hello-World'),
@@ -133,7 +129,8 @@ describe('GitHubApiService', () => {
   });
 
   it('handles GitHub connection failures', async () => {
-    jest.spyOn(globalThis, 'fetch')
+    jest
+      .spyOn(globalThis, 'fetch')
       .mockRejectedValue(new Error('Connection failed'));
 
     await expect(

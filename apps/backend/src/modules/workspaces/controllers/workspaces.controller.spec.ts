@@ -186,9 +186,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('GET /workspaces requires authentication', async () => {
-    await request(app.getHttpServer())
-      .get('/workspaces')
-      .expect(401);
+    await request(app.getHttpServer()).get('/workspaces').expect(401);
 
     expect(workspacesService.findAllForUser).not.toHaveBeenCalled();
   });
@@ -199,9 +197,7 @@ describe('Workspaces endpoints', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(workspacesService.findAllForUser).toHaveBeenCalledWith(
-      userId,
-    );
+    expect(workspacesService.findAllForUser).toHaveBeenCalledWith(userId);
 
     expect(response.body).toHaveLength(1);
 
@@ -296,10 +292,7 @@ describe('Workspaces endpoints', () => {
       .send(dto)
       .expect(201);
 
-    expect(workspacesService.create).toHaveBeenCalledWith(
-      userId,
-      dto,
-    );
+    expect(workspacesService.create).toHaveBeenCalledWith(userId, dto);
 
     expect(response.body).toMatchObject({
       id: workspace.id,
@@ -468,9 +461,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH returns 403 when user is not the owner', async () => {
-    workspacesService.update.mockRejectedValue(
-      new ForbiddenException(),
-    );
+    workspacesService.update.mockRejectedValue(new ForbiddenException());
 
     await request(app.getHttpServer())
       .patch(`/workspaces/${workspaceId}`)
@@ -480,7 +471,6 @@ describe('Workspaces endpoints', () => {
       })
       .expect(403);
   });
-
 
   it('PATCH /workspaces/:id/archive requires authentication', async () => {
     await request(app.getHttpServer())
@@ -496,10 +486,7 @@ describe('Workspaces endpoints', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(workspacesService.archive).toHaveBeenCalledWith(
-      workspaceId,
-      userId,
-    );
+    expect(workspacesService.archive).toHaveBeenCalledWith(workspaceId, userId);
 
     expect(response.body.archivedAt).not.toBeNull();
   });
@@ -525,9 +512,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH /workspaces/:id/archive returns 403 for a non-owner', async () => {
-    workspacesService.archive.mockRejectedValue(
-      new ForbiddenException(),
-    );
+    workspacesService.archive.mockRejectedValue(new ForbiddenException());
 
     await request(app.getHttpServer())
       .patch(`/workspaces/${workspaceId}/archive`)
@@ -578,9 +563,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH /workspaces/:id/unarchive returns 403 for a non-owner', async () => {
-    workspacesService.unarchive.mockRejectedValue(
-      new ForbiddenException(),
-    );
+    workspacesService.unarchive.mockRejectedValue(new ForbiddenException());
 
     await request(app.getHttpServer())
       .patch(`/workspaces/${workspaceId}/unarchive`)
@@ -629,16 +612,13 @@ describe('Workspaces endpoints', () => {
   });
 
   it('DELETE /workspaces/:id returns 403 for a non-owner', async () => {
-    workspacesService.softDelete.mockRejectedValue(
-      new ForbiddenException(),
-    );
+    workspacesService.softDelete.mockRejectedValue(new ForbiddenException());
 
     await request(app.getHttpServer())
       .delete(`/workspaces/${workspaceId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
-
 
   it('GET /workspaces/:id/members requires authentication', async () => {
     await request(app.getHttpServer())
@@ -694,16 +674,13 @@ describe('Workspaces endpoints', () => {
   });
 
   it('GET /workspaces/:id/members returns 403 for a non-member', async () => {
-    workspacesService.findMembers.mockRejectedValue(
-      new ForbiddenException(),
-    );
+    workspacesService.findMembers.mockRejectedValue(new ForbiddenException());
 
     await request(app.getHttpServer())
       .get(`/workspaces/${workspaceId}/members`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
-
 
   it('DELETE /workspaces/:id/members/:userId requires authentication', async () => {
     const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
@@ -753,9 +730,7 @@ describe('Workspaces endpoints', () => {
   it('DELETE member returns 403 when current user is not allowed', async () => {
     const memberId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
 
-    workspacesService.removeMember.mockRejectedValue(
-      new ForbiddenException(),
-    );
+    workspacesService.removeMember.mockRejectedValue(new ForbiddenException());
 
     await request(app.getHttpServer())
       .delete(`/workspaces/${workspaceId}/members/${memberId}`)
@@ -787,7 +762,6 @@ describe('Workspaces endpoints', () => {
       .expect(404);
   });
 
-
   it('POST /workspaces/:id/invitations requires authentication', async () => {
     await request(app.getHttpServer())
       .post(`/workspaces/${workspaceId}/invitations`)
@@ -800,8 +774,7 @@ describe('Workspaces endpoints', () => {
   });
 
   it('POST /workspaces/:id/invitations creates a pending invitation', async () => {
-    const invitedUserId =
-      'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
+    const invitedUserId = 'dfc8ad56-f9c0-4918-9190-31bdba2341fe';
 
     const response = await request(app.getHttpServer())
       .post(`/workspaces/${workspaceId}/invitations`)
@@ -900,9 +873,7 @@ describe('Workspaces endpoints', () => {
 
   it('POST invitation rejects inviting yourself', async () => {
     workspacesService.createInvitation.mockRejectedValue(
-      new BadRequestException(
-        'Workspace owner cannot invite themselves',
-      ),
+      new BadRequestException('Workspace owner cannot invite themselves'),
     );
 
     await request(app.getHttpServer())
@@ -916,9 +887,7 @@ describe('Workspaces endpoints', () => {
 
   it('POST invitation returns 409 for a duplicate pending invitation', async () => {
     workspacesService.createInvitation.mockRejectedValue(
-      new ConflictException(
-        'Pending invitation already exists',
-      ),
+      new ConflictException('Pending invitation already exists'),
     );
 
     await request(app.getHttpServer())
@@ -930,36 +899,25 @@ describe('Workspaces endpoints', () => {
       .expect(409);
   });
 
-
   it('PATCH invitation accept requires authentication', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .expect(401);
 
-    expect(
-      workspacesService.acceptInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.acceptInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation accept accepts a pending invitation', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     const response = await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(
-      workspacesService.acceptInvitation,
-    ).toHaveBeenCalledWith(
+    expect(workspacesService.acceptInvitation).toHaveBeenCalledWith(
       workspaceId,
       invitationId,
       userId,
@@ -970,114 +928,83 @@ describe('Workspaces endpoints', () => {
   });
 
   it('PATCH invitation accept rejects an invalid workspace UUID', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/not-a-uuid/invitations/${invitationId}/accept`,
-      )
+      .patch(`/workspaces/not-a-uuid/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
 
-    expect(
-      workspacesService.acceptInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.acceptInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation accept rejects an invalid invitation UUID', async () => {
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/not-a-uuid/accept`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/not-a-uuid/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
 
-    expect(
-      workspacesService.acceptInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.acceptInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation accept returns 404 when invitation is missing', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.acceptInvitation.mockRejectedValue(
       new NotFoundException('Invitation not found'),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
   });
 
   it('PATCH invitation accept returns 403 for the wrong user', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.acceptInvitation.mockRejectedValue(
       new ForbiddenException(),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('PATCH invitation accept returns 409 when invitation is not pending', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.acceptInvitation.mockRejectedValue(
-      new ConflictException(
-        'Invitation is no longer pending',
-      ),
+      new ConflictException('Invitation is no longer pending'),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/accept`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/accept`)
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
   });
 
-
   it('PATCH invitation reject requires authentication', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .expect(401);
 
-    expect(
-      workspacesService.rejectInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.rejectInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation reject rejects a pending invitation', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     const response = await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(
-      workspacesService.rejectInvitation,
-    ).toHaveBeenCalledWith(
+    expect(workspacesService.rejectInvitation).toHaveBeenCalledWith(
       workspaceId,
       invitationId,
       userId,
@@ -1088,86 +1015,64 @@ describe('Workspaces endpoints', () => {
 
   it('PATCH invitation reject rejects invalid invitation UUID', async () => {
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/not-a-uuid/reject`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/not-a-uuid/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
 
-    expect(
-      workspacesService.rejectInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.rejectInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation reject returns 404 for missing invitation', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.rejectInvitation.mockRejectedValue(
       new NotFoundException('Invitation not found'),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
   });
 
   it('PATCH invitation reject returns 403 for wrong user', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.rejectInvitation.mockRejectedValue(
       new ForbiddenException(),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('PATCH invitation reject returns 409 when no longer pending', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.rejectInvitation.mockRejectedValue(
-      new ConflictException(
-        'Invitation is no longer pending',
-      ),
+      new ConflictException('Invitation is no longer pending'),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/reject`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/reject`)
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
   });
 
-
   it('PATCH invitation cancel requires authentication', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .expect(401);
 
-    expect(
-      workspacesService.cancelInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.cancelInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation cancel cancels a pending invitation', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.cancelInvitation.mockResolvedValue({
       id: invitationId,
@@ -1182,15 +1087,11 @@ describe('Workspaces endpoints', () => {
     });
 
     const response = await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(
-      workspacesService.cancelInvitation,
-    ).toHaveBeenCalledWith(
+    expect(workspacesService.cancelInvitation).toHaveBeenCalledWith(
       workspaceId,
       invitationId,
       userId,
@@ -1201,76 +1102,58 @@ describe('Workspaces endpoints', () => {
 
   it('PATCH invitation cancel rejects invalid invitation UUID', async () => {
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/not-a-uuid/cancel`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/not-a-uuid/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
 
-    expect(
-      workspacesService.cancelInvitation,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.cancelInvitation).not.toHaveBeenCalled();
   });
 
   it('PATCH invitation cancel returns 404 for missing invitation', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.cancelInvitation.mockRejectedValue(
       new NotFoundException('Invitation not found'),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
   });
 
   it('PATCH invitation cancel returns 403 for non-owner', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.cancelInvitation.mockRejectedValue(
       new ForbiddenException(),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('PATCH invitation cancel returns 409 when no longer pending', async () => {
-    const invitationId =
-      '770e8400-e29b-41d4-a716-446655440000';
+    const invitationId = '770e8400-e29b-41d4-a716-446655440000';
 
     workspacesService.cancelInvitation.mockRejectedValue(
-      new ConflictException(
-        'Invitation is no longer pending',
-      ),
+      new ConflictException('Invitation is no longer pending'),
     );
 
     await request(app.getHttpServer())
-      .patch(
-        `/workspaces/${workspaceId}/invitations/${invitationId}/cancel`,
-      )
+      .patch(`/workspaces/${workspaceId}/invitations/${invitationId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
       .expect(409);
   });
-
 
   it('GET kanban settings requires authentication', async () => {
     await request(app.getHttpServer())
       .get(`/workspaces/${workspaceId}/kanban-settings`)
       .expect(401);
 
-    expect(
-      workspacesService.getKanbanSettings,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.getKanbanSettings).not.toHaveBeenCalled();
   });
 
   it('GET kanban settings returns workspace settings', async () => {
@@ -1288,9 +1171,7 @@ describe('Workspaces endpoints', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(
-      workspacesService.getKanbanSettings,
-    ).toHaveBeenCalledWith(
+    expect(workspacesService.getKanbanSettings).toHaveBeenCalledWith(
       workspaceId,
       userId,
     );
@@ -1304,9 +1185,7 @@ describe('Workspaces endpoints', () => {
       .send({ activeWipLimit: 5 })
       .expect(401);
 
-    expect(
-      workspacesService.updateKanbanSettings,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.updateKanbanSettings).not.toHaveBeenCalled();
   });
 
   it('PATCH kanban settings updates settings', async () => {
@@ -1325,9 +1204,7 @@ describe('Workspaces endpoints', () => {
       .send({ activeWipLimit: 5 })
       .expect(200);
 
-    expect(
-      workspacesService.updateKanbanSettings,
-    ).toHaveBeenCalledWith(
+    expect(workspacesService.updateKanbanSettings).toHaveBeenCalledWith(
       workspaceId,
       userId,
       { activeWipLimit: 5 },
@@ -1343,9 +1220,7 @@ describe('Workspaces endpoints', () => {
       .send({ activeWipLimit: 0 })
       .expect(400);
 
-    expect(
-      workspacesService.updateKanbanSettings,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.updateKanbanSettings).not.toHaveBeenCalled();
   });
 
   it('PATCH kanban settings rejects non-integer WIP limit', async () => {
@@ -1355,9 +1230,6 @@ describe('Workspaces endpoints', () => {
       .send({ activeWipLimit: 2.5 })
       .expect(400);
 
-    expect(
-      workspacesService.updateKanbanSettings,
-    ).not.toHaveBeenCalled();
+    expect(workspacesService.updateKanbanSettings).not.toHaveBeenCalled();
   });
-
 });

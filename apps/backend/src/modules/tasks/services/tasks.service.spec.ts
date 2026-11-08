@@ -279,28 +279,24 @@ describe('TasksService', () => {
     });
 
     it('still creates the task when activity creation fails', async () => {
-      activities.create.mockRejectedValue(
-        new Error('Activity unavailable'),
-      );
+      activities.create.mockRejectedValue(new Error('Activity unavailable'));
 
       jest
         .spyOn(
-          (service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }).logger,
+          (
+            service as unknown as {
+              logger: {
+                error: (...args: unknown[]) => void;
+              };
+            }
+          ).logger,
           'error',
         )
         .mockImplementation(() => undefined);
 
-      const result = await service.create(
-        workspaceId,
-        userId,
-        {
-          title: 'Build profile',
-        },
-      );
+      const result = await service.create(workspaceId, userId, {
+        title: 'Build profile',
+      });
 
       expect(result.title).toBe('Build profile');
       expect(tasks.save).toHaveBeenCalledTimes(1);
@@ -576,37 +572,31 @@ describe('TasksService', () => {
     it('still transitions the task when activity creation fails', async () => {
       task.status = TaskStatus.BACKLOG;
 
-      activities.create.mockRejectedValue(
-        new Error('Activity unavailable'),
-      );
+      activities.create.mockRejectedValue(new Error('Activity unavailable'));
 
       jest
         .spyOn(
-          (service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }).logger,
+          (
+            service as unknown as {
+              logger: {
+                error: (...args: unknown[]) => void;
+              };
+            }
+          ).logger,
           'error',
         )
         .mockImplementation(() => undefined);
 
-      const result = await service.transition(
-        taskId,
-        userId,
-        {
-          toStatus: TaskStatus.READY,
-          note: 'Ready to start',
-        },
-      );
+      const result = await service.transition(taskId, userId, {
+        toStatus: TaskStatus.READY,
+        note: 'Ready to start',
+      });
 
       expect(result.status).toBe(TaskStatus.READY);
 
       expect(history.save).toHaveBeenCalledTimes(1);
 
-      expect(
-        activities.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(activities.create).toHaveBeenCalledTimes(1);
     });
 
     it('rejects READY to IN_PROGRESS when active WIP is full', async () => {

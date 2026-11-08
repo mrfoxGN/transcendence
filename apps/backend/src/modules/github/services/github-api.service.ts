@@ -17,7 +17,6 @@ export interface PublicGitHubRepository {
   defaultBranch: string;
 }
 
-
 export interface PublicGitHubCommit {
   sha: string;
   message: string;
@@ -28,21 +27,17 @@ export interface PublicGitHubCommit {
   githubUrl: string | null;
 }
 
-
 export interface PublicGitHubBranch {
   name: string;
   sha: string;
   protected: boolean;
 }
 
-
 @Injectable()
 export class GitHubApiService {
   private readonly baseUrl = 'https://api.github.com';
 
-  private getPublicApiHeaders(
-    accessToken?: string,
-  ): Record<string, string> {
+  private getPublicApiHeaders(accessToken?: string): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
@@ -61,20 +56,15 @@ export class GitHubApiService {
     repo: string,
     accessToken?: string,
   ): Promise<PublicGitHubRepository> {
-    const validOwner =
-      /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(
-        owner,
-      );
+    const validOwner = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(
+      owner,
+    );
 
     const validRepo =
-      /^[a-zA-Z0-9_.-]{1,100}$/.test(repo) &&
-      repo !== '.' &&
-      repo !== '..';
+      /^[a-zA-Z0-9_.-]{1,100}$/.test(repo) && repo !== '.' && repo !== '..';
 
     if (!validOwner || !validRepo) {
-      throw new BadRequestException(
-        'Invalid GitHub repository identifier',
-      );
+      throw new BadRequestException('Invalid GitHub repository identifier');
     }
 
     const url =
@@ -92,30 +82,21 @@ export class GitHubApiService {
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      throw new ServiceUnavailableException(
-        'GitHub API is unavailable',
-      );
+      throw new ServiceUnavailableException('GitHub API is unavailable');
     }
 
     if (response.status === 404) {
-      throw new NotFoundException(
-        'GitHub repository not found',
-      );
+      throw new NotFoundException('GitHub repository not found');
     }
 
-    if (
-      response.status === 403 ||
-      response.status === 429
-    ) {
+    if (response.status === 403 || response.status === 429) {
       throw new ServiceUnavailableException(
         'GitHub API request temporarily unavailable',
       );
     }
 
     if (!response.ok) {
-      throw new BadGatewayException(
-        'GitHub API request failed',
-      );
+      throw new BadGatewayException('GitHub API request failed');
     }
 
     let payload: unknown;
@@ -123,15 +104,11 @@ export class GitHubApiService {
     try {
       payload = await response.json();
     } catch {
-      throw new BadGatewayException(
-        'Invalid response from GitHub API',
-      );
+      throw new BadGatewayException('Invalid response from GitHub API');
     }
 
     if (!this.isRecord(payload)) {
-      throw new BadGatewayException(
-        'Invalid GitHub repository data',
-      );
+      throw new BadGatewayException('Invalid GitHub repository data');
     }
 
     const repository = payload;
@@ -148,15 +125,10 @@ export class GitHubApiService {
       !this.isRecord(repository.owner) ||
       typeof repository.owner.login !== 'string'
     ) {
-      throw new BadGatewayException(
-        'Incomplete GitHub repository data',
-      );
+      throw new BadGatewayException('Incomplete GitHub repository data');
     }
 
-    if (
-      repository.private ||
-      repository.visibility !== 'public'
-    ) {
+    if (repository.private || repository.visibility !== 'public') {
       throw new ForbiddenException(
         'Only public GitHub repositories are supported',
       );
@@ -171,7 +143,6 @@ export class GitHubApiService {
       defaultBranch: repository.default_branch,
     };
   }
-
 
   async listAdminPublicRepositories(
     accessToken: string,
@@ -204,9 +175,7 @@ export class GitHubApiService {
           signal: AbortSignal.timeout(10_000),
         });
       } catch {
-        throw new ServiceUnavailableException(
-          'GitHub API is unavailable',
-        );
+        throw new ServiceUnavailableException('GitHub API is unavailable');
       }
 
       if (response.status === 401) {
@@ -215,19 +184,14 @@ export class GitHubApiService {
         );
       }
 
-      if (
-        response.status === 403 ||
-        response.status === 429
-      ) {
+      if (response.status === 403 || response.status === 429) {
         throw new ServiceUnavailableException(
           'GitHub API temporarily unavailable',
         );
       }
 
       if (!response.ok) {
-        throw new BadGatewayException(
-          'Failed to retrieve GitHub repositories',
-        );
+        throw new BadGatewayException('Failed to retrieve GitHub repositories');
       }
 
       let payload: unknown;
@@ -235,15 +199,11 @@ export class GitHubApiService {
       try {
         payload = await response.json();
       } catch {
-        throw new BadGatewayException(
-          'Invalid GitHub API response',
-        );
+        throw new BadGatewayException('Invalid GitHub API response');
       }
 
       if (!Array.isArray(payload)) {
-        throw new BadGatewayException(
-          'Invalid GitHub repositories response',
-        );
+        throw new BadGatewayException('Invalid GitHub repositories response');
       }
 
       for (const item of payload) {
@@ -256,10 +216,7 @@ export class GitHubApiService {
         }
 
         // V1 only supports public repositories.
-        if (
-          item.private !== false ||
-          item.visibility !== 'public'
-        ) {
+        if (item.private !== false || item.visibility !== 'public') {
           continue;
         }
 
@@ -298,7 +255,6 @@ export class GitHubApiService {
     return repositories;
   }
 
-
   async listRecentCommits(
     owner: string,
     repo: string,
@@ -306,8 +262,8 @@ export class GitHubApiService {
   ): Promise<PublicGitHubCommit[]> {
     const url = new URL(
       `${this.baseUrl}/repos/` +
-      `${encodeURIComponent(owner)}/` +
-      `${encodeURIComponent(repo)}/commits`,
+        `${encodeURIComponent(owner)}/` +
+        `${encodeURIComponent(repo)}/commits`,
     );
 
     url.searchParams.set('per_page', '30');
@@ -323,9 +279,7 @@ export class GitHubApiService {
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      throw new ServiceUnavailableException(
-        'GitHub API is unavailable',
-      );
+      throw new ServiceUnavailableException('GitHub API is unavailable');
     }
 
     // GitHub returns 409 for repositories without Git history.
@@ -334,24 +288,17 @@ export class GitHubApiService {
     }
 
     if (response.status === 404) {
-      throw new NotFoundException(
-        'GitHub repository not found',
-      );
+      throw new NotFoundException('GitHub repository not found');
     }
 
-    if (
-      response.status === 403 ||
-      response.status === 429
-    ) {
+    if (response.status === 403 || response.status === 429) {
       throw new ServiceUnavailableException(
         'GitHub API temporarily unavailable',
       );
     }
 
     if (!response.ok) {
-      throw new BadGatewayException(
-        'Failed to retrieve GitHub commits',
-      );
+      throw new BadGatewayException('Failed to retrieve GitHub commits');
     }
 
     let payload: unknown;
@@ -359,15 +306,11 @@ export class GitHubApiService {
     try {
       payload = await response.json();
     } catch {
-      throw new BadGatewayException(
-        'Invalid GitHub commits response',
-      );
+      throw new BadGatewayException('Invalid GitHub commits response');
     }
 
     if (!Array.isArray(payload)) {
-      throw new BadGatewayException(
-        'Invalid GitHub commits response',
-      );
+      throw new BadGatewayException('Invalid GitHub commits response');
     }
 
     return payload.map((item: unknown): PublicGitHubCommit => {
@@ -378,23 +321,17 @@ export class GitHubApiService {
         !this.isRecord(item.commit) ||
         typeof item.commit.message !== 'string'
       ) {
-        throw new BadGatewayException(
-          'Invalid GitHub commit data',
-        );
+        throw new BadGatewayException('Invalid GitHub commit data');
       }
 
       const commit = item.commit;
       const message = commit.message;
 
       if (typeof message !== 'string') {
-        throw new BadGatewayException(
-          'Invalid GitHub commit message',
-        );
+        throw new BadGatewayException('Invalid GitHub commit message');
       }
 
-      const author = this.isRecord(commit.author)
-        ? commit.author
-        : null;
+      const author = this.isRecord(commit.author) ? commit.author : null;
 
       const committer = this.isRecord(commit.committer)
         ? commit.committer
@@ -408,22 +345,16 @@ export class GitHubApiService {
             : null;
 
       if (!dateString) {
-        throw new BadGatewayException(
-          'GitHub commit is missing its date',
-        );
+        throw new BadGatewayException('GitHub commit is missing its date');
       }
 
       const committedAt = new Date(dateString);
 
       if (Number.isNaN(committedAt.getTime())) {
-        throw new BadGatewayException(
-          'Invalid GitHub commit date',
-        );
+        throw new BadGatewayException('Invalid GitHub commit date');
       }
 
-      const githubAuthor = this.isRecord(item.author)
-        ? item.author
-        : null;
+      const githubAuthor = this.isRecord(item.author) ? item.author : null;
 
       return {
         sha: item.sha,
@@ -434,9 +365,7 @@ export class GitHubApiService {
             ? String(githubAuthor.id)
             : null,
         authorName:
-          typeof author?.name === 'string'
-            ? author.name.slice(0, 255)
-            : null,
+          typeof author?.name === 'string' ? author.name.slice(0, 255) : null,
         committerName:
           typeof committer?.name === 'string'
             ? committer.name.slice(0, 255)
@@ -450,7 +379,6 @@ export class GitHubApiService {
     });
   }
 
-
   private async fetchPublicRepositoryItems(
     owner: string,
     repo: string,
@@ -463,9 +391,9 @@ export class GitHubApiService {
     for (let page = 1; page <= 3; page++) {
       const url = new URL(
         `${this.baseUrl}/repos/` +
-        `${encodeURIComponent(owner)}/` +
-        `${encodeURIComponent(repo)}/` +
-        resource,
+          `${encodeURIComponent(owner)}/` +
+          `${encodeURIComponent(repo)}/` +
+          resource,
       );
 
       url.searchParams.set('per_page', '100');
@@ -485,30 +413,21 @@ export class GitHubApiService {
           signal: AbortSignal.timeout(10_000),
         });
       } catch {
-        throw new ServiceUnavailableException(
-          'GitHub API is unavailable',
-        );
+        throw new ServiceUnavailableException('GitHub API is unavailable');
       }
 
       if (response.status === 404) {
-        throw new NotFoundException(
-          'GitHub repository not found',
-        );
+        throw new NotFoundException('GitHub repository not found');
       }
 
-      if (
-        response.status === 403 ||
-        response.status === 429
-      ) {
+      if (response.status === 403 || response.status === 429) {
         throw new ServiceUnavailableException(
           'GitHub API rate limit or availability error',
         );
       }
 
       if (!response.ok) {
-        throw new BadGatewayException(
-          'GitHub repository request failed',
-        );
+        throw new BadGatewayException('GitHub repository request failed');
       }
 
       let payload: unknown;
@@ -516,18 +435,14 @@ export class GitHubApiService {
       try {
         payload = await response.json();
       } catch {
-        throw new BadGatewayException(
-          'Invalid GitHub API response',
-        );
+        throw new BadGatewayException('Invalid GitHub API response');
       }
 
       if (!Array.isArray(payload)) {
-        throw new BadGatewayException(
-          'Expected an array from GitHub',
-        );
+        throw new BadGatewayException('Expected an array from GitHub');
       }
 
-      items.push(...payload);
+      items.push(...(payload as unknown[]));
 
       if (payload.length < 100) {
         break;
@@ -552,9 +467,7 @@ export class GitHubApiService {
 
     return items.map((item): PublicGitHubBranch => {
       if (!this.isRecord(item)) {
-        throw new BadGatewayException(
-          'Invalid GitHub branch response',
-        );
+        throw new BadGatewayException('Invalid GitHub branch response');
       }
 
       const name = item.name;
@@ -566,20 +479,13 @@ export class GitHubApiService {
         typeof protectedBranch !== 'boolean' ||
         !this.isRecord(commit)
       ) {
-        throw new BadGatewayException(
-          'Invalid GitHub branch data',
-        );
+        throw new BadGatewayException('Invalid GitHub branch data');
       }
 
       const sha = commit.sha;
 
-      if (
-        typeof sha !== 'string' ||
-        !/^[a-f0-9]{40,64}$/i.test(sha)
-      ) {
-        throw new BadGatewayException(
-          'Invalid GitHub branch commit SHA',
-        );
+      if (typeof sha !== 'string' || !/^[a-f0-9]{40,64}$/i.test(sha)) {
+        throw new BadGatewayException('Invalid GitHub branch commit SHA');
       }
 
       return {
@@ -590,13 +496,7 @@ export class GitHubApiService {
     });
   }
 
-  private isRecord(
-    value: unknown,
-  ): value is Record<string, unknown> {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value)
-    );
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }
