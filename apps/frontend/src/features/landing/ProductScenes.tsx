@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { sampleProject } from './sampleData';
 import { CalendarDays, Check, ClipboardList, FileText, Folder, MessageSquare, PanelRight, Paperclip } from 'lucide-react';
 
@@ -58,13 +59,32 @@ const scenes = [
 ];
 
 export function ProductScenes() {
+  const timeline = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!timeline.current || !('IntersectionObserver' in window)) return;
+    const previews = timeline.current.querySelectorAll<HTMLElement>('.story-artwork');
+    const observer = new IntersectionObserver(entries => {
+      for (const { target, isIntersecting } of entries) {
+        if (!isIntersecting) continue;
+        target.setAttribute('data-scene-motion', 'playing');
+        observer.unobserve(target);
+      }
+    }, { threshold: .18 });
+
+    for (const preview of previews) {
+      if (!preview.hasAttribute('data-scene-motion')) preview.dataset.sceneMotion = 'waiting';
+      observer.observe(preview);
+    }
+    return () => observer.disconnect();
+  }, []);
   return (
     <section className="product-stories" id="features" aria-labelledby="stories-heading">
       <div className="section-wrap">
         <div className="stories-heading" id="workflow">
           <h2 id="stories-heading">Follow a task <span className="aurora-text" data-slot="aurora-text">beyond the board.</span></h2>
         </div>
-        <div className="story-timeline">
+        <div className="story-timeline" ref={timeline}>
           {scenes.map(({ id, Icon, label, description, Preview }) => (
             <section className="story-step" key={id} aria-labelledby={id}>
               <div className="story-step-copy">

@@ -1,3 +1,4 @@
+import { AnimatedHeading } from './AnimatedHeading';
 import { useEffect, useRef, useState } from 'react';
 import { useInView, useReducedMotion } from 'framer-motion';
 import { sampleProject, sampleRepository } from './sampleData';
@@ -106,7 +107,7 @@ export function LandingDetails() {
             {steps.map(({ label, title, description }, index) => (
               <div className="github-feature-copy" key={label} data-active={index === step} inert={index !== step}>
                 <span className="github-feature-label"><Github size={18} aria-hidden="true" /> {label}</span>
-                <h3>{title}</h3>
+                <AnimatedHeading key={index === step ? run : label} as="h3" lines={[title]} />
                 <p>{description}</p>
               </div>
             ))}

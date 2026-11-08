@@ -1,3 +1,4 @@
+import { AnimatedHeading } from './AnimatedHeading';
 import { useEffect, useState, type FormEvent, type PointerEvent } from 'react';
 import { ArrowLeft, ArrowUp } from 'lucide-react';
 import { BoardPreview } from './BoardPreview';
@@ -41,7 +42,7 @@ export function LandingPage() {
     <main id="main">
       <section className="landing-hero" aria-labelledby="hero-heading" onPointerMove={moveHeroGlow} onPointerLeave={event => { event.currentTarget.style.removeProperty("--hero-glow-x"); event.currentTarget.style.removeProperty("--hero-glow-y"); }}>
         <div className="landing-hero-copy section-wrap">
-          <h1 id="hero-heading">From idea to impact,<br />all in one flow.</h1>
+          <AnimatedHeading as="h1" id="hero-heading" lines={["From idea to impact,", "all in one flow."]} />
           <p>A clear next step. A connected team. A place for the whole project.<br className="desktop-break" /> Bring your tasks, conversations, and code together with DevUP.</p>
           <div className="hero-actions"><MagicButton href="/register" variant="secondary">Create an account</MagicButton></div>
         </div>
