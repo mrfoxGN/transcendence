@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUp } from 'lucide-react';
 import { BoardPreview } from './BoardPreview';
 import { ProductScenes } from './ProductScenes';
@@ -7,7 +7,7 @@ import { LogoCarousel } from './LogoCarousel';
 import './hero.css';
 
 function Brand() {
-  return <a className="brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="34" height="34" /><span>DevUP</span></a>;
+  return <a className="brand" href="/" aria-label="DevUP home"><svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#245bc9" /><path d="m11 21 13-10 13 10M11 33l13-10 13 10" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg><span>DevUP</span></a>;
 }
 
 export function LandingPage() {
@@ -35,10 +35,10 @@ export function LandingPage() {
           <p>A clear next step. A connected team. A place for the whole project.<br className="desktop-break" /> Bring your tasks, conversations, and code together with DevUP.</p>
           <div className="hero-actions"><a className="button button--primary" href="/register">Create an account <ArrowRight size={17} /></a><a className="button button--secondary" href="#preview">Explore the board</a></div>
         </div>
-        <picture className="hero-workflow">
+        <picture className="hero-workflow" aria-hidden="true">
           <source media="(max-width: 600px)" srcSet="/illustrations/workflow-phone.png" width="1254" height="1254" />
           <source media="(max-width: 1024px)" srcSet="/illustrations/workflow-tablet.png" width="1536" height="1024" />
-          <img src="/illustrations/workflow-wide.png" width="2400" height="834" alt="" fetchPriority="high" />
+          <img src="/illustrations/workflow-wide.png" width="2400" height="834" alt="" fetchPriority="high" onError={event => { event.currentTarget.closest("picture")?.setAttribute("hidden", ""); }} />
         </picture>
         <div className="hero-footnote">One workspace. Every part of the work.</div>
       </section>
@@ -52,32 +52,90 @@ export function LandingPage() {
       <ProductScenes />
       <LandingDetails />
     </main>
-    <footer className="site-footer">
-      <div className="section-wrap">
-        <div className="footer-main">
-          <div className="footer-brand">
-            <Brand />
-            <p>A shared space for work in motion.</p>
+    <div className="story-closing">
+      <section className="closing-copy section-wrap" aria-labelledby="closing-heading">
+        <img src="/devup.svg" alt="" width="48" height="48" />
+        <h2 id="closing-heading">Your next idea starts here.</h2>
+        <a className="button button--secondary" href="/register">Create an account</a>
+      </section>
+      <footer className="site-footer">
+        <div className="section-wrap">
+          <div className="footer-main">
+            <div className="footer-brand">
+              <Brand />
+              <p>A shared space for work in motion.</p>
+            </div>
+            <nav className="footer-links" aria-label="Footer navigation">
+              <div>
+                <h2>Explore</h2>
+                <ul><li><a href="#preview">The board</a></li><li><a href="#features">Workspace</a></li><li><a href="#github">GitHub</a></li></ul>
+              </div>
+              <div>
+                <h2>Account</h2>
+                <ul><li><a href="/login">Log in</a></li><li><a href="/register">Sign up</a></li></ul>
+              </div>
+            </nav>
           </div>
-          <nav className="footer-links" aria-label="Footer navigation">
-            <div>
-              <h2>Explore</h2>
-              <ul><li><a href="#preview">The board</a></li><li><a href="#features">Workspace</a></li><li><a href="#github">GitHub</a></li></ul>
-            </div>
-            <div>
-              <h2>Account</h2>
-              <ul><li><a href="/login">Log in</a></li><li><a href="/register">Sign up</a></li></ul>
-            </div>
-          </nav>
+          <div className="footer-bottom">
+            <span>&copy; DevUP</span>
+            <a href="#top">Back to top <ArrowUp size={15} aria-hidden="true" /></a>
+          </div>
         </div>
-        <div className="footer-bottom">
-          <span>&copy; DevUP</span>
-          <a href="#top">Back to top <ArrowUp size={15} aria-hidden="true" /></a>
-        </div>
-      </div>
-    </footer>
+      </footer>
+    </div>
   </div>;
 }
 export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
-  return <main className="auth-preview section-wrap"><Brand /><div><h1>{mode === 'login' ? 'Sign in' : 'Create an account'}</h1><p>This screen is coming in the next frontend milestone.</p><a className="button button--secondary" href="/"><ArrowLeft size={17} /> Back to DevUP</a></div></main>;
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState('');
+  const [registered, setRegistered] = useState(false);
+
+  async function register(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    const fields = Object.fromEntries(new FormData(event.currentTarget));
+    setPending(true);
+    setMessage('');
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        const detail = error?.message;
+        setMessage(response.status >= 500
+          ? 'Account setup is temporarily unavailable. Try again later.'
+          : Array.isArray(detail) ? detail.join(' ') : detail || 'Unable to create your account.');
+        return;
+      }
+      setRegistered(true);
+    } catch {
+      setMessage('Could not reach account setup. Try again later.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <main className="auth-preview section-wrap">
+      <Brand />
+      <div>
+        <h1>{mode === 'login' ? 'Sign in' : 'Create an account'}</h1>
+        {mode === 'login' ? <p>This screen is coming in the next frontend milestone.</p> : registered ? (
+          <p role="status">Your DevUP account has been created.</p>
+        ) : (
+          <form className="auth-form" onSubmit={register}>
+            <label>Username<input name="username" autoComplete="username" minLength={3} maxLength={30} required /></label>
+            <label>Email<input name="email" type="email" autoComplete="email" required /></label>
+            <label>Password<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
+            {message && <p role="alert">{message}</p>}
+            <button className="button button--primary" type="submit" disabled={pending}>{pending ? 'Creating account…' : 'Create an account'}</button>
+          </form>
+        )}
+        <a className="button button--secondary" href="/"><ArrowLeft size={17} /> Back to DevUP</a>
+      </div>
+    </main>
+  );
 }

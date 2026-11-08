@@ -76,13 +76,7 @@ export function ProductScenes() {
           ))}
         </div>
       </div>
-      <section className="story-closing" aria-labelledby="closing-heading">
-        <div className="section-wrap">
-          <img src="/devup.svg" alt="" width="48" height="48" />
-          <h2 id="closing-heading">Your next idea starts here.</h2>
-          <a className="button button--secondary" href="/register">Create an account</a>
-        </div>
-      </section>
+
 
     </section>
   );

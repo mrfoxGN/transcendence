@@ -1,4 +1,4 @@
-﻿import './logo-carousel.css';
+import './logo-carousel.css';
 
 const logos = [
   ['github', 'GitHub'],
@@ -15,7 +15,8 @@ const logos = [
 
 export function LogoCarousel() {
   return (
-    <section className="logo-carousel section-wrap" aria-label="Developer tools">
+    <section className="logo-carousel section-wrap" aria-label="Tools developers use">
+      <p className="logo-carousel-caption">Tools developers use</p>
       <div className="logo-carousel-window">
         <div className="logo-carousel-track">
           {[false, true].map(duplicate => (

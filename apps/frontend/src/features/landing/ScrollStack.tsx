@@ -1,6 +1,7 @@
 import {
   type MotionValue,
   motion,
+  useMotionValueEvent,
   useReducedMotion,
   useScroll,
   useTransform,
@@ -24,6 +25,7 @@ export type ScrollStackProps = React.HTMLAttributes<HTMLDivElement> & {
   blur?: boolean;
   /** Distance from the top of the scroller where cards pin, e.g. `"12vh"`. */
   pinTop?: string;
+  onStepChange?: (index: number) => void;
 };
 
 type CardProps = {
@@ -101,6 +103,7 @@ const ScrollStack = React.forwardRef<HTMLDivElement, ScrollStackProps>(
       peek = 16,
       blur = true,
       pinTop = "12vh",
+      onStepChange,
       className,
       style,
       ...props
@@ -124,6 +127,9 @@ const ScrollStack = React.forwardRef<HTMLDivElement, ScrollStackProps>(
 
     const items = React.Children.toArray(children);
     const total = items.length;
+    useMotionValueEvent(scrollYProgress, 'change', progress => {
+      onStepChange?.(Math.round(progress * Math.max(0, total - 1)));
+    });
 
     const trackClass = selfScroll ? "godui-stack-contained" : "godui-stack-page";
 

@@ -202,3 +202,25 @@
   .github-panel { padding: 11px; }
   .github-feature-icon { margin-bottom: 6px; }
 }
+.github-bento { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.github-bento > div { min-width: 0; }
+.github-bento .github-card { height: 100%; }
+@media (min-width: 620px) and (max-width: 760px) {
+  .github-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .github-bento > div:first-child, .github-bento > div:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .github-stage { display: block; }
+  .github-heading-track { margin: 0 16px 24px; }
+  .github-showcase-heading { position: static; }
+}
+
+.github-step-count {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #eef0f8;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}

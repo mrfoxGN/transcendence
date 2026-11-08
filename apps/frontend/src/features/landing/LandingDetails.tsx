@@ -1,3 +1,5 @@
+import { Children, useState, useSyncExternalStore } from 'react';
+import { BentoGrid } from './BentoGrid';
 import { sampleRepository } from './sampleData';
 import { ScrollStack } from './ScrollStack';
 import './github-showcase.css';
@@ -11,23 +13,30 @@ const questions = [
   { question: 'Are direct messages separate from team chat?', answer: 'Yes. Direct messages are separate from workspace chat, so you can continue a private conversation while switching between workspaces.' },
 ];
 
+const mobileLayout = '(max-width: 760px)';
+
+function subscribeToLayout(callback: () => void) {
+  const query = window.matchMedia(mobileLayout);
+  query.addEventListener('change', callback);
+  return () => query.removeEventListener('change', callback);
+}
+
+function isMobileLayout() {
+  return window.matchMedia(mobileLayout).matches;
+}
+
 export function LandingDetails() {
-  return (
-    <>
-      <section className="github-showcase" id="github" aria-labelledby="github-title">
-        <div className="github-stage">
-          <div className="github-heading-track"><header className="github-showcase-heading">
-          <h2 id="github-title">Keep your code in view.</h2>
-        </header></div>
-        <ScrollStack className="github-stack" pinTop="0px" peek={6}>
-          <article className="github-card github-card--blue">
+  const mobile = useSyncExternalStore(subscribeToLayout, isMobileLayout);
+  const [step, setStep] = useState(0);
+  const cards = [
+    <article key="blue" className="github-card github-card--blue">
             <div><Github className="github-feature-icon" size={24} aria-hidden="true" /><h3>Connect a repository</h3><p>Bring a public GitHub repository into your DevUP workspace.</p></div>
             <div className="github-panel">
               <h4><Github size={19} aria-hidden="true" /> {sampleRepository.name}</h4>
               <dl><div><dt>Visibility</dt><dd>Public</dd></div><div><dt>Default branch</dt><dd><code>{sampleRepository.branches[0]}</code></dd></div><div><dt>Last sync</dt><dd><small className="github-sync">Synced</small> 2 minutes ago</dd></div></dl>
             </div>
-          </article>
-          <article className="github-card github-card--violet">
+          </article>,
+          <article key="violet" className="github-card github-card--violet">
             <div><GitBranch className="github-feature-icon" size={24} aria-hidden="true" /><h3>Browse branches</h3><p>See active branches, their latest commits, and which branches are protected.</p></div>
             <div className="github-panel">
               <h4><GitBranch size={19} aria-hidden="true" /> Branches <small>{sampleRepository.branches.length} branches</small></h4><div className="github-panel-labels"><span>Branch</span><span>Head commit</span></div>
@@ -35,8 +44,8 @@ export function LandingDetails() {
                 <div key={branch}><dt><code>{branch}</code>{index === 0 && <small>Protected</small>}</dt><dd><code>{sampleRepository.commits[index].sha}</code></dd></div>
               ))}</dl>
             </div>
-          </article>
-          <article className="github-card github-card--pink">
+          </article>,
+          <article key="pink" className="github-card github-card--pink">
             <div><GitCommitHorizontal className="github-feature-icon" size={24} aria-hidden="true" /><h3>Inspect a commit</h3><p>Read the commit message and see who authored it, who committed it, and when.</p></div>
             <div className="github-panel">
               <h4><GitCommitHorizontal size={19} aria-hidden="true" /> {sampleRepository.commits[2].title}</h4>
@@ -50,8 +59,8 @@ export function LandingDetails() {
                 </ul>
                 <dl><div><dt>Author</dt><dd>Alex Morgan</dd></div><div><dt>Committer</dt><dd>Jamie Chen</dd></div><div><dt>Committed</dt><dd>Apr 12, 10:24</dd></div><div><dt>SHA</dt><dd><code>{sampleRepository.commits[2].sha}</code></dd></div></dl></div>
             </div>
-          </article>
-          <article className="github-card github-card--green">
+          </article>,
+          <article key="green" className="github-card github-card--green">
             <div><FileCode className="github-feature-icon" size={24} aria-hidden="true" /><h3>Review code changes</h3><p>See which lines were added or removed in a changed file.</p></div>
             <div className="github-panel">
               <h4><FileCode size={19} aria-hidden="true" /> Changed files <small>Concept preview</small></h4>
@@ -63,7 +72,20 @@ export function LandingDetails() {
               </code></pre></div></div>
             </div>
           </article>
-        </ScrollStack>
+  ];
+  return (
+    <>
+      <section className="github-showcase" id="github" aria-labelledby="github-title">
+        <div className="github-stage">
+          <div className="github-heading-track"><header className="github-showcase-heading">
+          <h2 id="github-title">Keep your code in view.</h2>{!mobile && <span className="github-step-count">{step + 1} of {Children.count(cards)}</span>}
+        </header></div>
+          {mobile ? <BentoGrid>{cards}</BentoGrid> : (
+            <ScrollStack className="github-stack" pinTop="0px" peek={6} onStepChange={setStep}>
+              {cards}
+            </ScrollStack>
+          )}
+
         </div>
       </section>
       <section className="faq section-wrap" aria-labelledby="faq-title">

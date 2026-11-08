@@ -1,4 +1,4 @@
-﻿import { sampleProject } from './sampleData';
+import { sampleProject } from './sampleData';
 import { useEffect, useRef, useState } from 'react';
 import {
   Activity, ArrowRight, BarChart3, Bell, CalendarDays, ChevronDown, CircleCheck, FileText, Folder, Home, List, MoreHorizontal, Search, Settings,
@@ -41,7 +41,10 @@ const nav = [
 const portraits: Record<string, string> = { AM: 'task', LN: 'team', SK: 'chat' };
 
 function Portrait({ person }: { person: string }) {
-  return <img className="board-portrait" src={`/team/${portraits[person]}.jpg`} alt="" width="22" height="22" loading="lazy" />;
+  return <span className="board-portrait-fallback" aria-hidden="true">
+    {person}
+    <img className="board-portrait" src={`/team/${portraits[person]}.jpg`} alt="" width="22" height="22" loading="lazy" onError={event => { event.currentTarget.hidden = true; }} />
+  </span>;
 }
 
 function TaskCard({ task }: { task: Task }) {
