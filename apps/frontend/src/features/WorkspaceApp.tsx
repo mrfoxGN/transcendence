@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Activity, BarChart3, Bell, CheckCircle2, Files, GitBranch, Home, LayoutGrid, List, MessageCircle, Moon, Plus, Search, Settings, StickyNote, Sun, Users, X } from 'lucide-react';
+import { Activity, BarChart3, CheckCircle2, Files, GitBranch, Home, LayoutGrid, List, MessageCircle, Moon, Plus, Settings, StickyNote, Sun, Users, X } from 'lucide-react';
 import { sessionKey } from './WorkspacePicker';
 import './workspace-app.css';
 import { Avatar, Pill } from './workspace/components';
 import { WorkspaceSwitcher } from './workspace/WorkspaceSwitcher';
-import { homeFilters, noteItems, seedTasks } from './workspace/previewData';
-import type { GithubState, Message, PageKey, Task } from './workspace/types';
+import { WorkspaceCommand } from './workspace/WorkspaceCommand';
+import { NotificationInbox } from './workspace/NotificationInbox';
+import { Drawer } from './workspace/WorkspaceControls';
+import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFacets';
+import { homeFilters, seedTasks, taskStatuses } from './workspace/previewData';
+import { useWorkspaceCollection, type WorkspaceFile } from './workspace/workspace-api';
+import type { GithubState, PageKey, Task } from './workspace/types';
+import { initialChatThreads } from './workspace/chatPreview';
 import { HomePage } from './workspace/pages/HomePage';
 import { BacklogPage } from './workspace/pages/BacklogPage';
 import { BoardPage } from './workspace/pages/BoardPage';
@@ -32,20 +38,6 @@ const navigation: { key: PageKey; label: string; icon: typeof Home }[] = [
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
-const pageCopy: Record<PageKey, { title: string; subtitle: string }> = {
-  home: { title: 'Good morning, Alex', subtitle: 'Here’s what’s moving across your workspace.' },
-  backlog: { title: 'Backlog', subtitle: 'Sort incoming work before it moves onto the board.' },
-  board: { title: 'Board', subtitle: 'Move work from ready to shipped, with clear limits on active tasks.' },
-  github: { title: 'GitHub', subtitle: 'Browse synced branches and commits linked to your workspace.' },
-  activity: { title: 'Activity', subtitle: 'See the latest changes across your workspace.' },
-  team: { title: 'Team', subtitle: 'Manage the people working in this workspace.' },
-  chat: { title: 'Chat', subtitle: 'Keep team updates and direct conversations in one place.' },
-  files: { title: 'Files', subtitle: 'Find shared files and the work they support.' },
-  notes: { title: 'Notes', subtitle: 'Keep decisions and project details close to the work.' },
-  analytics: { title: 'Analytics', subtitle: 'A clear view of team progress and recent delivery.' },
-  settings: { title: 'Settings', subtitle: 'Manage your workspace and its board defaults.' },
-};
-
 function getPageFromUrl(): PageKey {
   const value = new URLSearchParams(window.location.search).get('page');
   return navigation.some(item => item.key === value) ? value as PageKey : 'home';
@@ -59,7 +51,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [profileName, setProfileName] = useState('Alex Morgan');
   const profileInitials = profileName.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
   const [tasks, setTasks] = useState(seedTasks);
+  const [columns, setColumns] = useState(taskStatuses);
+  const [newTaskColumn, setNewTaskColumn] = useState('');
   const [filter, setFilter] = useState('All tasks');
+  const [facets, setFacets] = useState(emptyFacets);
   const [homeFilter, setHomeFilter] = useState(homeFilters[0]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [modal, setModal] = useState<'task' | 'invite' | null>(null);
@@ -68,20 +63,12 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [githubState, setGithubState] = useState<GithubState>('connected');
   const [activityFilterOpen, setActivityFilterOpen] = useState(false);
   const [activityFilter, setActivityFilter] = useState('All activity');
-  const [conversation, setConversation] = useState('DevUP Team');
-  const [messageText, setMessageText] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { initials: 'SK', name: 'Sarah Kim', text: 'Can someone check the login form on a phone before we move it to review?', time: '10:21', tone: 'neutral' },
-    { initials: 'AM', name: 'Alex Morgan', text: 'Mobile review done. Let’s keep the error below the email field.', time: '10:28', tone: 'blue' },
-    { initials: 'MR', name: 'Maya Rodriguez', text: 'I saved the screenshot in Files and linked the review decision.', time: '10:31', tone: 'neutral' },
-  ]);
-  const [selectedFile, setSelectedFile] = useState('f1');
-  const [selectedNote, setSelectedNote] = useState(0);
-  const [editingNote, setEditingNote] = useState(false);
-  const [noteText, setNoteText] = useState(noteItems[0].text);
+  const [chatThreads, setChatThreads] = useState(initialChatThreads);
+  const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
+  const filePath = workspacePath + '/files';
+  const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath, token);
   const [settingsTab, setSettingsTab] = useState('General');
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Last 30 days');
-  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!token) { window.location.replace('/login'); return; }
@@ -100,7 +87,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }, [token, workspaceId]);
 
   useEffect(() => {
-    document.title = `${pageCopy[page].title} · DevUP`;
+    document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · DevUP`;
     const onPop = () => setPage(getPageFromUrl());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -117,26 +104,27 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }, [toast]);
 
   useEffect(() => {
-    if (!modal && !selectedTask) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { setModal(null); setSelectedTask(null); } };
+    if (!modal) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setModal(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modal, selectedTask]);
+  }, [modal]);
 
   const pageLabel = navigation.find(item => item.key === page)?.label ?? 'Home';
-  const currentCopy = pageCopy[page];
   const filteredTasks = useMemo(() => {
     let result = tasks;
     if (filter === 'My tasks') result = result.filter(task => task.initials === 'AM');
     if (filter === 'Due this week') result = result.filter(task => ['Apr 12', 'Apr 14', 'Apr 16', 'Apr 17'].includes(task.due));
     if (filter === 'Blocked') result = result.filter(task => task.isBlocked && task.status !== 'Done');
-    if (search.trim()) result = result.filter(task => `${task.title} ${task.id} ${task.person}`.toLowerCase().includes(search.toLowerCase()));
-    return result;
-  }, [filter, search, tasks]);
+    return result.filter(task => matchesTaskFacets(task, facets));
+  }, [filter, facets, tasks]);
+
+  const taskFacets = <TaskFacets tasks={tasks} value={facets} onChange={setFacets} />;
 
   function navigate(next: PageKey, section = '') {
     setPage(next);
     setFilter('All tasks');
+    if (section === 'board-review') setFacets(emptyFacets);
     const url = new URL(window.location.href);
     url.searchParams.set('page', next);
     url.hash = section;
@@ -148,46 +136,64 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     const form = new FormData(event.currentTarget);
     const title = String(form.get('title') ?? '').trim();
     if (!title) return;
-    const task: Task = { id: `DEV-${40 + tasks.length}`, title, status: 'To do', type: String(form.get('type') ?? 'Feature'), person: profileName, initials: 'AM', due: 'Apr 20', priority: 'Medium', description: 'A new task added to this workspace.' };
+    const status = columns.includes(newTaskColumn) ? newTaskColumn : columns.includes('To do') ? 'To do' : columns[0];
+    if (status === 'In progress' && tasks.filter(task => task.status === status).length >= 3) {
+      setToast('In progress is full. Move a task out before adding another.');
+      return;
+    }
+    const task: Task = { id: `DEV-${40 + tasks.length}`, title, status, type: String(form.get('type') ?? 'Feature'), person: profileName, initials: 'AM', due: 'Apr 20', priority: 'Medium', description: String(form.get('description') ?? '').trim() || 'A new task added to this workspace.' };
     setTasks(current => [task, ...current]);
     setModal(null);
-    setToast('Task added to the backlog.');
+    setToast(`Task added to ${status}.`);
   }
 
-  function sendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const content = messageText.trim();
-    if (!content) return;
-    setMessages(current => [...current, { initials: 'AM', name: profileName, text: content, time: 'Now', tone: 'blue' }]);
-    setMessageText('');
+  function moveBoardTask(id: string, status: string) {
+    const task = tasks.find(item => item.id === id);
+    if (!task || task.status === status || !columns.includes(status)) return;
+    if (status === 'In progress' && tasks.filter(item => item.status === status).length >= 3) {
+      setToast('In progress is full. Move a task out before adding another.');
+      return;
+    }
+    setTasks(current => [...current.filter(item => item.id !== id), { ...task, status }]);
+    setToast(`Moved ${task.id} to ${status}.`);
   }
 
-  function saveNote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setEditingNote(false);
-    setToast('Note saved.');
+  function addBoardColumn(name: string) {
+    if (!name || columns.some(column => column.toLowerCase() === name.toLowerCase())) return 'Enter a unique column name.';
+    const defaultName = taskStatuses.find(column => column.toLowerCase() === name.toLowerCase());
+    setColumns(current => [...current, defaultName ?? name]);
+  }
+
+  function removeBoardColumn(status: string, destination: string) {
+    const affected = tasks.filter(task => task.status === status).length;
+    if (columns.length <= 1) return 'Keep at least one column.';
+    if (affected && (!columns.includes(destination) || destination === status)) return 'Choose a column for the tasks.';
+    if (destination === 'In progress' && affected + tasks.filter(task => task.status === destination).length > 3) {
+      return 'In progress can hold up to three tasks. Choose another column.';
+    }
+    setTasks(current => current.map(task => task.status === status ? { ...task, status: destination } : task));
+    setColumns(current => current.filter(column => column !== status));
   }
 
   function addTaskButton(label = 'New task') {
-    return <button className="wu-button wu-button--primary" type="button" onClick={() => setModal('task')}><Plus size={16} />{label}</button>;
+    return <button className="wu-button wu-button--primary" type="button" onClick={() => { setNewTaskColumn(''); setModal('task'); }}><Plus size={16} />{label}</button>;
   }
 
-  function pageHeading(action?: ReactNode, subtitle = currentCopy.subtitle) {
-    const firstName = profileName.trim().split(/\s+/)[0];
-    const greetingName = firstName.charAt(0).toLocaleUpperCase() + firstName.slice(1);
-    const title = page === 'home' ? `Good morning, ${greetingName}` : currentCopy.title;
-    return <div className="wu-page-heading"><div><div className="wu-breadcrumb">{workspaceName}<span>/</span>{pageLabel}</div><h1>{title}</h1><p>{subtitle}</p></div>{action && <div className="wu-page-action">{action}</div>}</div>;
+  function pageHeading(action?: ReactNode) {
+    return <header className="wu-page-heading">
+      <h1>{pageLabel}</h1>
+      {action && <div className="wu-page-action">{action}</div>}
+    </header>;
   }
 
   function taskView(task: Task) {
-    return <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedTask(null); }}><aside className="wu-drawer" role="dialog" aria-modal="true" aria-labelledby="task-title">
-      <div className="wu-drawer-head"><span className="wu-task-id">{task.id}</span><button className="wu-icon-button" type="button" aria-label="Close task details" onClick={() => setSelectedTask(null)}><X size={18} /></button></div>
-      <h2 id="task-title">{task.title}</h2><p className="wu-muted">{task.description}</p>
+    return <Drawer title={task.title} onClose={() => setSelectedTask(null)}>
+      <span className="wu-task-id">{task.id}</span><p className="wu-muted">{task.description}</p>
       <div className="wu-detail-grid"><div><span>Status</span><Pill tone="blue">{task.status}</Pill></div><div><span>Priority</span><strong>{task.priority}</strong></div><div><span>Assignee</span><span className="wu-person"><Avatar initials={task.initials} small />{task.person}</span></div><div><span>Due date</span><strong>{task.due}</strong></div></div>
       <div className="wu-drawer-section"><h3>Acceptance criteria</h3><label className="wu-check-row"><input type="checkbox" /> Login works on mobile widths</label><label className="wu-check-row"><input type="checkbox" /> Errors are clear and placed near the field</label></div>
       <div className="wu-drawer-section"><h3>Activity</h3><p className="wu-muted">Sarah Kim moved this task to {task.status} · Today</p></div>
       <button className="wu-button wu-button--secondary" type="button" onClick={() => { setSelectedTask(null); navigate('chat'); }}>Open discussion</button>
-    </aside></div>;
+    </Drawer>;
   }
 
   function renderPage() {
@@ -195,12 +201,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       case 'home': return (
         <HomePage
           pageHeading={pageHeading}
+          columns={columns}
           tasks={tasks}
           homeFilter={homeFilter}
           setHomeFilter={setHomeFilter}
-          search={search}
           navigate={navigate}
-          setSelectedFile={setSelectedFile}
+          recentFiles={workspaceFiles.items}
+          filesError={workspaceFiles.error}
+          retryFiles={workspaceFiles.retry}
           setSelectedTask={setSelectedTask}
           addTaskButton={addTaskButton}
         />
@@ -208,22 +216,30 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       case 'backlog': return (
         <BacklogPage
           pageHeading={pageHeading}
+          facets={taskFacets}
           filter={filter}
           setFilter={setFilter}
           filteredTasks={filteredTasks}
           setSelectedTask={setSelectedTask}
-          onAddTask={() => setModal('task')}
+          onAddTask={() => { setNewTaskColumn(''); setModal('task'); }}
           addTaskButton={addTaskButton}
         />
       );
       case 'board': return (
         <BoardPage
           pageHeading={pageHeading}
+          facets={taskFacets}
           filter={filter}
           setFilter={setFilter}
           filteredTasks={filteredTasks}
+          activeCount={tasks.filter(task => task.status === 'In progress').length}
+          columns={columns}
+          allTasks={tasks}
+          onAddColumn={addBoardColumn}
+          onRemoveColumn={removeBoardColumn}
+          onMoveTask={moveBoardTask}
           setSelectedTask={setSelectedTask}
-          onAddTask={() => setModal('task')}
+          onAddTask={status => { setNewTaskColumn(status); setModal('task'); }}
           addTaskButton={addTaskButton}
         />
       );
@@ -249,6 +265,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       case 'team': return (
         <TeamPage
           pageHeading={pageHeading}
+          setToast={setToast}
           workspaceName={workspaceName}
           onInvite={() => setModal('invite')}
         />
@@ -256,39 +273,29 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       case 'chat': return (
         <ChatPage
           pageHeading={pageHeading}
-          conversation={conversation}
-          setConversation={setConversation}
           profileName={profileName}
-          messages={messages}
-          messageText={messageText}
-          setMessageText={setMessageText}
-          sendMessage={sendMessage}
+          threads={chatThreads}
+          setThreads={setChatThreads}
+          files={workspaceFiles.items}
           navigate={navigate}
         />
       );
       case 'files': return (
         <FilesPage
           pageHeading={pageHeading}
-          selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
-          tasks={tasks}
-          setSelectedTask={setSelectedTask}
-          setToast={setToast}
+          path={filePath}
+          token={token}
+          files={workspaceFiles.items}
+          loadError={workspaceFiles.error}
+          onRetry={workspaceFiles.retry}
+          onUpload={file => workspaceFiles.setItems(current => [file, ...(current ?? [])])}
         />
       );
       case 'notes': return (
         <NotesPage
           pageHeading={pageHeading}
-          selectedNote={selectedNote}
-          setSelectedNote={setSelectedNote}
-          editingNote={editingNote}
-          setEditingNote={setEditingNote}
-          noteText={noteText}
-          setNoteText={setNoteText}
-          tasks={tasks}
-          setSelectedTask={setSelectedTask}
-          setToast={setToast}
-          saveNote={saveNote}
+          path={workspacePath + '/notes'}
+          token={token}
         />
       );
       case 'analytics': return (
@@ -318,7 +325,12 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.label} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && <b>2</b>}</button>; })}</nav>
       <button type="button" className={`wu-nav-item wu-nav-settings${page === 'settings' ? ' is-active' : ''}`} aria-current={page === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><Settings size={17} /><span>Settings</span></button>
     </aside>
-    <div className="wu-main"><header className="wu-topbar"><a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a><label className="wu-global-search"><Search size={16} /><input aria-label="Search tasks" placeholder="Search tasks" value={search} onChange={event => setSearch(event.target.value)} /></label><div className="wu-top-actions"><button className="wu-icon-button" type="button" aria-label="Notifications" onClick={() => setToast('You’re all caught up.')}><Bell size={18} /></button><button className="wu-theme-button" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button><button className="wu-user-button" type="button" aria-label={"Profile: " + profileName} onClick={() => setToast(`${profileName} · Workspace member`)}><Avatar initials={profileInitials} tone="mint" preview={profileName === 'Alex Morgan'} /><span><strong>{profileName}</strong><small>Workspace member</small></span></button></div></header>
+    <div className="wu-main">
+      <header className="wu-topbar">
+        <a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a>
+        <WorkspaceCommand pages={navigation} tasks={tasks} disabled={!!(modal || selectedTask)} onNavigate={navigate} onOpenTask={setSelectedTask} />
+        <div className="wu-top-actions"><NotificationInbox token={token} /><button className="wu-theme-button" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button><button className="wu-user-button" type="button" aria-label={"Profile: " + profileName} onClick={() => setToast(`${profileName} · Workspace member`)}><Avatar initials={profileInitials} tone="mint" preview={profileName === 'Alex Morgan'} /><span><strong>{profileName}</strong><small>Workspace member</small></span></button></div>
+      </header>
       <main className="wu-page" id="main">{renderPage()}</main>
     </div>
     {selectedTask && taskView(selectedTask)}

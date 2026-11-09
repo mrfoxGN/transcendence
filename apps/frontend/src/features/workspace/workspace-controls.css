@@ -1,0 +1,47 @@
+.wu-native-drawer { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; height: 100dvh; max-height: none; max-width: 100%; border: 0; color: var(--wu-ink); }
+.wu-native-drawer::backdrop, .wu-native-confirmation::backdrop { background: #0d1b2f66; }
+.wu-native-confirmation { position: fixed; inset: 0; max-height: calc(100dvh - 28px); color: var(--wu-ink); }
+.wu-drawer-body { padding: 24px; }
+.wu-drawer-body .wu-drawer-head { align-items: flex-start; gap: 12px; }
+.wu-action-menu { position: fixed; inset: auto; width: 192px; margin: 0; padding: 4px; border: 1px solid var(--wu-line); border-radius: 10px; color: var(--wu-ink); background: var(--wu-surface); box-shadow: 0 8px 24px #0002; }
+.wu-action-menu button { display: block; width: 100%; min-height: 38px; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: start; }
+.wu-action-menu button:hover { background: var(--wu-blue-soft); }
+.wu-avatar-group { display: inline-flex; align-items: center; padding-inline-start: 2px; }
+.wu-avatar-group > span { display: flex; margin-inline-start: -2px; border-radius: 50%; box-shadow: 0 0 0 2px var(--wu-surface); }
+.wu-avatar-group > span + span { margin-inline-start: -7px; }
+.wu-avatar-group .wu-avatar-overflow { display: grid; place-items: center; min-width: 27px; height: 27px; background: var(--wu-surface-soft); color: var(--wu-muted); font-size: 11px; font-weight: 700; }
+.wu-task-facets { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; margin-bottom: 16px; }
+.wu-task-facets label { display: grid; gap: 4px; color: var(--wu-muted); font-size: 12px; }
+.wu-task-facets select { max-width: 100%; }
+.wu-skeleton { display: block; min-height: 16px; border-radius: 6px; background: var(--wu-line); }
+.wu-loading-panel { display: grid; gap: 12px; padding: 20px; }
+.wu-loading-panel .wu-skeleton:nth-child(2) { width: 70%; }
+.wu-inbox { position: fixed; inset: 68px 16px auto auto; width: min(420px, calc(100vw - 32px)); max-height: min(540px, 76dvh); overflow: auto; margin: 0; padding: 16px; border: 1px solid var(--wu-line); border-radius: 12px; color: var(--wu-ink); background: var(--wu-surface); box-shadow: 0 8px 28px #0003; }
+.wu-inbox h3 { margin: 16px 0 6px; color: var(--wu-muted); font-size: 13px; }
+.wu-inbox ul { margin: 0; padding: 0; list-style: none; }
+.wu-inbox li { display: flex; align-items: start; justify-content: space-between; gap: 8px; padding: 10px; border-bottom: 1px solid var(--wu-line); overflow-wrap: anywhere; }
+.wu-inbox li[data-unread='true'] { border-inline-start: 3px solid var(--wu-blue); }
+.wu-inbox time { color: var(--wu-muted); font-size: 12px; }
+.wu-document-list { list-style: none; padding: 0; margin: 0; }
+.wu-document-list > li { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--wu-line); }
+.wu-document-list > li[data-current='true'] { background: var(--wu-blue-soft); }
+.wu-document-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 10px; border: 0; background: transparent; text-align: start; cursor: pointer; }
+.wu-document-select > svg { flex: none; color: var(--wu-blue); }
+.wu-document-select span { min-width: 0; overflow-wrap: anywhere; }
+.wu-document-select small { display: block; color: var(--wu-muted); }
+.wu-note-editor form .wu-field-label { margin-block: 12px; }
+.wu-file-inspector .wu-button { margin-top: 12px; }
+.wu-file-inspector h3, .wu-note-editor h2 { overflow-wrap: anywhere; }
+.wu-note-body p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.wu-progress-contributors { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; color: var(--wu-muted); font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) {
+  .wu-native-drawer[open] { animation: wu-drawer-enter 180ms ease-out; }
+  .wu-avatar-group > span { transition: margin-inline-start 150ms ease; }
+  .wu-avatar-group:hover > span + span { margin-inline-start: -1px; }
+  .wu-skeleton { animation: wu-skeleton-pulse 1.4s ease-in-out infinite alternate; }
+}
+@keyframes wu-drawer-enter { from { transform: translateX(100%); } }
+@keyframes wu-skeleton-pulse { to { opacity: .55; } }
+@media (max-width: 680px) {
+  .wu-desktop-file-inspector { display: none; }
+}

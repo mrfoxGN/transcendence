@@ -5,6 +5,6 @@ export type Task = { id: string; title: string; status: string; type: string; pe
 
 export type GithubState = 'connected' | 'failed' | 'disconnected';
 export type Message = { initials: string; name: string; text: string; time: string; tone: string };
-export type PageHeading = (action?: ReactNode, subtitle?: string) => ReactNode;
+export type PageHeading = (action?: ReactNode) => ReactNode;
 export type AddTaskButton = (label?: string) => ReactNode;
 export type FormHandler = (event: FormEvent<HTMLFormElement>) => void;
