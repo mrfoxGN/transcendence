@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { ArrowLeft, ArrowUp, ChevronRight, FileText, Info, Paperclip, Search, SquarePen, ThumbsUp, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ChevronRight, FileText, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Paperclip, Phone, Search, SquarePen, ThumbsUp, Users, Video, X } from 'lucide-react';
 import { Avatar, IconTile, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import { people } from '../previewData';
 import type { ChatAttachment, ChatMessage, ChatThread } from '../chatPreview';
-import type { PageHeading, PageKey } from '../types';
+import type { PageKey } from '../types';
 import { fileSize, type WorkspaceFile } from '../workspace-api';
 import './chat.css';
 
 type ChatPageProps = {
-  pageHeading: PageHeading;
   profileName: string;
   threads: ChatThread[];
   setThreads: Dispatch<SetStateAction<ChatThread[]>>;
@@ -43,7 +42,7 @@ function AttachmentCard({ file, onClick, action = 'Go to Files' }: { file: ChatA
   </button>;
 }
 
-export function ChatPage({ pageHeading, profileName, threads, setThreads, files, navigate }: ChatPageProps) {
+export function ChatPage({ profileName, threads, setThreads, files, navigate }: ChatPageProps) {
   const [selected, setSelected] = useState('team');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
@@ -51,6 +50,8 @@ export function ChatPage({ pageHeading, profileName, threads, setThreads, files,
   const [drafts, setDrafts] = useState<Record<string, { text: string; attachment?: ChatAttachment }>>({});
   const [drawer, setDrawer] = useState<'details' | 'files' | 'new'>();
   const [showList, setShowList] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [callNotice, setCallNotice] = useState<'Voice' | 'Video'>();
   const messageList = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const thread = threads.find(item => item.id === selected) ?? threads[0];
@@ -83,6 +84,7 @@ export function ChatPage({ pageHeading, profileName, threads, setThreads, files,
 
   function selectThread(id: string) {
     setSelected(id);
+    setCallNotice(undefined);
     setSection('Details');
     setShowList(false);
     setThreads(current => current.map(item => item.id === id && item.unread ? { ...item, unread: 0 } : item));
@@ -141,10 +143,10 @@ export function ChatPage({ pageHeading, profileName, threads, setThreads, files,
   </>;
 
   return <>
-    {pageHeading(<button className="wu-button wu-button--primary" type="button" onClick={() => setDrawer('new')}><SquarePen size={17} />New message</button>)}
-    <div className={`wu-chat-layout${showList ? ' is-list-open' : ''}`}>
+    <div className={`wu-chat-layout${showList ? ' is-list-open' : ''}${detailsCollapsed ? ' is-details-collapsed' : ''}`}>
       <Panel className="wu-conversation-panel">
         <div className="wu-chat-search-row">
+          <button type="button" className="wu-icon-button wu-chat-list-close" aria-label="Hide conversations" title="Hide conversations" onClick={() => setShowList(false)}><ArrowLeft size={19} /></button>
           <label className="wu-chat-search"><Search size={17} aria-hidden="true" /><input type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} /></label>
         </div>
         <div className="wu-chat-tabs" role="group" aria-label="Filter conversations">
@@ -152,7 +154,7 @@ export function ChatPage({ pageHeading, profileName, threads, setThreads, files,
             {item}{item === 'Unread' && !!unreadCount && <span>{unreadCount}</span>}{item === 'Mentions' && !!mentionCount && <span>{mentionCount}</span>}
           </button>)}
         </div>
-        <div className="wu-chat-conversations" aria-label="Conversations">
+        <div className="wu-chat-conversations" aria-label="Conversations" tabIndex={0}>
           {visibleThreads.map(item => {
             const latest = item.messages.at(-1);
             return <button type="button" key={item.id} className="wu-conversation" aria-current={item.id === thread.id ? 'true' : undefined} onClick={() => selectThread(item.id)}>
@@ -163,15 +165,28 @@ export function ChatPage({ pageHeading, profileName, threads, setThreads, files,
           })}
           {!visibleThreads.length && <p className="wu-chat-empty">{search ? 'No conversations match your search.' : 'No ' + filter.toLowerCase() + ' conversations.'}</p>}
         </div>
+        <footer className="wu-chat-list-footer">
+          <button className="wu-button wu-button--primary" type="button" onClick={() => setDrawer('new')}><SquarePen size={17} />New message</button>
+        </footer>
       </Panel>
 
       <Panel className="wu-chat-thread">
         <header className="wu-chat-thread-head">
-          <button type="button" className="wu-icon-button wu-chat-back" aria-label="Back to conversations" onClick={() => setShowList(true)}><ArrowLeft size={19} /></button>
+          <button type="button" className="wu-icon-button wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></button>
           {thread.member ? <Portrait name={thread.member} /> : <IconTile><Users size={18} /></IconTile>}
           <div className="wu-chat-heading"><h2>{thread.title}</h2><p>{thread.member ? 'Direct message' : members.length + ' members · General discussion'}</p></div>
-          <button type="button" className="wu-icon-button wu-chat-info" aria-label="Conversation details" onClick={() => setDrawer('details')}><Info size={19} /></button>
+          <button type="button" className="wu-icon-button" aria-label="Voice call" title="Voice call" onClick={() => setCallNotice('Voice')}><Phone size={18} /></button>
+          <button type="button" className="wu-icon-button" aria-label="Video call" title="Video call" onClick={() => setCallNotice('Video')}><Video size={19} /></button>
+          <button type="button" className="wu-button wu-button--secondary wu-chat-details-toggle"
+            aria-controls="chat-details" aria-expanded={!detailsCollapsed} onClick={() => setDetailsCollapsed(value => !value)}>
+            {detailsCollapsed ? <PanelRightOpen size={17} aria-hidden="true" /> : <PanelRightClose size={17} aria-hidden="true" />}
+            {detailsCollapsed ? 'Show details' : 'Hide details'}
+          </button>
+          <button type="button" className="wu-icon-button wu-chat-info" aria-label="Show conversation details" title="Show conversation details" onClick={() => setDrawer('details')}><Info size={19} /></button>
         </header>
+        {callNotice && <div className="wu-chat-call-notice"><span role="status">{callNotice} calling is unavailable in this workspace.</span>
+          <button type="button" className="wu-icon-button" aria-label="Dismiss calling notice" onClick={() => setCallNotice(undefined)}><X size={16} /></button>
+        </div>}
         <div ref={messageList} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
           {!thread.messages.length && <p className="wu-chat-empty">Start the conversation with {thread.title}.</p>}
           {thread.messages.map((message, index) => {
@@ -207,7 +222,7 @@ export function ChatPage({ pageHeading, profileName, threads, setThreads, files,
           </div>
         </form>
       </Panel>
-      <Panel className="wu-chat-details">{details}</Panel>
+      <section className="wu-panel wu-chat-details" id="chat-details" aria-label="Conversation details">{details}</section>
     </div>
     {drawer && <Drawer title={drawer === 'details' ? 'Conversation details' : drawer === 'files' ? 'Attach a workspace file' : 'New message'} onClose={() => setDrawer(undefined)}>
       {drawer === 'details' && <div className="wu-chat-details-body">{details}</div>}

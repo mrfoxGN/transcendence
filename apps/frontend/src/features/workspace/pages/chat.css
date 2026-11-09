@@ -1,8 +1,20 @@
+.workspace-app.workspace-app--chat { box-sizing: border-box; height: 100dvh; min-height: 0; }
+.workspace-app--chat .wu-main { min-height: 0; }
+.wu-main .wu-page--chat {
+  max-width: none;
+  height: calc(100dvh - var(--wu-topbar-height) - var(--wu-chat-bottom-nav, 0px));
+  padding: 12px var(--wu-page-gutter);
+}
 .wu-chat-layout {
   display: grid;
   grid-template-columns: minmax(210px, .95fr) minmax(330px, 1.9fr) minmax(230px, .95fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
-  height: max(550px, calc(100dvh - 222px));
+  height: 100%;
+}
+.wu-chat-layout.is-details-collapsed > .wu-chat-details { display: none; }
+@media (min-width: 1241px) {
+  .wu-chat-layout.is-details-collapsed { grid-template-columns: minmax(210px, 1fr) minmax(0, 3fr); }
 }
 .wu-chat-layout > .wu-panel { min-width: 0; min-height: 0; padding: 14px; }
 .wu-conversation-panel, .wu-chat-thread { display: flex; flex-direction: column; }
@@ -52,7 +64,9 @@
 .wu-chat-tabs button[aria-pressed="true"] { background: var(--wu-blue-soft); color: var(--wu-blue); }
 .wu-chat-tabs button span { padding-inline: 4px; border-radius: 8px; background: var(--wu-surface-soft); font-size: 11px; }
 .wu-chat-conversations, .wu-messages, .wu-chat-details { overflow-y: auto; }
-.wu-chat-conversations { display: grid; align-content: start; gap: 3px; }
+.wu-chat-conversations { flex: 1; min-height: 0; display: grid; align-content: start; gap: 3px; overscroll-behavior: contain; }
+.wu-chat-list-footer { flex: none; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--wu-line); }
+.wu-chat-list-footer .wu-button { width: 100%; justify-content: center; }
 .wu-conversation {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -82,8 +96,11 @@
 .wu-chat-heading { flex: 1; min-width: 0; }
 .wu-chat-heading h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
 .wu-chat-heading p { margin: 3px 0 0; color: var(--wu-muted); font-size: 13px; }
-.wu-chat-thread-head .wu-chat-back, .wu-chat-thread-head .wu-chat-info { display: none; }
-.wu-messages { flex: 1; min-height: 0; padding: 0 3px 10px; overscroll-behavior: contain; }
+.wu-chat-thread-head .wu-chat-back, .wu-chat-thread-head .wu-chat-info, .wu-chat-search-row .wu-chat-list-close { display: none; }
+.wu-chat-thread-head .wu-icon-button { flex: none; }
+.wu-chat-call-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; background: var(--wu-surface-soft); color: var(--wu-muted); font-size: 13px; }
+.wu-messages { flex: 1; min-height: 0; padding: 0 3px 10px; overscroll-behavior: contain; scrollbar-width: none; }
+.wu-messages::-webkit-scrollbar { display: none; }
 .wu-chat-date { display: flex; justify-content: center; padding: 13px 0; }
 .wu-chat-date span { padding: 3px 9px; border-radius: 12px; background: var(--wu-surface-soft); color: var(--wu-muted); font-size: 12px; }
 .wu-message { display: flex; align-items: flex-start; gap: 8px; margin-block-end: 14px; }
@@ -162,11 +179,20 @@
 @media (max-width: 1240px) {
   .wu-chat-layout { grid-template-columns: minmax(190px, 1fr) minmax(0, 2fr); }
   .wu-chat-layout > .wu-chat-details { display: none; }
+  .wu-chat-thread-head .wu-chat-details-toggle { display: none; }
   .wu-chat-thread-head .wu-chat-info { display: inline-flex; }
 }
 
 @media (max-width: 720px) {
-  .wu-chat-layout { grid-template-columns: minmax(0, 1fr); height: max(380px, calc(100dvh - 188px)); }
+  .wu-chat-layout { grid-template-columns: minmax(0, 1fr); }
+  .wu-chat-layout.is-list-open > .wu-conversation-panel { display: flex; }
   .wu-chat-layout:not(.is-list-open) > .wu-conversation-panel, .wu-chat-layout.is-list-open > .wu-chat-thread { display: none; }
-  .wu-chat-thread-head .wu-chat-back { display: inline-flex; }
+  .wu-chat-thread-head .wu-chat-back, .wu-chat-search-row .wu-chat-list-close { display: inline-flex; }
+  .wu-chat-thread-head { gap: 4px; }
+  .wu-chat-thread-head > .wu-icon-tile, .wu-chat-thread-head > .wu-avatar { display: none; }
+}
+
+@media (max-width: 680px) {
+  .wu-main .wu-page--chat { --wu-chat-bottom-nav: 66px; padding-block: 8px; }
+  .wu-chat-layout > .wu-panel { padding: 10px; }
 }

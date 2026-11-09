@@ -272,7 +272,6 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'chat': return (
         <ChatPage
-          pageHeading={pageHeading}
           profileName={profileName}
           threads={chatThreads}
           setThreads={setChatThreads}
@@ -320,7 +319,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  return <div className="workspace-app" data-theme={theme}>
+  return <div className={page === 'chat' ? 'workspace-app workspace-app--chat' : 'workspace-app'} data-theme={theme}>
     <aside className="wu-sidebar"><WorkspaceSwitcher workspaceId={workspaceId} workspaceName={workspaceName} token={token} />
       <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.label} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && <b>2</b>}</button>; })}</nav>
       <button type="button" className={`wu-nav-item wu-nav-settings${page === 'settings' ? ' is-active' : ''}`} aria-current={page === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><Settings size={17} /><span>Settings</span></button>
@@ -331,7 +330,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <WorkspaceCommand pages={navigation} tasks={tasks} disabled={!!(modal || selectedTask)} onNavigate={navigate} onOpenTask={setSelectedTask} />
         <div className="wu-top-actions"><NotificationInbox token={token} /><button className="wu-theme-button" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}</button><button className="wu-user-button" type="button" aria-label={"Profile: " + profileName} onClick={() => setToast(`${profileName} · Workspace member`)}><Avatar initials={profileInitials} tone="mint" preview={profileName === 'Alex Morgan'} /><span><strong>{profileName}</strong><small>Workspace member</small></span></button></div>
       </header>
-      <main className="wu-page" id="main">{renderPage()}</main>
+      <main className={page === 'chat' ? 'wu-page wu-page--chat' : 'wu-page'} id="main" aria-label={page === 'chat' ? 'Chat' : undefined}>{renderPage()}</main>
     </div>
     {selectedTask && taskView(selectedTask)}
     {modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setModal(null); }}><section className="wu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}><label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required /></label><label className="wu-field-label">Type<select name="type"><option>Feature</option><option>Bug fix</option><option>Docs</option><option>Tech debt</option></select></label><label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" /></label><div className="wu-modal-actions"><button className="wu-button wu-button--secondary" type="button" onClick={() => setModal(null)}>Cancel</button><button className="wu-button wu-button--primary" type="submit"><Plus size={15} />Create task</button></div></form> : <form onSubmit={event => { event.preventDefault(); setModal(null); setToast('Invitation prepared.'); }}><label className="wu-field-label">Email address<input autoFocus name="email" type="email" placeholder="name@company.com" required /></label><label className="wu-field-label">Role<select defaultValue="Member"><option>Member</option><option>Admin</option></select></label><p className="wu-muted">Invited people can view workspace activity and collaborate on tasks.</p><div className="wu-modal-actions"><button className="wu-button wu-button--secondary" type="button" onClick={() => setModal(null)}>Cancel</button><button className="wu-button wu-button--primary" type="submit"><Plus size={15} />Invite member</button></div></form>}</section></div>}
