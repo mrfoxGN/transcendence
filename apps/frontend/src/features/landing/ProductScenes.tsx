@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { sampleProject } from './sampleData';
-import { CalendarDays, Check, ClipboardList, FileText, Folder, MessageSquare, PanelRight, Paperclip } from 'lucide-react';
+import { ArrowUp, CalendarDays, Check, ClipboardList, FileText, Folder, Image, MessageSquare, PanelRight, Paperclip } from 'lucide-react';
 
 function TaskBadge() {
   return <span className="scene-task-badge">{sampleProject.taskId}</span>;
@@ -21,17 +21,17 @@ function TaskScene() {
           <ul className="scene-checklist" aria-label="Task checklist">
             <li><Check size={14} aria-hidden="true" /> Add email and password fields</li>
             <li><Check size={14} aria-hidden="true" /> Show errors below the fields</li>
-            <li><span aria-hidden="true" /> Review at mobile widths</li>
+            <li className="scene-checklist-focus"><span className="scene-checkmark"><Check size={13} role="img" aria-label="Complete" /></span> Review at mobile widths</li>
           </ul>
         </div>
         <dl className="scene-properties">
           <div><dt>Status</dt><dd><span className="scene-status"><i /> In progress</span></dd></div>
-          <div><dt>Assignee</dt><dd className="scene-value"><SceneAvatar person="AM" /> Alex Morgan</dd></div>
+          <div><dt>Assignee</dt><dd><span className="scene-value scene-assignee"><SceneAvatar person="AM" /> Alex Morgan</span></dd></div>
           <div><dt>Due date</dt><dd className="scene-value"><CalendarDays size={13} aria-hidden="true" /> Apr 12</dd></div>
         </dl>
       </div>
     </div>
-    <div className="scene-note"><MessageSquare size={17} /><div><strong>Review comment</strong><p>Can we show the error under the email field?</p></div></div>
+    <div className="scene-note scene-note--complete"><Check size={17} aria-hidden="true" /><div><strong>Checklist complete</strong><p>Mobile review finished</p></div></div>
   </div>;
 }
 
@@ -41,9 +41,9 @@ function ChatScene() {
       <div className="scene-bar"><MessageSquare size={16} /> DevUP Team <span>/</span> General discussion</div>
       <div className="scene-content scene-chat">
         <span className="scene-date">Today · Apr 12</span>
-        <div className="scene-message"><SceneAvatar person="LN" /><div><strong>Amina</strong> <small className="scene-time">10:24</small><p>The login form is ready for a mobile review.</p><TaskBadge /></div></div>
-        <div className="scene-message scene-message--outgoing"><SceneAvatar person="AM" /><div><strong>Alex Morgan</strong> <small className="scene-time">10:28</small><p>Thanks, I’ll review it on mobile.</p></div></div>
-        <div className="scene-composer"><Paperclip size={14} aria-hidden="true" /> Message DevUP Team</div>
+        <div className="scene-message"><SceneAvatar person="LN" /><div><strong>Amina</strong> <small className="scene-time">10:24</small><p>Can you check the login form on mobile?</p></div></div>
+        <div className="scene-message scene-message--outgoing"><SceneAvatar person="AM" /><div><strong>Alex Morgan</strong> <small className="scene-time">10:28</small><p>Mobile review done. Let’s keep the error below the email field.</p><TaskBadge /></div></div>
+        <div className="scene-composer"><Paperclip size={14} aria-hidden="true" /> Message DevUP Team <span><ArrowUp size={14} aria-hidden="true" /></span></div>
       </div>
     </div>
     <div className="scene-note"><Check size={17} /><div><strong>Message sent</strong><p>Mobile review update · 10:28</p></div></div>
@@ -56,16 +56,16 @@ function FilesScene() {
       <div className="scene-bar"><Folder size={16} /> Files <span>/</span> Frontend <TaskBadge /></div>
       <div className="scene-content scene-preview-split">
         <div>
-          <div className="scene-file scene-file--selected"><Paperclip size={18} /><div><strong>login-mobile.png</strong><small>PNG · 182 KB</small></div></div>
-          <div className="scene-file"><FileText size={18} /><div><strong>Login review notes</strong><small>Workspace note</small></div></div>
+          <div className="scene-file"><span className="scene-file-icon"><Image size={17} aria-hidden="true" /></span><div><strong>login-mobile.png</strong><small>PNG · 182 KB</small></div></div>
+          <div className="scene-file scene-file--selected"><span className="scene-file-icon"><FileText size={17} aria-hidden="true" /></span><div><strong>Login review notes</strong><small>Workspace note</small></div></div>
         </div>
         <div className="scene-file-preview" aria-label="Sample login form screenshot">
-          <div className="scene-file-screen"><strong>Sign in</strong><span>Email</span><span className="scene-file-input">alex@example.com</span><small>Enter a valid email address.</small></div>
-          <div className="scene-value"><SceneAvatar person="SK" /><small>Added by Noah</small></div>
+          <div className="scene-file-screen"><strong>Sign in</strong><span>Email</span><span className="scene-file-input">alex@</span><small>Enter a valid email address.</small></div>
+          <div className="scene-value"><SceneAvatar person="SK" /><small>Mobile review screenshot</small></div>
         </div>
       </div>
     </div>
-    <div className="scene-note"><FileText size={17} /><div><div className="scene-task-meta"><strong>Review decision</strong><TaskBadge /></div><p>Keep the email error below the field.</p></div></div>
+    <div className="scene-note scene-note--decision"><FileText size={17} /><div><div className="scene-task-meta"><strong>Review decision</strong><TaskBadge /></div><p>Keep the email error below the field.</p></div></div>
   </div>;
 }
 

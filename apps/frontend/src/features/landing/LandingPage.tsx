@@ -1,6 +1,7 @@
+import { sessionKey } from '../WorkspacePicker';
 import { AnimatedHeading } from './AnimatedHeading';
 import { useEffect, useState, type FormEvent, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowUp } from 'lucide-react';
+import { ArrowUp, Check, Eye, EyeOff, X } from 'lucide-react';
 import { BoardPreview } from './BoardPreview';
 import { ProductScenes } from './ProductScenes';
 import { LandingDetails } from './LandingDetails';
@@ -8,6 +9,7 @@ import { LogoCarousel } from './LogoCarousel';
 import { ContainerScroll, ScrollTextReveal } from './LandingMotion';
 import { MagicButton } from './MagicButton';
 import './hero.css';
+import './auth.css';
 
 function Brand() {
   return <a className="brand" href="/" aria-label="DevUP home"><svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#245bc9" /><path d="m11 21 13-10 13 10M11 33l13-10 13 10" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg><span>DevUP</span></a>;
@@ -22,6 +24,33 @@ function moveHeroGlow(event: PointerEvent<HTMLElement>) {
 }
 
 export function LandingPage() {
+  const [signedIn, setSignedIn] = useState(() => Boolean(sessionStorage.getItem(sessionKey)));
+
+  useEffect(() => {
+    const controller = new AbortController();
+    function syncSession() {
+      const token = sessionStorage.getItem(sessionKey);
+      setSignedIn(Boolean(token));
+      if (!token) return;
+      void fetch('/api/auth/profile', {
+        headers: { Authorization: 'Bearer ' + token },
+        signal: controller.signal,
+      }).then(response => {
+        if (controller.signal.aborted || sessionStorage.getItem(sessionKey) !== token) return;
+        if (response.status === 401) {
+          sessionStorage.removeItem(sessionKey);
+          setSignedIn(false);
+        }
+      }).catch(() => {});
+    }
+
+    syncSession();
+    window.addEventListener('pageshow', syncSession);
+    return () => {
+      controller.abort();
+      window.removeEventListener('pageshow', syncSession);
+    };
+  }, []);
   useEffect(() => {
     // The initial fragment may resolve before React renders the landing page.
     const fragment = window.location.hash.slice(1);
@@ -34,8 +63,12 @@ export function LandingPage() {
         <Brand />
         <nav aria-label="Main navigation"><a href="#preview">The board</a><a href="#features">Workspace</a><a href="#github">GitHub</a></nav>
         <div className="navbar-actions">
-          <a className="button button--secondary" href="/login">Log in</a>
-          <a className="button button--primary" href="/register">Sign up</a>
+          {signedIn ? <a className="button button--primary" href="/workspaces">Open workspace</a> : (
+            <>
+              <a className="button button--secondary" href="/login">Log in</a>
+              <a className="button button--primary" href="/register">Sign up</a>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -44,7 +77,7 @@ export function LandingPage() {
         <div className="landing-hero-copy section-wrap">
           <AnimatedHeading as="h1" id="hero-heading" lines={["From idea to impact,", "all in one flow."]} />
           <p>A clear next step. A connected team. A place for the whole project.<br className="desktop-break" /> Bring your tasks, conversations, and code together with DevUP.</p>
-          <div className="hero-actions"><MagicButton href="/register" variant="secondary">Create an account</MagicButton></div>
+          <div className="hero-actions"><MagicButton href={signedIn ? "/workspaces" : "/register"} variant="secondary">{signedIn ? "Open workspace" : "Create an account"}</MagicButton></div>
         </div>
         <picture className="hero-workflow" aria-hidden="true">
           <source media="(max-width: 600px)" srcSet="/illustrations/workflow-phone.png" width="1254" height="1254" />
@@ -68,7 +101,7 @@ export function LandingPage() {
       <section className="closing-copy section-wrap" aria-labelledby="closing-heading">
         <img src="/devup.svg" alt="" width="48" height="48" />
         <h2 id="closing-heading">Your next idea starts here.</h2>
-        <MagicButton href="/register" variant="secondary">Get started</MagicButton>
+        <MagicButton href={signedIn ? "/workspaces" : "/register"} variant="secondary">{signedIn ? "Open workspace" : "Get started"}</MagicButton>
       </section>
       <footer className="site-footer">
         <div className="section-wrap">
@@ -84,7 +117,7 @@ export function LandingPage() {
               </div>
               <div>
                 <h2>Account</h2>
-                <ul><li><a href="/login">Log in</a></li><li><a href="/register">Sign up</a></li></ul>
+                <ul>{signedIn ? <li><a href="/workspaces">Open workspace</a></li> : <><li><a href="/login">Log in</a></li><li><a href="/register">Sign up</a></li></>}</ul>
               </div>
             </nav>
           </div>
@@ -98,32 +131,58 @@ export function LandingPage() {
   </div>;
 }
 export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
+  const signingUp = mode === 'register';
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
-  const [registered, setRegistered] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const [registeredSession, setRegisteredSession] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  async function register(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
     const fields = Object.fromEntries(new FormData(event.currentTarget));
     setPending(true);
     setMessage('');
+
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/auth/' + mode, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fields),
       });
-      if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        const detail = error?.message;
+      const result = await response.json().catch(() => null);
+      if (!response.ok || (signingUp ? !result?.id : !result?.accessToken)) {
+        const detail = result?.message;
         setMessage(response.status >= 500
-          ? 'Account setup is temporarily unavailable. Try again later.'
-          : Array.isArray(detail) ? detail.join(' ') : detail || 'Unable to create your account.');
+          ? 'Authentication is temporarily unavailable. Try again later.'
+          : Array.isArray(detail) ? detail.join(' ') : detail ||
+            (signingUp ? 'Unable to create your account.' : 'Unable to sign in.'));
         return;
       }
-      setRegistered(true);
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+
+      if (!signingUp) {
+        sessionStorage.setItem(sessionKey, result.accessToken);
+        window.location.replace('/workspaces');
+        return;
+      }
+      try {
+        const login = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: fields.email, password: fields.password }),
+        });
+        const credentials = await login.json().catch(() => null);
+        if (login.ok && typeof credentials?.accessToken === 'string' && credentials.accessToken) {
+          sessionStorage.setItem(sessionKey, credentials.accessToken);
+          setRegisteredSession(true);
+        }
+      } catch {
+        // Account creation succeeded. The user can continue with manual sign-in.
+      }
+
+      setComplete(true);
+      if (signingUp && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         void import('canvas-confetti').then(({ default: confetti }) => confetti({
           particleCount: 52,
           spread: 58,
@@ -133,30 +192,63 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
         })).catch(() => {});
       }
     } catch {
-      setMessage('Could not reach account setup. Try again later.');
+      setMessage('Could not reach DevUP. Check your connection and try again.');
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <main className="auth-preview section-wrap">
-      <Brand />
-      <div>
-        <h1>{mode === 'login' ? 'Sign in' : 'Create an account'}</h1>
-        {mode === 'login' ? <p>This screen is coming in the next frontend milestone.</p> : registered ? (
-          <p role="status">Your DevUP account has been created.</p>
-        ) : (
-          <form className="auth-form" onSubmit={register}>
-            <label>Username<input name="username" autoComplete="username" minLength={3} maxLength={30} required /></label>
-            <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-            <label>Password<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
-            {message && <p role="alert">{message}</p>}
-            <button className="button button--primary" type="submit" disabled={pending}>{pending ? 'Creating account…' : 'Create an account'}</button>
-          </form>
+    <main className="auth-page">
+      <header className="auth-header">
+        <Brand />
+        <a className="auth-close" href="/" aria-label="Back to DevUP"><X size={20} aria-hidden="true" /></a>
+      </header>
+      <section className="auth-shell" aria-labelledby="auth-title">
+        <h1 id="auth-title">{complete ? 'Account created' : (signingUp ? 'Create an account' : 'Sign in to DevUP')}</h1>
+        {!complete && <p className="auth-description">{signingUp
+          ? 'Bring your tasks, conversations, and code into one workspace.'
+          : 'Enter your email and password.'}</p>}
+        <div className="auth-panel">
+          {complete ? (
+            <div className="auth-success" role="status">
+              <p><Check size={18} aria-hidden="true" /> Your DevUP account is ready.</p>
+              <a className="button button--primary" href={registeredSession ? "/workspaces" : "/login"}>{registeredSession ? "Open workspace" : "Sign in"}</a>
+            </div>
+          ) : (
+            <form className="auth-form" onSubmit={submit}>
+              {signingUp && <label htmlFor="auth-username">Username
+                <input id="auth-username" name="username" autoComplete="username" minLength={3} maxLength={30} required />
+              </label>}
+              <label htmlFor="auth-email">Email
+                <input id="auth-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />
+              </label>
+              <div className="auth-password">
+                <label htmlFor="auth-password">Password</label>
+                <div className="auth-password-field">
+                  <input id="auth-password" name="password" type={showPassword ? 'text' : 'password'}
+                    autoComplete={signingUp ? 'new-password' : 'current-password'} minLength={signingUp ? 8 : undefined}
+                    aria-describedby={signingUp ? 'auth-password-hint' : undefined} required />
+                  <button type="button" className="auth-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword(value => !value)}>
+                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                  </button>
+                </div>
+                {signingUp && <small id="auth-password-hint">Use at least 8 characters.</small>}
+              </div>
+              {message && <p className="auth-error" role="alert">{message}</p>}
+              <button className="button button--primary auth-submit" type="submit" disabled={pending}>
+                {signingUp ? (pending ? 'Creating account…' : 'Create an account') : (pending ? 'Signing in…' : 'Sign in')}
+              </button>
+            </form>
+          )}
+        </div>
+        {!complete && (
+          <p className="auth-switch">{signingUp ? 'Already have an account?' : 'New to DevUP?'}{' '}
+            <a href={signingUp ? '/login' : '/register'}>{signingUp ? 'Sign in' : 'Create an account'}</a>
+          </p>
         )}
-        <a className="button button--secondary" href="/"><ArrowLeft size={17} /> Back to DevUP</a>
-      </div>
+      </section>
     </main>
   );
 }
