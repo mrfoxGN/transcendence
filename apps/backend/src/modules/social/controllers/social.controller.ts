@@ -32,6 +32,11 @@ type AuthenticatedRequest = Request & {
 export class SocialController {
   constructor(private readonly socialService: SocialService) {}
 
+  @Get('unread-count')
+  async unreadCount(@Req() request: AuthenticatedRequest): Promise<{ count: number }> {
+    return { count: await this.socialService.unreadCount(request.user.id) };
+  }
+
   @Get()
   listConversations(
     @Query() query: ListDirectMessagesDto,

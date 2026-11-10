@@ -87,7 +87,7 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
     @ConnectedSocket() client: Socket,
     @MessageBody() workspaceId: string,
   ): Promise<void> {
-    const socketData = client.data as { userId?: unknown };
+    const socketData = client.data as { userId?: unknown; activeWorkspace?: string };
     const userId = socketData.userId;
 
     if (typeof userId !== 'string') {
@@ -95,9 +95,30 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
       return;
     }
 
+    socketData.activeWorkspace = workspaceId;
     await this.workspacesService.findOneForUser(workspaceId, userId);
+    if (socketData.activeWorkspace === workspaceId) await client.join(`workspace:${workspaceId}`);
+  }
 
-    await client.join(`workspace:${workspaceId}`);
+  @SubscribeMessage('workspace-chat.watch')
+  async watchWorkspace(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() workspaceId: string,
+  ): Promise<void> {
+    const userId: unknown = client.data.userId;
+    if (typeof userId !== 'string') return;
+    await this.workspacesService.findOneForUser(workspaceId, userId);
+    await client.join(`workspace-unread:${workspaceId}`);
+    client.emit('workspace-chat.unread-changed', workspaceId);
+  }
+
+  @SubscribeMessage('workspace-chat.leave')
+  async leaveWorkspace(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() workspaceId: string,
+  ): Promise<void> {
+    if (client.data.activeWorkspace === workspaceId) delete client.data.activeWorkspace;
+    await client.leave(`workspace:${workspaceId}`);
   }
 
   emitMessageCreated(
@@ -107,9 +128,17 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
     this.server
       .to(`workspace:${workspaceId}`)
       .emit('workspace-message.created', message);
+    this.server
+      .to(`workspace-unread:${workspaceId}`)
+      .except(`workspace:${workspaceId}`)
+      .emit('workspace-chat.unread-changed', workspaceId);
   }
 
   disconnectUser(userId: string): void {
     this.server.in(`user:${userId}`).disconnectSockets(true);
+  }
+
+  emitReadUpdated(userId: string, workspaceId: string): void {
+    this.server.to(`user:${userId}`).emit('workspace-chat.read', workspaceId);
   }
 }

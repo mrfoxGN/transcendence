@@ -22,6 +22,7 @@ function makeRepository() {
     save: jest.fn((message: ChatMessage): Promise<ChatMessage> =>
       Promise.resolve(message),
     ),
+    query: jest.fn(),
     find: jest.fn((options: unknown): Promise<ChatMessage[]> => {
       void options;
       return Promise.resolve([]);
@@ -45,6 +46,7 @@ describe('ChatService', () => {
   let workspacesService: ReturnType<typeof makeWorkspacesService>;
   let workspaceChatGateway: {
     emitMessageCreated: jest.Mock;
+    emitReadUpdated: jest.Mock;
   };
 
   beforeEach(() => {
@@ -52,6 +54,7 @@ describe('ChatService', () => {
     workspacesService = makeWorkspacesService(workspaceId);
     workspaceChatGateway = {
       emitMessageCreated: jest.fn(),
+      emitReadUpdated: jest.fn(),
     };
 
     service = new ChatService(
@@ -59,6 +62,36 @@ describe('ChatService', () => {
       workspacesService as unknown as WorkspacesService,
       workspaceChatGateway as unknown as WorkspaceChatGateway,
     );
+  });
+
+  it('counts workspace unread messages only after checking membership', async () => {
+    chatMessagesRepository.query.mockResolvedValue([{ count: '3' }]);
+    await expect(service.unreadCount(workspaceId, userId)).resolves.toBe(3);
+    expect(workspacesService.findOneForUser).toHaveBeenCalledWith(workspaceId, userId);
+    expect(chatMessagesRepository.query).toHaveBeenCalledWith(
+      expect.stringContaining('message.sender_id <> membership.user_id'),
+      [workspaceId, userId],
+    );
+  });
+
+  it('rejects a read update from outside the workspace before touching the cursor', async () => {
+    workspacesService.findOneForUser.mockRejectedValue(new ForbiddenException());
+    await expect(service.markRead(workspaceId, userId, messageId)).rejects.toThrow(ForbiddenException);
+    expect(chatMessagesRepository.query).not.toHaveBeenCalled();
+  });
+
+  it('notifies the reader’s sessions only when the cursor moves forward', async () => {
+    chatMessagesRepository.query
+      .mockResolvedValueOnce({ affectedRows: 1 })
+      .mockResolvedValueOnce({ affectedRows: 0 });
+    await service.markRead(workspaceId, userId, messageId);
+    await service.markRead(workspaceId, userId, messageId);
+    expect(chatMessagesRepository.query).toHaveBeenCalledWith(
+      expect.stringContaining('(message.created_at, message.id) >'),
+      [workspaceId, userId, messageId],
+    );
+    expect(workspaceChatGateway.emitReadUpdated).toHaveBeenCalledTimes(1);
+    expect(workspaceChatGateway.emitReadUpdated).toHaveBeenCalledWith(userId, workspaceId);
   });
 
   it('allows a workspace member to send a message', async () => {

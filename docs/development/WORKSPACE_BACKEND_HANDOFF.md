@@ -7,7 +7,7 @@ Snapshot: November 10, 2026. The workspace integration changes were local and un
 - **Tasks and board:** Board, Backlog, Home, Analytics, and command search share server-backed tasks. Task creation, edits, transitions, assignments, comments, dependencies, and blockers use the API. The board response includes assignee IDs, active work count, and the work-in-progress limit. The backend owns status transitions and counts both In progress and Review toward that limit.
 - **Custom board columns:** Owners can save column names, order, and optional task limits. Each column has a stable ID and maps to an existing workflow status. A move between columns with the same workflow status updates placement without creating a status-history entry. A move between different statuses still follows the existing transition rules.
 - **Team and settings:** Workspace owners can invite existing DevUP users by email, view and cancel pending invitations, and remove members. Invitees can accept or decline from Notifications. Workspace name, description, archive state, and Kanban settings persist.
-- **Chat:** Workspace and direct messages use REST for sending and history and Socket.IO for incoming messages. Direct conversations include server-backed unread counts. Workspace chat does not currently persist per-user read state.
+- **Chat:** Workspace and direct messages use REST for sending and history and Socket.IO for incoming messages. Both have server-backed unread counts. Workspace chat persists a read cursor per member.
 - **GitHub, activity, files, and notes:** Repository selection, sync, branches, and commits use the GitHub integration. Activity shows the event types emitted by the backend. Files and notes support permission-aware deletion. File uploads are limited to 10 MiB.
 
 ## Setup and release checks
@@ -36,6 +36,14 @@ The Files and Notes list endpoints accept `search`, `sort`, `page`, and `limit`.
 
 The workspace lists send `lookahead=1` to receive one extra result when a next page exists. Render up to `limit` results and use the extra result to enable Next. File links resolve independently through the existing file details endpoint. Deploy the updated backend before the frontend because the old backend rejects the new query parameters.
 
+## Chat unread state
+
+Apply migration `1794400000000-AddWorkspaceChatReadCursor` before deploying the backend. It adds nullable cursor fields to workspace memberships. Until a member reads the channel, unread counts include other members’ messages from their join time onward.
+
+- `GET /workspaces/:workspaceId/messages/unread-count` returns the current member’s count. `PATCH /workspaces/:workspaceId/messages/:messageId/read` advances the cursor to a message in that workspace. Older or repeated requests cannot move the cursor backward.
+- `GET /direct-conversations/unread-count` counts unread messages across the viewer’s direct conversations independently of list pagination.
+- Socket events refresh counts when a message arrives or a read position changes on another device. The sidebar combines the current workspace count with the direct-message count.
+
 ## Backend work still needed
 
 | Feature | Backend requirement | Acceptance check |
@@ -45,7 +53,6 @@ The workspace lists send `lookahead=1` to receive one extra result when a next p
 | Mentions | Store mentions as user IDs tied to messages. Validate recipients against conversation membership. Emit mention notifications and support a mentions query. | A mentioned participant receives one notification that opens the correct conversation. Nonparticipants cannot be mentioned. |
 | Chat attachments | Link authorized uploads to messages. Define access rules separately for workspace and direct conversations. Enforce file validation and size limits, and clean up abandoned uploads. | Authorized participants can open the attachment after reload. A copied attachment URL gives no access to outsiders. |
 | Historical cycle-time reporting | Expose task status history or add an aggregate analytics endpoint. Define when the cycle starts and ends and how repeat transitions, cancellations, and date boundaries count. | The report reproduces known task timelines for the selected period, including tasks sent back from Review. |
-| Workspace chat unread state | Store a read cursor per member and workspace and return unread counts with conversation metadata. | Unread workspace messages stay consistent across browsers and sessions. |
 | Broader activity coverage | Emit events for changes such as GitHub sync, note edits, assignment, and blockers before adding corresponding feed filters. | Each supported filter shows real events and links to the right resource where available. |
 | GitHub disconnect | Add an owner-authorized disconnect operation and define how it affects cached commits and credentials. | After disconnecting, the workspace returns to the repository setup state and sync is unavailable. |
 

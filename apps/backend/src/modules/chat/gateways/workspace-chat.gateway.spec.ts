@@ -181,9 +181,11 @@ describe('WorkspaceChatGateway', () => {
 
   it('emits a created message to the workspace room', () => {
     const emit = jest.fn();
+    const except = jest.fn().mockReturnValue({ emit });
 
     const to = jest.fn().mockReturnValue({
       emit,
+      except,
     });
 
     (
@@ -209,5 +211,8 @@ describe('WorkspaceChatGateway', () => {
     expect(to).toHaveBeenCalledWith(`workspace:${workspaceId}`);
 
     expect(emit).toHaveBeenCalledWith('workspace-message.created', message);
+    expect(to).toHaveBeenCalledWith(`workspace-unread:${workspaceId}`);
+    expect(except).toHaveBeenCalledWith(`workspace:${workspaceId}`);
+    expect(emit).toHaveBeenCalledWith('workspace-chat.unread-changed', workspaceId);
   });
 });

@@ -131,6 +131,7 @@ export class SocialService {
       .addSelect('COUNT(*)', 'unreadCount')
       .where('message.conversationId IN (:...ids)', { ids: conversations.map(conversation => conversation.id) })
       .andWhere('message.senderId != :userId', { userId })
+      .andWhere('message.deletedAt IS NULL')
       .andWhere(`((${lastRead}) IS NULL OR message.createdAt > (${lastRead}))`)
       .groupBy('message.conversationId')
       .getRawMany<{ conversationId: string; unreadCount: string }>();
@@ -144,6 +145,17 @@ export class SocialService {
         unreadCount: unread.get(conversation.id) ?? 0,
       };
     });
+  }
+
+  async unreadCount(userId: string): Promise<number> {
+    const lastRead = 'CASE WHEN conversation.userAId = :userId THEN conversation.userALastReadAt ELSE conversation.userBLastReadAt END';
+    return this.messagesRepository.createQueryBuilder('message')
+      .innerJoin(DirectConversation, 'conversation', 'conversation.id = message.conversationId')
+      .where('(conversation.userAId = :userId OR conversation.userBId = :userId)', { userId })
+      .andWhere('message.senderId != :userId')
+      .andWhere('message.deletedAt IS NULL')
+      .andWhere(`((${lastRead}) IS NULL OR message.createdAt > (${lastRead}))`)
+      .getCount();
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {
@@ -165,13 +177,13 @@ export class SocialService {
         { id: conversationId },
         { userALastReadAt: now, updatedAt: now },
       );
-      return;
+    } else {
+      await this.conversationsRepository.update(
+        { id: conversationId },
+        { userBLastReadAt: now, updatedAt: now },
+      );
     }
-
-    await this.conversationsRepository.update(
-      { id: conversationId },
-      { userBLastReadAt: now, updatedAt: now },
-    );
+    this.directChatGateway.emitReadUpdated(userId);
   }
 
   async sendMessage(

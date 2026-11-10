@@ -4,12 +4,13 @@ import { workspaceIcons } from '../workspace-icons';
 import { Avatar, IconTile, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import type { Member } from '../workspace-tasks';
-import { useWorkspaceChat } from '../workspace-chat';
+import type { useWorkspaceChat } from '../workspace-chat';
 import './chat.css';
 
 type ChatPageProps = {
-  workspaceId: string;
-  token: string;
+  chat: ReturnType<typeof useWorkspaceChat>;
+  selected: string;
+  setSelected: (id: string) => void;
   profileId: string;
   profileName: string;
   roster: Member[];
@@ -32,9 +33,7 @@ function Portrait({ name, small }: { name: string; small?: boolean }) {
   return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
 }
 
-export function ChatPage({ workspaceId, token, profileId, profileName, roster }: ChatPageProps) {
-  const [selected, setSelected] = useState(() => window.location.hash.startsWith('#dm-') ? window.location.hash.slice(4) : 'team');
-  const chat = useWorkspaceChat(workspaceId, token, selected, profileId);
+export function ChatPage({ chat, selected, setSelected, profileId, profileName, roster }: ChatPageProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [conversationError, setConversationError] = useState('');
@@ -51,9 +50,9 @@ export function ChatPage({ workspaceId, token, profileId, profileName, roster }:
   const composer = useRef<HTMLTextAreaElement>(null);
   const teammateName = (id: string | null) => roster.find(member => member.userId === id)?.username
     ?? chat.conversations.find(item => item.otherUserId === id)?.otherUsername ?? 'DevUP member';
-  const threads = [{ id: 'team', title: 'DevUP Team', member: undefined, lastMessageAt: null, unreadCount: chat.unread.team },
+  const threads = [{ id: 'team', title: 'DevUP Team', member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
     ...chat.conversations.map(item => ({ ...item, title: teammateName(item.otherUserId), member: teammateName(item.otherUserId) }))].map(item => ({
-      ...item, unread: item.id === selected ? 0 : item.unreadCount ?? chat.unread[item.id] ?? 0,
+      ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
       messages: (chat.messages[item.id] ?? []).map(message => ({
         id: message.id, text: message.content, sentAt: message.createdAt,
         own: message.senderId === profileId, author: teammateName(message.senderId),

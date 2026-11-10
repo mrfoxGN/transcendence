@@ -2,8 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -28,6 +30,24 @@ type AuthenticatedRequest = Request & {
 @ApiBearerAuth()
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
+
+  @Get('unread-count')
+  async unreadCount(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<{ count: number }> {
+    return { count: await this.chatService.unreadCount(workspaceId, request.user.id) };
+  }
+
+  @Patch(':messageId/read')
+  @HttpCode(204)
+  markRead(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.chatService.markRead(workspaceId, request.user.id, messageId);
+  }
 
   @Get()
   listMessages(

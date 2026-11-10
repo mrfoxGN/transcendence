@@ -55,4 +55,10 @@ export class WorkspaceMembership {
     precision: 6,
   })
   joinedAt!: Date;
+
+  @Column({ name: 'chat_read_at', type: 'datetime', precision: 6, nullable: true })
+  chatReadAt!: Date | null;
+
+  @Column({ name: 'chat_read_message_id', type: 'char', length: 36, nullable: true })
+  chatReadMessageId!: string | null;
 }

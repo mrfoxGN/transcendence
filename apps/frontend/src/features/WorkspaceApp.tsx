@@ -11,6 +11,7 @@ import { NotificationInbox } from './workspace/NotificationInbox';
 import { LoadingPanel } from './workspace/WorkspaceControls';
 import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFacets';
 import { homeFilters } from './workspace/previewData';
+import { useWorkspaceChat } from './workspace/workspace-chat';
 import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
 import { dueThisWeek, loadBoard, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
 import type { PageKey, Task } from './workspace/types';
@@ -43,6 +44,10 @@ const navigation: { key: PageKey; label: string; icon: typeof workspaceIcons.hom
 function getPageFromUrl(): PageKey {
   const value = new URLSearchParams(window.location.search).get('page');
   return navigation.some(item => item.key === value) ? value as PageKey : 'home';
+}
+
+function getChatThreadFromUrl() {
+  return location.hash.startsWith('#dm-') ? location.hash.slice(4) : 'team';
 }
 
 export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
@@ -79,6 +84,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const profileInitials = profileName.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
   const [profileId, setProfileId] = useState('');
+  const [chatThread, setChatThread] = useState(getChatThreadFromUrl);
+  const chat = useWorkspaceChat(workspaceId, workspace ? token : null, page === 'chat' ? chatThread : null, profileId);
   const [board, setBoard] = useState<Awaited<ReturnType<typeof loadBoard>>>();
   const [boardError, setBoardError] = useState('');
   const [boardAttempt, setBoardAttempt] = useState(0);
@@ -143,6 +150,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · DevUP`;
     const onPop = () => {
       setPage(getPageFromUrl());
+      setChatThread(getChatThreadFromUrl());
       setSelectedTaskId(new URLSearchParams(location.search).get('task'));
     };
     window.addEventListener('popstate', onPop);
@@ -195,6 +203,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setSelectedTaskId(null);
     url.hash = section;
     window.history.pushState({ page: next, ...(next === 'files' && selectedTaskId ? { fromTask: selectedTaskId } : {}) }, '', url);
+    if (next === 'chat') setChatThread(getChatThreadFromUrl());
   }
 
   async function submitTask(event: FormEvent<HTMLFormElement>) {
@@ -420,7 +429,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'chat': return token && (
         <ChatPage
-          workspaceId={workspaceId} token={token} profileId={profileId}
+          chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
           profileName={profileName} roster={members.items ?? []}
         />
       );
@@ -478,7 +487,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           {sidebarCollapsed ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
         </button>
       </div>
-      <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.label} title={sidebarCollapsed ? item.label : undefined} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && <b>2</b>}</button>; })}</nav>
+      <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.key === 'chat' && chat.unreadTotal > 0 ? 'Chat, ' + chat.unreadTotal + ' unread messages' : item.label} title={sidebarCollapsed ? item.label : undefined} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && chat.unreadTotal > 0 && <b aria-hidden="true">{chat.unreadTotal > 99 ? '99+' : chat.unreadTotal}</b>}</button>; })}</nav>
       <button type="button" aria-label="Settings" title={sidebarCollapsed ? 'Settings' : undefined} className={`wu-nav-item wu-nav-settings${page === 'settings' ? ' is-active' : ''}`} aria-current={page === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><workspaceIcons.settings size={17} /><span>Settings</span></button>
     </aside>
     <div className="wu-main">

@@ -85,4 +85,8 @@ export class DirectChatGateway implements OnGatewayConnection {
   disconnectUser(userId: string): void {
     this.server.in(`user:${userId}`).disconnectSockets(true);
   }
+
+  emitReadUpdated(userId: string): void {
+    this.server.to(`user:${userId}`).emit('direct-chat.read');
+  }
 }
