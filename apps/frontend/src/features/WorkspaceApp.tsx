@@ -431,8 +431,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           path={filePath}
           token={token}
           files={workspaceFiles.items}
-          loadError={workspaceFiles.error}
-          onRetry={workspaceFiles.retry}
+          members={members.items ?? []}
           owner={workspace.ownerId === profileId} profileId={profileId}
           onBackToTask={history.state?.fromTask ? () => history.back() : undefined}
           onUpload={file => { workspaceFiles.setItems(current => [file, ...(current ?? [])]); recentActivity.retry(); }}

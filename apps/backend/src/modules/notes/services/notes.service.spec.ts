@@ -138,6 +138,29 @@ describe('NotesService', () => {
     );
   });
 
+  it('searches note titles and sorts before paging', async () => {
+    await service.findAll(workspaceId, creatorId, {
+      page: 2,
+      search: 'sprint_2',
+      sort: 'name',
+      lookahead: '1',
+    });
+
+    const options = repository.find.mock.calls[0][0];
+    expect(options.where.workspaceId).toBe(workspaceId);
+    expect(options.where.title.objectLiteralParameters).toEqual({
+      search: '%sprint!_2%',
+    });
+    expect(options.order).toEqual({
+      title: 'ASC',
+      updatedAt: 'DESC',
+      createdAt: 'DESC',
+      id: 'DESC',
+    });
+    expect(options.skip).toBe(20);
+    expect(options.take).toBe(21);
+  });
+
   it('finds one note in the requested workspace', async () => {
     repository.findOne.mockResolvedValue(makeNote());
 

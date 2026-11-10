@@ -76,6 +76,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Status** Implemented. Files searches filenames and Notes searches titles across the workspace. The production frontend build and backend suite passed. Browser and live API verification with more than 20 records remain pending.
+
 > Implement WU-02 in DevUP. Trace the Files and Notes list endpoints and their frontend collection callers. Add pagination and server-side search and sorting with stable ordering and permission checks. Resolve file links through the existing file-by-ID endpoint independently of the current list page. Preserve existing upload, edit, and delete flows. Verify with at least 25 files and 25 notes, including an older file link and a link the viewer cannot access. Split Files and Notes into separate changes if needed.
 
 ### WU-03 · Real unread counts and honest Chat controls

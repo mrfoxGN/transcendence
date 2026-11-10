@@ -26,22 +26,36 @@ export function jsonRequest(method: string, body: object): RequestInit {
 
 export function useWorkspaceCollection<T>(path: string, token: string | null) {
   const [items, setItems] = useState<T[]>();
-  const [error, setError] = useState(false);
+  const [loadedPath, setLoadedPath] = useState<string>();
+  const [failedPath, setFailedPath] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     if (!token) return;
     void workspaceRequest(path, token, { signal: controller.signal })
       .then(response => response.json() as Promise<T[]>)
-      .then(results => { if (!controller.signal.aborted) setItems(results); })
-      .catch(() => { if (!controller.signal.aborted) setError(true); });
+      .then(results => {
+        if (controller.signal.aborted) return;
+        setItems(results);
+        setLoadedPath(path);
+        setFailedPath(undefined);
+      })
+      .catch(() => { if (!controller.signal.aborted) setFailedPath(path); });
     return () => controller.abort();
   }, [path, token, attempt]);
   function retry() {
-    setError(false);
+    setFailedPath(undefined);
     setAttempt(current => current + 1);
   }
-  return { items, setItems, error, retry };
+  return { items: loadedPath === path ? items : undefined, setItems, error: failedPath === path, retry };
+}
+
+export const documentPageSize = 20;
+
+export function documentPagePath(path: string, page: number, search: string, sort: string) {
+  const query = new URLSearchParams({ page: String(page), limit: String(documentPageSize), sort, lookahead: '1' });
+  if (search.trim()) query.set('search', search.trim());
+  return path + '?' + query;
 }
 
 export type WorkspaceFile = {

@@ -30,6 +30,12 @@ Apply migration `1794300000000-AddBoardColumns` before deploying the updated bac
 
 The migration was applied locally. The frontend and backend builds passed, all 583 backend tests passed, and a local API smoke test verified column creation, renaming, reordering, task placement, limit rejection, safe deletion, and logout.
 
+## Files and Notes browsing
+
+The Files and Notes list endpoints accept `search`, `sort`, `page`, and `limit`. Search matches literal text in filenames or note titles. Files accepts `recent`, `name`, and `size`. Notes accepts `updated` and `name`. The default ordering and array response are preserved for existing callers.
+
+The workspace lists send `lookahead=1` to receive one extra result when a next page exists. Render up to `limit` results and use the extra result to enable Next. File links resolve independently through the existing file details endpoint. Deploy the updated backend before the frontend because the old backend rejects the new query parameters.
+
 ## Backend work still needed
 
 | Feature | Backend requirement | Acceptance check |

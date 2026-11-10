@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { MoreHorizontal, X } from 'lucide-react';
 import { Avatar } from './components';
+import { documentPageSize } from './workspace-api';
 import './workspace-controls.css';
+import './workspace-list.css';
 
 export function LoadingPanel({ label }: { label: string }) {
   return <div className="wu-loading-panel" role="status">
@@ -10,6 +12,18 @@ export function LoadingPanel({ label }: { label: string }) {
     <div aria-hidden="true" className="wu-skeleton" />
     <div aria-hidden="true" className="wu-skeleton" />
   </div>;
+}
+
+export function DocumentPagination({ page, count, onPage, disabled = false }: {
+  page: number; count?: number; onPage: (page: number) => void; disabled?: boolean;
+}) {
+  const hasNext = (count ?? 0) > documentPageSize;
+  if (page === 1 && !hasNext) return null;
+  return <nav className="wu-document-pagination" aria-label="Document pages">
+    <button className="wu-button wu-button--secondary" type="button" disabled={disabled || page === 1} onClick={() => onPage(page - 1)}>Previous</button>
+    <span aria-live="polite">Page {page}</span>
+    <button className="wu-button wu-button--secondary" type="button" disabled={disabled || !hasNext} onClick={() => onPage(page + 1)}>Next</button>
+  </nav>;
 }
 
 export function Drawer({ title, children, onClose, confirmation = false }: {

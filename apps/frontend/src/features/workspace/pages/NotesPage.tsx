@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Panel } from '../components';
 import { WorkspaceIllustration } from '../WorkspaceIllustration';
-import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
-import { jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
+import { ActionMenu, DocumentPagination, Drawer, LoadingPanel } from '../WorkspaceControls';
+import { documentPagePath, documentPageSize, jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
 import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import type { PageHeading } from '../types';
 import type { Member } from '../workspace-tasks';
@@ -14,7 +14,10 @@ type Note = { id: string; title: string; content: string | null; updatedAt: stri
 export function NotesPage({ pageHeading, path, token, owner, profileId, members }: {
   pageHeading: PageHeading; path: string; token: string | null; owner: boolean; profileId: string; members: Member[];
 }) {
-  const { items, setItems, error, retry } = useWorkspaceCollection<Note>(path, token);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('updated');
+  const [page, setPage] = useState(1);
+  const { items, setItems, error, retry } = useWorkspaceCollection<Note>(documentPagePath(path, page, search, sort), token);
   const [selectedId, setSelectedId] = useState('');
   const [editing, setEditing] = useState<'new' | 'edit' | 'rename'>();
   const [saving, setSaving] = useState(false);
@@ -23,7 +26,8 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
   const [saved, setSaved] = useState(false);
   const queue = useRef(Promise.resolve());
   const pending = useRef(0);
-  const selected = items?.find(note => note.id === selectedId) ?? items?.[0];
+  const visibleNotes = items?.slice(0, documentPageSize);
+  const selected = visibleNotes?.find(note => note.id === selectedId) ?? visibleNotes?.[0];
   const canEdit = (note: Note) => owner || note.creatorId === profileId;
 
   async function removeNote() {
@@ -33,6 +37,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
       await workspaceRequest(path + '/' + encodeURIComponent(removing.id), token, { method: 'DELETE' });
       setItems(current => current?.filter(item => item.id !== removing.id));
       setRemoving(undefined);
+      retry();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not delete the note.');
     } finally {
@@ -91,6 +96,10 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
       setItems(current => [note, ...(current ?? []).filter(item => item.id !== note.id)]);
       setSelectedId(note.id);
       setEditing(undefined);
+      setSearch('');
+      setSort('updated');
+      setPage(1);
+      retry();
     } catch {
       setSaveError('Could not save this note. Try again.');
     } finally {
@@ -103,11 +112,21 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
     <div className="wu-notes-layout">
       <Panel className="wu-notes-list">
         <div className="wu-panel-heading"><h2>Workspace notes</h2></div>
+        <div className="wu-list-toolbar">
+          <label className="wu-list-search"><Search size={16} aria-hidden="true" />
+            <input type="search" aria-label="Search notes" placeholder="Search note titles" maxLength={200} disabled={!!editing}
+              value={search} onChange={event => { setSearch(event.currentTarget.value); setPage(1); }} />
+          </label>
+          <select className="wu-select" aria-label="Sort notes" disabled={!!editing} value={sort}
+            onChange={event => { setSort(event.currentTarget.value); setPage(1); }}>
+            <option value="updated">Recently updated</option><option value="name">Title A–Z</option>
+          </select>
+        </div>
         {error && <p role="alert">Could not load notes. <button className="wu-text-button" onClick={retry}>Try again</button></p>}
         {!items && !error && <LoadingPanel label="Loading workspace notes" />}
-        {items?.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="note" /><p className="wu-muted">No notes yet. Create one to share a decision or idea.</p></div>}
+        {items?.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="note" /><p className="wu-muted">{page > 1 ? 'No notes on this page.' : search.trim() ? 'No notes match your search.' : 'No notes yet. Create one to share a decision or idea.'}</p></div>}
         {!!items?.length && <ul className="wu-document-list">
-          {items.map(note => <li key={note.id} data-current={note.id === selected?.id}>
+          {visibleNotes?.map(note => <li key={note.id} data-current={note.id === selected?.id}>
             <button className="wu-document-select" type="button" disabled={!!editing} onClick={() => setSelectedId(note.id)}>
               <span><strong>{note.title}</strong><small>{new Date(note.updatedAt).toLocaleDateString()}</small></span>
             </button>
@@ -118,6 +137,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
             ]} />}
           </li>)}
         </ul>}
+        <DocumentPagination page={page} count={items?.length} onPage={setPage} disabled={!!editing} />
       </Panel>
       {(editing || selected) && <Panel className="wu-note-editor">
         {editing ? <form key={editing + (selected?.id ?? '')} onSubmit={event => {
@@ -135,7 +155,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
           {editing === 'new' ? <div className="wu-note-toolbar">
             <button className="wu-button wu-button--secondary" type="button" disabled={saving} onClick={() => setEditing(undefined)}>Cancel</button>
             <button className="wu-button wu-button--primary" type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create note'}</button>
-          </div> : <button className="wu-text-button" type="button" disabled={saving || !!saveError} onClick={() => { if (!pending.current) setEditing(undefined); }}>Done editing</button>}
+          </div> : <button className="wu-text-button" type="button" disabled={saving || !!saveError} onClick={() => { if (!pending.current) { setEditing(undefined); retry(); } }}>Done editing</button>}
         </form> : <>
           <div className="wu-panel-heading"><h2>{selected?.title}</h2>{selected && canEdit(selected) && <button className="wu-text-button" type="button" onClick={() => start('edit')}>Edit note</button>}</div>
           {selected && <p className="wu-muted">{members.find(member => member.userId === selected.creatorId)?.username ?? 'Unknown author'} · Updated {new Date(selected.updatedAt).toLocaleDateString()}</p>}

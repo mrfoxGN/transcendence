@@ -242,6 +242,30 @@ describe('FilesService', () => {
   });
 
   describe('findAll', () => {
+    it('filters literal filename text before sorting and fetching a lookahead row', async () => {
+      repository.find.mockResolvedValue([]);
+
+      await service.findAll(workspaceId, userId, {
+        page: 2,
+        limit: 20,
+        search: '  report_100%!  ',
+        sort: 'size',
+        lookahead: '1',
+      });
+
+      const options = repository.find.mock.calls[0][0];
+      expect(options.where.workspaceId).toBe(workspaceId);
+      expect(options.where.displayName.objectLiteralParameters).toEqual({
+        search: '%report!_100!%!!%',
+      });
+      expect(options.where.displayName.getSql('file.displayName')).toBe(
+        "file.displayName LIKE :search ESCAPE '!'",
+      );
+      expect(options.order).toEqual({ sizeBytes: 'DESC', createdAt: 'DESC', id: 'DESC' });
+      expect(options.skip).toBe(20);
+      expect(options.take).toBe(21);
+    });
+
     it('returns workspace files', async () => {
       repository.find.mockResolvedValue([storedFile]);
 

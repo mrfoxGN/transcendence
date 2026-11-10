@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Raw, Repository } from 'typeorm';
 
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { CreateNoteDto } from '../dto/create-note.dto';
@@ -65,18 +65,26 @@ export class NotesService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
+    const search = query.search?.trim().replace(/[!%_]/g, character => '!' + character);
     const notes = await this.notesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
+        ...(search && {
+          title: Raw(
+            (column) => `${column} LIKE :search ESCAPE '!'`,
+            { search: '%' + search + '%' },
+          ),
+        }),
       },
       order: {
+        ...(query.sort === 'name' && { title: 'ASC' as const }),
         updatedAt: 'DESC',
         createdAt: 'DESC',
         id: 'DESC',
       },
       skip: (page - 1) * limit,
-      take: limit,
+      take: limit + (query.lookahead === '1' ? 1 : 0),
     });
 
     return notes.map((note) => NoteMapper.toResponse(note));

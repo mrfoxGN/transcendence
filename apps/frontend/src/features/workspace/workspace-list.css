@@ -1,0 +1,89 @@
+.wu-list-panel { container-type: inline-size; }
+.wu-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--wu-line);
+}
+.wu-task-toolbar.wu-list-toolbar { margin-bottom: 0; }
+.wu-list-search {
+  display: flex;
+  flex: 1 1 160px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 36px;
+  padding-inline: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--wu-muted);
+  background: var(--wu-surface-soft);
+}
+.wu-list-search:focus-within { border-color: var(--wu-blue); }
+.wu-list-search svg { flex: none; }
+.wu-list-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--wu-ink);
+}
+.wu-list-search input::placeholder { color: var(--wu-muted); }
+.wu-table.wu-list-table { min-width: 0; }
+.wu-table.wu-list-table :is(th, td) { padding: 8px 14px; overflow-wrap: anywhere; }
+.wu-table.wu-list-table th { background: var(--wu-surface-soft); white-space: normal; }
+.wu-table.wu-list-table td:first-child { width: 38%; min-width: 0; }
+.wu-task-list-row { cursor: pointer; }
+.wu-list-item-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  max-width: 100%;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--wu-ink);
+  font-weight: 650;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.wu-list-item-name:hover { color: var(--wu-blue); text-decoration: underline; }
+.wu-list-item-name svg { flex: none; color: var(--wu-blue); }
+.wu-table.wu-list-table td .wu-icon-button { margin: 0; }
+
+@container (max-width: 560px) {
+  .wu-table.wu-list-table, .wu-list-table tbody { display: block; }
+  .wu-list-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .wu-list-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px 12px;
+    padding: 8px 14px 12px;
+    border-bottom: 1px solid var(--wu-line);
+  }
+  .wu-list-table tbody tr:last-child { border-bottom: 0; }
+  .wu-table.wu-list-table tbody td { padding: 0; border: 0; background: transparent; }
+  .wu-table.wu-list-table td:first-child { grid-column: 1 / -1; width: auto; }
+  .wu-list-table td[data-label]::before {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--wu-muted);
+    font-size: 12px;
+    content: attr(data-label);
+  }
+}

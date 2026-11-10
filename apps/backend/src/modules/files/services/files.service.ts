@@ -10,7 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { access, mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Raw, Repository } from 'typeorm';
 
 import { ActivitiesService } from '../../activities/services/activities.service';
 import { TasksService } from '../../tasks/services/tasks.service';
@@ -133,17 +133,26 @@ export class FilesService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const search = query.search?.trim().replace(/[!%_]/g, character => '!' + character);
     const files = await this.workspaceFilesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
+        ...(search && {
+          displayName: Raw(
+            (column) => `${column} LIKE :search ESCAPE '!'`,
+            { search: '%' + search + '%' },
+          ),
+        }),
       },
       order: {
+        ...(query.sort === 'name' && { displayName: 'ASC' as const }),
+        ...(query.sort === 'size' && { sizeBytes: 'DESC' as const }),
         createdAt: 'DESC',
         id: 'DESC',
       },
       skip,
-      take: limit,
+      take: limit + (query.lookahead === '1' ? 1 : 0),
     });
 
     return files.map((file) => this.toResponse(file));
