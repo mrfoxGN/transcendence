@@ -92,6 +92,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Status** Implemented. The Activity page uses `GET /workspaces/:workspaceId/activities/page` for filtered results and next-page metadata. Both builds and 593 backend tests passed. A rolled-back MySQL check verified older matches, combined filters, date boundaries, and empty and final pages. Browser verification is pending.
+
 > Implement WU-04 in DevUP. Move category, actor, and date filtering into the workspace Activity API before pagination. Return explicit next-page metadata, preserve compatibility for existing consumers, and reset the frontend to page one when filters change. Verify that a matching event beyond the first unfiltered page is found and that empty results, failed requests, and the last page are handled correctly.
 
 ### WU-05 · Explain current invitation requirements

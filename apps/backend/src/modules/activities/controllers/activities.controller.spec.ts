@@ -14,6 +14,7 @@ describe('ActivitiesController', () => {
 
   let activitiesService: {
     findAllForWorkspace: jest.Mock;
+    findPageForWorkspace: jest.Mock;
   };
 
   let workspacesService: {
@@ -25,6 +26,7 @@ describe('ActivitiesController', () => {
   beforeEach(() => {
     activitiesService = {
       findAllForWorkspace: jest.fn(),
+      findPageForWorkspace: jest.fn(),
     };
 
     workspacesService = {
@@ -90,5 +92,18 @@ describe('ActivitiesController', () => {
     ).rejects.toThrow('Forbidden');
 
     expect(activitiesService.findAllForWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('checks workspace access for the paginated endpoint', async () => {
+    const request = { user: { id: userId } } as never;
+    const query = { page: 1, limit: 20 };
+    workspacesService.findOneForUser.mockRejectedValueOnce(new Error('Forbidden'));
+    await expect(controller.findPage(workspaceId, request, query)).rejects.toThrow('Forbidden');
+    expect(activitiesService.findPageForWorkspace).not.toHaveBeenCalled();
+
+    const result = { items: [], hasNext: false };
+    activitiesService.findPageForWorkspace.mockResolvedValue(result);
+    await expect(controller.findPage(workspaceId, request, query)).resolves.toEqual(result);
+    expect(activitiesService.findPageForWorkspace).toHaveBeenCalledWith(workspaceId, query);
   });
 });

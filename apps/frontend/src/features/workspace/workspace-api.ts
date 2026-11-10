@@ -24,8 +24,8 @@ export function jsonRequest(method: string, body: object): RequestInit {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-export function useWorkspaceCollection<T>(path: string, token: string | null) {
-  const [items, setItems] = useState<T[]>();
+export function useWorkspaceData<T>(path: string, token: string | null) {
+  const [data, setData] = useState<T>();
   const [loadedPath, setLoadedPath] = useState<string>();
   const [failedPath, setFailedPath] = useState<string>();
   const [attempt, setAttempt] = useState(0);
@@ -33,10 +33,10 @@ export function useWorkspaceCollection<T>(path: string, token: string | null) {
     const controller = new AbortController();
     if (!token) return;
     void workspaceRequest(path, token, { signal: controller.signal })
-      .then(response => response.json() as Promise<T[]>)
+      .then(response => response.json() as Promise<T>)
       .then(results => {
         if (controller.signal.aborted) return;
-        setItems(results);
+        setData(results);
         setLoadedPath(path);
         setFailedPath(undefined);
       })
@@ -47,7 +47,12 @@ export function useWorkspaceCollection<T>(path: string, token: string | null) {
     setFailedPath(undefined);
     setAttempt(current => current + 1);
   }
-  return { items: loadedPath === path ? items : undefined, setItems, error: failedPath === path, retry };
+  return { data: loadedPath === path ? data : undefined, setData, error: failedPath === path, retry };
+}
+
+export function useWorkspaceCollection<T>(path: string, token: string | null) {
+  const { data, setData, error, retry } = useWorkspaceData<T[]>(path, token);
+  return { items: data, setItems: setData, error, retry };
 }
 
 export const documentPageSize = 20;

@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsISO8601, IsOptional, IsUUID, Max, Min } from 'class-validator';
+
+export const activityCategories = ['tasks', 'files', 'members'] as const;
 
 export class ListActivitiesDto {
   @IsOptional()
@@ -14,4 +16,20 @@ export class ListActivitiesDto {
   @Min(1)
   @Max(100)
   limit = 20;
+
+  @IsOptional()
+  @IsIn(activityCategories)
+  category?: (typeof activityCategories)[number];
+
+  @IsOptional()
+  @IsUUID()
+  actorUserId?: string;
+
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  from?: string;
+
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  before?: string;
 }

@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { Repository } from 'typeorm';
+import { And, LessThan, MoreThanOrEqual, Raw, Repository } from 'typeorm';
 
 import { ActivityResponseDto } from '../dto/activity-response.dto';
 import { ListActivitiesDto } from '../dto/list-activities.dto';
 import { Activity } from '../entities/activity.entity';
+
+const categoryPrefixes = { tasks: 'TASK', files: 'FILE', members: 'MEMBER' };
 
 export interface CreateActivityInput {
   workspaceId: string;
@@ -44,18 +46,47 @@ export class ActivitiesService {
     workspaceId: string,
     query: ListActivitiesDto,
   ): Promise<ActivityResponseDto[]> {
+    return this.findActivities(workspaceId, query, 0);
+  }
+
+  async findPageForWorkspace(workspaceId: string, query: ListActivitiesDto) {
+    const limit = query.limit ?? 20;
+    const activities = await this.findActivities(workspaceId, query, 1);
+    return { items: activities.slice(0, limit), hasNext: activities.length > limit };
+  }
+
+  private async findActivities(workspaceId: string, query: ListActivitiesDto, lookahead: number) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    if (!Number.isSafeInteger(skip)) throw new BadRequestException('Invalid page');
+
+    const from = query.from ? new Date(query.from) : undefined;
+    const before = query.before ? new Date(query.before) : undefined;
+    if (from && before && from >= before) {
+      throw new BadRequestException('The start must be before the end');
+    }
+    const lower = from && MoreThanOrEqual(from);
+    const upper = before && LessThan(before);
+    const createdAt = lower && upper ? And(lower, upper) : lower ?? upper;
+    const actionType = query.category && Raw(
+      (column) => `${column} LIKE :activityPrefix ESCAPE '!'`,
+      { activityPrefix: categoryPrefixes[query.category] + '!_%' },
+    );
 
     const activities = await this.activitiesRepository.find({
       where: {
         workspaceId,
+        ...(actionType && { actionType }),
+        ...(query.actorUserId && { actorUserId: query.actorUserId }),
+        ...(createdAt && { createdAt }),
       },
       order: {
         createdAt: 'DESC',
+        id: 'DESC',
       },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip,
+      take: limit + lookahead,
     });
 
     return activities.map((activity) => this.toResponse(activity));
