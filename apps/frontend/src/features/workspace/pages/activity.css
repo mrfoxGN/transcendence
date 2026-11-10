@@ -1,4 +1,0 @@
-.wu-activity-toolbar { position: relative; }
-.wu-filter-popover { position: absolute; z-index: 2; top: 42px; right: 0; width: 260px; display: grid; gap: 12px; padding: 15px; border: 1px solid var(--wu-line); border-radius: 10px; background: var(--wu-surface); box-shadow: 0 10px 32px #13243b1a; }
-.wu-filter-popover strong { font-size: 14px; }
-.wu-filter-popover label { display: flex; gap: 8px; align-items: center; color: var(--wu-muted); font-size: 14px; }
