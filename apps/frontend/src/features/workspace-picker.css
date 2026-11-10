@@ -20,10 +20,6 @@
 .workspace-picker-form :is(input, textarea) {
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fbfcff;
-  color: var(--ink);
   font: inherit;
   font-weight: 400;
 }

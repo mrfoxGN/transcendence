@@ -39,7 +39,7 @@ export function Drawer({ title, children, onClose, confirmation = false }: {
   );
 }
 
-export function ActionMenu({ label, actions }: { label: string; actions: { label: string; run: () => void }[] }) {
+export function ActionMenu({ label, actions }: { label: string; actions: { label: string; run: () => void; disabled?: boolean }[] }) {
   const id = useId();
   const menu = useRef<HTMLDivElement>(null);
   return <>
@@ -52,7 +52,7 @@ export function ActionMenu({ label, actions }: { label: string; actions: { label
         }
       }}><MoreHorizontal size={17} /></button>
     <div ref={menu} popover="auto" id={id} className="wu-action-menu" role="group" aria-label={label}>
-      {actions.map(action => <button type="button" key={action.label} onClick={() => {
+      {actions.map(action => <button type="button" key={action.label} disabled={action.disabled} onClick={() => {
         menu.current?.hidePopover();
         action.run();
       }}>{action.label}</button>)}

@@ -13,6 +13,8 @@ import { InvitationStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
+import { Task } from '../../tasks/entities/task.entity';
+import { defaultBoardColumns, taskColumn } from '../board-columns';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
@@ -727,7 +729,8 @@ export class WorkspacesService {
     if (
       dto.activeWipLimit === undefined &&
       dto.definitionOfReady === undefined &&
-      dto.definitionOfDone === undefined
+      dto.definitionOfDone === undefined &&
+      dto.boardColumns === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -747,6 +750,43 @@ export class WorkspacesService {
 
     if (workspace.ownerId !== userId) {
       throw new ForbiddenException();
+    }
+
+    if (dto.boardColumns) {
+      const columns = dto.boardColumns.map(column => ({ ...column, label: column.label.trim() }));
+      if (columns.some(column => !column.label) ||
+        new Set(columns.map(column => column.id)).size !== columns.length ||
+        new Set(columns.map(column => column.label.toLowerCase())).size !== columns.length) {
+        throw new BadRequestException('Column names and IDs must be unique');
+      }
+      return this.dataSource.transaction(async manager => {
+        const repository = manager.getRepository(WorkspaceKanbanSetting);
+        const settings = await repository.findOne({ where: { workspaceId }, lock: { mode: 'pessimistic_write' } });
+        if (!settings) throw new NotFoundException('Kanban settings not found');
+        const previous = settings.boardColumns ?? defaultBoardColumns();
+        if (columns.some(column => previous.some(old => old.id === column.id && old.status !== column.status))) {
+          throw new BadRequestException('An existing column cannot change its workflow status');
+        }
+        const tasks = await manager.getRepository(Task).find({ where: { workspaceId, deletedAt: IsNull() } });
+        const counts = new Map<string, number>();
+        for (const task of tasks) {
+          const id = taskColumn(previous, task.status, task.boardColumnId).id;
+          if (previous.some(column => column.id === id) && !columns.some(column => column.id === id)) {
+            throw new ConflictException('Move the tasks out of the column before deleting it');
+          }
+          const next = taskColumn(columns, task.status, task.boardColumnId).id;
+          counts.set(next, (counts.get(next) ?? 0) + 1);
+        }
+        if (columns.some(column => column.limit && (counts.get(column.id) ?? 0) > column.limit)) {
+          throw new ConflictException('A column limit cannot be lower than its current task count');
+        }
+        settings.boardColumns = columns;
+        if (dto.activeWipLimit !== undefined) settings.activeWipLimit = dto.activeWipLimit;
+        if (dto.definitionOfReady !== undefined) settings.definitionOfReady = dto.definitionOfReady;
+        if (dto.definitionOfDone !== undefined) settings.definitionOfDone = dto.definitionOfDone;
+        settings.updatedAt = new Date();
+        return WorkspaceKanbanSettingsMapper.toResponse(await repository.save(settings));
+      });
     }
 
     const settingsRepository = this.dataSource.getRepository(

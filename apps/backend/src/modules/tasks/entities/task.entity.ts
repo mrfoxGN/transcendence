@@ -87,6 +87,9 @@ export class Task {
   })
   status!: TaskStatus;
 
+  @Column({ name: 'board_column_id', type: 'varchar', length: 40, nullable: true })
+  boardColumnId?: string | null;
+
   @Column({
     type: 'enum',
     enum: TaskPriority,

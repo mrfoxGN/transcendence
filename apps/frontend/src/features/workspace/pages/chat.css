@@ -1,9 +1,8 @@
 .workspace-app.workspace-app--chat { box-sizing: border-box; height: 100dvh; min-height: 0; }
 .workspace-app--chat .wu-main { min-height: 0; }
 .wu-main .wu-page--chat {
-  max-width: none;
   height: calc(100dvh - var(--wu-topbar-height) - var(--wu-chat-bottom-nav, 0px));
-  padding: 12px var(--wu-page-gutter);
+  padding: var(--wu-page-gutter);
 }
 .wu-chat-layout {
   display: grid;
@@ -26,8 +25,6 @@
   align-items: center;
   gap: 7px;
   padding-inline: 9px;
-  border: 1px solid var(--wu-line);
-  border-radius: 8px;
   color: var(--wu-muted);
 }
 .wu-chat-search svg { flex: none; }
@@ -155,10 +152,6 @@
   max-height: 120px;
   resize: none;
   padding: 8px 9px;
-  border: 1px solid var(--wu-line);
-  border-radius: 8px;
-  background: var(--wu-surface);
-  color: var(--wu-ink);
   font: inherit;
   font-size: 16px;
 }
@@ -193,6 +186,6 @@
 }
 
 @media (max-width: 680px) {
-  .wu-main .wu-page--chat { --wu-chat-bottom-nav: 66px; padding-block: 8px; }
+  .wu-main .wu-page--chat { --wu-chat-bottom-nav: 66px; }
   .wu-chat-layout > .wu-panel { padding: 10px; }
 }

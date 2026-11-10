@@ -6,15 +6,22 @@ export const statusLabels = {
   REVIEW: 'Review', DONE: 'Done', CANCELLED: 'Cancelled',
 } as const;
 type Status = keyof typeof statusLabels;
+export type BoardColumnConfig = { id: string; label: string; status: Status; limit?: number | null };
 export const statusCodes = Object.fromEntries(Object.entries(statusLabels).map(([code, label]) => [label, code])) as Record<string, Status>;
 
 export type Member = { userId: string; username: string; avatarUrl: string | null; isOwner: boolean; joinedAt: string };
 type ApiTask = {
   id: string; title: string; description: string | null; acceptanceCriteria: string | null;
   priority: string | null; status: Status; dueAt: string | null; isBlocked: boolean;
-  blockedReason: string | null; completedAt: string | null;
+  blockedReason: string | null; completedAt: string | null; boardColumnId?: string;
 };
-type ApiBoard = { activeCount: number; activeWipLimit: number; assigneesByTaskId?: Record<string, string>; columns: { status: Status; tasks: ApiTask[] }[] };
+type ApiBoard = { activeCount: number; activeWipLimit: number; assigneesByTaskId?: Record<string, string>; columns: { status: Status; tasks: ApiTask[] }[]; boardColumns?: BoardColumnConfig[] };
+
+export function taskBoardColumn(task: Task, columns: BoardColumnConfig[]) {
+  const status = statusCodes[task.status];
+  return columns.find(column => column.id === task.boardColumnId && column.status === status)
+    ?? columns.find(column => column.status === status);
+}
 
 const transitions: Record<string, string[]> = {
   'To do': ['Ready', 'Cancelled'],
@@ -44,7 +51,7 @@ export async function loadBoard(path: string, token: string, signal: AbortSignal
       assigneeId = assignment?.userId;
     }
     return {
-      id: item.id, title: item.title, status: statusLabels[item.status],
+      id: item.id, title: item.title, status: statusLabels[item.status], boardColumnId: item.boardColumnId,
       description: item.description ?? '', acceptanceCriteria: item.acceptanceCriteria,
       priority: item.priority ? item.priority[0] + item.priority.slice(1).toLowerCase() : 'None',
       due: item.dueAt ? new Date(item.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—',
@@ -53,5 +60,9 @@ export async function loadBoard(path: string, token: string, signal: AbortSignal
       type: '', person: 'Unassigned', initials: '',
     };
   }));
-  return { tasks, columns: board.columns.map(column => statusLabels[column.status]), activeCount: board.activeCount, activeWipLimit: board.activeWipLimit };
+  const defaults = board.columns.map(({ status }) => ({ id: status, label: statusLabels[status], status }));
+  const layout = board.boardColumns ?? defaults;
+  const boardColumns = [...layout, ...defaults.filter(column => !layout.some(item => item.status === column.status)
+    && tasks.some(task => statusCodes[task.status] === column.status))];
+  return { tasks, columns: defaults.map(column => column.label), boardColumns, activeCount: board.activeCount, activeWipLimit: board.activeWipLimit };
 }

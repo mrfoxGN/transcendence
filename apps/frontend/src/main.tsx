@@ -6,6 +6,7 @@ import { WorkspacePicker } from './features/WorkspacePicker';
 import { WorkspaceApp } from './features/WorkspaceApp';
 import './styles.css';
 import './tokens.css';
+import './input-fields.css';
 
 const path = window.location.pathname.replace(/\/$/, '');
 const authMode = path === '/login' ? 'login' : path === '/register' ? 'register' : null;

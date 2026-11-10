@@ -224,7 +224,7 @@ export function ChatPage({ workspaceId, token, profileId, profileName, roster }:
           })}
         </div>
         <form className="wu-message-form" onSubmit={submitMessage}>
-          {sendError && <p role="alert">{sendError}</p>}
+          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !draft.text.trim()}>Retry send</button></p>}
           <div className="wu-chat-composer">
             <textarea ref={composer} rows={1} aria-label="Message" placeholder={`Message ${thread.title}…`} value={draft.text}
               onChange={event => setDrafts(current => ({ ...current, [thread.id]: { ...draft, text: event.target.value } }))}

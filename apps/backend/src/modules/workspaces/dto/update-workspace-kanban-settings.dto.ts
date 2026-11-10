@@ -1,4 +1,24 @@
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsInt, IsOptional, IsString, Length, Matches, Min, ValidateNested } from 'class-validator';
+import { TaskStatus } from '../../../database/enums/database.enums';
+
+export class BoardColumnDto {
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,40}$/)
+  id!: string;
+
+  @IsString()
+  @Length(1, 40)
+  label!: string;
+
+  @IsEnum(TaskStatus)
+  status!: TaskStatus;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number | null;
+}
 
 export class UpdateWorkspaceKanbanSettingsDto {
   @IsOptional()
@@ -11,4 +31,12 @@ export class UpdateWorkspaceKanbanSettingsDto {
 
   @IsOptional()
   definitionOfDone?: unknown;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => BoardColumnDto)
+  boardColumns?: BoardColumnDto[];
 }

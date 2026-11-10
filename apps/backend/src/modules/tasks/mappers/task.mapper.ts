@@ -11,6 +11,7 @@ export class TaskMapper {
       description: task.description,
       acceptanceCriteria: task.acceptanceCriteria,
       status: task.status,
+      ...(task.boardColumnId ? { boardColumnId: task.boardColumnId } : {}),
       priority: task.priority,
       position: task.position,
       isBlocked: task.isBlocked,

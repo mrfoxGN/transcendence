@@ -14,6 +14,8 @@ import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService } from '../../activities/services/activities.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { defaultBoardColumns, taskColumn } from '../../workspaces/board-columns';
+import { WorkspaceKanbanSetting } from '../../workspaces/entities/workspace-kanban-setting.entity';
 import { AssignTaskDto } from '../dto/assign-task.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { TaskAssignmentResponseDto } from '../dto/task-assignment-response.dto';
@@ -85,7 +87,30 @@ export class TasksService {
       deletedAt: null,
     });
 
-    const savedTask = await this.tasksRepository.save(task);
+    const savedTask = dto.boardColumnId
+      ? await this.dataSource.transaction(async manager => {
+          const settings = await manager.getRepository(WorkspaceKanbanSetting).findOne({
+            where: { workspaceId }, lock: { mode: 'pessimistic_write' },
+          });
+          const columns = settings?.boardColumns ?? defaultBoardColumns();
+          const column = columns.find(item => item.id === dto.boardColumnId);
+          if (!column || !settings) throw new BadRequestException('This column is unavailable');
+          const repository = manager.getRepository(Task);
+          const existing = await repository.find({ where: { workspaceId, deletedAt: IsNull() } });
+          if (column.limit && existing.filter(item => taskColumn(columns, item.status, item.boardColumnId).id === column.id).length >= column.limit) {
+            throw new ConflictException('This column has reached its task limit');
+          }
+          if ([TaskStatus.IN_PROGRESS, TaskStatus.REVIEW].includes(column.status)
+            && existing.filter(item => [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW].includes(item.status)).length >= settings.activeWipLimit) {
+            throw new ConflictException('Active WIP limit reached');
+          }
+          task.boardColumnId = column.id;
+          task.status = column.status;
+          if (column.status === TaskStatus.DONE) task.completedAt = now;
+          if (column.status === TaskStatus.CANCELLED) task.cancelledAt = now;
+          return repository.save(task);
+        })
+      : await this.tasksRepository.save(task);
 
     try {
       await this.activitiesService.create({
@@ -157,6 +182,7 @@ export class TasksService {
       assigneesByTaskId: Object.fromEntries(
         assignments.map((assignment) => [assignment.taskId, assignment.userId]),
       ),
+      ...(settings.boardColumns ? { boardColumns: settings.boardColumns } : {}),
       columns,
     };
   }
@@ -280,6 +306,9 @@ export class TasksService {
 
     const result = await this.dataSource.transaction(async (manager) => {
       const tasksRepository = manager.getRepository(Task);
+      const columnSettings = dto.boardColumnId ? await manager.getRepository(WorkspaceKanbanSetting).findOne({
+        where: { workspaceId: existingTask.workspaceId }, lock: { mode: 'pessimistic_write' },
+      }) : null;
 
       const workspaceTasks = await tasksRepository
         .createQueryBuilder('task')
@@ -295,6 +324,21 @@ export class TasksService {
 
       if (!task) {
         throw new NotFoundException('Task not found');
+      }
+
+      const layout = columnSettings?.boardColumns ?? defaultBoardColumns();
+      const column = dto.boardColumnId ? layout.find(item => item.id === dto.boardColumnId && item.status === dto.toStatus) : undefined;
+      if (dto.boardColumnId && !column) throw new BadRequestException('This column is unavailable');
+      const currentColumn = taskColumn(layout, task.status, task.boardColumnId);
+      if (column?.limit && currentColumn.id !== column.id &&
+        workspaceTasks.filter(item => taskColumn(layout, item.status, item.boardColumnId).id === column.id).length >= column.limit) {
+        throw new ConflictException('This column has reached its task limit');
+      }
+      if (column && task.status === dto.toStatus) {
+        task.boardColumnId = column.id;
+        task.updatedAt = new Date();
+        await tasksRepository.save(task);
+        return { response: TaskMapper.toResponse(task), previousStatus: task.status };
       }
 
       if (!this.isAllowedTransition(task.status, dto.toStatus)) {
@@ -315,7 +359,7 @@ export class TasksService {
           },
         });
 
-        if (activeCount >= settings!.activeWipLimit) {
+        if (activeCount >= (columnSettings ?? settings)!.activeWipLimit) {
           throw new ConflictException('Active WIP limit reached');
         }
       }
@@ -324,6 +368,7 @@ export class TasksService {
       const previousStatus = task.status;
 
       task.status = dto.toStatus;
+      if (column || task.boardColumnId) task.boardColumnId = column?.id ?? null;
       task.updatedAt = now;
 
       if (dto.toStatus === TaskStatus.DONE) {
@@ -354,6 +399,7 @@ export class TasksService {
       };
     });
 
+    if (result.previousStatus === result.response.status) return result.response;
     try {
       await this.activitiesService.create({
         workspaceId: existingTask.workspaceId,

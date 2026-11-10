@@ -46,6 +46,7 @@ export function useWorkspaceCollection<T>(path: string, token: string | null) {
 
 export type WorkspaceFile = {
   id: string;
+  taskId?: string | null;
   uploaderId: string | null;
   displayName: string;
   mimeType: string | null;

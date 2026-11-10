@@ -11,6 +11,7 @@ export class TaskResponseDto {
   description!: string | null;
   acceptanceCriteria!: string | null;
   status!: TaskStatus;
+  boardColumnId?: string;
   priority!: TaskPriority | null;
   position!: number;
   isBlocked!: boolean;

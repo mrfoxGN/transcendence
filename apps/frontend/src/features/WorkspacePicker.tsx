@@ -141,8 +141,8 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
               </details>}
               {creating ? (
                 <form className="workspace-picker-form" onSubmit={createWorkspace}>
-                  <label>Workspace name<input name="name" required maxLength={120} /></label>
-                  <label>Description (optional)<textarea name="description" rows={3} /></label>
+                  <label>Workspace name<input name="name" placeholder="e.g. Platform engineering" required maxLength={120} /></label>
+                  <label>Description (optional)<textarea name="description" placeholder="What will your team use this workspace for?" rows={3} /></label>
                   {formError && <p role="alert">{formError}</p>}
                   <div className="workspace-picker-actions">
                     <button className="button button--primary" disabled={pending}>{pending ? 'Creating…' : 'Create workspace'}</button>

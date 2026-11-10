@@ -34,7 +34,7 @@ export function FilterChips({ items, active, onChange }: { items: string[]; acti
 }
 
 export function EmptyState({ icon, title, detail, action, onAction }: { icon: ReactNode; title: string; detail: string; action: string; onAction: () => void }) {
-  return <div className="wu-empty"><IconTile tone="violet">{icon}</IconTile><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}><Plus size={16} />{action}</button></div>;
+  return <div className="wu-empty"><div aria-hidden="true">{icon}</div><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}><Plus size={16} />{action}</button></div>;
 }
 
 export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task: Task) => void }) {

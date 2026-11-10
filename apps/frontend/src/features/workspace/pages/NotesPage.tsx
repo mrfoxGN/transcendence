@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { Panel } from '../components';
+import { WorkspaceIllustration } from '../WorkspaceIllustration';
 import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
-import { useWorkspaceCollection, workspaceRequest } from '../workspace-api';
+import { jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
+import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import type { PageHeading } from '../types';
 import type { Member } from '../workspace-tasks';
 import './notes.css';
@@ -18,6 +20,9 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [removing, setRemoving] = useState<Note>();
+  const [saved, setSaved] = useState(false);
+  const queue = useRef(Promise.resolve());
+  const pending = useRef(0);
   const selected = items?.find(note => note.id === selectedId) ?? items?.[0];
   const canEdit = (note: Note) => owner || note.creatorId === profileId;
 
@@ -38,7 +43,28 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
   function start(mode: typeof editing, note?: Note) {
     if (note) setSelectedId(note.id);
     setSaveError('');
+    setSaved(false);
     setEditing(mode);
+  }
+
+  function saveField(note: Note, field: 'title' | 'content', value: string) {
+    pending.current += 1;
+    setSaving(true);
+    setSaved(false);
+    queue.current = queue.current.then(async () => {
+      setSaveError('');
+      try {
+        const response = await workspaceRequest(path + '/' + encodeURIComponent(note.id), token, jsonRequest('PATCH', { [field]: value }));
+        const updated = await response.json() as Note;
+        setItems(current => current?.map(item => item.id === updated.id ? updated : item));
+        setSaved(true);
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : 'Could not save this note. Edit the field to retry.');
+      } finally {
+        pending.current -= 1;
+        if (!pending.current) setSaving(false);
+      }
+    });
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -79,7 +105,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
         <div className="wu-panel-heading"><h2>Workspace notes</h2></div>
         {error && <p role="alert">Could not load notes. <button className="wu-text-button" onClick={retry}>Try again</button></p>}
         {!items && !error && <LoadingPanel label="Loading workspace notes" />}
-        {items?.length === 0 && <p className="wu-muted">No notes yet.</p>}
+        {items?.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="note" /><p className="wu-muted">No notes yet. Create one to share a decision or idea.</p></div>}
         {!!items?.length && <ul className="wu-document-list">
           {items.map(note => <li key={note.id} data-current={note.id === selected?.id}>
             <button className="wu-document-select" type="button" disabled={!!editing} onClick={() => setSelectedId(note.id)}>
@@ -94,15 +120,22 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
         </ul>}
       </Panel>
       {(editing || selected) && <Panel className="wu-note-editor">
-        {editing ? <form key={editing + (selected?.id ?? '')} onSubmit={save}>
+        {editing ? <form key={editing + (selected?.id ?? '')} onSubmit={event => {
+          if (editing === 'new') void save(event);
+          else event.preventDefault();
+        }}>
           <h2>{editing === 'new' ? 'New note' : editing === 'rename' ? 'Rename note' : 'Edit note'}</h2>
-          <label className="wu-field-label">Title<input name="title" maxLength={200} autoFocus required defaultValue={editing === 'new' ? '' : selected?.title} /></label>
-          {editing !== 'rename' && <label className="wu-field-label">Note<textarea name="content" rows={9} defaultValue={editing === 'new' ? '' : selected?.content ?? ''} /></label>}
+          <label className="wu-field-label">Title<input name="title" maxLength={200} autoFocus required placeholder="e.g. Notes from sprint planning" defaultValue={editing === 'new' ? '' : selected?.title}
+            onKeyDown={editing === 'new' ? undefined : finishInputEdit}
+            onBlur={event => { if (editing !== 'new' && selected) saveTextOnBlur(event, selected.title, value => saveField(selected, 'title', value)); }} /></label>
+          {editing !== 'rename' && <label className="wu-field-label">Note<textarea name="content" rows={9} placeholder="Capture a decision, next steps, or an idea" defaultValue={editing === 'new' ? '' : selected?.content ?? ''}
+            onBlur={event => { if (editing !== 'new' && selected) saveTextOnBlur(event, selected.content ?? '', value => saveField(selected, 'content', value)); }} /></label>}
           {saveError && <p role="alert">{saveError}</p>}
-          <div className="wu-note-toolbar">
+          {editing !== 'new' && (saving || saved) && <p role="status">{saving ? 'Saving…' : 'Saved.'}</p>}
+          {editing === 'new' ? <div className="wu-note-toolbar">
             <button className="wu-button wu-button--secondary" type="button" disabled={saving} onClick={() => setEditing(undefined)}>Cancel</button>
-            <button className="wu-button wu-button--primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save note'}</button>
-          </div>
+            <button className="wu-button wu-button--primary" type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create note'}</button>
+          </div> : <button className="wu-text-button" type="button" disabled={saving || !!saveError} onClick={() => { if (!pending.current) setEditing(undefined); }}>Done editing</button>}
         </form> : <>
           <div className="wu-panel-heading"><h2>{selected?.title}</h2>{selected && canEdit(selected) && <button className="wu-text-button" type="button" onClick={() => start('edit')}>Edit note</button>}</div>
           {selected && <p className="wu-muted">{members.find(member => member.userId === selected.creatorId)?.username ?? 'Unknown author'} · Updated {new Date(selected.updatedAt).toLocaleDateString()}</p>}
@@ -111,6 +144,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
       </Panel>}
     </div>
     {removing && <Drawer title={`Delete ${removing.title}?`} confirmation onClose={() => setRemoving(undefined)}>
+      <p>This removes the note from the workspace.</p>
       {saveError && <p role="alert">{saveError}</p>}
       <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={saving} onClick={() => setRemoving(undefined)}>Cancel</button>
         <button className="wu-button wu-button--primary" disabled={saving} onClick={() => void removeNote()}>Delete note</button></div>

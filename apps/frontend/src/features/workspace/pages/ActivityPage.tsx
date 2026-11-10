@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Activity, ArrowRight, ArrowRightLeft, FileMinus, FileUp, ListPlus, UserMinus, UserPlus, type LucideIcon } from 'lucide-react';
 import { FilterChips, Panel } from '../components';
 import { useWorkspaceCollection } from '../workspace-api';
 import type { Member } from '../workspace-tasks';
@@ -9,24 +10,37 @@ export type ActivityEvent = {
   id: string; actorUserId: string | null; actionType: string; resourceType: string | null;
   resourceId: string | null; createdAt: string; metadata: Record<string, unknown> | null;
 };
-const eventLabels: Record<string, string> = {
-  TASK_CREATED: 'Created a task', TASK_STATUS_CHANGED: 'Moved a task',
-  FILE_UPLOADED: 'Uploaded a file', FILE_DELETED: 'Deleted a file',
-  MEMBER_JOINED: 'A member joined', MEMBER_REMOVED: 'Removed a member',
+const eventStyles: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
+  TASK_CREATED: { label: 'Created a task', icon: ListPlus, tone: 'blue' },
+  TASK_STATUS_CHANGED: { label: 'Moved a task', icon: ArrowRightLeft, tone: 'violet' },
+  FILE_UPLOADED: { label: 'Uploaded a file', icon: FileUp, tone: 'orange' },
+  FILE_DELETED: { label: 'Deleted a file', icon: FileMinus, tone: 'red' },
+  MEMBER_JOINED: { label: 'A member joined', icon: UserPlus, tone: 'mint' },
+  MEMBER_REMOVED: { label: 'Removed a member', icon: UserMinus, tone: 'red' },
 };
+const fallbackEvent = { label: 'Updated the workspace', icon: Activity, tone: 'neutral' };
+const eventTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 export function WorkspaceActivityList({ items, members, openResource }: {
   items: ActivityEvent[]; members: Member[]; openResource: (event: ActivityEvent) => boolean;
 }) {
   if (!items.length) return <p className="wu-muted">No activity in this view.</p>;
-  return <ul className="wu-document-list">{items.map(event => {
-    const description = eventLabels[event.actionType] ?? 'Updated the workspace';
+  return <ul className="wu-event-feed">{items.map(event => {
+    const { label, icon: Icon, tone } = eventStyles[event.actionType] ?? fallbackEvent;
     const title = event.metadata?.title ?? event.metadata?.displayName;
-    return <li key={event.id} className="wu-activity-item">
-      <div><strong>{members.find(member => member.userId === event.actorUserId)?.username ?? 'Workspace activity'}</strong>
-        <p>{description}{typeof title === 'string' ? ': ' + title : ''}</p></div>
-      <time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
-      {event.resourceId && (event.resourceType === 'task' || event.actionType === 'FILE_UPLOADED') && <button type="button" className="wu-text-button" onClick={() => openResource(event)}>Open</button>}
+    const resourceLabel = event.resourceType === 'task' ? 'Open task' : 'Open file';
+    return <li key={event.id} className="wu-event-row">
+      <span className={`wu-event-icon wu-event-icon--${tone}`} aria-hidden="true"><Icon size={17} /></span>
+      <div className="wu-event-copy">
+        <p>{label}{typeof title === 'string' && title && <>: <strong>{title}</strong></>}</p>
+        <span>{members.find(member => member.userId === event.actorUserId)?.username ?? 'Workspace activity'}</span>
+      </div>
+      <time className="wu-event-time" dateTime={event.createdAt}>{eventTime.format(new Date(event.createdAt))}</time>
+      <div className="wu-event-action">
+        {event.resourceId && (event.resourceType === 'task' || event.actionType === 'FILE_UPLOADED') &&
+          <button type="button" className="wu-text-button" aria-label={typeof title === 'string' ? resourceLabel + ': ' + title : resourceLabel}
+            onClick={() => openResource(event)}>{resourceLabel}<ArrowRight size={13} aria-hidden="true" /></button>}
+      </div>
     </li>;
   })}</ul>;
 }
@@ -43,11 +57,11 @@ function ActivityResults({ path, token, page, filter, members, openResource, cha
     {events.error ? <p role="alert">Could not load activity. <button type="button" onClick={events.retry}>Try again</button></p>
       : !events.items ? <p role="status">Loading activity…</p>
       : <WorkspaceActivityList items={shown} members={members} openResource={openResource} />}
-    <div className="wu-modal-actions">
+    <nav className="wu-activity-pagination" aria-label="Activity pages">
       <button className="wu-button wu-button--secondary" type="button" disabled={page === 1} onClick={() => changePage(page - 1)}>Previous</button>
       <span className="wu-muted">Page {page}</span>
       <button className="wu-button wu-button--secondary" type="button" disabled={events.items?.length !== 20} onClick={() => changePage(page + 1)}>Next</button>
-    </div>
+    </nav>
   </Panel>;
 }
 

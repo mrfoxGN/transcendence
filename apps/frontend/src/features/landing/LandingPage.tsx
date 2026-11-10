@@ -218,7 +218,7 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
           ) : (
             <form className="auth-form" onSubmit={submit}>
               {signingUp && <label htmlFor="auth-username">Username
-                <input id="auth-username" name="username" autoComplete="username" minLength={3} maxLength={30} required />
+                <input id="auth-username" name="username" placeholder="e.g. nourdev" autoComplete="username" minLength={3} maxLength={30} required />
               </label>}
               <label htmlFor="auth-email">Email
                 <input id="auth-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />

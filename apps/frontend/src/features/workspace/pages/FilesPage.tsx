@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { Panel } from '../components';
+import { WorkspaceIllustration } from '../WorkspaceIllustration';
 import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
 import { fileSize, workspaceRequest, type WorkspaceFile } from '../workspace-api';
 import type { PageHeading } from '../types';
@@ -17,9 +18,10 @@ type FilesPageProps = {
   onDelete: (id: string) => void;
   owner: boolean;
   profileId: string;
+  onBackToTask?: () => void;
 };
 
-export function FilesPage({ pageHeading, path, token, files, loadError, onRetry, onUpload, onDelete, owner, profileId }: FilesPageProps) {
+export function FilesPage({ pageHeading, path, token, files, loadError, onRetry, onUpload, onDelete, owner, profileId, onBackToTask }: FilesPageProps) {
   const input = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState(() => window.location.hash.startsWith('#file-') ? window.location.hash.slice(6) : '');
   const [drawerOpen, setDrawerOpen] = useState(() => !!selectedId && window.matchMedia('(max-width: 680px)').matches);
@@ -97,6 +99,7 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
 
   return <>
     {pageHeading(<button className="wu-button wu-button--primary" type="button" disabled={uploading || !files} onClick={() => input.current?.click()}><Upload size={15} />{uploading ? 'Uploading…' : 'Upload file'}</button>)}
+    {onBackToTask && <button className="wu-text-button" type="button" onClick={onBackToTask}>Back to task</button>}
     <input ref={input} type="file" hidden onChange={event => {
       const chosen = event.currentTarget.files?.[0];
       event.currentTarget.value = '';
@@ -108,7 +111,7 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
         <div className="wu-panel-heading"><div><h2>Workspace files</h2><p>Files shared with this workspace. Maximum upload size: 10 MiB.</p></div></div>
         {loadError && <p role="alert">Could not load files. <button className="wu-text-button" onClick={onRetry}>Try again</button></p>}
         {!files && !loadError && <LoadingPanel label="Loading workspace files" />}
-        {files?.length === 0 && <p className="wu-muted">No files yet. Upload a file to share it with the team.</p>}
+        {files?.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="folder" /><p className="wu-muted">No files yet. Upload a file to share it with the team.</p></div>}
         {!!files?.length && <ul className="wu-document-list">
           {files.map(item => <li key={item.id} data-current={item.id === file?.id}>
             <button className="wu-document-select" type="button" onClick={() => selectFile(item.id)}>
@@ -131,6 +134,7 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
       <div className="wu-file-inspector">{details(file)}{error && <p role="alert">{error}</p>}</div>
     </Drawer>}
     {removing && <Drawer title={`Delete ${removing.displayName}?`} confirmation onClose={() => { setRemoving(undefined); setError(''); }}>
+      <p>This removes the file from the workspace.</p>
       {error && <p role="alert">{error}</p>}
       <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={deleting} onClick={() => { setRemoving(undefined); setError(''); }}>Cancel</button>
         <button className="wu-button wu-button--primary" disabled={deleting} onClick={() => void removeFile()}>Delete file</button></div>

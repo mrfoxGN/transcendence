@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Check, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Users } from 'lucide-react';
+import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import { FilterChips, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import { jsonRequest, workspaceRequest } from '../workspace-api';
@@ -13,12 +14,13 @@ function definitionText(value: unknown) {
   return typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value, null, 2);
 }
 
-export function SettingsPage({ pageHeading, workspace, ownerName, profileId, profileName, token, path, navigate, onWorkspace, onBoard, onProfile }: {
+export function SettingsPage({ pageHeading, workspace, ownerName, profileId, profileName, token, path, navigate, onWorkspace, onBoard, onProfile, initialTab = 'General' }: {
   pageHeading: PageHeading; workspace: WorkspaceProfile; ownerName?: string; profileId: string; profileName: string;
   token: string | null; path: string; navigate: (page: PageKey) => void;
   onWorkspace: (workspace: WorkspaceProfile) => void; onBoard: () => void; onProfile: (name: string) => void;
+  initialTab?: 'General' | 'Profile';
 }) {
-  const [tab, setTab] = useState('General');
+  const [tab, setTab] = useState<string>(initialTab);
   const [settings, setSettings] = useState<KanbanSettings>();
   const [attempt, setAttempt] = useState(0);
   const [settingsError, setSettingsError] = useState('');
@@ -26,6 +28,8 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const queue = useRef(Promise.resolve());
+  const pending = useRef(0);
   const isOwner = workspace.ownerId === profileId;
 
   useEffect(() => {
@@ -38,36 +42,28 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
     return () => controller.abort();
   }, [token, path, tab, attempt]);
 
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!token || busy || (tab !== 'Profile' && !isOwner)) return;
-    const values = new FormData(event.currentTarget);
+  function save(key: string, value: string | number) {
+    if (!token || (tab === 'Profile' ? !profileId : !isOwner)) return;
+    pending.current += 1;
     setBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      if (tab === 'General') {
-        const response = await workspaceRequest(path, token, jsonRequest('PATCH', { name: String(values.get('name')).trim(), description: String(values.get('description')).trim() }));
-        onWorkspace(await response.json());
-      } else if (tab === 'Board settings' && settings) {
-        const patch: Record<string, unknown> = { activeWipLimit: Number(values.get('limit')) };
-        for (const key of ['definitionOfReady', 'definitionOfDone'] as const) {
-          const value = String(values.get(key)).trim();
-          if (value !== definitionText(settings[key]).trim()) patch[key] = value;
-        }
-        const response = await workspaceRequest(path + '/kanban-settings', token, jsonRequest('PATCH', patch));
-        setSettings(await response.json());
-        onBoard();
-      } else if (tab === 'Profile') {
-        const response = await workspaceRequest('users/' + profileId, token, jsonRequest('PATCH', { username: String(values.get('username')).trim() }));
-        onProfile((await response.json()).username);
+    queue.current = queue.current.then(async () => {
+      setError('');
+      setNotice('');
+      try {
+        const target = tab === 'Profile' ? 'users/' + profileId : tab === 'Board settings' ? path + '/kanban-settings' : path;
+        const response = await workspaceRequest(target, token, jsonRequest('PATCH', { [key]: value }));
+        const result = await response.json();
+        if (tab === 'Profile') onProfile(result.username);
+        else if (tab === 'Board settings') { setSettings(result); onBoard(); }
+        else onWorkspace(result);
+        setNotice('Changes saved.');
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Could not save changes. Edit the field to retry.');
+      } finally {
+        pending.current -= 1;
+        if (!pending.current) setBusy(false);
       }
-      setNotice('Changes saved.');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not save changes.');
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function changeArchive() {
@@ -87,15 +83,17 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
 
   const editable = tab === 'Profile' ? !!profileId : isOwner;
   return <>
-    {pageHeading(editable && (tab !== 'Board settings' || settings) && <button className="wu-button wu-button--primary" type="submit" form="workspace-settings-form" disabled={busy}><Check size={15} />Save changes</button>)}
+    {pageHeading((busy || notice) && <span className="wu-muted" role="status">{busy ? 'Saving…' : notice}</span>)}
     <FilterChips items={['General', 'Board settings', 'Profile']} active={tab} onChange={value => { setTab(value); setError(''); setNotice(''); }} />
     <Panel className="wu-settings-panel">
-      {error && !confirm && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-      <form key={tab} id="workspace-settings-form" className="wu-settings-form" onSubmit={save}>
+      {error && !confirm && <p role="alert">{error}</p>}
+      <div key={tab} className="wu-settings-form">
         {tab === 'General' && <>
           <h2>Workspace profile</h2>
-          <label className="wu-field-label">Name<input name="name" defaultValue={workspace.name} required readOnly={!editable} /></label>
-          <label className="wu-field-label">Description<textarea name="description" defaultValue={workspace.description ?? ''} rows={3} readOnly={!editable} /></label>
+          <label className="wu-field-label">Name<input name="name" defaultValue={workspace.name} placeholder="e.g. Platform engineering" required maxLength={120} readOnly={!editable}
+            onBlur={event => saveTextOnBlur(event, workspace.name, value => save('name', value))} onKeyDown={finishInputEdit} /></label>
+          <label className="wu-field-label">Description<textarea name="description" defaultValue={workspace.description ?? ''} placeholder="What does this workspace organize?" rows={3} readOnly={!editable}
+            onBlur={event => saveTextOnBlur(event, workspace.description ?? '', value => save('description', value))} /></label>
           <div className="wu-readonly-field"><span>Owner</span><strong>{ownerName ?? 'Workspace owner'}</strong></div>
         </>}
         {tab === 'Board settings' && <>
@@ -103,14 +101,18 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
           {settingsError ? <p role="alert">{settingsError} <button type="button" onClick={() => { setSettingsError(''); setAttempt(value => value + 1); }}>Retry</button></p>
             : !settings ? <p role="status">Loading board settings…</p>
             : <>
-              <label className="wu-field-label">Active work limit<input name="limit" type="number" min={1} required defaultValue={settings.activeWipLimit} readOnly={!editable} /></label>
+              <label className="wu-field-label">Active work limit<input name="limit" type="number" min={1} required defaultValue={settings.activeWipLimit} placeholder="e.g. 3" readOnly={!editable}
+                onBlur={event => saveTextOnBlur(event, String(settings.activeWipLimit), value => save('activeWipLimit', Number(value)))} onKeyDown={finishInputEdit} /></label>
               <p className="wu-muted">The limit includes In progress and Review.</p>
-              <label className="wu-field-label">Definition of ready<textarea name="definitionOfReady" rows={3} defaultValue={definitionText(settings.definitionOfReady)} readOnly={!editable} /></label>
-              <label className="wu-field-label">Definition of done<textarea name="definitionOfDone" rows={3} defaultValue={definitionText(settings.definitionOfDone)} readOnly={!editable} /></label>
+              <label className="wu-field-label">Definition of ready<textarea name="definitionOfReady" rows={3} defaultValue={definitionText(settings.definitionOfReady)} placeholder="e.g. Scope and acceptance criteria are clear" readOnly={!editable}
+                onBlur={event => saveTextOnBlur(event, definitionText(settings.definitionOfReady), value => save('definitionOfReady', value))} /></label>
+              <label className="wu-field-label">Definition of done<textarea name="definitionOfDone" rows={3} defaultValue={definitionText(settings.definitionOfDone)} placeholder="e.g. Tests pass and the change has been reviewed" readOnly={!editable}
+                onBlur={event => saveTextOnBlur(event, definitionText(settings.definitionOfDone), value => save('definitionOfDone', value))} /></label>
             </>}
         </>}
-        {tab === 'Profile' && <><h2>Your profile</h2><label className="wu-field-label">Username<input name="username" defaultValue={profileName} required /></label></>}
-      </form>
+        {tab === 'Profile' && <><h2>Your profile</h2><label className="wu-field-label">Username<input name="username" defaultValue={profileName} placeholder="e.g. nourdev" required minLength={3} maxLength={30}
+          onBlur={event => saveTextOnBlur(event, profileName, value => save('username', value))} onKeyDown={finishInputEdit} /></label></>}
+      </div>
       {tab === 'General' && <><hr /><button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('team')}><Users size={15} />Manage members</button>
         {isOwner && <button className="wu-text-button" type="button" onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</button>}</>}
     </Panel>
