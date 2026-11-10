@@ -1,0 +1,53 @@
+.wu-metric-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--metric-surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-ink) 6%, transparent);
+  text-align: start;
+}
+button.wu-metric-card { cursor: pointer; }
+button.wu-metric-card:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--metric-ink) 24%, transparent); }
+.wu-metric-card-arrow { position: absolute; inset: 10px 10px auto auto; color: var(--metric-ink); }
+button.wu-metric-card .wu-metric-card-copy { padding-inline-end: 16px; }
+.wu-metric-card--blue { --metric-accent: var(--color-blue); --metric-ink: var(--wu-blue); --metric-surface: var(--workspace-accent-blue-surface); }
+.wu-metric-card--mint { --metric-accent: var(--color-mint); --metric-ink: var(--wu-mint); --metric-surface: var(--workspace-accent-mint-surface); }
+.wu-metric-card--violet { --metric-accent: var(--color-violet); --metric-ink: var(--wu-violet); --metric-surface: var(--workspace-accent-violet-surface); }
+.wu-metric-card--pink { --metric-accent: var(--color-pink); --metric-ink: var(--wu-pink); --metric-surface: var(--workspace-accent-pink-surface); }
+.wu-metric-card-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--metric-accent) 18%, transparent);
+  color: var(--metric-ink);
+}
+.wu-metric-card-copy { display: grid; justify-items: start; gap: 2px; }
+.wu-metric-card-copy strong { font-size: 24px; font-weight: 750; line-height: 1.15; }
+.wu-metric-card-copy > span { color: var(--wu-muted); font-size: 14px; font-weight: 650; }
+.wu-metric-card-copy small { color: var(--metric-ink); font-size: 13px; font-weight: 650; }
+.wu-metric-card-wave {
+  position: absolute;
+  z-index: -1;
+  right: 8px;
+  bottom: 8px;
+  width: min(44%, 110px);
+  color: var(--metric-accent);
+  pointer-events: none;
+}
+
+@media (max-width: 680px) {
+  .wu-metric-card { gap: 8px; }
+  .wu-metric-card-icon { width: 32px; height: 32px; }
+  .wu-metric-card-wave { opacity: .6; }
+}

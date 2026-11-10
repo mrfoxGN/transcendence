@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Users, Video, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Video, X } from 'lucide-react';
+import { workspaceIcons } from '../workspace-icons';
 import { Avatar, IconTile, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import type { Member } from '../workspace-tasks';
@@ -168,7 +169,7 @@ export function ChatPage({ workspaceId, token, profileId, profileName, roster }:
           {visibleThreads.map(item => {
             const latest = item.messages.at(-1);
             return <button type="button" key={item.id} className="wu-conversation" aria-current={item.id === thread.id ? 'true' : undefined} onClick={() => selectThread(item.id)}>
-              {item.member ? <Portrait name={item.member} /> : <IconTile><Users size={18} /></IconTile>}
+              {item.member ? <Portrait name={item.member} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
               <span className="wu-conversation-copy"><strong>{item.title}</strong><small>{latest ? (latest.own ? 'You: ' : !item.member ? latest.author.split(' ')[0] + ': ' : '') + latest.text : item.lastMessageAt ? 'Open conversation' : 'No messages yet'}</small></span>
               <span className="wu-conversation-meta">{latest && <time dateTime={latest.sentAt}>{clock.format(new Date(latest.sentAt))}</time>}{!!item.unread && <span className="wu-chat-unread" aria-label={item.unread + ' unread'}>{item.unread}</span>}</span>
             </button>;
@@ -183,7 +184,7 @@ export function ChatPage({ workspaceId, token, profileId, profileName, roster }:
       <Panel className="wu-chat-thread">
         <header className="wu-chat-thread-head">
           <button type="button" className="wu-icon-button wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></button>
-          {thread.member ? <Portrait name={thread.member} /> : <IconTile><Users size={18} /></IconTile>}
+          {thread.member ? <Portrait name={thread.member} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
           <div className="wu-chat-heading"><h2>{thread.title}</h2><p>{thread.member ? 'Direct message' : members.length + ' members · General discussion'}</p></div>
           <button type="button" className="wu-icon-button" aria-label="Voice call" title="Voice call" onClick={() => setCallNotice('Voice')}><Phone size={18} /></button>
           <button type="button" className="wu-icon-button" aria-label="Video call" title="Video call" onClick={() => setCallNotice('Video')}><Video size={19} /></button>

@@ -1,5 +1,7 @@
-import { CheckCircle2, Clock3, LayoutGrid, List } from 'lucide-react';
-import { Panel, StatCard } from '../components';
+import { Panel } from '../components';
+import { MetricCard } from '../MetricCard';
+import { CheckCircle2, Clock3 } from 'lucide-react';
+import { workspaceIcons } from '../workspace-icons';
 import type { PageHeading, Task } from '../types';
 import './analytics.css';
 
@@ -27,10 +29,10 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
   return <>
     {pageHeading(<select className="wu-select" aria-label="Analytics period" value={analyticsPeriod} onChange={event => setAnalyticsPeriod(event.target.value)}><option>Last 30 days</option><option>Last 7 days</option></select>)}
     <div className="wu-stat-grid">
-      <StatCard icon={<CheckCircle2 size={16} />} label="Tasks completed" value={String(total)} note={analyticsPeriod} tone="mint" />
-      <StatCard icon={<List size={16} />} label="Open tasks" value={String(open.length)} note="Current workspace" tone="blue" />
-      <StatCard icon={<Clock3 size={16} />} label="Overdue tasks" value={String(overdue.length)} note="Open tasks past their due date" tone="pink" />
-      <StatCard icon={<LayoutGrid size={16} />} label="Active work" value={String(activeCount)} note={`Limit: ${activeWipLimit} tasks`} tone="violet" />
+      <MetricCard icon={<CheckCircle2 size={19} />} label="Tasks completed" value={total} note={analyticsPeriod} tone="mint" />
+      <MetricCard icon={<workspaceIcons.backlog size={19} />} label="Open tasks" value={open.length} note="Current workspace" tone="blue" />
+      <MetricCard icon={<Clock3 size={19} />} label="Overdue tasks" value={overdue.length} note="Open tasks past their due date" tone="pink" />
+      <MetricCard icon={<workspaceIcons.board size={19} />} label="Active work" value={activeCount} note={`Limit: ${activeWipLimit} tasks`} tone="violet" />
     </div>
     <div className="wu-analytics-grid">
       <Panel className="wu-content-panel">

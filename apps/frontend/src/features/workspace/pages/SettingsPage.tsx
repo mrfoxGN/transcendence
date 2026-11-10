@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Users } from 'lucide-react';
+import { workspaceIcons } from '../workspace-icons';
 import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import { FilterChips, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
@@ -113,7 +113,7 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
         {tab === 'Profile' && <><h2>Your profile</h2><label className="wu-field-label">Username<input name="username" defaultValue={profileName} placeholder="e.g. nourdev" required minLength={3} maxLength={30}
           onBlur={event => saveTextOnBlur(event, profileName, value => save('username', value))} onKeyDown={finishInputEdit} /></label></>}
       </div>
-      {tab === 'General' && <><hr /><button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('team')}><Users size={15} />Manage members</button>
+      {tab === 'General' && <><hr /><button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('team')}><workspaceIcons.team size={15} />Manage members</button>
         {isOwner && <button className="wu-text-button" type="button" onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</button>}</>}
     </Panel>
     {confirm && <Drawer title={workspace.archivedAt ? 'Restore workspace?' : 'Archive workspace?'} confirmation onClose={() => setConfirm(false)}>

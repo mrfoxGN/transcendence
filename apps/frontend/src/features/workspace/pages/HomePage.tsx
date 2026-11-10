@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, Check, Clock3, GitBranch, LayoutGrid, List } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { MetricCard } from '../MetricCard';
+import { ArrowRight, Check, CheckCircle2, Clock3, ScanEye } from 'lucide-react';
+import { workspaceIcons } from '../workspace-icons';
 import { FilterChips, Panel, Pill } from '../components';
 import { homeFilters, statusTones } from '../previewData';
 import { dueThisWeek, type Member } from '../workspace-tasks';
@@ -10,40 +12,6 @@ import { LoadingPanel } from '../WorkspaceControls';
 import { fileSize, workspaceRequest, WorkspaceRequestError, type WorkspaceFile } from '../workspace-api';
 import './home.css';
 
-type HomeMetricProps = {
-  icon: ReactNode;
-  label: string;
-  value: number;
-  note: string;
-  tone: 'blue' | 'mint' | 'violet' | 'pink';
-  onClick?: () => void;
-};
-
-function HomeMetric({ icon, label, value, note, tone, onClick }: HomeMetricProps) {
-  const gradientId = useId();
-  const Card = onClick ? 'button' : 'div';
-
-  return (
-    <Card className={`wu-home-metric wu-home-metric--${tone}`} type={onClick ? 'button' : undefined} onClick={onClick}>
-      <span className="wu-home-metric-icon" aria-hidden="true">{icon}</span>
-      <span className="wu-home-metric-copy">
-        <strong>{value}</strong>
-        <span>{label}</span>
-        <small>{note}</small>
-      </span>
-      {onClick && <ArrowRight className="wu-home-metric-arrow" size={14} aria-hidden="true" />}
-      <svg className="wu-home-metric-wave" viewBox="0 0 110 46" aria-hidden="true">
-        <defs>
-          <linearGradient id={gradientId} x2="0%" y2="100%">
-            <stop offset="0%" stopColor="currentColor" stopOpacity=".24" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path fill={`url(#${gradientId})`} d="M0 46C25 46 28 22 49 22S66 34 79 34 92 15 110 15V46Z" />
-      </svg>
-    </Card>
-  );
-}
 
 type HomePageProps = {
   columns: string[];
@@ -130,12 +98,12 @@ export function HomePage({
   return <>
     {pageHeading(addTaskButton())}
     <div className="wu-stat-grid">
-      <HomeMetric icon={<List size={18} />} label="Assigned to me" value={assigned.length} note={`${assignedDueSoon} due this week`} tone="blue" onClick={showAssignedTasks} />
-      <HomeMetric icon={<LayoutGrid size={18} />} label="In progress" value={inProgress} note="Tasks underway" tone="mint" />
-      <HomeMetric icon={<Check size={18} />} label="In review" value={tasks.filter(task => task.status === 'Review').length} note="Awaiting review" tone="violet" onClick={() => navigate('board', 'board-review')} />
+      <MetricCard icon={<workspaceIcons.backlog size={19} />} label="Assigned to me" value={assigned.length} note={`${assignedDueSoon} due this week`} tone="blue" onClick={showAssignedTasks} />
+      <MetricCard icon={<workspaceIcons.board size={19} />} label="In progress" value={inProgress} note="Tasks underway" tone="mint" />
+      <MetricCard icon={<ScanEye size={19} />} label="In review" value={tasks.filter(task => task.status === 'Review').length} note="Awaiting review" tone="violet" onClick={() => navigate('board', 'board-review')} />
       {github?.commitCount !== undefined
-        ? <HomeMetric icon={<GitBranch size={18} />} label="Synced commits" value={github.commitCount} note={github.branch} tone="pink" onClick={() => navigate('github')} />
-        : <HomeMetric icon={<Check size={18} />} label="Completed" value={tasks.filter(task => task.status === 'Done').length} note="Tasks finished" tone="pink" />}
+        ? <MetricCard icon={<workspaceIcons.github size={19} />} label="Synced commits" value={github.commitCount} note={github.branch} tone="pink" onClick={() => navigate('github')} />
+        : <MetricCard icon={<CheckCircle2 size={19} />} label="Completed" value={tasks.filter(task => task.status === 'Done').length} note="Tasks finished" tone="pink" />}
     </div>
     <div className="wu-home-grid">
       <div className="wu-home-column">
@@ -169,7 +137,7 @@ export function HomePage({
       <Panel className="wu-home-repo">
         <div className="wu-panel-heading"><h2>GitHub repository</h2><button className="wu-text-button" type="button" onClick={() => navigate('github')}>Open GitHub <ArrowRight size={14} /></button></div>
         {githubError && <p role="alert">Could not load GitHub details. <button type="button" className="wu-text-button" onClick={() => { setGithubError(false); setGithubAttempt(value => value + 1); }}>Try again</button></p>}
-        {github ? <><div className="wu-repo-line"><GitBranch size={17} /><strong>{github.name}</strong></div>
+        {github ? <><div className="wu-repo-line"><workspaceIcons.github size={17} /><strong>{github.name}</strong></div>
           <p className="wu-muted">{github.branch} · {github.lastSyncedAt ? 'Last synced ' + new Date(github.lastSyncedAt).toLocaleString() : 'No commits synced yet'}</p></>
           : github === null ? <p className="wu-muted">No repository connected.</p> : !githubError && <LoadingPanel label="Loading GitHub repository" />}
       </Panel>

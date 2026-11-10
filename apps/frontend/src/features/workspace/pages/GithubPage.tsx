@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { GitBranch, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { workspaceIcons } from '../workspace-icons';
 import { FilterChips, Panel } from '../components';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest, WorkspaceRequestError } from '../workspace-api';
 import type { PageHeading } from '../types';
@@ -118,7 +119,7 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
       <button type="button" className="wu-text-button" disabled={busy} onClick={() => setSetupId('')}>Cancel</button>
     </Panel> : repository === undefined ? !error && <p role="status">Loading repository…</p>
       : !repository ? <Panel className="wu-content-panel"><h2>No repository connected</h2><p>Connect a public GitHub repository to browse branches and commits.</p>
-        {owner && <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={() => void action('authorize')}><GitBranch size={16} />Connect GitHub</button>}</Panel>
+        {owner && <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={() => void action('authorize')}><workspaceIcons.github size={16} />Connect GitHub</button>}</Panel>
       : <>
         <FilterChips items={['Repository', 'Branches', 'Commits']} active={tab} onChange={setTab} />
         <Panel className="wu-content-panel">

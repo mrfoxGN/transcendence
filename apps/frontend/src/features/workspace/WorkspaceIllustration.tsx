@@ -1,7 +1,7 @@
 type Illustration = 'folder' | 'checklist' | 'note';
 
-export function WorkspaceIllustration({ kind }: { kind: Illustration }) {
-  return <svg className="wu-workspace-illustration" viewBox="0 0 64 64" width="56" height="56" aria-hidden="true">
+export function WorkspaceIllustration({ kind, size = 56 }: { kind: Illustration; size?: number }) {
+  return <svg className="wu-workspace-illustration" viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
     {kind === 'folder' ? <>
       <path className="wu-illustration-base" d="M8 20a5 5 0 0 1 5-5h13l5 5h20a5 5 0 0 1 5 5v21a5 5 0 0 1-5 5H13a5 5 0 0 1-5-5z" />
       <rect className="wu-illustration-paper" x="17" y="23" width="33" height="21" rx="4" />

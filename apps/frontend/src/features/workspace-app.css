@@ -58,6 +58,10 @@
   --wu-red-soft: #482b36;
 }
 .wu-sidebar {
+  --sidebar-angle: 165deg;
+  --sidebar-cool: color-mix(in srgb, var(--wu-blue-soft) 78%, var(--wu-surface));
+  --sidebar-lavender: color-mix(in srgb, var(--wu-violet-soft) 78%, var(--wu-surface));
+  --sidebar-blush: color-mix(in srgb, var(--wu-pink-soft) 62%, var(--wu-surface));
   width: 220px;
   position: fixed;
   z-index: 5;
@@ -66,9 +70,16 @@
   flex-direction: column;
   gap: 18px;
   padding: 17px 16px 15px;
-  background: var(--wu-surface);
+  background: linear-gradient(var(--sidebar-angle), var(--wu-surface), var(--sidebar-cool) 27%, var(--sidebar-lavender) 65%, var(--sidebar-blush));
   border-right: 1px solid var(--wu-line);
 }
+.workspace-app[data-theme='dark'] .wu-sidebar {
+  --sidebar-cool: color-mix(in srgb, var(--wu-blue-soft) 24%, var(--wu-surface));
+  --sidebar-lavender: color-mix(in srgb, var(--wu-violet-soft) 25%, var(--wu-surface));
+  --sidebar-blush: color-mix(in srgb, var(--wu-pink-soft) 18%, var(--wu-surface));
+}
+.wu-sidebar-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.wu-sidebar-header .wu-sidebar-toggle { width: 30px; height: 34px; }
 .wu-workspace-switcher {
   min-width: 0;
   min-height: 54px;
@@ -236,10 +247,11 @@ a.wu-workspace-option:hover, .wu-workspace-option[aria-current] { background: va
 .wu-task-editor { margin-block: 16px; }
 .wu-task-inspector > .wu-text-button { margin-top: 14px; }
 .wu-workspace-illustration { display: block; flex: none; }
-.wu-illustration-base { fill: color-mix(in srgb, var(--wu-blue) 58%, var(--wu-ink)); }
+.wu-illustration-base { fill: color-mix(in srgb, var(--illustration-accent, var(--wu-blue)) 58%, var(--wu-ink)); }
 .wu-illustration-paper { fill: color-mix(in srgb, var(--wu-surface) 82%, var(--wu-blue-soft)); }
-.wu-illustration-front { fill: color-mix(in srgb, var(--wu-blue) 68%, var(--wu-surface)); }
-.wu-illustration-ink, .wu-illustration-highlight { fill: none; stroke: var(--wu-blue); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.wu-illustration-front { fill: color-mix(in srgb, var(--illustration-accent, var(--wu-blue)) 68%, var(--wu-surface)); }
+.wu-illustration-ink, .wu-illustration-highlight, .wu-illustration-contrast { fill: none; stroke: var(--illustration-accent, var(--wu-blue)); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.wu-illustration-contrast { stroke: var(--wu-surface); }
 .wu-illustration-highlight { stroke: var(--wu-blue-soft); opacity: .65; }
 .wu-object-empty { display: grid; justify-items: start; gap: 8px; padding-block: 14px; }
 .wu-object-empty p { margin: 0; }
@@ -323,25 +335,32 @@ a.wu-workspace-option:hover, .wu-workspace-option[aria-current] { background: va
   .wu-main { grid-column: 2; }
   .wu-topbar { grid-template-columns: minmax(115px, 1fr) minmax(230px, 360px) minmax(165px, 1fr); gap: 14px; }
 }
+@media (min-width: 681px) {
+  .wu-sidebar .wu-nav { min-height: 0; overflow-y: auto; padding-block: 4px; }
+  .workspace-app[data-sidebar='collapsed'] { grid-template-columns: 64px minmax(0, 1fr); }
+  [data-sidebar='collapsed'] .wu-sidebar { width: 64px; align-items: center; padding: 13px 7px; }
+  [data-sidebar='collapsed'] .wu-sidebar-header { grid-template-columns: 1fr; justify-items: center; }
+  [data-sidebar='collapsed'] .wu-workspace-switcher { width: 42px; min-height: 42px; grid-template-columns: 1fr; place-items: center; padding: 5px; }
+  [data-sidebar='collapsed'] .wu-workspace-popover { inset: 63px auto auto 7px; }
+  [data-sidebar='collapsed'] .wu-workspace-switcher > span:nth-child(2),
+  [data-sidebar='collapsed'] .wu-workspace-switcher > svg,
+  [data-sidebar='collapsed'] .wu-nav-item > span { display: none; }
+  [data-sidebar='collapsed'] .wu-nav { width: 100%; justify-items: center; }
+  [data-sidebar='collapsed'] .wu-nav-item { width: 46px; height: 40px; justify-content: center; padding: 0; }
+  [data-sidebar='collapsed'] .wu-nav-item b { display: none; }
+}
 @media (max-width: 980px) {
-  .workspace-app { grid-template-columns: 64px minmax(0, 1fr); }
-  .wu-sidebar { width: 64px; align-items: center; padding: 13px 7px; }
-  .wu-workspace-switcher { width: 42px; min-height: 42px; display: grid; grid-template-columns: 1fr; place-items: center; padding: 5px; }
-  .wu-workspace-popover { inset: 63px auto auto 7px; }
-  .wu-workspace-switcher > span:nth-child(2), .wu-workspace-switcher > svg { display: none; }
-  .wu-nav { width: 100%; align-content: start; justify-items: center; }
-  .wu-nav-item { width: 46px; height: 40px; justify-content: center; padding: 0; }
-  .wu-nav-item > span { display: none; }
-  .wu-nav-item b { position: absolute; transform: translate(12px, -10px); min-width: 16px; height: 16px; padding: 0 3px; font-size: 8px; }
-  .wu-nav-settings { margin-top: auto; border-top: 1px solid var(--wu-line); padding-top: 8px; }
-  .wu-main { grid-column: 2; }
+  .wu-topbar { grid-template-columns: minmax(88px, 1fr) minmax(0, 2fr) auto; }
   .wu-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
   .workspace-app { display: block; padding-bottom: 66px; }
-  .wu-sidebar { position: fixed; inset: auto 0 0; width: 100%; height: 64px; display: flex; flex-direction: row; justify-content: flex-start; padding: 4px 6px; border-right: 0; border-top: 1px solid var(--wu-line); overflow-x: auto; }
+  .wu-sidebar { --sidebar-angle: 100deg; position: fixed; inset: auto 0 0; width: 100%; height: 64px; display: flex; flex-direction: row; justify-content: flex-start; padding: 4px 6px; border-right: 0; border-top: 1px solid var(--wu-line); overflow-x: auto; }
   .wu-nav-settings { display: none; }
-  .wu-workspace-switcher { flex: 0 0 42px; }
+  .wu-sidebar-header { display: contents; }
+  .wu-sidebar-header .wu-sidebar-toggle { display: none; }
+  .wu-workspace-switcher { flex: 0 0 42px; min-height: 42px; grid-template-columns: 1fr; place-items: center; padding: 5px; }
+  .wu-workspace-switcher > span:nth-child(2), .wu-workspace-switcher > svg { display: none; }
   .wu-workspace-popover { inset: auto auto 72px 8px; }
   .wu-nav { width: max-content; display: flex; gap: 3px; }
   .wu-nav-item { width: 64px; height: 52px; flex: 0 0 64px; flex-direction: column; justify-content: center; gap: 3px; padding: 4px 2px; }

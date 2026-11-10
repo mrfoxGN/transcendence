@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Activity, BarChart3, CheckCircle2, ChevronRight, Contrast, Files, GitBranch, Home, LayoutGrid, List, LogOut, MessageCircle, Plus, Settings, StickyNote, UserRound, Users, X } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Contrast, LogOut, PanelLeftClose, PanelLeftOpen, Plus, UserRound, X } from 'lucide-react';
+import { workspaceIcons } from './workspace/workspace-icons';
 import { sessionKey, signOut } from './WorkspacePicker';
 import './workspace-app.css';
 import { Avatar } from './workspace/components';
@@ -25,18 +26,18 @@ import { NotesPage } from './workspace/pages/NotesPage';
 import { AnalyticsPage } from './workspace/pages/AnalyticsPage';
 import { SettingsPage, type WorkspaceProfile } from './workspace/pages/SettingsPage';
 
-const navigation: { key: PageKey; label: string; icon: typeof Home }[] = [
-  { key: 'home', label: 'Home', icon: Home },
-  { key: 'backlog', label: 'Backlog', icon: List },
-  { key: 'board', label: 'Board', icon: LayoutGrid },
-  { key: 'github', label: 'GitHub', icon: GitBranch },
-  { key: 'activity', label: 'Activity', icon: Activity },
-  { key: 'team', label: 'Team', icon: Users },
-  { key: 'chat', label: 'Chat', icon: MessageCircle },
-  { key: 'files', label: 'Files', icon: Files },
-  { key: 'notes', label: 'Notes', icon: StickyNote },
-  { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { key: 'settings', label: 'Settings', icon: Settings },
+const navigation: { key: PageKey; label: string; icon: typeof workspaceIcons.home }[] = [
+  { key: 'home', label: 'Home', icon: workspaceIcons.home },
+  { key: 'backlog', label: 'Backlog', icon: workspaceIcons.backlog },
+  { key: 'board', label: 'Board', icon: workspaceIcons.board },
+  { key: 'github', label: 'GitHub', icon: workspaceIcons.github },
+  { key: 'activity', label: 'Activity', icon: workspaceIcons.activity },
+  { key: 'team', label: 'Team', icon: workspaceIcons.team },
+  { key: 'chat', label: 'Chat', icon: workspaceIcons.chat },
+  { key: 'files', label: 'Files', icon: workspaceIcons.files },
+  { key: 'notes', label: 'Notes', icon: workspaceIcons.notes },
+  { key: 'analytics', label: 'Analytics', icon: workspaceIcons.analytics },
+  { key: 'settings', label: 'Settings', icon: workspaceIcons.settings },
 ];
 
 function getPageFromUrl(): PageKey {
@@ -45,6 +46,23 @@ function getPageFromUrl(): PageKey {
 }
 
 export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
+  const [sidebarPreference, setSidebarPreference] = useState(() => localStorage.getItem('devup-sidebar'));
+  const [compactSidebar, setCompactSidebar] = useState(() => matchMedia('(max-width: 980px)').matches);
+  const sidebarCollapsed = sidebarPreference === null ? compactSidebar : sidebarPreference === 'collapsed';
+
+  useEffect(() => {
+    const query = matchMedia('(max-width: 980px)');
+    const sync = () => setCompactSidebar(query.matches);
+    query.addEventListener('change', sync);
+    sync();
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  function toggleSidebar() {
+    const preference = sidebarCollapsed ? 'expanded' : 'collapsed';
+    setSidebarPreference(preference);
+    localStorage.setItem('devup-sidebar', preference);
+  }
   const token = sessionStorage.getItem(sessionKey);
   const [page, setPage] = useState<PageKey>(getPageFromUrl);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
@@ -446,10 +464,17 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  return <div className={page === 'chat' ? 'workspace-app workspace-app--chat' : 'workspace-app'} data-theme={theme === 'system' ? (browserDark ? 'dark' : 'light') : theme}>
-    <aside className="wu-sidebar"><WorkspaceSwitcher workspaceId={workspaceId} workspaceName={workspaceName} token={token} />
-      <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.label} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && <b>2</b>}</button>; })}</nav>
-      <button type="button" className={`wu-nav-item wu-nav-settings${page === 'settings' ? ' is-active' : ''}`} aria-current={page === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><Settings size={17} /><span>Settings</span></button>
+  return <div className={page === 'chat' ? 'workspace-app workspace-app--chat' : 'workspace-app'} data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'} data-theme={theme === 'system' ? (browserDark ? 'dark' : 'light') : theme}>
+    <aside className="wu-sidebar" id="workspace-sidebar">
+      <div className="wu-sidebar-header">
+        <WorkspaceSwitcher workspaceId={workspaceId} workspaceName={workspaceName} token={token} />
+        <button className="wu-icon-button wu-sidebar-toggle" type="button" aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggleSidebar}>
+          {sidebarCollapsed ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
+        </button>
+      </div>
+      <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.label} title={sidebarCollapsed ? item.label : undefined} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && <b>2</b>}</button>; })}</nav>
+      <button type="button" aria-label="Settings" title={sidebarCollapsed ? 'Settings' : undefined} className={`wu-nav-item wu-nav-settings${page === 'settings' ? ' is-active' : ''}`} aria-current={page === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><workspaceIcons.settings size={17} /><span>Settings</span></button>
     </aside>
     <div className="wu-main">
       <header className="wu-topbar">
@@ -467,7 +492,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
             </div>
             <div className="wu-profile-actions">
               <button type="button" onClick={() => openSettings('profile')}><UserRound size={17} aria-hidden="true" />Profile</button>
-              <button type="button" onClick={() => openSettings()}><Settings size={17} aria-hidden="true" />Workspace settings</button>
+              <button type="button" onClick={() => openSettings()}><workspaceIcons.settings size={17} aria-hidden="true" />Workspace settings</button>
               <details className="wu-profile-theme">
                 <summary><Contrast size={17} aria-hidden="true" />Theme <ChevronRight className="wu-profile-chevron" size={15} aria-hidden="true" /></summary>
                 <fieldset className="wu-theme-picker">
