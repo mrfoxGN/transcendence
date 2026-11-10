@@ -10,5 +10,6 @@ export class TaskBoardResponseDto {
   workspaceId!: string;
   activeWipLimit!: number;
   activeCount!: number;
+  assigneesByTaskId!: Record<string, string>;
   columns!: TaskBoardColumnDto[];
 }

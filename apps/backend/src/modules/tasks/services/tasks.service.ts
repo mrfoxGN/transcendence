@@ -131,6 +131,12 @@ export class TasksService {
       },
     });
 
+    const assignments = tasks.length
+      ? await this.dataSource.getRepository(TaskAssignment).find({
+          where: { taskId: In(tasks.map((task) => task.id)) },
+          select: { taskId: true, userId: true },
+        })
+      : [];
     const activeCount = tasks.filter(
       (task) =>
         task.status === TaskStatus.IN_PROGRESS ||
@@ -148,6 +154,9 @@ export class TasksService {
       workspaceId,
       activeWipLimit: settings.activeWipLimit,
       activeCount,
+      assigneesByTaskId: Object.fromEntries(
+        assignments.map((assignment) => [assignment.taskId, assignment.userId]),
+      ),
       columns,
     };
   }

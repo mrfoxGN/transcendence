@@ -1,4 +1,4 @@
-import { previewWeek } from './previewData';
+import { dueThisWeek } from './workspace-tasks';
 import type { Task } from './types';
 
 type Facets = { assignee: string; priority: string; due: string };
@@ -6,13 +6,14 @@ export const emptyFacets: Facets = { assignee: '', priority: '', due: '' };
 
 export function matchesTaskFacets(task: Task, value: Facets) {
   const due = task.dueAt ? new Date(task.dueAt).getTime() : NaN;
-  const now = Date.now();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   return (!value.assignee || task.person === value.assignee)
     && (!value.priority || task.priority === value.priority)
     && (value.due === '' || (
-      value.due === 'Overdue' ? task.status !== 'Done' && due < now
-      : value.due === 'Due this week' ? (task.dueAt ? due >= now && due <= now + 7 * 86400000 : previewWeek.has(task.due))
-      : !task.dueAt && !task.due
+      value.due === 'Overdue' ? !['Done', 'Cancelled'].includes(task.status) && due < today.getTime()
+      : value.due === 'Due this week' ? dueThisWeek(task)
+      : !task.dueAt
     ));
 }
 

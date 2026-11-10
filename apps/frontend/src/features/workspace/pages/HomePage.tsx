@@ -1,11 +1,13 @@
-import { useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, Check, Clock3, GitBranch, LayoutGrid, List } from 'lucide-react';
-import { ActivityList, FilterChips, Panel, Pill } from '../components';
-import { homeFilters, previewWeek, statusTones } from '../previewData';
+import { FilterChips, Panel, Pill } from '../components';
+import { homeFilters, statusTones } from '../previewData';
+import { dueThisWeek, type Member } from '../workspace-tasks';
+import { WorkspaceActivityList, type ActivityEvent } from './ActivityPage';
 import type { PageHeading, Task, PageKey, AddTaskButton } from '../types';
 import { WorkspaceProgress } from './WorkspaceProgress';
 import { LoadingPanel } from '../WorkspaceControls';
-import { fileSize, type WorkspaceFile } from '../workspace-api';
+import { fileSize, workspaceRequest, WorkspaceRequestError, type WorkspaceFile } from '../workspace-api';
 import './home.css';
 
 type HomeMetricProps = {
@@ -43,18 +45,16 @@ function HomeMetric({ icon, label, value, note, tone, onClick }: HomeMetricProps
   );
 }
 
-const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
-
-function dueOrder(due: string) {
-  const [month, day] = due.split(' ');
-  const monthIndex = months.indexOf(month);
-  return monthIndex < 0 || !Number(day) ? Infinity : monthIndex * 32 + Number(day);
-}
-
 type HomePageProps = {
   columns: string[];
   pageHeading: PageHeading;
   tasks: Task[];
+  profileId: string;
+  members: Member[];
+  recentActivity: { items?: ActivityEvent[]; error: boolean; retry: () => void };
+  openActivityResource: (event: ActivityEvent) => boolean;
+  githubPath: string;
+  token: string | null;
   homeFilter: string;
   setHomeFilter: (filter: string) => void;
   navigate: (page: PageKey, section?: string) => void;
@@ -69,6 +69,12 @@ export function HomePage({
   columns,
   pageHeading,
   tasks,
+  profileId,
+  members,
+  recentActivity,
+  openActivityResource,
+  githubPath,
+  token,
   homeFilter,
   setHomeFilter,
   navigate,
@@ -79,17 +85,42 @@ export function HomePage({
   addTaskButton,
 }: HomePageProps) {
   const tasksHeading = useRef<HTMLHeadingElement>(null);
-  const assigned = tasks.filter(task => task.initials === 'AM');
-  const dueSoon = tasks.filter(task => task.status !== 'Done' && previewWeek.has(task.due));
-  const assignedDueSoon = dueSoon.filter(task => task.initials === 'AM').length;
+  const [github, setGithub] = useState<{ name: string; branch: string; lastSyncedAt: string | null; commitCount?: number } | null>();
+  const [githubError, setGithubError] = useState(false);
+  const [githubAttempt, setGithubAttempt] = useState(0);
+  useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    const options = { signal: controller.signal };
+    void workspaceRequest(githubPath + '/repository', token, options)
+      .then(response => response.json())
+      .then(async repository => {
+        const info = { name: repository.fullName, branch: repository.defaultBranch, lastSyncedAt: repository.lastSyncedAt };
+        if (!controller.signal.aborted) setGithub(info);
+        const response = await workspaceRequest(githubPath + '/commits?limit=1', token, options);
+        const result = await response.json() as { total: number };
+        if (!controller.signal.aborted) setGithub({ ...info, commitCount: result.total });
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        if (error instanceof WorkspaceRequestError && error.status === 404) setGithub(null);
+        else setGithubError(true);
+      });
+    return () => controller.abort();
+  }, [githubPath, token, githubAttempt]);
+  const isOpen = (task: Task) => !['Done', 'Cancelled'].includes(task.status);
+  const assigned = tasks.filter(task => isOpen(task) && task.assigneeId === profileId);
+  const dueSoon = tasks.filter(task => isOpen(task) && dueThisWeek(task));
+  const assignedDueSoon = assigned.filter(dueThisWeek).length;
   const inProgress = tasks.filter(task => task.status === 'In progress').length;
   const isAssignedView = homeFilter === homeFilters[0];
-  const now = Date.now();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const attention = assigned.filter(task => task.status !== 'Done' && (
-    task.isBlocked || (task.dueAt && Date.parse(task.dueAt) < now)
+    task.isBlocked || (task.dueAt && Date.parse(task.dueAt) < today.getTime())
   )).slice(0, 3);
   const shown = [...(isAssignedView ? assigned : homeFilter === homeFilters[1] ? dueSoon : tasks)]
-    .sort((a, b) => Number(a.status === 'Done') - Number(b.status === 'Done') || dueOrder(a.due) - dueOrder(b.due));
+    .sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)) || (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'));
 
   function showAssignedTasks() {
     setHomeFilter(homeFilters[0]);
@@ -100,9 +131,11 @@ export function HomePage({
     {pageHeading(addTaskButton())}
     <div className="wu-stat-grid">
       <HomeMetric icon={<List size={18} />} label="Assigned to me" value={assigned.length} note={`${assignedDueSoon} due this week`} tone="blue" onClick={showAssignedTasks} />
-      <HomeMetric icon={<LayoutGrid size={18} />} label="In progress" value={inProgress} note={`${inProgress} of 3 slots used`} tone="mint" />
+      <HomeMetric icon={<LayoutGrid size={18} />} label="In progress" value={inProgress} note="Tasks underway" tone="mint" />
       <HomeMetric icon={<Check size={18} />} label="In review" value={tasks.filter(task => task.status === 'Review').length} note="Awaiting review" tone="violet" onClick={() => navigate('board', 'board-review')} />
-      <HomeMetric icon={<GitBranch size={18} />} label="Recent commits" value={12} note="Across 3 branches" tone="pink" />
+      {github?.commitCount !== undefined
+        ? <HomeMetric icon={<GitBranch size={18} />} label="Synced commits" value={github.commitCount} note={github.branch} tone="pink" onClick={() => navigate('github')} />
+        : <HomeMetric icon={<Check size={18} />} label="Completed" value={tasks.filter(task => task.status === 'Done').length} note="Tasks finished" tone="pink" />}
     </div>
     <div className="wu-home-grid">
       <div className="wu-home-column">
@@ -126,18 +159,28 @@ export function HomePage({
         <FilterChips items={homeFilters} active={homeFilter} onChange={setHomeFilter} />
         <div className="wu-home-task-list">
           {shown.map(task => <button className="wu-home-task" key={task.id} type="button" onClick={() => setSelectedTask(task)}>
-            <span className="wu-home-task-name"><strong>{task.title}</strong><span className="wu-task-id">{task.id}</span></span>
+            <span className="wu-home-task-name"><strong>{task.title}</strong></span>
             <Pill tone={statusTones[task.status]}>{task.status}</Pill>
             <span className="wu-home-task-date"><Clock3 size={13} aria-hidden="true" /><span className="wu-visually-hidden">Due </span>{task.due}</span>
           </button>)}
           {!shown.length && <p className="wu-home-empty" role="status">No tasks in this view.</p>}
         </div>
       </Panel>
-      <Panel className="wu-home-repo"><div className="wu-panel-heading"><h2>GitHub repository</h2><button className="wu-text-button" type="button" onClick={() => navigate('github')}>Open GitHub <ArrowRight size={14} /></button></div><div className="wu-repo-line"><GitBranch size={17} /><strong>studio-north / storefront</strong><Pill tone="mint">Synced</Pill></div><p className="wu-muted">Default branch: main <span>·</span> Last sync today at 10:24</p></Panel>
+      <Panel className="wu-home-repo">
+        <div className="wu-panel-heading"><h2>GitHub repository</h2><button className="wu-text-button" type="button" onClick={() => navigate('github')}>Open GitHub <ArrowRight size={14} /></button></div>
+        {githubError && <p role="alert">Could not load GitHub details. <button type="button" className="wu-text-button" onClick={() => { setGithubError(false); setGithubAttempt(value => value + 1); }}>Try again</button></p>}
+        {github ? <><div className="wu-repo-line"><GitBranch size={17} /><strong>{github.name}</strong></div>
+          <p className="wu-muted">{github.branch} · {github.lastSyncedAt ? 'Last synced ' + new Date(github.lastSyncedAt).toLocaleString() : 'No commits synced yet'}</p></>
+          : github === null ? <p className="wu-muted">No repository connected.</p> : !githubError && <LoadingPanel label="Loading GitHub repository" />}
+      </Panel>
       </div>
       <div className="wu-home-column">
       <WorkspaceProgress tasks={tasks} columns={columns} onOpenBoard={() => navigate('board')} />
-      <Panel className="wu-home-activity"><div className="wu-panel-heading"><h2>Recent activity</h2><button className="wu-text-button" type="button" onClick={() => navigate('activity')}>View all <ArrowRight size={14} /></button></div><ActivityList compact /></Panel>
+      <Panel className="wu-home-activity"><div className="wu-panel-heading"><h2>Recent activity</h2><button className="wu-text-button" type="button" onClick={() => navigate('activity')}>View all <ArrowRight size={14} /></button></div>
+        {recentActivity.error ? <p role="alert">Could not load activity. <button type="button" className="wu-text-button" onClick={recentActivity.retry}>Try again</button></p>
+          : !recentActivity.items ? <LoadingPanel label="Loading recent activity" />
+          : <WorkspaceActivityList items={recentActivity.items} members={members} openResource={openActivityResource} />}
+      </Panel>
       <Panel className="wu-home-files">
         <div className="wu-panel-heading"><h2>Recent files</h2><button className="wu-text-button" type="button" onClick={() => navigate('files')}>View files <ArrowRight size={14} /></button></div>
         {filesError ? <p role="alert">Could not load files. <button className="wu-text-button" onClick={retryFiles}>Try again</button></p>

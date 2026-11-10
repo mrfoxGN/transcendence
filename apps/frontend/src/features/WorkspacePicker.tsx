@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, Folder, Plus } from 'lucide-react';
 import './workspace-picker.css';
+import { NotificationInbox } from './workspace/NotificationInbox';
 
 export const sessionKey = 'devup.access-token';
 
@@ -51,7 +52,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
     let active = true;
     Promise.all([
       request<Profile>('auth/profile', token),
-      listActiveWorkspaces(token),
+      request<Workspace[]>('workspaces', token),
     ]).then(([profile, workspaces]) => {
       if (active) setData({ profile, workspaces });
     }).catch(error => {
@@ -96,12 +97,17 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
 
   if (!token) return null;
   const workspace = data?.workspaces.find(item => item.id === workspaceId);
+  const activeWorkspaces = data?.workspaces.filter(item => !item.archivedAt) ?? [];
+  const archivedWorkspaces = data?.workspaces.filter(item => item.archivedAt) ?? [];
 
   return (
     <main className="auth-page workspace-picker">
       <header className="auth-header">
         <a href="/" className="brand" aria-label="DevUP home"><img src="/devup.svg" alt="" width="34" height="34" />DevUP</a>
-        <button className="button button--secondary" type="button" onClick={() => void logout().catch(() => {})} disabled={leaving}>Log out</button>
+        <div className="workspace-picker-actions workspace-picker-notifications">
+          <NotificationInbox token={token} workspaceId={activeWorkspaces[0]?.id} />
+          <button className="button button--secondary" type="button" onClick={() => void logout().catch(() => {})} disabled={leaving}>Log out</button>
+        </div>
       </header>
       <section className="auth-shell workspace-picker-shell" aria-labelledby="workspace-picker-title">
         <h1 id="workspace-picker-title">{workspace ? workspace.name : 'Your workspaces'}</h1>
@@ -116,9 +122,9 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
           ) : (
             <>
               <p>Welcome, {data.profile.username}.</p>
-              {data.workspaces.length > 0 ? (
+              {activeWorkspaces.length > 0 ? (
                 <ul className="workspace-picker-list">
-                  {data.workspaces.map(item => (
+                  {activeWorkspaces.map(item => (
                     <li key={item.id}><a href={'/workspaces/' + encodeURIComponent(item.id)}>
                       <Folder size={20} aria-hidden="true" />
                       <span><strong>{item.name}</strong>{item.description && <small>{item.description}</small>}</span>
@@ -126,7 +132,13 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                     </a></li>
                   ))}
                 </ul>
-              ) : <p>You don’t have a workspace yet. Create one to start organizing your team’s work.</p>}
+              ) : <p>No active workspaces. Create one to start organizing your team’s work.</p>}
+              {!!archivedWorkspaces.length && <details>
+                <summary>Archived workspaces ({archivedWorkspaces.length})</summary>
+                <ul className="workspace-picker-list">{archivedWorkspaces.map(item => <li key={item.id}>
+                  <a href={'/workspaces/' + encodeURIComponent(item.id) + '?page=settings'}><Folder size={20} aria-hidden="true" /><span><strong>{item.name}</strong><small>Archived</small></span><ArrowRight size={18} aria-hidden="true" /></a>
+                </li>)}</ul>
+              </details>}
               {creating ? (
                 <form className="workspace-picker-form" onSubmit={createWorkspace}>
                   <label>Workspace name<input name="name" required maxLength={120} /></label>

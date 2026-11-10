@@ -1,20 +1,39 @@
 import { useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { Panel } from '../components';
-import { ActionMenu, LoadingPanel } from '../WorkspaceControls';
+import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
 import { useWorkspaceCollection, workspaceRequest } from '../workspace-api';
 import type { PageHeading } from '../types';
+import type { Member } from '../workspace-tasks';
 import './notes.css';
 
-type Note = { id: string; title: string; content: string | null; updatedAt: string };
+type Note = { id: string; title: string; content: string | null; updatedAt: string; creatorId: string | null };
 
-export function NotesPage({ pageHeading, path, token }: { pageHeading: PageHeading; path: string; token: string | null }) {
+export function NotesPage({ pageHeading, path, token, owner, profileId, members }: {
+  pageHeading: PageHeading; path: string; token: string | null; owner: boolean; profileId: string; members: Member[];
+}) {
   const { items, setItems, error, retry } = useWorkspaceCollection<Note>(path, token);
   const [selectedId, setSelectedId] = useState('');
   const [editing, setEditing] = useState<'new' | 'edit' | 'rename'>();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [removing, setRemoving] = useState<Note>();
   const selected = items?.find(note => note.id === selectedId) ?? items?.[0];
+  const canEdit = (note: Note) => owner || note.creatorId === profileId;
+
+  async function removeNote() {
+    if (!removing || saving) return;
+    setSaving(true);
+    try {
+      await workspaceRequest(path + '/' + encodeURIComponent(removing.id), token, { method: 'DELETE' });
+      setItems(current => current?.filter(item => item.id !== removing.id));
+      setRemoving(undefined);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not delete the note.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function start(mode: typeof editing, note?: Note) {
     if (note) setSelectedId(note.id);
@@ -66,9 +85,10 @@ export function NotesPage({ pageHeading, path, token }: { pageHeading: PageHeadi
             <button className="wu-document-select" type="button" disabled={!!editing} onClick={() => setSelectedId(note.id)}>
               <span><strong>{note.title}</strong><small>{new Date(note.updatedAt).toLocaleDateString()}</small></span>
             </button>
-            {!editing && <ActionMenu label={'Actions for ' + note.title} actions={[
+            {!editing && canEdit(note) && <ActionMenu label={'Actions for ' + note.title} actions={[
               { label: 'Rename note', run: () => start('rename', note) },
               { label: 'Edit note', run: () => start('edit', note) },
+              { label: 'Delete note', run: () => { setSaveError(''); setRemoving(note); } },
             ]} />}
           </li>)}
         </ul>}
@@ -84,10 +104,16 @@ export function NotesPage({ pageHeading, path, token }: { pageHeading: PageHeadi
             <button className="wu-button wu-button--primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save note'}</button>
           </div>
         </form> : <>
-          <div className="wu-panel-heading"><h2>{selected?.title}</h2><button className="wu-text-button" type="button" onClick={() => start('edit')}>Edit note</button></div>
+          <div className="wu-panel-heading"><h2>{selected?.title}</h2>{selected && canEdit(selected) && <button className="wu-text-button" type="button" onClick={() => start('edit')}>Edit note</button>}</div>
+          {selected && <p className="wu-muted">{members.find(member => member.userId === selected.creatorId)?.username ?? 'Unknown author'} · Updated {new Date(selected.updatedAt).toLocaleDateString()}</p>}
           <div className="wu-note-body"><p>{selected?.content || 'This note is empty.'}</p></div>
         </>}
       </Panel>}
     </div>
+    {removing && <Drawer title={`Delete ${removing.title}?`} confirmation onClose={() => setRemoving(undefined)}>
+      {saveError && <p role="alert">{saveError}</p>}
+      <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={saving} onClick={() => setRemoving(undefined)}>Cancel</button>
+        <button className="wu-button wu-button--primary" disabled={saving} onClick={() => void removeNote()}>Delete note</button></div>
+    </Drawer>}
   </>;
 }

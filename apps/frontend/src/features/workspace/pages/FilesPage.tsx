@@ -14,17 +14,26 @@ type FilesPageProps = {
   loadError: boolean;
   onRetry: () => void;
   onUpload: (file: WorkspaceFile) => void;
+  onDelete: (id: string) => void;
+  owner: boolean;
+  profileId: string;
 };
 
-export function FilesPage({ pageHeading, path, token, files, loadError, onRetry, onUpload }: FilesPageProps) {
+export function FilesPage({ pageHeading, path, token, files, loadError, onRetry, onUpload, onDelete, owner, profileId }: FilesPageProps) {
   const input = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState(() => window.location.hash.startsWith('#file-') ? window.location.hash.slice(6) : '');
   const [drawerOpen, setDrawerOpen] = useState(() => !!selectedId && window.matchMedia('(max-width: 680px)').matches);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState<WorkspaceFile>();
+  const [deleting, setDeleting] = useState(false);
   const file = files?.find(item => item.id === selectedId) ?? files?.[0];
 
   async function upload(file: File) {
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Choose a file no larger than 10 MiB.');
+      return;
+    }
     setUploading(true);
     setError('');
     try {
@@ -38,6 +47,22 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
       setError('Could not upload the file. Try again.');
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function removeFile() {
+    if (!removing || deleting) return;
+    setDeleting(true);
+    try {
+      await workspaceRequest(path + '/' + encodeURIComponent(removing.id), token, { method: 'DELETE' });
+      onDelete(removing.id);
+      if (selectedId === removing.id) setSelectedId('');
+      setRemoving(undefined);
+      setDrawerOpen(false);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not delete the file.');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -77,10 +102,10 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
       event.currentTarget.value = '';
       if (chosen) void upload(chosen);
     }} />
-    {error && !drawerOpen && <p role="alert">{error}</p>}
+    {error && !drawerOpen && !removing && <p role="alert">{error}</p>}
     <div className="wu-files-layout">
       <Panel className="wu-content-panel">
-        <div className="wu-panel-heading"><div><h2>Workspace files</h2><p>Files shared with this workspace.</p></div></div>
+        <div className="wu-panel-heading"><div><h2>Workspace files</h2><p>Files shared with this workspace. Maximum upload size: 10 MiB.</p></div></div>
         {loadError && <p role="alert">Could not load files. <button className="wu-text-button" onClick={onRetry}>Try again</button></p>}
         {!files && !loadError && <LoadingPanel label="Loading workspace files" />}
         {files?.length === 0 && <p className="wu-muted">No files yet. Upload a file to share it with the team.</p>}
@@ -92,6 +117,7 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
             <ActionMenu label={'Actions for ' + item.displayName} actions={[
               { label: 'View details', run: () => selectFile(item.id) },
               { label: 'Download', run: () => void download(item) },
+              ...(owner || item.uploaderId === profileId ? [{ label: 'Delete file', run: () => { setError(''); setRemoving(item); } }] : []),
             ]} />
           </li>)}
         </ul>}
@@ -103,6 +129,11 @@ export function FilesPage({ pageHeading, path, token, files, loadError, onRetry,
     </div>
     {drawerOpen && file && <Drawer title="File details" onClose={() => setDrawerOpen(false)}>
       <div className="wu-file-inspector">{details(file)}{error && <p role="alert">{error}</p>}</div>
+    </Drawer>}
+    {removing && <Drawer title={`Delete ${removing.displayName}?`} confirmation onClose={() => { setRemoving(undefined); setError(''); }}>
+      {error && <p role="alert">{error}</p>}
+      <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={deleting} onClick={() => { setRemoving(undefined); setError(''); }}>Cancel</button>
+        <button className="wu-button wu-button--primary" disabled={deleting} onClick={() => void removeFile()}>Delete file</button></div>
     </Drawer>}
   </>;
 }

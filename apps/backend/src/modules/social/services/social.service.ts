@@ -108,6 +108,12 @@ export class SocialService {
 
     const conversations = await this.conversationsRepository.find({
       where: [{ userAId: userId }, { userBId: userId }],
+      relations: { userA: true, userB: true },
+      select: {
+        id: true, userAId: true, userBId: true, lastMessageAt: true, createdAt: true,
+        userA: { id: true, username: true },
+        userB: { id: true, username: true },
+      },
       order: {
         lastMessageAt: 'DESC',
         createdAt: 'DESC',
@@ -117,14 +123,27 @@ export class SocialService {
       take: limit,
     });
 
-    return conversations.map((conversation) =>
-      this.toConversationResponse(
-        conversation,
-        conversation.userAId === userId
-          ? conversation.userBId
-          : conversation.userAId,
-      ),
-    );
+    if (!conversations.length) return [];
+    const lastRead = 'CASE WHEN conversation.userAId = :userId THEN conversation.userALastReadAt ELSE conversation.userBLastReadAt END';
+    const counts = await this.messagesRepository.createQueryBuilder('message')
+      .innerJoin(DirectConversation, 'conversation', 'conversation.id = message.conversationId')
+      .select('message.conversationId', 'conversationId')
+      .addSelect('COUNT(*)', 'unreadCount')
+      .where('message.conversationId IN (:...ids)', { ids: conversations.map(conversation => conversation.id) })
+      .andWhere('message.senderId != :userId', { userId })
+      .andWhere(`((${lastRead}) IS NULL OR message.createdAt > (${lastRead}))`)
+      .groupBy('message.conversationId')
+      .getRawMany<{ conversationId: string; unreadCount: string }>();
+    const unread = new Map(counts.map(count => [count.conversationId, Number(count.unreadCount)]));
+    return conversations.map(conversation => {
+      const other = conversation.userAId === userId ? conversation.userB : conversation.userA;
+      const otherUserId = conversation.userAId === userId ? conversation.userBId : conversation.userAId;
+      return {
+        ...this.toConversationResponse(conversation, otherUserId),
+        otherUsername: other?.username,
+        unreadCount: unread.get(conversation.id) ?? 0,
+      };
+    });
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {

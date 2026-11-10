@@ -40,11 +40,11 @@ export function EmptyState({ icon, title, detail, action, onAction }: { icon: Re
 export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task: Task) => void }) {
   return <div className="wu-table-wrap"><table className="wu-table"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due date</th><th><span className="wu-visually-hidden">Actions</span></th></tr></thead><tbody>
     {items.map(task => <tr key={task.id} onClick={() => onSelect(task)} tabIndex={0} onKeyDown={event => { if (event.key === 'Enter') onSelect(task); }}>
-      <td><span className="wu-task-id">{task.id}</span><strong>{task.title}</strong></td>
+      <td><strong>{task.title}</strong></td>
       <td><Pill tone={task.status === 'Done' ? 'mint' : task.status === 'Review' ? 'pink' : task.status === 'In progress' ? 'violet' : task.status === 'Ready' ? 'blue' : 'neutral'}>{task.status}</Pill></td>
       <td><span className={`wu-priority wu-priority--${task.priority.toLowerCase()}`}><i />{task.priority}</span></td>
-      <td><span className="wu-person"><Avatar initials={task.initials} tone={task.initials === 'SK' ? 'violet' : task.initials === 'MR' ? 'pink' : task.initials === 'OI' ? 'mint' : 'blue'} small />{task.person}</span></td>
-      <td className="wu-muted">{task.due}</td><td><button className="wu-icon-button" aria-label={`More options for ${task.id}`} type="button" onClick={event => { event.stopPropagation(); onSelect(task); }}><MoreHorizontal size={17} /></button></td>
+      <td><span className="wu-person">{task.assigneeId && <Avatar initials={task.initials} preview={false} small />}{task.person}</span></td>
+      <td className="wu-muted">{task.due}</td><td><button className="wu-icon-button" aria-label={`Open ${task.title}`} type="button" onClick={event => { event.stopPropagation(); onSelect(task); }}><MoreHorizontal size={17} /></button></td>
     </tr>)}
   </tbody></table></div>;
 }

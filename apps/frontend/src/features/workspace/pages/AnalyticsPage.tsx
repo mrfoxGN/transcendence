@@ -1,22 +1,53 @@
-import { BarChart3, CheckCircle2, Clock3, GitBranch, Users } from 'lucide-react';
-import { EmptyState, Panel, Pill, StatCard } from '../components';
-import type { PageHeading } from '../types';
+import { CheckCircle2, Clock3, LayoutGrid, List } from 'lucide-react';
+import { Panel, StatCard } from '../components';
+import type { PageHeading, Task } from '../types';
 import './analytics.css';
 
-type AnalyticsPageProps = {
-  pageHeading: PageHeading;
-  analyticsPeriod: string;
-  setAnalyticsPeriod: (period: string) => void;
-};
+export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod, tasks, columns, activeCount, activeWipLimit }: {
+  pageHeading: PageHeading; analyticsPeriod: string; setAnalyticsPeriod: (period: string) => void;
+  tasks: Task[]; columns: string[]; activeCount: number; activeWipLimit: number;
+}) {
+  const days = analyticsPeriod === 'Last 7 days' ? 7 : 30;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const completed = tasks.filter(task => task.status === 'Done' && task.completedAt);
+  const open = tasks.filter(task => !['Done', 'Cancelled'].includes(task.status));
+  const overdue = open.filter(task => task.dueAt && Date.parse(task.dueAt) < today.getTime());
+  const counts = Array.from({ length: days }, (_, index) => {
+    const start = new Date(today);
+    start.setDate(today.getDate() - days + index + 1);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 1);
+    const count = completed.filter(task => Date.parse(task.completedAt!) >= start.getTime() && Date.parse(task.completedAt!) < end.getTime()).length;
+    return { start, count };
+  });
+  const total = counts.reduce((sum, day) => sum + day.count, 0);
+  const max = Math.max(1, ...counts.map(day => day.count));
 
-export function AnalyticsPage({
-  pageHeading,
-  analyticsPeriod,
-  setAnalyticsPeriod,
-}: AnalyticsPageProps) {
-  const empty = analyticsPeriod === 'No activity';
-  return <>{pageHeading(<select className="wu-select" aria-label="Analytics period" value={analyticsPeriod} onChange={event => setAnalyticsPeriod(event.target.value)}><option>Last 30 days</option><option>This week</option><option>No activity</option></select>)}{empty ? <Panel className="wu-content-panel"><EmptyState icon={<BarChart3 size={21} />} title="No activity in this period" detail="Try a wider date range to see how your workspace is moving." action="View last 30 days" onAction={() => setAnalyticsPeriod('Last 30 days')} /></Panel> : <>
-    <div className="wu-stat-grid"><StatCard icon={<CheckCircle2 size={16} />} label="Tasks completed" value="24" note="6 more than last month" tone="mint" /><StatCard icon={<Clock3 size={16} />} label="Average cycle time" value="2.4 days" note="Across completed tasks" tone="violet" /><StatCard icon={<GitBranch size={16} />} label="Commits synced" value="38" note="Across 3 branches" tone="blue" /><StatCard icon={<Users size={16} />} label="Active members" value="5" note="All members this month" tone="pink" /></div>
-    <div className="wu-analytics-grid"><Panel className="wu-content-panel"><div className="wu-panel-heading"><div><h2>Weekly throughput</h2><p>Tasks completed each week</p></div><Pill tone="mint">+18% this month</Pill></div><div className="wu-chart" role="img" aria-label="Weekly throughput chart"><div className="wu-chart-grid"><span>20</span><span>15</span><span>10</span><span>5</span><span>0</span></div><div className="wu-bars">{[['W1', 38], ['W2', 56], ['W3', 48], ['W4', 80], ['W5', 62], ['W6', 92], ['W7', 74], ['W8', 100]].map(([label, height]) => <div key={label}><i style={{ height: `${height}%` }} /><small>{label}</small></div>)}</div></div></Panel><Panel className="wu-content-panel"><div className="wu-panel-heading"><div><h2>Work by status</h2><p>Current tasks</p></div></div><div className="wu-status-summary">{[['To do', '2', 'neutral'], ['Ready', '2', 'blue'], ['In progress', '1', 'violet'], ['Review', '1', 'pink'], ['Done', '1', 'mint']].map(([label, count, tone]) => <div key={label}><span className={`wu-status-dot wu-status-dot--${tone}`} /><span>{label}</span><strong>{count}</strong></div>)}</div></Panel></div>
-  </>}</>;
+  return <>
+    {pageHeading(<select className="wu-select" aria-label="Analytics period" value={analyticsPeriod} onChange={event => setAnalyticsPeriod(event.target.value)}><option>Last 30 days</option><option>Last 7 days</option></select>)}
+    <div className="wu-stat-grid">
+      <StatCard icon={<CheckCircle2 size={16} />} label="Tasks completed" value={String(total)} note={analyticsPeriod} tone="mint" />
+      <StatCard icon={<List size={16} />} label="Open tasks" value={String(open.length)} note="Current workspace" tone="blue" />
+      <StatCard icon={<Clock3 size={16} />} label="Overdue tasks" value={String(overdue.length)} note="Open tasks past their due date" tone="pink" />
+      <StatCard icon={<LayoutGrid size={16} />} label="Active work" value={String(activeCount)} note={`Limit: ${activeWipLimit} tasks`} tone="violet" />
+    </div>
+    <div className="wu-analytics-grid">
+      <Panel className="wu-content-panel">
+        <h2>Tasks completed by day</h2>
+        {total ? <div className="wu-chart" role="img" aria-label={counts.filter(day => day.count).map(day => day.start.toLocaleDateString() + ': ' + day.count).join(', ')}>
+          <div className="wu-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
+            {counts.map((day, index) => <div key={day.start.toISOString()} title={day.start.toLocaleDateString() + ': ' + day.count}>
+              <i style={{ height: (day.count / max) * 100 + '%' }} />
+              <small>{days === 7 || index % 7 === 0 ? day.start.getDate() : ''}</small>
+            </div>)}
+          </div>
+        </div> : <p className="wu-muted">No tasks completed in this period.</p>}
+      </Panel>
+      <Panel className="wu-content-panel">
+        <h2>Work by status</h2>
+        <div className="wu-status-summary">{columns.map(label => <div key={label}><span className="wu-status-dot wu-status-dot--blue" /><span>{label}</span><strong>{tasks.filter(task => task.status === label).length}</strong></div>)}</div>
+      </Panel>
+    </div>
+  </>;
 }

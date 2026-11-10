@@ -22,6 +22,9 @@
 .wu-inbox li { display: flex; align-items: start; justify-content: space-between; gap: 8px; padding: 10px; border-bottom: 1px solid var(--wu-line); overflow-wrap: anywhere; }
 .wu-inbox li[data-unread='true'] { border-inline-start: 3px solid var(--wu-blue); }
 .wu-inbox time { color: var(--wu-muted); font-size: 12px; }
+.wu-inbox-trigger { position: relative; }
+.wu-inbox-trigger > span { position: absolute; inset: 0 0 auto auto; min-width: 15px; padding: 1px 3px; border-radius: 10px; color: var(--wu-on-blue); background: var(--wu-blue); font-size: 10px; }
+.workspace-picker-notifications { --wu-line: var(--color-gray-light-2); --wu-ink: var(--color-ink); --wu-surface: var(--color-white); --wu-muted: var(--color-gray); --wu-blue: #245bc9; --wu-on-blue: #fff; }
 .wu-document-list { list-style: none; padding: 0; margin: 0; }
 .wu-document-list > li { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--wu-line); }
 .wu-document-list > li[data-current='true'] { background: var(--wu-blue-soft); }

@@ -1,41 +1,140 @@
-import { AlertCircle, ArrowRight, ArrowUpRight, ExternalLink, GitBranch, GitCommitHorizontal, MoreHorizontal, RefreshCw } from 'lucide-react';
-import { FilterChips, IconTile, Panel, Pill } from '../components';
-import type { PageHeading, GithubState } from '../types';
+import { useEffect, useState, type FormEvent } from 'react';
+import { GitBranch, RefreshCw } from 'lucide-react';
+import { FilterChips, Panel } from '../components';
+import { jsonRequest, useWorkspaceCollection, workspaceRequest, WorkspaceRequestError } from '../workspace-api';
+import type { PageHeading } from '../types';
 import './github.css';
 
-type GithubPageProps = {
-  pageHeading: PageHeading;
-  githubTab: string;
-  setGithubTab: (tab: string) => void;
-  githubState: GithubState;
-  setGithubState: (state: GithubState) => void;
-  setToast: (message: string) => void;
-};
+type Repository = { fullName: string; defaultBranch: string; repositoryUrl: string; lastSyncedAt: string | null; githubRepositoryId: string };
+type Branch = { name: string; sha: string; protected: boolean };
+type Commit = { id: string; sha: string; message: string; authorName: string | null; committedAt: string; githubUrl: string | null };
+type CommitPage = { items: Commit[]; total: number; page: number; limit: number };
 
-export function GithubPage({
-  pageHeading,
-  githubTab,
-  setGithubTab,
-  githubState,
-  setGithubState,
-  setToast,
-}: GithubPageProps) {
-  const tabs = ['Repository', 'Branches', 'Commits'];
-  return <>{pageHeading(<div className="wu-github-actions"><button className="wu-button wu-button--secondary" type="button" onClick={() => { setGithubState('failed'); setToast('Sync could not complete. Your saved commits are still available.'); }}><RefreshCw size={15} />Sync commits</button><button className="wu-icon-button" aria-label="GitHub connection options" type="button" onClick={() => setGithubState(githubState === 'disconnected' ? 'connected' : 'disconnected')}><MoreHorizontal size={18} /></button></div>)}
-    <FilterChips items={tabs} active={githubTab} onChange={setGithubTab} />
-    {githubState === 'disconnected' ? <Panel className="wu-content-panel"><div className="wu-empty"><IconTile tone="blue"><GitBranch size={21} /></IconTile><h3>No repository connected</h3><p>Connect a GitHub repository to browse branches and recent commits here.</p><button className="wu-button wu-button--primary" type="button" onClick={() => { setGithubState('connected'); setToast('Repository connected.'); }}><GitBranch size={15} />Connect repository</button></div></Panel> : <>
-      <Panel className="wu-repo-summary"><div className="wu-repo-heading"><IconTile><GitBranch size={18} /></IconTile><div><h2>studio-north / storefront</h2><p>Default branch: main <span>·</span> 3 branches <span>·</span> Last sync today at 10:24</p></div><Pill tone={githubState === 'failed' ? 'pink' : 'mint'}>{githubState === 'failed' ? 'Sync failed' : 'Public · Synced'}</Pill><button className="wu-button wu-button--secondary" type="button" onClick={() => setGithubState('disconnected')}><ExternalLink size={15} />Open on GitHub</button></div></Panel>
-      {githubState === 'failed' && <div className="wu-alert wu-alert--error"><AlertCircle size={18} /><div><strong>Couldn’t sync commits</strong><p>The last synced commits are still available. Check repository access and try again.</p><button className="wu-button wu-button--primary" type="button" onClick={() => { setGithubState('connected'); setToast('Repository is up to date.'); }}><RefreshCw size={14} />Retry sync</button></div></div>}
-      {githubTab === 'Repository' && <div className="wu-github-grid"><Panel className="wu-content-panel"><div className="wu-panel-heading"><div><h2>Repository overview</h2><p>Latest repository activity</p></div><Pill tone="blue">main</Pill></div><div className="wu-repo-stats"><div><span>Branches</span><strong>3</strong></div><div><span>Open pull requests</span><strong>2</strong></div><div><span>Commits this week</span><strong>12</strong></div></div><div className="wu-commit-row"><GitCommitHorizontal size={16} /><div><strong>Validate email before submit</strong><small>a7d02fc · Alex Morgan · Apr 12</small></div><Pill tone="mint">Latest</Pill></div></Panel><Panel className="wu-content-panel"><div className="wu-panel-heading"><h2>Branches</h2><button className="wu-text-button" onClick={() => setGithubTab('Branches')} type="button">View all <ArrowRight size={14} /></button></div><BranchList /></Panel></div>}
-      {githubTab === 'Branches' && <Panel className="wu-content-panel"><div className="wu-panel-heading"><div><h2>Branches</h2><p>Recent branches in this repository.</p></div><Pill tone="blue">3 branches</Pill></div><BranchList detailed /></Panel>}
-      {githubTab === 'Commits' && <Panel className="wu-content-panel"><div className="wu-panel-heading"><div><h2>Commit review</h2><p>Latest changes from the default branch.</p></div><button className="wu-text-button" type="button" onClick={() => setToast('Showing the latest saved commits.')}>Refresh list <RefreshCw size={14} /></button></div><CommitList /></Panel>}
-    </>}</>;
-}
+export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
+  pageHeading: PageHeading; path: string; workspaceId: string; token: string | null; owner: boolean;
+}) {
+  const [tab, setTab] = useState('Repository');
+  const [repository, setRepository] = useState<Repository | null>();
+  const [setupId, setSetupId] = useState(() => new URLSearchParams(location.hash.slice(1)).get('github-setup') ?? '');
+  const [choices, setChoices] = useState<Repository[]>();
+  const [commitPage, setCommitPage] = useState<CommitPage>();
+  const [page, setPage] = useState(1);
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+  const branches = useWorkspaceCollection<Branch>(path + '/branches', repository && tab === 'Branches' ? token : null);
 
-function BranchList({ detailed = false }: { detailed?: boolean }) {
-  return <div className="wu-branch-list">{[['main', 'Default branch', '12 commits'], ['feat/login', 'Validate email before submit', '4 commits'], ['fix/mobile-board', 'Polish mobile board layout', '2 commits']].map(([name, note, commits]) => <div className="wu-branch-row" key={name}><GitBranch size={16} /><div><strong>{name}</strong><small>{note}</small></div><Pill tone={name === 'main' ? 'mint' : 'blue'}>{name === 'main' ? 'Default' : commits}</Pill>{detailed && <button className="wu-text-button" type="button">Open branch <ArrowUpRight size={14} /></button>}</div>)}</div>;
-}
+  useEffect(() => {
+    if (!setupId) return;
+    const url = new URL(location.href);
+    if (url.hash.startsWith('#github-setup=')) {
+      url.hash = '';
+      history.replaceState(history.state, '', url);
+    }
+  }, [setupId]);
 
-function CommitList() {
-  return <div className="wu-commit-list">{[['a7d02fc', 'Validate email before submit', 'Alex Morgan', 'Apr 12 · 10:24'], ['d24b5ad', 'Handle password field errors', 'Sarah Kim', 'Apr 12 · 09:48'], ['75ac9df', 'Update mobile spacing', 'Maya Rodriguez', 'Apr 11 · 16:03']].map(([hash, title, author, time]) => <div className="wu-commit-row" key={hash}><GitCommitHorizontal size={16} /><strong>{title}</strong><span className="wu-muted">{hash}</span><span>{author}</span><time>{time}</time></div>)}</div>;
+  useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    void workspaceRequest(path + '/repository', token, { signal: controller.signal })
+      .then(response => response.json())
+      .then(result => { if (!controller.signal.aborted) setRepository(result); })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        if (error instanceof WorkspaceRequestError && error.status === 404) setRepository(null);
+        else setError(error.message);
+      });
+    return () => controller.abort();
+  }, [path, token, attempt]);
+
+  useEffect(() => {
+    if (!token || !setupId) return;
+    const controller = new AbortController();
+    void workspaceRequest('github/available-repositories', token, {
+      ...jsonRequest('POST', { workspaceId, setupSessionId: setupId }), signal: controller.signal,
+    }).then(response => response.json())
+      .then(result => { if (!controller.signal.aborted) setChoices(result); })
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          setError(error.message);
+          setSetupId('');
+        }
+      });
+    return () => controller.abort();
+  }, [token, setupId, workspaceId]);
+
+  useEffect(() => {
+    if (!token || !repository || tab !== 'Commits') return;
+    const controller = new AbortController();
+    void workspaceRequest(path + '/commits?page=' + page, token, { signal: controller.signal })
+      .then(response => response.json())
+      .then(result => { if (!controller.signal.aborted) setCommitPage(result); })
+      .catch(error => { if (!controller.signal.aborted) setError(error.message); });
+    return () => controller.abort();
+  }, [token, path, page, repository, tab, attempt]);
+
+  async function action(kind: 'authorize' | 'connect' | 'sync', repositoryId?: string) {
+    if (!token || busy || !owner) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      if (kind === 'authorize') {
+        const response = await workspaceRequest('github/connect?workspaceId=' + encodeURIComponent(workspaceId), token);
+        location.assign((await response.json()).authorizationUrl);
+      } else if (kind === 'connect') {
+        await workspaceRequest(path + '/repository', token, jsonRequest('POST', { setupSessionId: setupId, githubRepositoryId: repositoryId }));
+        setSetupId('');
+        setChoices(undefined);
+        setNotice('Repository connected.');
+      } else {
+        await workspaceRequest(path + '/sync', token, { method: 'POST' });
+        setNotice('Repository synced.');
+        if (tab === 'Branches') branches.retry();
+      }
+      setAttempt(value => value + 1);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'GitHub request failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function connect(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void action('connect', String(new FormData(event.currentTarget).get('repository')));
+  }
+
+  return <>
+    {pageHeading(repository && owner && <button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={() => void action('sync')}><RefreshCw size={15} />{busy ? 'Syncing…' : 'Sync commits'}</button>)}
+    {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Refresh</button></p>}
+    {notice && <p role="status">{notice}</p>}
+    {setupId ? <Panel className="wu-content-panel">
+      <h2>Choose a repository</h2>
+      {!choices ? <p role="status">Loading eligible public repositories…</p> : !choices.length ? <p>No eligible public repositories found.</p>
+        : <form onSubmit={connect}><label className="wu-field-label">Repository<select name="repository" required defaultValue=""><option value="" disabled>Select a repository</option>{choices.map(repo => <option key={repo.githubRepositoryId} value={repo.githubRepositoryId}>{repo.fullName}</option>)}</select></label>
+          <button className="wu-button wu-button--primary" disabled={busy || !owner}>Connect repository</button></form>}
+      <button type="button" className="wu-text-button" disabled={busy} onClick={() => setSetupId('')}>Cancel</button>
+    </Panel> : repository === undefined ? !error && <p role="status">Loading repository…</p>
+      : !repository ? <Panel className="wu-content-panel"><h2>No repository connected</h2><p>Connect a public GitHub repository to browse branches and commits.</p>
+        {owner && <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={() => void action('authorize')}><GitBranch size={16} />Connect GitHub</button>}</Panel>
+      : <>
+        <FilterChips items={['Repository', 'Branches', 'Commits']} active={tab} onChange={setTab} />
+        <Panel className="wu-content-panel">
+          {tab === 'Repository' && <><h2><a href={repository.repositoryUrl} target="_blank" rel="noreferrer">{repository.fullName}</a></h2>
+            <p>Default branch: {repository.defaultBranch}</p><p>{repository.lastSyncedAt ? 'Last synced ' + new Date(repository.lastSyncedAt).toLocaleString() : 'No commits synced yet.'}</p></>}
+          {tab === 'Branches' && <><h2>Branches</h2>{branches.error ? <p role="alert">Could not load branches. <button type="button" onClick={branches.retry}>Try again</button></p>
+            : !branches.items ? <p role="status">Loading branches…</p> : !branches.items.length ? <p>No branches found.</p>
+            : <ul>{branches.items.map(branch => <li key={branch.name}>{branch.name}{branch.protected ? ' · Protected' : ''}</li>)}</ul>}</>}
+          {tab === 'Commits' && <><h2>Commits</h2>{!commitPage ? <p role="status">Loading commits…</p> : !commitPage.items.length ? <p>No commits synced yet.</p>
+            : <ul>{commitPage.items.map(commit => <li key={commit.id}>
+              {commit.githubUrl ? <a href={commit.githubUrl} target="_blank" rel="noreferrer">{commit.message}</a> : commit.message}
+              <p className="wu-muted">{commit.sha.slice(0, 7)} · {commit.authorName ?? 'Unknown author'} · {new Date(commit.committedAt).toLocaleDateString()}</p>
+            </li>)}</ul>}
+            <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" disabled={page <= 1 || commitPage?.page !== page} onClick={() => setPage(page - 1)}>Previous</button>
+              <button className="wu-button wu-button--secondary" disabled={!commitPage || commitPage.page !== page || page * commitPage.limit >= commitPage.total} onClick={() => setPage(page + 1)}>Next</button></div></>}
+        </Panel>
+      </>}
+  </>;
 }

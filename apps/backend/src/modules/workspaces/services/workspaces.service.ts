@@ -366,6 +366,15 @@ export class WorkspacesService {
     }
   }
 
+  async listPendingInvitations(workspaceId: string, userId: string): Promise<WorkspaceInvitationResponseDto[]> {
+    await this.assertOwner(workspaceId, userId);
+    const invitations = await this.dataSource.getRepository(WorkspaceInvitation).find({
+      where: { workspaceId, status: InvitationStatus.PENDING },
+      order: { createdAt: 'DESC' },
+    });
+    return invitations.map(invitation => WorkspaceInvitationMapper.toResponse(invitation));
+  }
+
   async createInvitation(
     workspaceId: string,
     currentUserId: string,
@@ -388,11 +397,22 @@ export class WorkspacesService {
       throw new ForbiddenException();
     }
 
-    if (dto.invitedUserId === currentUserId) {
+    if (Boolean(dto.invitedUserId) === Boolean(dto.invitedEmail)) {
+      throw new BadRequestException('Provide one user ID or email address');
+    }
+
+    const email = dto.invitedEmail?.trim().toLowerCase();
+    const invitedUserId = dto.invitedUserId ?? (email ? (await this.usersService.findByEmail(email))?.id : undefined);
+    if (!invitedUserId) {
+      throw new NotFoundException('No DevUP account was found for that email address');
+    }
+
+    if (invitedUserId === currentUserId) {
       throw new BadRequestException('Workspace owner cannot invite themselves');
     }
 
-    await this.usersService.findById(dto.invitedUserId);
+    if (dto.invitedUserId) await this.usersService.findById(invitedUserId);
+
 
     const membershipRepository =
       this.dataSource.getRepository(WorkspaceMembership);
@@ -400,7 +420,7 @@ export class WorkspacesService {
     const existingMembership = await membershipRepository.findOne({
       where: {
         workspaceId,
-        userId: dto.invitedUserId,
+        userId: invitedUserId,
       },
     });
 
@@ -414,7 +434,7 @@ export class WorkspacesService {
     const existingInvitation = await invitationRepository.findOne({
       where: {
         workspaceId,
-        invitedUserId: dto.invitedUserId,
+        invitedUserId: invitedUserId,
         status: InvitationStatus.PENDING,
       },
     });
@@ -427,8 +447,8 @@ export class WorkspacesService {
       id: randomUUID(),
       workspaceId,
       invitedById: currentUserId,
-      invitedUserId: dto.invitedUserId,
-      invitedEmail: null,
+      invitedUserId: invitedUserId,
+      invitedEmail: email ?? null,
       status: InvitationStatus.PENDING,
       tokenHash: null,
       expiresAt: null,
@@ -440,7 +460,7 @@ export class WorkspacesService {
 
     try {
       await this.notificationsService.createForUser({
-        userId: dto.invitedUserId,
+        userId: invitedUserId,
         workspaceId,
         type: 'WORKSPACE_INVITATION',
         message: `You were invited to ${workspace.name}`,
@@ -452,7 +472,7 @@ export class WorkspacesService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to create workspace invitation notification for user ${dto.invitedUserId}`,
+        `Failed to create workspace invitation notification for user ${invitedUserId}`,
         error instanceof Error ? error.stack : undefined,
       );
     }

@@ -119,6 +119,14 @@ export class WorkspacesController {
     return this.workspacesService.softDelete(id, request.user.id);
   }
 
+  @Get(':id/invitations')
+  listWorkspaceInvitations(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceInvitationResponseDto[]> {
+    return this.workspacesService.listPendingInvitations(id, request.user.id);
+  }
+
   @Patch(':id/invitations/:invitationId/accept')
   acceptWorkspaceInvitation(
     @Param('id', ParseUUIDPipe) id: string,
