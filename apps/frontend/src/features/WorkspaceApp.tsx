@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { CheckCircle2, ChevronRight, Contrast, LogOut, PanelLeftClose, PanelLeftOpen, Plus, UserRound, X } from 'lucide-react';
 import { workspaceIcons } from './workspace/workspace-icons';
 import { sessionKey, signOut } from './WorkspacePicker';
@@ -11,7 +11,7 @@ import { NotificationInbox } from './workspace/NotificationInbox';
 import { LoadingPanel } from './workspace/WorkspaceControls';
 import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFacets';
 import { homeFilters } from './workspace/previewData';
-import { jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
+import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
 import { dueThisWeek, loadBoard, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
@@ -83,6 +83,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [boardError, setBoardError] = useState('');
   const [boardAttempt, setBoardAttempt] = useState(0);
   const [taskSaving, setTaskSaving] = useState(false);
+  const creatingTask = useRef(false);
   const [taskError, setTaskError] = useState('');
   const [targetColumn, setTargetColumn] = useState<BoardColumnConfig>();
   const [columnError, setColumnError] = useState('');
@@ -168,7 +169,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   useEffect(() => {
     if (!modal) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setModal(null); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !creatingTask.current) setModal(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [modal]);
@@ -198,10 +199,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   async function submitTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (taskSaving || !token) return;
+    if (creatingTask.current || taskSaving || !token) return;
     const form = new FormData(event.currentTarget);
     const title = String(form.get('title') ?? '').trim();
-    if (!title) return;
+    if (!title) {
+      setTaskError('Enter a task title.');
+      return;
+    }
+    creatingTask.current = true;
     setTaskSaving(true);
     setTaskError('');
     try {
@@ -212,8 +217,9 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       setModal(null);
       setToast(column ? 'Task added to ' + column.label + '.' : 'Task added to the backlog.');
     } catch (error) {
-      setTaskError(error instanceof Error ? error.message : 'Could not create the task.');
+      setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not create the task. Try again.');
     } finally {
+      creatingTask.current = false;
       setTaskSaving(false);
     }
   }
@@ -518,7 +524,15 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       files={(workspaceFiles.items ?? []).filter(file => file.taskId === selectedTask.id)} boardColumns={boardColumns}
       openTask={openRelatedTask} openFile={file => navigate('files', 'file-' + file.id)}
       onBack={history.state?.fromTask ? () => history.back() : undefined} />}
-    {modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setModal(null); }}><section className="wu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}><label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required /></label><label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" /></label><div className="wu-modal-actions"><button className="wu-button wu-button--secondary" type="button" onClick={() => setModal(null)}>Cancel</button><button className="wu-button wu-button--primary" type="submit"><Plus size={15} />Create task</button></div></form> : <form onSubmit={submitInvite}><label className="wu-field-label">Email address<input autoFocus name="email" type="email" placeholder="name@company.com" required /></label>{taskError && <p role="alert">{taskError}</p>}<p className="wu-muted">Invited people can view workspace activity and collaborate on tasks.</p><div className="wu-modal-actions"><button className="wu-button wu-button--secondary" type="button" onClick={() => setModal(null)}>Cancel</button><button className="wu-button wu-button--primary" type="submit"><Plus size={15} />Invite member</button></div></form>}</section></div>}
+    {modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !creatingTask.current) setModal(null); }}><section className="wu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" disabled={modal === 'task' && taskSaving} onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}>
+      <label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required maxLength={200} readOnly={taskSaving} /></label>
+      <label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" readOnly={taskSaving} /></label>
+      {taskError && <p role="alert">{taskError}</p>}
+      <div className="wu-modal-actions">
+        <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>
+        <button className="wu-button wu-button--primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Creating…' : 'Create task'}</button>
+      </div>
+    </form> : <form onSubmit={submitInvite}><label className="wu-field-label">Email address<input autoFocus name="email" type="email" placeholder="name@company.com" required /></label>{taskError && <p role="alert">{taskError}</p>}<p className="wu-muted">Invited people can view workspace activity and collaborate on tasks.</p><div className="wu-modal-actions"><button className="wu-button wu-button--secondary" type="button" onClick={() => setModal(null)}>Cancel</button><button className="wu-button wu-button--primary" type="submit"><Plus size={15} />Invite member</button></div></form>}</section></div>}
     {toast && <div className="wu-toast" role="status"><CheckCircle2 size={17} />{toast}<button type="button" aria-label="Dismiss notification" onClick={() => setToast('')}><X size={15} /></button></div>}
   </div>;
 }
