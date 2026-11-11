@@ -4,7 +4,8 @@ import { ArrowRight, Check, CheckCircle2, Clock3, ScanEye } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
 import { FilterChips, Panel, Pill } from '../components';
 import { homeFilters, statusTones } from '../previewData';
-import { dueThisWeek, type Member } from '../workspace-tasks';
+import type { Member } from '../workspace-tasks';
+import { addCalendarDays, isDueInNextSevenDays, isOpenTask, isOverdue } from '../workspace-calendar';
 import { WorkspaceActivityList, type ActivityEvent } from './ActivityPage';
 import type { PageHeading, Task, PageKey, AddTaskButton } from '../types';
 import { WorkspaceProgress } from './WorkspaceProgress';
@@ -17,6 +18,7 @@ type HomePageProps = {
   columns: string[];
   pageHeading: PageHeading;
   tasks: Task[];
+  today: string;
   profileId: string;
   members: Member[];
   recentActivity: { items?: ActivityEvent[]; error: boolean; retry: () => void };
@@ -37,6 +39,7 @@ export function HomePage({
   columns,
   pageHeading,
   tasks,
+  today,
   profileId,
   members,
   recentActivity,
@@ -76,19 +79,15 @@ export function HomePage({
       });
     return () => controller.abort();
   }, [githubPath, token, githubAttempt]);
-  const isOpen = (task: Task) => !['Done', 'Cancelled'].includes(task.status);
-  const assigned = tasks.filter(task => isOpen(task) && task.assigneeId === profileId);
-  const dueSoon = tasks.filter(task => isOpen(task) && dueThisWeek(task));
-  const assignedDueSoon = assigned.filter(dueThisWeek).length;
+  const assigned = tasks.filter(task => isOpenTask(task) && task.assigneeId === profileId);
+  const nextSevenDaysEnd = addCalendarDays(today, 7);
+  const dueSoon = tasks.filter(task => isDueInNextSevenDays(task, today, nextSevenDaysEnd));
+  const assignedDueSoon = dueSoon.filter(task => task.assigneeId === profileId).length;
   const inProgress = tasks.filter(task => task.status === 'In progress').length;
   const isAssignedView = homeFilter === homeFilters[0];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const attention = assigned.filter(task => task.status !== 'Done' && (
-    task.isBlocked || (task.dueAt && Date.parse(task.dueAt) < today.getTime())
-  )).slice(0, 3);
+  const attention = assigned.filter(task => task.isBlocked || isOverdue(task, today)).slice(0, 3);
   const shown = [...(isAssignedView ? assigned : homeFilter === homeFilters[1] ? dueSoon : tasks)]
-    .sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)) || (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'));
+    .sort((a, b) => Number(isOpenTask(b)) - Number(isOpenTask(a)) || (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99'));
 
   function showAssignedTasks() {
     setHomeFilter(homeFilters[0]);
@@ -98,7 +97,7 @@ export function HomePage({
   return <>
     {pageHeading(addTaskButton())}
     <div className="wu-stat-grid">
-      <MetricCard icon={<workspaceIcons.backlog size={19} />} label="Assigned to me" value={assigned.length} note={`${assignedDueSoon} due this week`} tone="blue" onClick={showAssignedTasks} />
+      <MetricCard icon={<workspaceIcons.backlog size={19} />} label="Assigned to me" value={assigned.length} note={`${assignedDueSoon} due in the next 7 days`} tone="blue" onClick={showAssignedTasks} />
       <MetricCard icon={<workspaceIcons.board size={19} />} label="In progress" value={inProgress} note="Tasks underway" tone="mint" />
       <MetricCard icon={<ScanEye size={19} />} label="In review" value={tasks.filter(task => task.status === 'Review').length} note="Awaiting review" tone="violet" onClick={() => navigate('board', 'board-review')} />
       {github?.commitCount !== undefined

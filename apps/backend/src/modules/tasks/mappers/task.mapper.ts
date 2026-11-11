@@ -1,5 +1,6 @@
 import { TaskResponseDto } from '../dto/task-response.dto';
 import { Task } from '../entities/task.entity';
+import { legacyDeadlineDate } from '../workspace-calendar';
 
 export class TaskMapper {
   static toResponse(task: Task): TaskResponseDto {
@@ -18,6 +19,7 @@ export class TaskMapper {
       blockedReason: task.blockedReason,
       blockedAt: task.blockedAt,
       dueAt: task.dueAt,
+      dueDate: task.dueDate ?? (task.dueAt ? legacyDeadlineDate(task.dueAt) : null),
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
       completedAt: task.completedAt,

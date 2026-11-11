@@ -13,7 +13,8 @@ import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFace
 import { homeFilters } from './workspace/previewData';
 import { useWorkspaceChat } from './workspace/workspace-chat';
 import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
-import { dueThisWeek, loadBoard, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
+import { loadBoard, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
+import { addCalendarDays, calendarDate, isDueInNextSevenDays, nextSevenDaysLabel } from './workspace/workspace-calendar';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
 import { BacklogPage } from './workspace/pages/BacklogPage';
@@ -183,13 +184,26 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }, [modal]);
 
   const pageLabel = navigation.find(item => item.key === page)?.label ?? 'Home';
+  const reportingTimeZone = board?.reportingTimeZone ?? 'Africa/Casablanca';
+  const [calendarNow, setCalendarNow] = useState(() => new Date());
+  useEffect(() => {
+    const refresh = () => setCalendarNow(new Date());
+    const interval = window.setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
+  const today = calendarDate(calendarNow, reportingTimeZone);
+  const nextSevenDaysEnd = addCalendarDays(today, 7);
   const filteredTasks = useMemo(() => {
     let result = tasks;
     if (filter === 'My tasks') result = result.filter(task => task.assigneeId === profileId);
-    if (filter === 'Due this week') result = result.filter(dueThisWeek);
+    if (filter === nextSevenDaysLabel) result = result.filter(task => isDueInNextSevenDays(task, today, nextSevenDaysEnd));
     if (filter === 'Blocked') result = result.filter(task => task.isBlocked && task.status !== 'Done');
-    return result.filter(task => matchesTaskFacets(task, facets));
-  }, [filter, facets, tasks, profileId]);
+    return result.filter(task => matchesTaskFacets(task, facets, today, nextSevenDaysEnd));
+  }, [filter, facets, tasks, profileId, today, nextSevenDaysEnd]);
 
   const taskFacets = <TaskFacets tasks={tasks} value={facets} onChange={setFacets} />;
 
@@ -375,6 +389,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           pageHeading={pageHeading}
           columns={columns}
           tasks={tasks}
+          today={today}
           profileId={profileId}
           members={members.items ?? []}
           recentActivity={recentActivity}
@@ -474,6 +489,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           pageHeading={pageHeading}
           analyticsPeriod={analyticsPeriod}
           setAnalyticsPeriod={setAnalyticsPeriod}
+          today={today} reportingTimeZone={reportingTimeZone}
           tasks={tasks} columns={columns} activeCount={board?.activeCount ?? 0} activeWipLimit={board?.activeWipLimit ?? 0}
         />
       );

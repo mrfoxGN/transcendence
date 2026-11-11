@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -32,6 +33,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsDateString()
   dueAt?: string | null;
+
+  @IsOptional()
+  @Matches(/^[1-9]\d{3}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  dueDate?: string | null;
 
   @ValidateIf((_, value) => value !== undefined)
   @IsInt()

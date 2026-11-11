@@ -68,7 +68,7 @@ function TaskCardContent({ task }: { task: Task }) {
     </span>
     <span className="wu-task-card-foot">
       <span>{task.assigneeId && <Avatar initials={task.initials} small preview={false} />}{task.person}</span>
-      {task.dueAt && <span><CalendarDays size={14} aria-hidden="true" />{task.due}</span>}
+      {task.dueDate && <span><CalendarDays size={14} aria-hidden="true" />{task.due}</span>}
     </span>
   </>;
 }
@@ -177,7 +177,7 @@ export function BoardPage({
   return <>
     {pageHeading(addTaskButton('Add task'))}
     <div className="wu-task-toolbar">
-      <FilterChips items={['All tasks', 'My tasks', 'Due this week', 'Blocked']} active={filter} onChange={setFilter} />
+      <FilterChips items={['All tasks', 'My tasks', 'Next 7 days', 'Blocked']} active={filter} onChange={setFilter} />
       {facets}
       {canManage && <button className="wu-button wu-button--secondary" type="button" aria-expanded={adding} onClick={() => setAdding(value => !value)}><Plus size={16} />Add column</button>}
       <button className="wu-icon-button" type="button" aria-label="Board keyboard shortcuts" title="Board keyboard shortcuts" aria-expanded={showShortcuts} onClick={() => setShowShortcuts(value => !value)}><Keyboard size={18} /></button>

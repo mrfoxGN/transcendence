@@ -356,6 +356,16 @@ describe('TasksService', () => {
       expect(changes).toEqual({
         title: 'Updated',
         dueAt: new Date(dueAt),
+        dueDate: '2026-12-01',
+        updatedAt: expect.any(Date) as unknown,
+      });
+    });
+
+    it('stores a calendar deadline independently of the legacy timestamp', async () => {
+      await service.update(taskId, userId, { dueDate: '2026-03-23' });
+      expect(tasks.update).toHaveBeenCalledWith(expect.anything() as unknown, {
+        dueDate: '2026-03-23',
+        dueAt: new Date('2026-03-23T00:00:00Z'),
         updatedAt: expect.any(Date) as unknown,
       });
     });
@@ -372,6 +382,7 @@ describe('TasksService', () => {
         acceptanceCriteria: null,
         priority: null,
         dueAt: null,
+        dueDate: null,
         updatedAt: expect.any(Date) as unknown,
       });
     });

@@ -25,6 +25,7 @@ import { TransitionTaskDto } from '../dto/transition-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { TaskAssignment } from '../entities/task-assignment.entity';
 import { TaskStatusHistory } from '../entities/task-status-history.entity';
+import { taskDeadline, workspaceReportingTimeZone } from '../workspace-calendar';
 import { Task } from '../entities/task.entity';
 import { TaskAssignmentMapper } from '../mappers/task-assignment.mapper';
 import { TaskMapper } from '../mappers/task.mapper';
@@ -79,7 +80,7 @@ export class TasksService {
       isBlocked: false,
       blockedReason: null,
       blockedAt: null,
-      dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+      ...taskDeadline(dto.dueDate, dto.dueAt),
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -177,6 +178,7 @@ export class TasksService {
 
     return {
       workspaceId,
+      reportingTimeZone: workspaceReportingTimeZone,
       activeWipLimit: settings.activeWipLimit,
       activeCount,
       assigneesByTaskId: Object.fromEntries(
@@ -212,6 +214,7 @@ export class TasksService {
       dto.acceptanceCriteria === undefined &&
       dto.priority === undefined &&
       dto.dueAt === undefined &&
+      dto.dueDate === undefined &&
       dto.position === undefined
     ) {
       throw new BadRequestException('No changes provided');
@@ -251,8 +254,8 @@ export class TasksService {
       changes.priority = dto.priority;
     }
 
-    if (dto.dueAt !== undefined) {
-      changes.dueAt = dto.dueAt === null ? null : new Date(dto.dueAt);
+    if (dto.dueDate !== undefined || dto.dueAt !== undefined) {
+      Object.assign(changes, taskDeadline(dto.dueDate, dto.dueAt));
     }
 
     if (dto.position !== undefined) {

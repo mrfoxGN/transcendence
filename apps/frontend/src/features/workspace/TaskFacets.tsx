@@ -1,21 +1,18 @@
 import { useId, useRef } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
-import { dueThisWeek } from './workspace-tasks';
+import { isDueInNextSevenDays, isOverdue, nextSevenDaysLabel } from './workspace-calendar';
 import type { Task } from './types';
 
 type Facets = { assignee: string; priority: string; due: string };
 export const emptyFacets: Facets = { assignee: '', priority: '', due: '' };
 
-export function matchesTaskFacets(task: Task, value: Facets) {
-  const due = task.dueAt ? new Date(task.dueAt).getTime() : NaN;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+export function matchesTaskFacets(task: Task, value: Facets, today: string, end: string) {
   return (!value.assignee || task.person === value.assignee)
     && (!value.priority || task.priority === value.priority)
     && (value.due === '' || (
-      value.due === 'Overdue' ? !['Done', 'Cancelled'].includes(task.status) && due < today.getTime()
-      : value.due === 'Due this week' ? dueThisWeek(task)
-      : !task.dueAt
+      value.due === 'Overdue' ? isOverdue(task, today)
+      : value.due === nextSevenDaysLabel ? isDueInNextSevenDays(task, today, end)
+      : !task.dueDate
     ));
 }
 
@@ -25,7 +22,7 @@ export function TaskFacets({ tasks, value, onChange }: { tasks: Task[]; value: F
   const facets = [
     { key: 'assignee', label: 'Assignee', options: [...new Set(tasks.map(task => task.person).filter(Boolean))].sort() },
     { key: 'priority', label: 'Priority', options: [...new Set(tasks.map(task => task.priority).filter(Boolean))].sort() },
-    { key: 'due', label: 'Due date', options: ['Due this week', 'Overdue', 'No due date'] },
+    { key: 'due', label: 'Due date', options: [nextSevenDaysLabel, 'Overdue', 'No due date'] },
   ] as const;
   const applied = facets.filter(({ key }) => value[key]);
   return <>

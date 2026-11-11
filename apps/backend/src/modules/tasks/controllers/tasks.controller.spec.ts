@@ -544,6 +544,23 @@ describe('TasksController HTTP', () => {
       expect(tasksService.update).not.toHaveBeenCalled();
     });
 
+    it.each(['2026-02-30', '2026-12-01T00:00:00Z'])(
+      'rejects %s as a calendar deadline',
+      async (dueDate) => {
+        await send('patch', `/tasks/${taskId}`, { dueDate }).expect(400);
+        expect(tasksService.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('accepts a calendar deadline without converting it to a timestamp', async () => {
+      await send('patch', `/tasks/${taskId}`, { dueDate: '2026-12-01' }).expect(200);
+      expect(tasksService.update).toHaveBeenCalledWith(
+        taskId,
+        userId,
+        expect.objectContaining({ dueDate: '2026-12-01' }),
+      );
+    });
+
     it('rejects an invalid transition status', async () => {
       await send('post', `/tasks/${taskId}/transition`, {
         toStatus: 'INVALID',

@@ -108,6 +108,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Status** Implemented. Task create and update accept `dueDate` as `YYYY-MM-DD` or `null`. The board API reports `Africa/Casablanca` as the reporting timezone. **Next 7 days** includes today through six days from today. Done and cancelled tasks are excluded from deadline filters. Migration `1794500000000` backfills the new date from legacy UTC timestamps interpreted in the reporting timezone and retains the original timestamps. The original timezone of each entry was unavailable. Deploy the migration and backend before the frontend.
+
 > Implement WU-06 in DevUP. Trace how due dates are stored and displayed, then migrate date-only deadlines to calendar dates without silently shifting existing values. Define the workspace timezone for reporting and share due-date rules across Home, Backlog, Board, and Analytics. Label the rolling filter “Next 7 days.” Verify existing records, two viewer timezones, today and overdue cutoffs, the seven-day boundary, and a daylight-saving transition.
 
 ### WU-07 · Home and My work

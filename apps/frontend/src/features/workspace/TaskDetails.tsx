@@ -56,7 +56,6 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
 
   const save = (key: string, value: string | null) => void mutate('', 'PATCH', { [key]: value });
 
-  const localDue = task.dueAt ? new Date(task.dueAt).toLocaleDateString('sv-SE') : '';
   const currentColumn = taskBoardColumn(task, boardColumns);
   const destinations = boardColumns.filter(column => column.id !== currentColumn?.id &&
     (task.status === statusLabels[column.status] || canTransition(task.status, statusLabels[column.status])));
@@ -68,7 +67,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <div><dt>Column</dt><dd><Pill tone={task.status === 'Done' ? 'mint' : 'neutral'}>{currentColumn?.label ?? task.status}</Pill>{task.isBlocked && <Pill tone="red">Blocked</Pill>}</dd></div>
       <div><dt>Assignee</dt><dd>{task.person}</dd></div>
       <div><dt>Priority</dt><dd>{task.priority === 'None' ? 'No priority' : task.priority}</dd></div>
-      <div><dt>Due date</dt><dd>{task.dueAt ? task.due : 'No due date'}</dd></div>
+      <div><dt>Due date</dt><dd>{task.dueDate ? task.due : 'No due date'}</dd></div>
     </dl>
     {error && <p role="alert">{error}</p>}
     {(busy || notice) && <p role="status">{busy ? 'Saving changes…' : notice}</p>}
@@ -83,9 +82,9 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <label className="wu-field-label">Priority<select name="priority" defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()} onChange={event => save('priority', event.currentTarget.value || null)}>
         <option value="">No priority</option>{priorities.map(priority => <option key={priority} value={priority}>{priority[0] + priority.slice(1).toLowerCase()}</option>)}
       </select></label>
-      <label className="wu-field-label">Due date<input type="date" name="dueAt" defaultValue={localDue} onChange={event => {
+      <label className="wu-field-label">Due date<input type="date" name="dueDate" min="1000-01-01" max="9999-12-31" defaultValue={task.dueDate ?? ''} onChange={event => {
         const field = event.currentTarget;
-        if (field.validity.valid) save('dueAt', field.value ? new Date(field.value + 'T00:00:00').toISOString() : null);
+        if (field.validity.valid) save('dueDate', field.value || null);
       }} /></label>
     </section> : <section className="wu-drawer-section">
       <div className="wu-panel-heading"><h3>Description</h3><button className="wu-text-button" type="button" onClick={() => setEditingTask(true)}>Edit task</button></div>

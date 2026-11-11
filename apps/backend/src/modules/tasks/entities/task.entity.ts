@@ -133,6 +133,9 @@ export class Task {
   })
   dueAt!: Date | null;
 
+  @Column({ name: 'due_date', type: 'date', nullable: true })
+  dueDate!: string | null;
+
   @Column({
     name: 'created_at',
     type: 'datetime',

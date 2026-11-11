@@ -31,6 +31,11 @@ export class CreateTaskDto {
   dueAt?: string;
 
   @IsOptional()
+  @Matches(/^[1-9]\d{3}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  dueDate?: string | null;
+
+  @IsOptional()
   @Matches(/^[A-Za-z0-9_-]{1,40}$/)
   boardColumnId?: string;
 }

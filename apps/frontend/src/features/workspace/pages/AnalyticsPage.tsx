@@ -2,26 +2,28 @@ import { Panel } from '../components';
 import { MetricCard } from '../MetricCard';
 import { CheckCircle2, Clock3 } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
+import { addCalendarDays, calendarDate, formatCalendarDate, isOpenTask, isOverdue } from '../workspace-calendar';
 import type { PageHeading, Task } from '../types';
 import './analytics.css';
 
-export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod, tasks, columns, activeCount, activeWipLimit }: {
+export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod, tasks, columns, activeCount, activeWipLimit, today, reportingTimeZone }: {
   pageHeading: PageHeading; analyticsPeriod: string; setAnalyticsPeriod: (period: string) => void;
   tasks: Task[]; columns: string[]; activeCount: number; activeWipLimit: number;
+  today: string; reportingTimeZone: string;
 }) {
   const days = analyticsPeriod === 'Last 7 days' ? 7 : 30;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const completed = tasks.filter(task => task.status === 'Done' && task.completedAt);
-  const open = tasks.filter(task => !['Done', 'Cancelled'].includes(task.status));
-  const overdue = open.filter(task => task.dueAt && Date.parse(task.dueAt) < today.getTime());
+  const completedByDay = new Map<string, number>();
+  for (const task of tasks) {
+    if (task.status === 'Done' && task.completedAt) {
+      const day = calendarDate(new Date(task.completedAt), reportingTimeZone);
+      completedByDay.set(day, (completedByDay.get(day) ?? 0) + 1);
+    }
+  }
+  const open = tasks.filter(isOpenTask);
+  const overdue = open.filter(task => isOverdue(task, today));
   const counts = Array.from({ length: days }, (_, index) => {
-    const start = new Date(today);
-    start.setDate(today.getDate() - days + index + 1);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 1);
-    const count = completed.filter(task => Date.parse(task.completedAt!) >= start.getTime() && Date.parse(task.completedAt!) < end.getTime()).length;
-    return { start, count };
+    const day = addCalendarDays(today, index - days + 1);
+    return { day, label: formatCalendarDate(day, {}), count: completedByDay.get(day) ?? 0 };
   });
   const total = counts.reduce((sum, day) => sum + day.count, 0);
   const max = Math.max(1, ...counts.map(day => day.count));
@@ -37,11 +39,11 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
     <div className="wu-analytics-grid">
       <Panel className="wu-content-panel">
         <h2>Tasks completed by day</h2>
-        {total ? <div className="wu-chart" role="img" aria-label={counts.filter(day => day.count).map(day => day.start.toLocaleDateString() + ': ' + day.count).join(', ')}>
+        {total ? <div className="wu-chart" role="img" aria-label={counts.filter(day => day.count).map(day => day.label + ': ' + day.count).join(', ')}>
           <div className="wu-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
-            {counts.map((day, index) => <div key={day.start.toISOString()} title={day.start.toLocaleDateString() + ': ' + day.count}>
+            {counts.map((day, index) => <div key={day.day} title={day.label + ': ' + day.count}>
               <i style={{ height: (day.count / max) * 100 + '%' }} />
-              <small>{days === 7 || index % 7 === 0 ? day.start.getDate() : ''}</small>
+              <small>{days === 7 || index % 7 === 0 ? Number(day.day.slice(-2)) : ''}</small>
             </div>)}
           </div>
         </div> : <p className="wu-muted">No tasks completed in this period.</p>}

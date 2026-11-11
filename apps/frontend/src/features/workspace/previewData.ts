@@ -43,6 +43,6 @@ export const taskStatuses = ['To do', 'Ready', 'In progress', 'Review', 'Done'];
 
 export const statusTones: Record<string, string> = { Ready: 'blue', 'In progress': 'violet', Review: 'pink', Done: 'mint' };
 
-export const homeFilters = ['Assigned to me', 'Due this week', 'All tasks'];
+export const homeFilters = ['Assigned to me', 'Next 7 days', 'All tasks'];
 
 export const previewWeek = new Set(['Apr 12', 'Apr 14', 'Apr 16', 'Apr 17']);
