@@ -177,7 +177,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                 }}>Join a workspace</button>
                 </div>
               )}
-              {joining && <p role="status">Ask a workspace owner to invite your DevUP email. Open Notifications to accept the invitation.</p>}
+              {joining && <p role="status">Ask a workspace owner for an invitation, then open the link they send. You can also accept an in-app invitation from Notifications.</p>}
             </>
           )}
         </div>

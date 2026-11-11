@@ -21,7 +21,7 @@ import { BacklogPage } from './workspace/pages/BacklogPage';
 import { BoardPage } from './workspace/pages/BoardPage';
 import { GithubPage } from './workspace/pages/GithubPage';
 import { ActivityPage, type ActivityEvent } from './workspace/pages/ActivityPage';
-import { TeamPage, type PendingInvitation } from './workspace/pages/TeamPage';
+import { TeamPage, type TeamInvitation } from './workspace/pages/TeamPage';
 import { ChatPage } from './workspace/pages/ChatPage';
 import { FilesPage } from './workspace/pages/FilesPage';
 import { NotesPage } from './workspace/pages/NotesPage';
@@ -103,11 +103,12 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [selectedTaskId, setSelectedTaskId] = useState(() => new URLSearchParams(location.search).get('task'));
   const [modal, setModal] = useState<'task' | 'invite' | null>(null);
   const [toast, setToast] = useState('');
+  const [inviteDelivery, setInviteDelivery] = useState<TeamInvitation>();
   const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
   const filePath = workspacePath + '/files';
   const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath, token);
   const members = useWorkspaceCollection<Member>(workspacePath + '/members', token);
-  const invitations = useWorkspaceCollection<PendingInvitation>(workspacePath + '/invitations', page === 'team' && workspace?.ownerId === profileId ? token : null);
+  const invitations = useWorkspaceCollection<TeamInvitation>(workspacePath + '/invitations', page === 'team' && workspace?.ownerId === profileId ? token : null);
   const recentActivity = useWorkspaceCollection<ActivityEvent>(workspacePath + '/activities?limit=5', token);
   const tasks = useMemo(() => (board?.tasks ?? []).map(task => {
     const member = members.items?.find(person => person.userId === task.assigneeId);
@@ -324,17 +325,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setTaskSaving(true);
     setTaskError('');
     try {
-      await workspaceRequest(workspacePath + '/invitations', token, jsonRequest('POST', { invitedEmail }));
+      const response = await workspaceRequest(workspacePath + '/invitations', token, jsonRequest('POST', { invitedEmail }));
+      setInviteDelivery(await response.json() as TeamInvitation);
       invitations.retry();
       setModal(null);
-      setToast('Invitation sent.');
     } catch (error) {
       switch (error instanceof WorkspaceRequestError ? error.message : '') {
-        case 'No DevUP account was found for that email address':
-          setTaskError('No DevUP account uses this email. Ask the person to sign up first, or use the email they already use for DevUP.');
-          break;
         case 'Pending invitation already exists':
-          setTaskError('This person already has a pending invitation. Ask them to accept it in DevUP notifications.');
+          setTaskError('This person already has an invitation. Use Resend invitation in the Team list.');
           break;
         case 'User is already a workspace member':
           setTaskError('This person is already a workspace member. You can find them in the Team list.');
@@ -469,6 +467,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           workspaceName={workspaceName}
           members={members.items} loadError={members.error} retry={members.retry}
           invitations={invitations}
+          delivery={inviteDelivery} onDelivery={setInviteDelivery}
+          refreshWorkspace={() => { setWorkspaceAttempt(current => current + 1); setBoardAttempt(current => current + 1); }}
           path={workspacePath} token={token} profileId={profileId}
           onInvite={() => { setTaskError(''); setModal('invite'); }}
         />
@@ -603,7 +603,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <input autoFocus name="email" type="email" placeholder="name@company.com" required readOnly={taskSaving}
           aria-describedby="invite-email-help" />
       </label>
-      <p id="invite-email-help" className="wu-muted">Use the email address from their existing DevUP account.</p>
+      <p id="invite-email-help" className="wu-muted">They can sign in or create an account with this email. The invitation expires in seven days.</p>
       {taskError && <p role="alert">{taskError}</p>}
       <div className="wu-modal-actions">
         <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>

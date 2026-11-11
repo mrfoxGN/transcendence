@@ -24,6 +24,7 @@ describe('WorkspaceChatGateway', () => {
 
   let workspacesService: {
     findOneForUser: jest.Mock;
+    onMembershipRemoved: jest.Mock;
   };
 
   let gateway: WorkspaceChatGateway;
@@ -72,6 +73,7 @@ describe('WorkspaceChatGateway', () => {
       findOneForUser: jest.fn().mockResolvedValue({
         id: workspaceId,
       }),
+      onMembershipRemoved: jest.fn().mockReturnValue(jest.fn()),
     };
 
     gateway = new WorkspaceChatGateway(
@@ -79,6 +81,28 @@ describe('WorkspaceChatGateway', () => {
       usersService as unknown as UsersService,
       workspacesService as unknown as WorkspacesService,
     );
+  });
+
+  it('evicts both workspace rooms and rechecks a subscription authorized during removal', async () => {
+    const client = makeClient();
+    Object.assign(client.data, { userId });
+    const socketsLeave = jest.fn();
+    const room = jest.fn().mockReturnValue({ socketsLeave });
+    Object.assign(gateway, { server: { in: room } });
+    gateway.onModuleInit();
+    const [remove] = workspacesService.onMembershipRemoved.mock.calls[0];
+    workspacesService.findOneForUser
+      .mockImplementationOnce(async () => {
+        remove(workspaceId, userId);
+        return { id: workspaceId };
+      })
+      .mockRejectedValueOnce(new ForbiddenException());
+
+    await expect(gateway.watchWorkspace(client as never, workspaceId)).rejects.toThrow(ForbiddenException);
+    expect(room).toHaveBeenCalledWith(`user:${userId}`);
+    expect(socketsLeave).toHaveBeenCalledWith([`workspace:${workspaceId}`, `workspace-unread:${workspaceId}`]);
+    expect(client.join).not.toHaveBeenCalled();
+    gateway.onModuleDestroy();
   });
 
   it('authenticates a socket and stores the user id', async () => {

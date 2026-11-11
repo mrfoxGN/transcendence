@@ -4,7 +4,7 @@ import { sessionKey } from './WorkspacePicker';
 import { AvatarPicker, type AvatarSelection } from './AvatarPicker';
 import './account-onboarding.css';
 
-function AccountShell({ title, children, onboarding = false }: { title: string; children: ReactNode; onboarding?: boolean }) {
+export function AccountShell({ title, children, onboarding = false }: { title: string; children: ReactNode; onboarding?: boolean }) {
   return <main className={onboarding ? 'auth-page account-onboarding' : 'auth-page'}>
     <header className="auth-header"><a href="/" className="brand"><img src="/devup.svg" alt="" width="34" height="34" />DevUP</a></header>
     <section className="auth-shell" aria-labelledby="account-title">

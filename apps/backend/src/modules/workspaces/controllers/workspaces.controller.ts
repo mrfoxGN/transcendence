@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -33,6 +34,43 @@ import { UpdateWorkspaceKanbanSettingsDto } from '../dto/update-workspace-kanban
 @UseGuards(JwtAuthGuard)
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
+
+  @Delete(':id/membership')
+  leaveWorkspace(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.workspacesService.leaveWorkspace(id, request.user.id);
+  }
+
+  @Patch(':id/owner/:userId')
+  transferOwnership(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.workspacesService.transferOwnership(id, request.user.id, userId);
+  }
+
+  @Post(':id/invitations/:invitationId/redeem')
+  redeemInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const token = (body as { token?: unknown } | undefined)?.token;
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+      throw new BadRequestException('This invitation link is invalid');
+    }
+    return this.workspacesService.acceptInvitation(id, invitationId, request.user.id, token);
+  }
+
+  @Post(':id/invitations/:invitationId/resend')
+  resendInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.workspacesService.resendInvitation(id, request.user.id, invitationId);
+  }
 
   @Get()
   getMyWorkspaces(

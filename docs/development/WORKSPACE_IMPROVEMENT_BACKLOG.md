@@ -176,6 +176,23 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Implementation** Email invitations expire after seven days and resend replaces the previous link. Delivery uses the WU-14 mail settings. If delivery is unavailable, the owner can share the generated link directly. The recipient must sign in or register with the invited email. Revocation and acceptance end the invitation. Existing in-app invitations can still be handled from Notifications. The invitation table already has the required fields.
+
+Leaving or removing someone unassigns their tasks in that workspace, preserves authored content and activity, and removes their workspace chat and unread subscriptions. Ownership transfers to an existing member. The previous owner stays a member and can then leave.
+
+| Permission | Owner | Member | Proposed admin | Proposed guest |
+| --- | --- | --- | --- | --- |
+| View workspace-wide content and chat | Yes | Yes | Yes | Only explicitly shared resources |
+| Create and edit workspace work | Yes | Yes | Yes | Only when granted on a shared resource |
+| Invite and remove members | Yes | — | Members and guests only | — |
+| Change workspace-wide settings | Yes | — | Non-destructive settings | — |
+| Transfer ownership or delete the workspace | Yes | — | — | — |
+| Leave the workspace | After transfer | Yes | Yes | Yes |
+
+Admin and guest are proposed roles. Enforce the matrix across REST and realtime subscriptions before enabling either role. Guest access requires resource-level sharing.
+
+Local API and MySQL integration checks covered registration with an outstanding invite, wrong-account rejection, expiry, resend, revocation, single use, assignment cleanup, ownership transfer, and leaving. Live Socket.IO checks covered outsider and removed-member access. The email provider response was simulated.
+
 > Implement WU-15 in DevUP. Add expiring, revocable email invitations for unregistered users and preserve invite context through signup and login. Add team search, invitation status and resend, leaving, and ownership transfer. Define a permission matrix before adding admin and guest roles. Define how removing someone affects assignments and live subscriptions. Verify invite acceptance by a new account, expired and revoked links, and access denial for outsiders and removed members over REST and realtime connections.
 
 ### WU-16 · Workspace picker, navigation, and settings

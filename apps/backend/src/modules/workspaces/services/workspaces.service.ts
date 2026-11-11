@@ -6,14 +6,15 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { DataSource, IsNull } from 'typeorm';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { DataSource, IsNull, type EntityManager } from 'typeorm';
 
 import { InvitationStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { Task } from '../../tasks/entities/task.entity';
+import { TaskAssignment } from '../../tasks/entities/task-assignment.entity';
 import { TaskStatusHistory } from '../../tasks/entities/task-status-history.entity';
 import { Activity } from '../../activities/entities/activity.entity';
 import { canTransitionTask, compareBoardTasks, defaultBoardColumns, isActiveTaskStatus, taskColumn } from '../board-columns';
@@ -44,6 +45,46 @@ export class WorkspacesService {
     private readonly notificationsService: NotificationsService,
     private readonly activitiesService: ActivitiesService,
   ) {}
+
+  private readonly membershipRemovedListeners = new Set<(workspaceId: string, userId: string) => void>();
+
+  onMembershipRemoved(listener: (workspaceId: string, userId: string) => void) {
+    this.membershipRemovedListeners.add(listener);
+    return () => this.membershipRemovedListeners.delete(listener);
+  }
+
+  private async lockWorkspace(manager: EntityManager, workspaceId: string) {
+    const workspace = await manager.getRepository(Workspace).findOne({
+      where: { id: workspaceId, deletedAt: IsNull() },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!workspace) throw new NotFoundException('Workspace not found');
+    return workspace;
+  }
+
+  async lockAssignmentMemberships(manager: EntityManager, workspaceId: string, actorId: string, assigneeId: string) {
+    await this.lockWorkspace(manager, workspaceId);
+    const memberships = manager.getRepository(WorkspaceMembership);
+    if (!await memberships.findOneBy({ workspaceId, userId: actorId })) throw new ForbiddenException();
+    if (assigneeId !== actorId && !await memberships.findOneBy({ workspaceId, userId: assigneeId })) {
+      throw new BadRequestException('Assignee must belong to the workspace');
+    }
+  }
+
+  async leaveWorkspace(workspaceId: string, userId: string): Promise<void> {
+    await this.removeMember(workspaceId, userId, userId, true);
+  }
+
+  async transferOwnership(workspaceId: string, actorId: string, targetId: string): Promise<void> {
+    await this.dataSource.transaction(async manager => {
+      const workspace = await this.lockWorkspace(manager, workspaceId);
+      if (workspace.ownerId !== actorId) throw new ForbiddenException();
+      if (targetId === actorId) throw new BadRequestException('Choose another workspace member');
+      const target = await manager.getRepository(WorkspaceMembership).findOneBy({ workspaceId, userId: targetId });
+      if (!target) throw new NotFoundException('Workspace member not found');
+      await manager.getRepository(Workspace).update(workspaceId, { ownerId: targetId, updatedAt: new Date() });
+    });
+  }
 
   async create(
     ownerId: string,
@@ -337,45 +378,23 @@ export class WorkspacesService {
     workspaceId: string,
     currentUserId: string,
     memberUserId: string,
+    leaving = false,
   ): Promise<void> {
-    const workspaceRepository = this.dataSource.getRepository(Workspace);
-
-    const workspace = await workspaceRepository.findOne({
-      where: {
-        id: workspaceId,
-        deletedAt: IsNull(),
-      },
+    const membershipId = await this.dataSource.transaction(async manager => {
+      const workspace = await this.lockWorkspace(manager, workspaceId);
+      if (leaving ? memberUserId !== currentUserId : workspace.ownerId !== currentUserId) throw new ForbiddenException();
+      if (workspace.ownerId === memberUserId) throw new BadRequestException('Transfer ownership before leaving or removing the owner');
+      const memberships = manager.getRepository(WorkspaceMembership);
+      const membership = await memberships.findOne({ where: { workspaceId, userId: memberUserId } });
+      if (!membership) throw new NotFoundException('Workspace member not found');
+      await manager.getRepository(TaskAssignment).createQueryBuilder().delete()
+        .where('user_id = :memberUserId', { memberUserId })
+        .andWhere('task_id IN (SELECT id FROM tasks WHERE workspace_id = :workspaceId)', { workspaceId })
+        .execute();
+      await memberships.remove(membership);
+      return membership.id;
     });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (workspace.ownerId !== currentUserId) {
-      throw new ForbiddenException();
-    }
-
-    if (workspace.ownerId === memberUserId) {
-      throw new BadRequestException('Workspace owner cannot be removed');
-    }
-
-    const membershipRepository =
-      this.dataSource.getRepository(WorkspaceMembership);
-
-    const membership = await membershipRepository.findOne({
-      where: {
-        workspaceId,
-        userId: memberUserId,
-      },
-    });
-
-    if (!membership) {
-      throw new NotFoundException('Workspace member not found');
-    }
-
-    const membershipId = membership.id;
-
-    await membershipRepository.remove(membership);
+    for (const listener of this.membershipRemovedListeners) listener(workspaceId, memberUserId);
 
     try {
       await this.activitiesService.create({
@@ -399,7 +418,7 @@ export class WorkspacesService {
   async listPendingInvitations(workspaceId: string, userId: string): Promise<WorkspaceInvitationResponseDto[]> {
     await this.assertOwner(workspaceId, userId);
     const invitations = await this.dataSource.getRepository(WorkspaceInvitation).find({
-      where: { workspaceId, status: InvitationStatus.PENDING },
+      where: { workspaceId },
       order: { createdAt: 'DESC' },
     });
     return invitations.map(invitation => WorkspaceInvitationMapper.toResponse(invitation));
@@ -410,6 +429,9 @@ export class WorkspacesService {
     currentUserId: string,
     dto: CreateWorkspaceInvitationDto,
   ): Promise<WorkspaceInvitationResponseDto> {
+    if (dto.invitedEmail && !dto.invitedUserId) {
+      return this.issueEmailInvitation(workspaceId, currentUserId, dto.invitedEmail.trim().toLowerCase());
+    }
     const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
@@ -427,22 +449,17 @@ export class WorkspacesService {
       throw new ForbiddenException();
     }
 
-    if (Boolean(dto.invitedUserId) === Boolean(dto.invitedEmail)) {
+    if (!dto.invitedUserId || dto.invitedEmail) {
       throw new BadRequestException('Provide one user ID or email address');
     }
 
-    const email = dto.invitedEmail?.trim().toLowerCase();
-    const invitedUserId = dto.invitedUserId ?? (email ? (await this.usersService.findByEmail(email))?.id : undefined);
-    if (!invitedUserId) {
-      throw new NotFoundException('No DevUP account was found for that email address');
-    }
+    const invitedUserId = dto.invitedUserId;
 
     if (invitedUserId === currentUserId) {
       throw new BadRequestException('Workspace owner cannot invite themselves');
     }
 
-    if (dto.invitedUserId) await this.usersService.findById(invitedUserId);
-
+    await this.usersService.findById(invitedUserId);
 
     const membershipRepository =
       this.dataSource.getRepository(WorkspaceMembership);
@@ -478,7 +495,7 @@ export class WorkspacesService {
       workspaceId,
       invitedById: currentUserId,
       invitedUserId: invitedUserId,
-      invitedEmail: email ?? null,
+      invitedEmail: null,
       status: InvitationStatus.PENDING,
       tokenHash: null,
       expiresAt: null,
@@ -510,11 +527,81 @@ export class WorkspacesService {
     return WorkspaceInvitationMapper.toResponse(savedInvitation);
   }
 
+  private invitationDigest(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  async resendInvitation(workspaceId: string, actorId: string, invitationId: string) {
+    return this.issueEmailInvitation(workspaceId, actorId, undefined, invitationId);
+  }
+
+  private async issueEmailInvitation(workspaceId: string, actorId: string, address?: string, invitationId?: string) {
+    const token = randomBytes(32).toString('base64url');
+    const { invitation, workspaceName } = await this.dataSource.transaction(async manager => {
+      const workspace = await this.lockWorkspace(manager, workspaceId);
+      if (workspace.ownerId !== actorId) throw new ForbiddenException();
+      const repository = manager.getRepository(WorkspaceInvitation);
+      const previous = invitationId ? await repository.findOneBy({ id: invitationId, workspaceId }) : null;
+      if (invitationId && !previous) throw new NotFoundException('Invitation not found');
+      if (previous && ![InvitationStatus.PENDING, InvitationStatus.EXPIRED].includes(previous.status)) {
+        throw new ConflictException('Only pending or expired invitations can be resent');
+      }
+      const email = address ?? previous?.invitedEmail;
+      if (!email) throw new BadRequestException('This invitation has no email address');
+      const account = await this.usersService.findByEmail(email);
+      if (account?.id === actorId) throw new BadRequestException('Workspace owner cannot invite themselves');
+      if (account && await manager.getRepository(WorkspaceMembership).findOneBy({ workspaceId, userId: account.id })) {
+        throw new ConflictException('User is already a workspace member');
+      }
+      const now = new Date();
+      if (!previous && await repository.findOneBy({ workspaceId, invitedEmail: email, status: InvitationStatus.PENDING })) {
+        throw new ConflictException('Pending invitation already exists');
+      }
+      const invitation = repository.create({
+        id: previous?.id ?? randomUUID(),
+        workspaceId,
+        invitedById: actorId,
+        invitedUserId: account?.id ?? null,
+        invitedEmail: email,
+        status: InvitationStatus.PENDING,
+        tokenHash: this.invitationDigest(token),
+        expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+        respondedAt: null,
+        createdAt: previous?.createdAt ?? now,
+      });
+      return { invitation: await repository.save(invitation), workspaceName: workspace.name };
+    });
+    const invitePath = '/join-workspace#' + new URLSearchParams({ workspace: workspaceId, invitation: invitation.id, token });
+    const sent = await this.sendInvitationEmail(invitation.invitedEmail!, workspaceName, invitePath);
+    return { ...WorkspaceInvitationMapper.toResponse(invitation), invitePath, delivery: sent ? 'sent' as const : 'link' as const };
+  }
+
+  private async sendInvitationEmail(email: string, workspaceName: string, invitePath: string) {
+    const { RESEND_API_KEY: key, AUTH_EMAIL_FROM: from, AUTH_PUBLIC_URL: origin } = process.env;
+    if (!key || !from || !origin) return false;
+    try {
+      const url = new URL(invitePath, origin);
+      if (url.username || url.password || (url.protocol !== 'https:' &&
+        !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))) return false;
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [email], subject: 'You were invited to a DevUP workspace', text: `Join ${workspaceName} on DevUP:\n\n${url.href}\n\nThis invitation expires in seven days.` }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
   async acceptInvitation(
     workspaceId: string,
     invitationId: string,
     currentUserId: string,
+    token?: string,
   ): Promise<WorkspaceInvitationResponseDto> {
+    const account = token ? await this.usersService.findById(currentUserId) : undefined;
     const result = await this.dataSource.transaction(async (manager) => {
       const workspaceRepository = manager.getRepository(Workspace);
 
@@ -527,6 +614,7 @@ export class WorkspacesService {
           id: workspaceId,
           deletedAt: IsNull(),
         },
+        lock: { mode: 'pessimistic_write' },
       });
 
       if (!workspace) {
@@ -538,18 +626,25 @@ export class WorkspacesService {
           id: invitationId,
           workspaceId,
         },
+        lock: { mode: 'pessimistic_write' },
       });
 
       if (!invitation) {
         throw new NotFoundException('Invitation not found');
       }
 
-      if (invitation.invitedUserId !== currentUserId) {
+      if (token ? !invitation.tokenHash || invitation.tokenHash !== this.invitationDigest(token)
+        || account?.email.toLowerCase() !== invitation.invitedEmail
+        || (invitation.invitedUserId !== null && invitation.invitedUserId !== currentUserId)
+        : invitation.invitedUserId !== currentUserId || Boolean(invitation.tokenHash)) {
         throw new ForbiddenException();
       }
 
       if (invitation.status !== InvitationStatus.PENDING) {
         throw new ConflictException('Invitation is no longer pending');
+      }
+      if (invitation.expiresAt && invitation.expiresAt <= new Date()) {
+        throw new ConflictException('Invitation has expired. Ask the workspace owner to resend it.');
       }
 
       const existingMembership = await membershipRepository.findOne({
@@ -575,6 +670,7 @@ export class WorkspacesService {
       await membershipRepository.save(membership);
 
       invitation.status = InvitationStatus.ACCEPTED;
+      invitation.invitedUserId = currentUserId;
       invitation.respondedAt = now;
 
       const savedInvitation = await invitationRepository.save(invitation);
@@ -718,12 +814,18 @@ export class WorkspacesService {
       throw new ConflictException('Invitation is no longer pending');
     }
 
+    const respondedAt = new Date();
+    if (invitation.tokenHash) {
+      const result = await invitationRepository.update(
+        { id: invitationId, status: InvitationStatus.PENDING, tokenHash: invitation.tokenHash },
+        { status: InvitationStatus.CANCELLED, respondedAt },
+      );
+      if (!result.affected) throw new ConflictException('Invitation changed. Refresh and try again.');
+      return WorkspaceInvitationMapper.toResponse({ ...invitation, status: InvitationStatus.CANCELLED, respondedAt });
+    }
     invitation.status = InvitationStatus.CANCELLED;
-    invitation.respondedAt = new Date();
-
-    const savedInvitation = await invitationRepository.save(invitation);
-
-    return WorkspaceInvitationMapper.toResponse(savedInvitation);
+    invitation.respondedAt = respondedAt;
+    return WorkspaceInvitationMapper.toResponse(await invitationRepository.save(invitation));
   }
 
   async getKanbanSettings(

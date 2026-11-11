@@ -91,6 +91,7 @@ export class TasksService {
 
     const savedTask = dto.boardColumnId || dto.assigneeId
       ? await this.dataSource.transaction(async manager => {
+        if (dto.assigneeId) await this.workspacesService.lockAssignmentMemberships(manager, workspaceId, userId, dto.assigneeId);
         const repository = manager.getRepository(Task);
         if (dto.boardColumnId) {
           const settings = await manager.getRepository(WorkspaceKanbanSetting).findOne({
@@ -498,6 +499,7 @@ export class TasksService {
     await this.validateAssignee(existingTask.workspaceId, dto.userId);
 
     return this.dataSource.transaction(async (manager) => {
+      await this.workspacesService.lockAssignmentMemberships(manager, existingTask.workspaceId, actorId, dto.userId);
       const task = await manager.getRepository(Task).findOne({
         where: { id: taskId, deletedAt: IsNull() },
         lock: { mode: 'pessimistic_write' },

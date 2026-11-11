@@ -774,6 +774,7 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(async callback => callback(dataSource)),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -783,7 +784,13 @@ describe('WorkspacesService removeMember', () => {
           return membershipRepository;
         }
 
-        throw new Error('Unexpected repository');
+        const deleteQuery = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return { createQueryBuilder: jest.fn().mockReturnValue(deleteQuery) };
       }),
     } as unknown as DataSource;
 
@@ -841,6 +848,7 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(async callback => callback(dataSource)),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -850,7 +858,13 @@ describe('WorkspacesService removeMember', () => {
           return membershipRepository;
         }
 
-        throw new Error('Unexpected repository');
+        const deleteQuery = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return { createQueryBuilder: jest.fn().mockReturnValue(deleteQuery) };
       }),
     } as unknown as DataSource;
 
@@ -893,6 +907,7 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(async callback => callback(dataSource)),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -909,6 +924,7 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(async callback => callback(dataSource)),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -925,6 +941,7 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(async callback => callback(dataSource)),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -946,6 +963,7 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(async callback => callback(dataSource)),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -955,7 +973,13 @@ describe('WorkspacesService removeMember', () => {
           return membershipRepository;
         }
 
-        throw new Error('Unexpected repository');
+        const deleteQuery = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return { createQueryBuilder: jest.fn().mockReturnValue(deleteQuery) };
       }),
     } as unknown as DataSource;
 

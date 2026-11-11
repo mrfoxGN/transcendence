@@ -1,3 +1,4 @@
+import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -15,15 +16,28 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 import { ChatMessageResponseDto } from '../dto/chat-message-response.dto';
 
 @WebSocketGateway()
-export class WorkspaceChatGateway implements OnGatewayConnection {
+export class WorkspaceChatGateway implements OnGatewayConnection, OnModuleInit, OnModuleDestroy {
   @WebSocketServer()
   private server!: Server;
+  private unsubscribeMembership?: () => boolean;
+  private membershipVersion = 0;
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
     private readonly workspacesService: WorkspacesService,
   ) {}
+
+  onModuleInit() {
+    this.unsubscribeMembership = this.workspacesService.onMembershipRemoved((workspaceId, userId) => {
+      this.membershipVersion += 1;
+      this.server?.in(`user:${userId}`).socketsLeave([`workspace:${workspaceId}`, `workspace-unread:${workspaceId}`]);
+    });
+  }
+
+  onModuleDestroy() {
+    this.unsubscribeMembership?.();
+  }
 
   async handleConnection(client: Socket): Promise<void> {
     const token: unknown = client.handshake.auth?.token;
@@ -96,8 +110,9 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
     }
 
     socketData.activeWorkspace = workspaceId;
-    await this.workspacesService.findOneForUser(workspaceId, userId);
-    if (socketData.activeWorkspace === workspaceId) await client.join(`workspace:${workspaceId}`);
+    await this.withSubscriptionAccess(workspaceId, userId, () => {
+      if (socketData.activeWorkspace === workspaceId) return client.join(`workspace:${workspaceId}`);
+    });
   }
 
   @SubscribeMessage('workspace-chat.watch')
@@ -107,9 +122,19 @@ export class WorkspaceChatGateway implements OnGatewayConnection {
   ): Promise<void> {
     const userId: unknown = client.data.userId;
     if (typeof userId !== 'string') return;
-    await this.workspacesService.findOneForUser(workspaceId, userId);
-    await client.join(`workspace-unread:${workspaceId}`);
-    client.emit('workspace-chat.unread-changed', workspaceId);
+    await this.withSubscriptionAccess(workspaceId, userId, async () => {
+      await client.join(`workspace-unread:${workspaceId}`);
+      client.emit('workspace-chat.unread-changed', workspaceId);
+    });
+  }
+
+  private async withSubscriptionAccess(workspaceId: string, userId: string, subscribe: () => void | Promise<void>) {
+    let version: number;
+    do {
+      version = this.membershipVersion;
+      await this.workspacesService.findOneForUser(workspaceId, userId);
+    } while (version !== this.membershipVersion);
+    await subscribe();
   }
 
   @SubscribeMessage('workspace-chat.leave')

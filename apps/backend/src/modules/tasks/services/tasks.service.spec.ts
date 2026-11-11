@@ -93,6 +93,7 @@ describe('TasksService', () => {
   let history: ReturnType<typeof makeRepository>;
   let workspaces: {
     findOneForUser: jest.Mock;
+    lockAssignmentMemberships: jest.Mock;
     getKanbanSettings: jest.Mock;
   };
   let users: { findById: jest.Mock };
@@ -129,6 +130,7 @@ describe('TasksService', () => {
 
     workspaces = {
       findOneForUser: jest.fn().mockResolvedValue({ id: workspaceId }),
+      lockAssignmentMemberships: jest.fn().mockResolvedValue(undefined),
       getKanbanSettings: jest.fn().mockResolvedValue({ activeWipLimit: 3 }),
     };
     users = {

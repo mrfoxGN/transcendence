@@ -1,6 +1,9 @@
 export function safeWorkspaceDestination(value: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/workspaces';
   const target = new URL(value, location.origin);
+  if (target.origin === location.origin && target.pathname === '/join-workspace' && !target.search && !target.hash) {
+    return '/join-workspace';
+  }
   return target.origin === location.origin && /^\/workspaces(?:\/[0-9a-f-]{36})?\/?$/i.test(target.pathname)
     ? target.pathname + target.search + target.hash
     : '/workspaces';
