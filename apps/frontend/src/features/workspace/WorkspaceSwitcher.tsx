@@ -25,7 +25,7 @@ export function WorkspaceSwitcher({ workspaceId, workspaceName, token }: Workspa
     try {
       setWorkspaces(await listActiveWorkspaces(token));
     } catch (error) {
-      if (error instanceof SessionExpired) signOut();
+      if (error instanceof SessionExpired) signOut(true);
       else setFailed(true);
     } finally {
       setLoading(false);

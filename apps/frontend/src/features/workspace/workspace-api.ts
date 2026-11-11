@@ -11,7 +11,7 @@ export async function workspaceRequest(path: string, token: string | null, optio
   const headers = new Headers(options.headers);
   headers.set('Authorization', 'Bearer ' + token);
   const response = await fetch('/api/' + path, { ...options, headers });
-  if (response.status === 401) signOut();
+  if (response.status === 401) signOut(true);
   if (!response.ok) {
     const details = await response.json().catch(() => null);
     const message = details?.message;

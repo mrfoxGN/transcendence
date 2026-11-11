@@ -4,6 +4,7 @@ export class UserResponseDto {
   id!: string; // UUID, not number
   username!: string;
   email!: string;
+  emailVerified?: boolean;
   avatarUrl!: string | null;
   appRole!: AppRole; // actual entity field
   status!: UserStatus; // actual entity field

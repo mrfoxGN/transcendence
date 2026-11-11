@@ -7,6 +7,7 @@ export class UserMapper {
       id: user.id,
       username: user.username,
       email: user.email,
+      ...(user.verifiedEmail !== undefined ? { emailVerified: user.verifiedEmail === user.email } : {}),
       avatarUrl: user.avatarUrl,
       appRole: user.appRole,
       status: user.status,

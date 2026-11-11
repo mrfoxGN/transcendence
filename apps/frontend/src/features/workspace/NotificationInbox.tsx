@@ -1,11 +1,13 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type Ref } from 'react';
 import { Bell } from 'lucide-react';
 import { workspaceRequest } from './workspace-api';
 
 type Update = { id: string; message: string; createdAt: string; readAt: string | null; type: string; workspaceId: string | null; relatedResourceType: string | null; relatedResourceId: string | null };
 const limit = 20;
 
-export function NotificationInbox({ token, workspaceId }: { token: string | null; workspaceId?: string }) {
+export function NotificationInbox({ token, workspaceId, triggerRef }: {
+  token: string | null; workspaceId?: string; triggerRef?: Ref<HTMLButtonElement>;
+}) {
   const id = useId();
   const [updates, setUpdates] = useState<Update[]>([]);
   const [busy, setBusy] = useState(false);
@@ -100,7 +102,7 @@ export function NotificationInbox({ token, workspaceId }: { token: string | null
     { label: 'Earlier', items: visible.filter(update => ![today, yesterday].includes(new Date(update.createdAt).toDateString())) },
   ];
   return <>
-    <button type="button" className="wu-icon-button wu-inbox-trigger" aria-label={count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
+    <button ref={triggerRef} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
       onClick={() => { if (!document.getElementById(id)?.matches(':popover-open')) void refresh(); }}><Bell size={18} />{!!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
     <section id={id} popover="auto" className="wu-inbox" aria-label="Notifications" aria-busy={busy}>
       <div className="wu-panel-heading">

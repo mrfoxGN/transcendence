@@ -168,6 +168,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Status** Implemented. Signup leads to an optional avatar image URL step, followed by the requested workspace destination or the workspace picker. The picker opens the invitation inbox from Join a workspace. Email verification is optional. Apply migration `1794800000000` before deploying the updated backend. To deliver account email, configure `AUTH_PUBLIC_URL`, `AUTH_EMAIL_FROM` with a verified sender, and `RESEND_API_KEY`. Reset links last 30 minutes and verification links last 24 hours. Both are single-use. MySQL tests passed with simulated delivery. Live email delivery and browser interaction checks are pending.
+
 > Implement WU-14 in DevUP’s auth and onboarding routes. Add a skippable avatar step after signup, a clear create-or-join choice, and a first-task action in a new workspace. Add email verification and password reset with expiring tokens. Restore the requested DevUP destination after sign-in and validate redirect targets. Verify skipping the avatar, duplicate email, invalid credentials, expired recovery links, and password-manager autofill. Keep marketing changes outside scope.
 
 ### WU-15 · End-to-end invitations and team management

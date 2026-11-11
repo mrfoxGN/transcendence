@@ -119,11 +119,11 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Last 30 days');
 
   useEffect(() => {
-    if (!token) { window.location.replace('/login'); return; }
+    if (!token) { signOut(true); return; }
     const controller = new AbortController();
     void fetch('/api/auth/profile', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
       .then(async response => {
-        if (response.status === 401) { sessionStorage.removeItem(sessionKey); window.location.replace('/login'); return; }
+        if (response.status === 401) { signOut(true); return; }
         if (!response.ok) return;
         const profile = await response.json() as { id: string; username?: string; email?: string; avatarUrl?: string | null };
         setProfileId(profile.id);
