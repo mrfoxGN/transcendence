@@ -17,6 +17,7 @@ import { Task } from '../../tasks/entities/task.entity';
 import { defaultBoardColumns, taskColumn } from '../board-columns';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
+import { SaveBacklogViewDto } from '../dto/save-backlog-view.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
 import { WorkspaceInvitationResponseDto } from '../dto/workspace-invitation-response.dto';
@@ -133,6 +134,31 @@ export class WorkspacesService {
     }
 
     return WorkspaceMapper.toResponse(workspace);
+  }
+
+  async getBacklogViews(workspaceId: string, userId: string): Promise<SaveBacklogViewDto[]> {
+    await this.findOneForUser(workspaceId, userId);
+    const membership = await this.dataSource.getRepository(WorkspaceMembership).findOneBy({ workspaceId, userId });
+    if (!membership) throw new ForbiddenException();
+    return membership.backlogViews ?? [];
+  }
+
+  async saveBacklogView(workspaceId: string, userId: string, dto: SaveBacklogViewDto): Promise<SaveBacklogViewDto[]> {
+    const name = dto.name.trim();
+    if (!name) throw new BadRequestException('Enter a view name');
+    await this.findOneForUser(workspaceId, userId);
+    return this.dataSource.transaction(async manager => {
+      const repository = manager.getRepository(WorkspaceMembership);
+      const membership = await repository.findOne({
+        where: { workspaceId, userId }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!membership) throw new ForbiddenException();
+      const views = (membership.backlogViews ?? []).filter(view => view.name !== name);
+      if (views.length >= 30) throw new ConflictException('You can save up to 30 backlog views');
+      views.push({ name, view: dto.view });
+      await repository.update(membership.id, { backlogViews: views });
+      return views;
+    });
   }
 
   async assertOwner(workspaceId: string, userId: string): Promise<void> {

@@ -407,11 +407,15 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'backlog': return (
         <BacklogPage
+          key={workspaceId + ':' + profileId}
           pageHeading={pageHeading}
-          facets={taskFacets}
-          filter={filter}
-          setFilter={setFilter}
-          filteredTasks={filteredTasks}
+          storageKey={'devup:backlog:' + workspaceId + ':' + profileId}
+          viewsPath={workspacePath + '/backlog-views'}
+          token={token}
+          tasks={tasks}
+          profileId={profileId}
+          today={today}
+          nextSevenDaysEnd={nextSevenDaysEnd}
           setSelectedTask={setSelectedTask}
           onAddTask={openTaskForm}
           addTaskButton={addTaskButton}

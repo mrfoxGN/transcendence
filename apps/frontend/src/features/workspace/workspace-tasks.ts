@@ -14,7 +14,7 @@ export type Member = { userId: string; username: string; avatarUrl: string | nul
 type ApiTask = {
   id: string; title: string; description: string | null; acceptanceCriteria: string | null;
   priority: string | null; status: Status; dueDate?: string | null; dueAt: string | null; isBlocked: boolean;
-  blockedReason: string | null; completedAt: string | null; boardColumnId?: string;
+  blockedReason: string | null; completedAt: string | null; boardColumnId?: string; position?: number;
 };
 type ApiBoard = { activeCount: number; activeWipLimit: number; reportingTimeZone?: string; assigneesByTaskId?: Record<string, string>; columns: { status: Status; tasks: ApiTask[] }[]; boardColumns?: BoardColumnConfig[] };
 
@@ -46,7 +46,7 @@ export async function loadBoard(path: string, token: string, signal: AbortSignal
       ? calendarDate(new Date(item.dueAt), reportingTimeZone)
       : item.dueDate ?? null;
     return {
-      id: item.id, title: item.title, status: statusLabels[item.status], boardColumnId: item.boardColumnId,
+      id: item.id, title: item.title, status: statusLabels[item.status], boardColumnId: item.boardColumnId, position: item.position,
       description: item.description ?? '', acceptanceCriteria: item.acceptanceCriteria,
       priority: item.priority ? item.priority[0] + item.priority.slice(1).toLowerCase() : 'None',
       due: dueDate ? formatCalendarDate(dueDate, { month: 'short', day: 'numeric' }) : '—',

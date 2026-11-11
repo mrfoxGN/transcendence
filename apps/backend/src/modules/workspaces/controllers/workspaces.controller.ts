@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
+import { SaveBacklogViewDto } from '../dto/save-backlog-view.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceInvitationResponseDto } from '../dto/workspace-invitation-response.dto';
 import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
@@ -46,6 +47,23 @@ export class WorkspacesController {
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceMemberResponseDto[]> {
     return this.workspacesService.findMembers(id, request.user.id);
+  }
+
+  @Get(':id/backlog-views')
+  getBacklogViews(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<SaveBacklogViewDto[]> {
+    return this.workspacesService.getBacklogViews(id, request.user.id);
+  }
+
+  @Post(':id/backlog-views')
+  saveBacklogView(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveBacklogViewDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<SaveBacklogViewDto[]> {
+    return this.workspacesService.saveBacklogView(id, request.user.id, dto);
   }
 
   @Patch(':id/kanban-settings')

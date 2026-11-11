@@ -124,6 +124,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Status** Implemented. Backlog defaults to To do and Ready, with broader scopes available through presets and the scope selector. Named views are stored per workspace member. The current filters, search, and sort are remembered in the browser. Migration `1794600000000` adds saved views to workspace memberships and must be applied before deploying the updated backend. MySQL verified saved-view persistence and isolation. Browser interaction verification is pending.
+
 > Implement WU-08 in DevUP Backlog. Make the To do and Ready scope explicit, add priority, due-date, and manual ordering, and filter assignees by stable ID with an Unassigned option. Add Clear filters and preserve search, filters, and sort when returning from a task. Persist named views such as My work, Needs review, and Blocked. Verify duplicate display names, restored navigation state, and saved views after reload. Coordinate manual ordering with WU-09.
 
 ### WU-09 · Reliable Kanban ordering and column management
