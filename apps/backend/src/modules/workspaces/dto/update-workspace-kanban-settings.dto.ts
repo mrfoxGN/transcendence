@@ -20,6 +20,14 @@ export class BoardColumnDto {
   limit?: number | null;
 }
 
+export class MoveColumnTasksDto {
+  @Matches(/^[A-Za-z0-9_-]{1,40}$/)
+  fromColumnId!: string;
+
+  @Matches(/^[A-Za-z0-9_-]{1,40}$/)
+  toColumnId!: string;
+}
+
 export class UpdateWorkspaceKanbanSettingsDto {
   @IsOptional()
   @IsInt()
@@ -39,4 +47,9 @@ export class UpdateWorkspaceKanbanSettingsDto {
   @ValidateNested({ each: true })
   @Type(() => BoardColumnDto)
   boardColumns?: BoardColumnDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MoveColumnTasksDto)
+  moveColumnTasks?: MoveColumnTasksDto;
 }

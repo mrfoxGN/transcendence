@@ -96,7 +96,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <h3>Move task</h3>
         <label className="wu-field-label">Destination<select name="column" value="" disabled={busy} onChange={event => {
           const column = destinations.find(item => item.id === event.currentTarget.value);
-          if (column) void mutate('/transition', 'POST', { toStatus: column.status, boardColumnId: column.id });
+          if (column) void mutate('/transition', 'POST', { toStatus: column.status, boardColumnId: column.id, placement: 'end' });
         }}>
           <option value="" disabled>Choose a column</option>
           {destinations.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}

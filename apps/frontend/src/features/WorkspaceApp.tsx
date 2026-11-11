@@ -13,7 +13,7 @@ import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFace
 import { homeFilters } from './workspace/previewData';
 import { useWorkspaceChat } from './workspace/workspace-chat';
 import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
-import { loadBoard, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
+import { loadBoard, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
 import { addCalendarDays, calendarDate, isDueInNextSevenDays, nextSevenDaysLabel } from './workspace/workspace-calendar';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
@@ -247,17 +247,21 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  async function moveBoardTask(id: string, column: BoardColumnConfig) {
+  async function moveBoardTask(id: string, column: BoardColumnConfig, placement: 'before' | 'after' | 'end', anchorTaskId?: string) {
     const task = tasks.find(item => item.id === id);
-    if (!task || taskBoardColumn(task, boardColumns)?.id === column.id || taskSaving) return;
+    if (!task || taskSaving || !token) return false;
     setTaskSaving(true);
     setColumnError('');
     try {
-      await workspaceRequest('tasks/' + id + '/transition', token, jsonRequest('POST', { toStatus: column.status, boardColumnId: column.id }));
+      await workspaceRequest('tasks/' + id + '/transition', token, jsonRequest('POST', {
+        toStatus: column.status, boardColumnId: column.id, placement, anchorTaskId,
+      }));
       setToast(`Moved “${task.title}” to ${column.label}.`);
       recentActivity.retry();
+      return true;
     } catch (error) {
       setColumnError(`Could not move “${task.title}” to ${column.label}. ${error instanceof Error ? error.message : 'Try again.'}`);
+      return false;
     } finally {
       setBoardAttempt(value => value + 1);
       setTaskSaving(false);
@@ -270,13 +274,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setModal('task');
   }
 
-  async function saveBoardColumns(next: BoardColumnConfig[]) {
+  async function saveBoardColumns(next: BoardColumnConfig[], moveColumnTasks?: { fromColumnId: string; toColumnId: string }) {
     if (!token || savingColumns || workspace?.ownerId !== profileId) return false;
     setSavingColumns(true);
     setColumnError('');
     try {
-      await workspaceRequest(workspacePath + '/kanban-settings', token, jsonRequest('PATCH', { boardColumns: next }));
-      setBoard(current => current ? { ...current, boardColumns: next } : current);
+      await workspaceRequest(workspacePath + '/kanban-settings', token, jsonRequest('PATCH', { boardColumns: next, moveColumnTasks }));
+      if (!moveColumnTasks) setBoard(current => current ? { ...current, boardColumns: next } : current);
+      else recentActivity.retry();
       setBoardAttempt(value => value + 1);
       return true;
     } catch (error) {
@@ -433,6 +438,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           columns={boardColumns} allTasks={tasks}
           canManage={workspace.ownerId === profileId} savingColumns={savingColumns} saveColumns={saveBoardColumns} error={columnError}
           onMoveTask={moveBoardTask}
+          movingTask={taskSaving}
           setSelectedTask={setSelectedTask}
           onAddTask={openTaskForm}
           addTaskButton={addTaskButton}

@@ -14,7 +14,9 @@ import { ActivitiesService } from '../../activities/services/activities.service'
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { Task } from '../../tasks/entities/task.entity';
-import { defaultBoardColumns, taskColumn } from '../board-columns';
+import { TaskStatusHistory } from '../../tasks/entities/task-status-history.entity';
+import { Activity } from '../../activities/entities/activity.entity';
+import { canTransitionTask, compareBoardTasks, defaultBoardColumns, isActiveTaskStatus, taskColumn } from '../board-columns';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { SaveBacklogViewDto } from '../dto/save-backlog-view.dto';
@@ -752,6 +754,9 @@ export class WorkspacesService {
     userId: string,
     dto: UpdateWorkspaceKanbanSettingsDto,
   ): Promise<WorkspaceKanbanSettingsResponseDto> {
+    if (dto.moveColumnTasks && !dto.boardColumns) {
+      throw new BadRequestException('Provide the board layout when moving a deleted column’s tasks');
+    }
     if (
       dto.activeWipLimit === undefined &&
       dto.definitionOfReady === undefined &&
@@ -793,7 +798,64 @@ export class WorkspacesService {
         if (columns.some(column => previous.some(old => old.id === column.id && old.status !== column.status))) {
           throw new BadRequestException('An existing column cannot change its workflow status');
         }
-        const tasks = await manager.getRepository(Task).find({ where: { workspaceId, deletedAt: IsNull() } });
+        const tasksRepository = manager.getRepository(Task);
+        const tasks = dto.moveColumnTasks
+          ? await tasksRepository.createQueryBuilder('task')
+            .where('task.workspaceId = :workspaceId', { workspaceId })
+            .andWhere('task.deletedAt IS NULL')
+            .orderBy('task.id', 'ASC')
+            .setLock('pessimistic_write').getMany()
+          : await tasksRepository.find({ where: { workspaceId, deletedAt: IsNull() } });
+        const move = dto.moveColumnTasks;
+        if (move) {
+          const source = previous.find(column => column.id === move.fromColumnId);
+          const destination = columns.find(column => column.id === move.toColumnId);
+          if (!source || !destination || columns.some(column => column.id === source.id)
+            || !previous.some(column => column.id === destination.id)) {
+            throw new BadRequestException('Choose a remaining destination column');
+          }
+          const remaining = previous.filter(column => column.id !== source.id);
+          if (remaining.length !== columns.length || remaining.some((column, index) =>
+            column.id !== columns[index].id || column.label !== columns[index].label
+            || (column.limit ?? null) !== (columns[index].limit ?? null))) {
+            throw new ConflictException('The board layout changed. Refresh the board and try again.');
+          }
+          if (source.status !== destination.status && !canTransitionTask(source.status, destination.status)) {
+            throw new BadRequestException('The destination workflow status is not allowed');
+          }
+          const moving = tasks.filter(task => taskColumn(previous, task.status, task.boardColumnId).id === source.id).sort(compareBoardTasks);
+          const staying = tasks.filter(task => taskColumn(previous, task.status, task.boardColumnId).id === destination.id).sort(compareBoardTasks);
+          const activeCount = tasks.filter(task => isActiveTaskStatus(task.status)).length;
+          const limit = dto.activeWipLimit ?? settings.activeWipLimit;
+          if (!isActiveTaskStatus(source.status) && isActiveTaskStatus(destination.status) && activeCount + moving.length > limit) {
+            throw new ConflictException('Active WIP limit reached');
+          }
+          const now = new Date();
+          for (const [position, task] of staying.entries()) {
+            if (task.position !== position) await tasksRepository.update({ id: task.id }, { position });
+          }
+          for (const [index, task] of moving.entries()) {
+            const fromStatus = task.status;
+            task.status = destination.status;
+            task.boardColumnId = destination.id;
+            task.position = staying.length + index;
+            task.updatedAt = now;
+            if (fromStatus !== task.status) {
+              if (task.status === 'DONE') task.completedAt = now;
+              if (task.status === 'CANCELLED') task.cancelledAt = now;
+              await manager.insert(TaskStatusHistory, {
+                id: randomUUID(), taskId: task.id, fromStatus, toStatus: task.status,
+                changedById: userId, changedAt: now, note: null,
+              });
+              await manager.insert(Activity, {
+                id: randomUUID(), workspaceId, actorUserId: userId, actionType: 'TASK_STATUS_CHANGED',
+                resourceType: 'task', resourceId: task.id, createdAt: now,
+                metadata: { title: task.title, fromStatus, toStatus: task.status },
+              });
+            }
+            await tasksRepository.save(task);
+          }
+        }
         const counts = new Map<string, number>();
         for (const task of tasks) {
           const id = taskColumn(previous, task.status, task.boardColumnId).id;

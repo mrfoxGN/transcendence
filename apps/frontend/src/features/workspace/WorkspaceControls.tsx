@@ -26,11 +26,12 @@ export function DocumentPagination({ page, count, onPage, disabled = false }: {
   </nav>;
 }
 
-export function Drawer({ title, children, onClose, confirmation = false }: {
+export function Drawer({ title, children, onClose, confirmation = false, closeDisabled = false }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   confirmation?: boolean;
+  closeDisabled?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -41,11 +42,12 @@ export function Drawer({ title, children, onClose, confirmation = false }: {
   return (
     <dialog ref={ref} className={confirmation ? 'wu-modal wu-native-confirmation' : 'wu-drawer wu-native-drawer'}
       role={confirmation ? 'alertdialog' : undefined} aria-labelledby={id}
-      onClose={onClose} onClick={event => { if (event.target === event.currentTarget) ref.current?.close(); }}>
+      onClose={onClose} onCancel={event => { if (closeDisabled) event.preventDefault(); }}
+      onClick={event => { if (!closeDisabled && event.target === event.currentTarget) ref.current?.close(); }}>
       <div className={confirmation ? undefined : 'wu-drawer-body'}>
         <div className={confirmation ? 'wu-modal-head' : 'wu-drawer-head'}>
           <h2 id={id}>{title}</h2>
-          <button type="button" className="wu-icon-button" aria-label={confirmation ? 'Close dialog' : 'Close details'} onClick={() => ref.current?.close()}><X size={18} /></button>
+          <button type="button" className="wu-icon-button" aria-label={confirmation ? 'Close dialog' : 'Close details'} disabled={closeDisabled} onClick={() => ref.current?.close()}><X size={18} /></button>
         </div>
         {children}
       </div>

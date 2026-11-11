@@ -14,7 +14,7 @@ import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService } from '../../activities/services/activities.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
-import { defaultBoardColumns, taskColumn } from '../../workspaces/board-columns';
+import { canTransitionTask, compareBoardTasks, defaultBoardColumns, taskColumn } from '../../workspaces/board-columns';
 import { WorkspaceKanbanSetting } from '../../workspaces/entities/workspace-kanban-setting.entity';
 import { AssignTaskDto } from '../dto/assign-task.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
@@ -106,6 +106,9 @@ export class TasksService {
             throw new ConflictException('Active WIP limit reached');
           }
           task.boardColumnId = column.id;
+          task.position = existing
+            .filter(item => taskColumn(columns, item.status, item.boardColumnId).id === column.id)
+            .reduce((last, item) => Math.max(last, item.position), -1) + 1;
           task.status = column.status;
           if (column.status === TaskStatus.DONE) task.completedAt = now;
           if (column.status === TaskStatus.CANCELLED) task.cancelledAt = now;
@@ -286,6 +289,10 @@ export class TasksService {
     userId: string,
     dto: TransitionTaskDto,
   ): Promise<TaskResponseDto> {
+    if (dto.placement && !dto.boardColumnId) throw new BadRequestException('Choose a destination column for card placement');
+    if ((dto.placement === 'before' || dto.placement === 'after') !== !!dto.anchorTaskId) {
+      throw new BadRequestException('Choose a card to place the task next to');
+    }
     const existingTask = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
     });
@@ -338,13 +345,14 @@ export class TasksService {
         throw new ConflictException('This column has reached its task limit');
       }
       if (column && task.status === dto.toStatus) {
+        if (dto.placement) await this.placeTask(tasksRepository, workspaceTasks, layout, column.id, task, dto);
         task.boardColumnId = column.id;
         task.updatedAt = new Date();
         await tasksRepository.save(task);
         return { response: TaskMapper.toResponse(task), previousStatus: task.status };
       }
 
-      if (!this.isAllowedTransition(task.status, dto.toStatus)) {
+      if (!canTransitionTask(task.status, dto.toStatus)) {
         throw new BadRequestException(
           `Cannot move task from ${task.status} to ${dto.toStatus}`,
         );
@@ -370,6 +378,7 @@ export class TasksService {
       const now = new Date();
       const previousStatus = task.status;
 
+      if (column && dto.placement) await this.placeTask(tasksRepository, workspaceTasks, layout, column.id, task, dto);
       task.status = dto.toStatus;
       if (column || task.boardColumnId) task.boardColumnId = column?.id ?? null;
       task.updatedAt = now;
@@ -727,32 +736,27 @@ export class TasksService {
     return this.findById(taskId, userId);
   }
 
-  private isAllowedTransition(from: TaskStatus, to: TaskStatus): boolean {
-    if (from === TaskStatus.BACKLOG) {
-      return to === TaskStatus.READY || to === TaskStatus.CANCELLED;
+  private async placeTask(
+    repository: Repository<Task>,
+    tasks: Task[],
+    layout: ReturnType<typeof defaultBoardColumns>,
+    columnId: string,
+    moved: Task,
+    dto: TransitionTaskDto,
+  ) {
+    const ordered = tasks
+      .filter(task => task.id !== moved.id && taskColumn(layout, task.status, task.boardColumnId).id === columnId)
+      .sort(compareBoardTasks);
+    const anchor = ordered.findIndex(task => task.id === dto.anchorTaskId);
+    if (dto.anchorTaskId && anchor < 0) {
+      throw new ConflictException('The reference card moved. Refresh the board and try again.');
     }
-
-    if (from === TaskStatus.READY) {
-      return (
-        to === TaskStatus.BACKLOG ||
-        to === TaskStatus.IN_PROGRESS ||
-        to === TaskStatus.CANCELLED
-      );
+    const index = dto.placement === 'end' ? ordered.length : anchor + Number(dto.placement === 'after');
+    ordered.splice(index, 0, moved);
+    for (const [position, task] of ordered.entries()) {
+      if (task === moved) moved.position = position;
+      else if (task.position !== position) await repository.update({ id: task.id }, { position });
     }
-
-    if (from === TaskStatus.IN_PROGRESS) {
-      return to === TaskStatus.REVIEW || to === TaskStatus.CANCELLED;
-    }
-
-    if (from === TaskStatus.REVIEW) {
-      return (
-        to === TaskStatus.IN_PROGRESS ||
-        to === TaskStatus.DONE ||
-        to === TaskStatus.CANCELLED
-      );
-    }
-
-    return false;
   }
 
   async getAssignment(
