@@ -26,6 +26,7 @@ import {
 } from '../../../database/enums/database.enums';
 import type { UsersService } from '../../users/services/users.service';
 import type { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceKanbanSetting } from '../../workspaces/entities/workspace-kanban-setting.entity';
 import { Task } from '../entities/task.entity';
 import { TaskAssignment } from '../entities/task-assignment.entity';
 import { TaskComment } from '../entities/task-comment.entity';
@@ -150,6 +151,7 @@ describe('TasksService', () => {
       [TaskComment, comments],
       [TaskDependency, dependencies],
       [TaskStatusHistory, history],
+      [WorkspaceKanbanSetting, makeRepository()],
     ]);
     const manager = {
       getRepository: jest.fn(
@@ -506,6 +508,32 @@ describe('TasksService', () => {
   });
 
   describe('status transitions', () => {
+    it('moves a completed card into a full column before an existing card', async () => {
+      task.status = TaskStatus.DONE;
+      task.completedAt = new Date();
+      const anchor = makeTask({ id: otherTaskId, status: TaskStatus.IN_PROGRESS });
+      const settings = dataSource.getRepository(WorkspaceKanbanSetting) as ReturnType<typeof makeRepository>;
+      settings.findOne.mockResolvedValue({
+        activeWipLimit: 1,
+        boardColumns: [{ id: 'active', label: 'Active', status: TaskStatus.IN_PROGRESS, limit: 1 }],
+      });
+      query.getMany.mockResolvedValue([task, anchor]);
+
+      const moved = await service.transition(taskId, userId, {
+        toStatus: TaskStatus.IN_PROGRESS,
+        boardColumnId: 'active',
+        placement: 'before',
+        anchorTaskId: anchor.id,
+      });
+
+      expect(moved).toMatchObject({
+        status: TaskStatus.IN_PROGRESS, boardColumnId: 'active', completedAt: null, position: 0,
+      });
+      expect(transactionTasks.update).toHaveBeenCalledWith({ id: anchor.id }, { position: 1 });
+      expect(transactionTasks.count).not.toHaveBeenCalled();
+      expect(history.save).toHaveBeenCalled();
+    });
+
     const allowed: Array<[TaskStatus, TaskStatus]> = [
       [TaskStatus.BACKLOG, TaskStatus.READY],
       [TaskStatus.BACKLOG, TaskStatus.CANCELLED],

@@ -307,7 +307,7 @@ export class TasksService {
     );
 
     const settings =
-      dto.toStatus === TaskStatus.IN_PROGRESS
+      !dto.boardColumnId && dto.toStatus === TaskStatus.IN_PROGRESS
         ? await this.workspacesService.getKanbanSettings(
             existingTask.workspaceId,
             userId,
@@ -336,14 +336,14 @@ export class TasksService {
         throw new NotFoundException('Task not found');
       }
 
-      const layout = columnSettings?.boardColumns ?? defaultBoardColumns();
+      const defaults = defaultBoardColumns();
+      const configured = columnSettings?.boardColumns ?? defaults;
+      const layout = [...configured, ...defaults.filter(column =>
+        !configured.some(item => item.status === column.status)
+        && workspaceTasks.some(item => item.status === column.status),
+      )];
       const column = dto.boardColumnId ? layout.find(item => item.id === dto.boardColumnId && item.status === dto.toStatus) : undefined;
       if (dto.boardColumnId && !column) throw new BadRequestException('This column is unavailable');
-      const currentColumn = taskColumn(layout, task.status, task.boardColumnId);
-      if (column?.limit && currentColumn.id !== column.id &&
-        workspaceTasks.filter(item => taskColumn(layout, item.status, item.boardColumnId).id === column.id).length >= column.limit) {
-        throw new ConflictException('This column has reached its task limit');
-      }
       if (column && task.status === dto.toStatus) {
         if (dto.placement) await this.placeTask(tasksRepository, workspaceTasks, layout, column.id, task, dto);
         task.boardColumnId = column.id;
@@ -352,14 +352,14 @@ export class TasksService {
         return { response: TaskMapper.toResponse(task), previousStatus: task.status };
       }
 
-      if (!canTransitionTask(task.status, dto.toStatus)) {
+      if (!column && !canTransitionTask(task.status, dto.toStatus)) {
         throw new BadRequestException(
           `Cannot move task from ${task.status} to ${dto.toStatus}`,
         );
       }
 
       if (
-        task.status === TaskStatus.READY &&
+        !column && task.status === TaskStatus.READY &&
         dto.toStatus === TaskStatus.IN_PROGRESS
       ) {
         const activeCount = await tasksRepository.count({
@@ -370,7 +370,7 @@ export class TasksService {
           },
         });
 
-        if (activeCount >= (columnSettings ?? settings)!.activeWipLimit) {
+        if (activeCount >= settings!.activeWipLimit) {
           throw new ConflictException('Active WIP limit reached');
         }
       }
@@ -385,10 +385,14 @@ export class TasksService {
 
       if (dto.toStatus === TaskStatus.DONE) {
         task.completedAt = now;
+      } else if (previousStatus === TaskStatus.DONE) {
+        task.completedAt = null;
       }
 
       if (dto.toStatus === TaskStatus.CANCELLED) {
         task.cancelledAt = now;
+      } else if (previousStatus === TaskStatus.CANCELLED) {
+        task.cancelledAt = null;
       }
 
       await tasksRepository.save(task);

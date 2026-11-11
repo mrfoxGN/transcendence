@@ -23,9 +23,7 @@
 .wu-board-slider::-moz-range-thumb { width: 32px; height: 10px; background: #878b94; border: 0; border-radius: 5px; }
 .wu-column-form { display: grid; gap: 16px; }
 .wu-board-column[data-drop-target='true'] { outline: 2px solid var(--wu-blue); outline-offset: -2px; }
-.wu-board-column[data-drop-unavailable='true'] { opacity: .65; }
-.wu-board-workflow, .wu-board-drop-reason { margin: 0 2px 8px; font-size: 12px; color: var(--wu-muted); }
-.wu-board-drop-reason { color: var(--wu-red); }
+.wu-board-workflow { margin: 0 2px 8px; font-size: 12px; color: var(--wu-muted); }
 .wu-board-cards { flex: 1; min-height: 0; overflow: auto; overscroll-behavior-y: contain; padding: 3px; margin-inline: -3px; }
 .wu-board-card-slot { position: relative; }
 .wu-board-card-slot[data-dragging='true'] { opacity: .35; }

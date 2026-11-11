@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace-api';
-import { canTransition, statusLabels, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace-tasks';
+import { statusLabels, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace-tasks';
 import type { Task } from './types';
 import { finishInputEdit, saveTextOnBlur } from './autosave';
 
@@ -57,8 +57,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   const save = (key: string, value: string | null) => void mutate('', 'PATCH', { [key]: value });
 
   const currentColumn = taskBoardColumn(task, boardColumns);
-  const destinations = boardColumns.filter(column => column.id !== currentColumn?.id &&
-    (task.status === statusLabels[column.status] || canTransition(task.status, statusLabels[column.status])));
+  const destinations = boardColumns.filter(column => column.id !== currentColumn?.id);
 
   return <Drawer title={task.title} onClose={onClose}>
     <div className="wu-task-inspector">

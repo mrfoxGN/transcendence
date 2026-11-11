@@ -134,6 +134,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Status** Implemented. Cards can be inserted before or after a specific card, within a column or across allowed workflow moves. The Move to dialog offers the same positions through a column and position selector. Populated columns can be removed by owners after previewing the destination. MySQL verified persisted positions, capacity under concurrent moves, and rollback after rejected column deletion. Pointer target selection passed in an automated check. Browser interaction verification is pending.
 
+**Follow-up** Individual card moves now accept any visible board column. Workflow status and capacity limits no longer block drag-and-drop or Move to. The column determines the task’s status, and reopening a completed or cancelled card clears its corresponding timestamp.
+
 > Implement WU-09 in DevUP Board. Persist card order within columns and preserve existing transition and work-in-progress rules. Explain invalid moves and full columns, provide a keyboard and touch Move to action, and expose Rename in the column menu. Add an owner-authorized move-then-delete flow for populated columns with a preview and atomic update. Verify reload, keyboard and touch moves, concurrent capacity checks, and rollback after a failed deletion.
 
 ### WU-10 · Task identity, quick create, and editing

@@ -806,6 +806,11 @@ export class WorkspacesService {
             .orderBy('task.id', 'ASC')
             .setLock('pessimistic_write').getMany()
           : await tasksRepository.find({ where: { workspaceId, deletedAt: IsNull() } });
+        const previousCounts = new Map<string, number>();
+        for (const task of tasks) {
+          const id = taskColumn(previous, task.status, task.boardColumnId).id;
+          previousCounts.set(id, (previousCounts.get(id) ?? 0) + 1);
+        }
         const move = dto.moveColumnTasks;
         if (move) {
           const source = previous.find(column => column.id === move.fromColumnId);
@@ -865,7 +870,12 @@ export class WorkspacesService {
           const next = taskColumn(columns, task.status, task.boardColumnId).id;
           counts.set(next, (counts.get(next) ?? 0) + 1);
         }
-        if (columns.some(column => column.limit && (counts.get(column.id) ?? 0) > column.limit)) {
+        if (columns.some(column => {
+          const count = counts.get(column.id) ?? 0;
+          if (!column.limit || count <= column.limit) return false;
+          const previousLimit = previous.find(item => item.id === column.id)?.limit;
+          return !previousLimit || column.limit < previousLimit || count > (previousCounts.get(column.id) ?? 0);
+        })) {
           throw new ConflictException('A column limit cannot be lower than its current task count');
         }
         settings.boardColumns = columns;
