@@ -100,6 +100,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND`
 
+**Status** Implemented. The invite dialog explains the existing-account requirement and provides a next step for unknown accounts, pending invites, and existing members. Mocked submission checks passed. Browser verification is pending.
+
 > Implement WU-05 in DevUP’s invite dialog. Explain that the email must belong to an existing DevUP account, and use the existing API responses to distinguish an unknown account, pending invitation, and existing member. Keep the email on recoverable failure and show a clear next step. Verify each error and a successful invite. Leave the unregistered-invite flow to WU-15.
 
 ### WU-06 · Consistent deadlines and date filters
