@@ -116,6 +116,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND`
 
+**Status** Implemented. My work and workspace metrics open their corresponding task lists. Needs attention previews three assigned tasks and links to the full ranked list. The production build and rendered fixture checks passed. Browser interaction verification is pending.
+
 > Implement WU-07 on DevUP Home. Separate My work from workspace totals, rank Needs attention by blocked and overdue severity, show a reason on each row, and provide View all. Make metric links open a view whose results match the count. Keep Workspace progress scoped to the workspace. Verify matching counts and destinations, and useful states for new workspaces and users with no assigned tasks.
 
 ### WU-08 · Backlog views and sorting

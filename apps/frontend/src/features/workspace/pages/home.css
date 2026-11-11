@@ -1,3 +1,8 @@
+.wu-home-metrics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: 12px; margin-bottom: 16px; }
+.wu-home-metrics h2 { margin: 0 0 8px; font-size: 14px; }
+.wu-home-workspace-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wu-home-metrics .wu-metric-card { width: 100%; }
+
 
 .wu-home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 16px 14px; }
 .wu-home-column { min-width: 0; display: grid; align-content: start; gap: 16px; }
@@ -26,15 +31,17 @@
 .wu-home-progress-breakdown dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 .wu-home-progress > .wu-pill { margin-top: 12px; }
 .wu-home-attention { margin-block: 0 16px; padding: 10px 12px; border-radius: 8px; background: var(--wu-red-soft); }
-.wu-home-attention h3 { margin: 0 0 4px; color: var(--wu-red); font-size: 14px; }
+.wu-home-attention-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-bottom: 4px; }
+.wu-home-attention h3 { margin: 0; color: var(--wu-red); font-size: 14px; }
+.wu-home-attention-heading .wu-text-button { min-height: 32px; }
 .wu-home-attention--clear { background: var(--wu-mint-soft); }
 .wu-home-attention--clear h3 { color: var(--wu-ink); }
 .wu-home-attention--clear p { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--wu-muted); font-size: 13px; }
 .wu-home-attention--clear svg { flex: none; color: var(--wu-mint); }
 .wu-home-attention ul { list-style: none; padding: 0; margin: 0; }
-.wu-home-attention button { display: flex; width: 100%; min-height: 36px; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border: 0; background: transparent; text-align: start; cursor: pointer; }
-.wu-home-attention button:hover > span:first-child { text-decoration: underline; }
-.wu-home-attention button > span:first-child { overflow-wrap: anywhere; }
+.wu-home-attention li button { display: flex; flex-wrap: wrap; width: 100%; min-height: 36px; justify-content: space-between; align-items: center; gap: 4px 8px; padding: 4px 0; border: 0; background: transparent; text-align: start; cursor: pointer; }
+.wu-home-attention li button:hover > span:first-child { text-decoration: underline; }
+.wu-home-attention li button > span:first-child { overflow-wrap: anywhere; }
 .wu-home-progress .wu-pill--red, .wu-home-attention .wu-pill--red { background: var(--wu-red-soft); color: var(--wu-red); }
 .wu-home-grid .wu-panel-heading h2 { font-size: 18px; }
 .wu-home-grid .wu-text-button, .wu-home-tasks .wu-chip { font-size: 14px; }
@@ -52,6 +59,7 @@
 .wu-home-task .wu-task-id, .wu-home-task .wu-pill { font-size: 12px; }
 .wu-home-task-date { display: flex; justify-content: flex-end; align-items: center; gap: 5px; color: var(--wu-muted); white-space: nowrap; font-size: 13px; }
 .wu-home-empty { color: var(--wu-muted); margin: 0; padding: 20px 4px; }
+.wu-home-empty p { margin: 0 0 8px; }
 .wu-repo-line { display: flex; align-items: center; gap: 9px; color: var(--wu-blue); }
 .wu-repo-line strong { color: var(--wu-ink); font-size: 14px; overflow-wrap: anywhere; }
 .wu-repo-line .wu-pill { margin-left: 2px; }
@@ -66,10 +74,12 @@
 }
 
 @media (max-width: 980px) {
+  .wu-home-metrics { grid-template-columns: minmax(0, 1fr); }
   .wu-home-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 680px) {
+  .wu-home-workspace-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .wu-home-task { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
   .wu-home-task-name { grid-row: span 2; }
   .wu-home-task .wu-pill { justify-self: end; }
