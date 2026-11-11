@@ -64,6 +64,7 @@ export class TasksService {
     }
 
     await this.workspacesService.findOneForUser(workspaceId, userId);
+    if (dto.assigneeId) await this.validateAssignee(workspaceId, dto.assigneeId);
 
     const now = new Date();
 
@@ -88,15 +89,16 @@ export class TasksService {
       deletedAt: null,
     });
 
-    const savedTask = dto.boardColumnId
+    const savedTask = dto.boardColumnId || dto.assigneeId
       ? await this.dataSource.transaction(async manager => {
+        const repository = manager.getRepository(Task);
+        if (dto.boardColumnId) {
           const settings = await manager.getRepository(WorkspaceKanbanSetting).findOne({
             where: { workspaceId }, lock: { mode: 'pessimistic_write' },
           });
           const columns = settings?.boardColumns ?? defaultBoardColumns();
           const column = columns.find(item => item.id === dto.boardColumnId);
           if (!column || !settings) throw new BadRequestException('This column is unavailable');
-          const repository = manager.getRepository(Task);
           const existing = await repository.find({ where: { workspaceId, deletedAt: IsNull() } });
           if (column.limit && existing.filter(item => taskColumn(columns, item.status, item.boardColumnId).id === column.id).length >= column.limit) {
             throw new ConflictException('This column has reached its task limit');
@@ -112,8 +114,16 @@ export class TasksService {
           task.status = column.status;
           if (column.status === TaskStatus.DONE) task.completedAt = now;
           if (column.status === TaskStatus.CANCELLED) task.cancelledAt = now;
-          return repository.save(task);
-        })
+        }
+        const saved = await repository.save(task);
+        if (dto.assigneeId) {
+          await manager.getRepository(TaskAssignment).insert({
+            id: randomUUID(), taskId: saved.id, userId: dto.assigneeId,
+            assignedById: userId, assignedAt: now,
+          });
+        }
+        return saved;
+      })
       : await this.tasksRepository.save(task);
 
     try {
@@ -470,6 +480,7 @@ export class TasksService {
     taskId: string,
     actorId: string,
     dto: AssignTaskDto,
+    replace = false,
   ): Promise<TaskAssignmentResponseDto> {
     const existingTask = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
@@ -484,23 +495,7 @@ export class TasksService {
       actorId,
     );
 
-    const assignee = await this.usersService.findById(dto.userId);
-
-    if (assignee.status !== UserStatus.ACTIVE) {
-      throw new BadRequestException('Assignee must be active');
-    }
-
-    try {
-      await this.workspacesService.findOneForUser(
-        existingTask.workspaceId,
-        dto.userId,
-      );
-    } catch (error) {
-      if (error instanceof ForbiddenException) {
-        throw new BadRequestException('Assignee must belong to the workspace');
-      }
-      throw error;
-    }
+    await this.validateAssignee(existingTask.workspaceId, dto.userId);
 
     return this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
@@ -518,12 +513,13 @@ export class TasksService {
         where: { taskId },
       });
 
-      if (existingAssignment) {
+      if (existingAssignment && !replace) {
         throw new ConflictException('Task already assigned');
       }
+      if (existingAssignment?.userId === dto.userId) return TaskAssignmentMapper.toResponse(existingAssignment);
 
       const assignment = assignmentsRepository.create({
-        id: randomUUID(),
+        id: existingAssignment?.id ?? randomUUID(),
         taskId,
         userId: dto.userId,
         assignedById: actorId,
@@ -534,6 +530,21 @@ export class TasksService {
 
       return TaskAssignmentMapper.toResponse(savedAssignment);
     });
+  }
+
+  private async validateAssignee(workspaceId: string, userId: string) {
+    const assignee = await this.usersService.findById(userId);
+    if (assignee.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException('Assignee must be active');
+    }
+    try {
+      await this.workspacesService.findOneForUser(workspaceId, userId);
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw new BadRequestException('Assignee must belong to the workspace');
+      }
+      throw error;
+    }
   }
 
   async addDependency(
@@ -783,7 +794,7 @@ export class TasksService {
 
     return assignment ? TaskAssignmentMapper.toResponse(assignment) : null;
   }
-  async unassign(taskId: string, userId: string): Promise<void> {
+  async unassign(taskId: string, userId: string, allowMissing = false): Promise<void> {
     const existingTask = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
     });
@@ -811,7 +822,7 @@ export class TasksService {
         .getRepository(TaskAssignment)
         .delete({ taskId });
 
-      if (!result.affected) {
+      if (!result.affected && !allowMissing) {
         throw new NotFoundException('Task assignment not found');
       }
     });

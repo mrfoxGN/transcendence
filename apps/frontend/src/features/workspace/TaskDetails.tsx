@@ -1,14 +1,14 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type FocusEvent } from 'react';
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace-api';
-import { statusLabels, taskBoardColumn, type BoardColumnConfig, type Member } from './workspace-tasks';
+import { statusLabels, taskBoardColumn, taskPriorities, type BoardColumnConfig, type Member } from './workspace-tasks';
 import type { Task } from './types';
 import { finishInputEdit, saveTextOnBlur } from './autosave';
 
 type Comment = { id: string; authorId: string | null; content: string; createdAt: string };
 type Dependency = { id: string; dependsOnTaskId: string };
-const priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+type TaskEdit = { suffix: string; method: string; body?: Record<string, unknown> };
 
 export function TaskDetails({ task, tasks, members, token, profileId, onClose, onChange, files, openTask, openFile, onBack, boardColumns }: {
   task: Task; tasks: Task[]; members: Member[]; token: string | null; profileId: string;
@@ -25,26 +25,45 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingComment, setEditingComment] = useState<string>();
   const [editingTask, setEditingTask] = useState(false);
+  const [assigneeDraft, setAssigneeDraft] = useState<string>();
+  const [failedEdits, setFailedEdits] = useState<Record<string, { edit: TaskEdit; message: string }>>({});
+  const [linkToCopy, setLinkToCopy] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+  const latestEdits = useRef<Record<string, TaskEdit>>({});
   const queue = useRef(Promise.resolve());
   const pending = useRef(0);
 
-  function mutate(suffix: string, method: string, body?: object) {
+  function mutate(suffix: string, method: string, body?: Record<string, unknown>, editKey?: string) {
     if (!token) return Promise.resolve(false);
+    const edit = { suffix, method, body };
+    if (editKey) latestEdits.current[editKey] = edit;
     pending.current += 1;
     setBusy(true);
     const request = queue.current.then(async () => {
       setError('');
       setNotice('');
       try {
-      await workspaceRequest(path + suffix, token, body ? jsonRequest(method, body) : { method });
-      if (suffix.startsWith('/comments')) comments.retry();
-      else if (suffix.startsWith('/dependencies')) dependencies.retry();
-      else onChange();
-      setNotice('Saved.');
-      return true;
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not save the change.');
-      return false;
+        await workspaceRequest(path + suffix, token, body ? jsonRequest(method, body) : { method });
+        if (suffix.startsWith('/comments')) comments.retry();
+        else if (suffix.startsWith('/dependencies')) dependencies.retry();
+        else onChange();
+        if (editKey && latestEdits.current[editKey] === edit) {
+          setFailedEdits(current => {
+            if (!current[editKey]) return current;
+            const next = { ...current };
+            delete next[editKey];
+            return next;
+          });
+        }
+        setNotice('Saved.');
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Try again.';
+        if (!editKey) setError(message);
+        else if (latestEdits.current[editKey] === edit) {
+          setFailedEdits(current => ({ ...current, [editKey]: { edit, message } }));
+        }
+        return false;
       } finally {
         pending.current -= 1;
         if (!pending.current) setBusy(false);
@@ -54,13 +73,48 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     return request;
   }
 
-  const save = (key: string, value: string | null) => void mutate('', 'PATCH', { [key]: value });
+  const save = (key: string, value: string | null) => void mutate('', 'PATCH', { [key]: value }, key);
+
+  function saveFieldOnBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>, key: string, saved: string, nullable = false) {
+    const lastValue = latestEdits.current[key]?.body?.[key];
+    const previous = lastValue === null ? '' : typeof lastValue === 'string' ? lastValue : saved;
+    saveTextOnBlur(event, previous, value => save(key, nullable && !value ? null : value));
+  }
+
+  function retryEdits() {
+    for (const [key, { edit }] of Object.entries(failedEdits)) {
+      if (latestEdits.current[key] === edit) void mutate(edit.suffix, edit.method, edit.body, key);
+    }
+  }
+
+  async function copyTaskLink() {
+    const url = new URL(location.href);
+    url.searchParams.set('page', 'board');
+    url.searchParams.set('task', task.taskKey ?? task.id);
+    url.hash = '';
+    try {
+      await navigator.clipboard.writeText(url.href);
+      setLinkCopied(true);
+      setLinkToCopy('');
+    } catch {
+      setLinkToCopy(url.href);
+    }
+  }
 
   const currentColumn = taskBoardColumn(task, boardColumns);
   const destinations = boardColumns.filter(column => column.id !== currentColumn?.id);
+  const hasFailedEdits = Object.keys(failedEdits).length > 0;
 
   return <Drawer title={task.title} onClose={onClose}>
     <div className="wu-task-inspector">
+    <div className="wu-panel-heading">
+      {task.taskKey && <Pill>{task.taskKey}</Pill>}
+      <button className="wu-text-button" type="button" onClick={() => void copyTaskLink()}>Copy link</button>
+      {linkCopied && <span className="wu-muted" role="status">Link copied.</span>}
+    </div>
+    {linkToCopy && <label className="wu-field-label">Task link
+      <input value={linkToCopy} readOnly autoFocus onFocus={event => event.currentTarget.select()} />
+    </label>}
     {onBack && <button className="wu-text-button" type="button" onClick={onBack}>Back to previous task</button>}
     <dl className="wu-task-summary">
       <div><dt>Column</dt><dd><Pill tone={task.status === 'Done' ? 'mint' : 'neutral'}>{currentColumn?.label ?? task.status}</Pill>{task.isBlocked && <Pill tone="red">Blocked</Pill>}</dd></div>
@@ -69,17 +123,25 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <div><dt>Due date</dt><dd>{task.dueDate ? task.due : 'No due date'}</dd></div>
     </dl>
     {error && <p role="alert">{error}</p>}
-    {(busy || notice) && <p role="status">{busy ? 'Saving changes…' : notice}</p>}
+    {hasFailedEdits && !busy && <div role="alert">
+      <p>Couldn’t save your changes. {Object.values(failedEdits)[0].message}</p>
+      <button className="wu-text-button" type="button" onClick={retryEdits}>Retry save</button>
+    </div>}
+    {(busy || (notice && !hasFailedEdits)) && <p role="status">{busy ? 'Saving changes…' : notice}</p>}
     {editingTask ? <section className="wu-column-form wu-task-editor">
-      <div className="wu-panel-heading"><h3>Edit task</h3><button className="wu-text-button" type="button" disabled={busy || !!error} onClick={() => { if (!pending.current) setEditingTask(false); }}>Done editing</button></div>
+      <div className="wu-panel-heading"><h3>Edit task</h3><button className="wu-text-button" type="button" disabled={busy || hasFailedEdits} onClick={() => {
+        if (pending.current) return;
+        latestEdits.current = {};
+        setEditingTask(false);
+      }}>Done editing</button></div>
       <label className="wu-field-label">Title<input name="title" defaultValue={task.title} placeholder="e.g. Fix login form validation" required maxLength={200}
-        onBlur={event => saveTextOnBlur(event, task.title, value => save('title', value))} onKeyDown={finishInputEdit} /></label>
+        onBlur={event => saveFieldOnBlur(event, 'title', task.title)} onKeyDown={finishInputEdit} /></label>
       <label className="wu-field-label">Description<textarea name="description" defaultValue={task.description} placeholder="Describe what needs to change and why" rows={3}
-        onBlur={event => saveTextOnBlur(event, task.description, value => save('description', value || null))} /></label>
+        onBlur={event => saveFieldOnBlur(event, 'description', task.description, true)} /></label>
       <label className="wu-field-label">Acceptance criteria<textarea name="criteria" defaultValue={task.acceptanceCriteria ?? ''} placeholder="e.g. Invalid passwords show a helpful error" rows={3}
-        onBlur={event => saveTextOnBlur(event, task.acceptanceCriteria ?? '', value => save('acceptanceCriteria', value || null))} /></label>
+        onBlur={event => saveFieldOnBlur(event, 'acceptanceCriteria', task.acceptanceCriteria ?? '', true)} /></label>
       <label className="wu-field-label">Priority<select name="priority" defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()} onChange={event => save('priority', event.currentTarget.value || null)}>
-        <option value="">No priority</option>{priorities.map(priority => <option key={priority} value={priority}>{priority[0] + priority.slice(1).toLowerCase()}</option>)}
+        <option value="">No priority</option>{Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>
       <label className="wu-field-label">Due date<input type="date" name="dueDate" min="1000-01-01" max="9999-12-31" defaultValue={task.dueDate ?? ''} onChange={event => {
         const field = event.currentTarget;
@@ -103,10 +165,18 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     </section>}
     <section className="wu-drawer-section">
       <h3>Assignee</h3>
-      {task.assigneeId ? <><p>{task.person}</p><button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={() => void mutate('/assignment', 'DELETE')}>Unassign</button></>
-        : <label className="wu-field-label">Choose a member<select name="member" value="" disabled={busy || !members.length}
-          onChange={event => void mutate('/assignment', 'POST', { userId: event.currentTarget.value })}>
-          <option value="" disabled>{members.length ? 'Select a member' : 'No members available'}</option>{members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}</select></label>}
+      <label className="wu-field-label">Choose a member
+        <select name="member" value={assigneeDraft ?? task.assigneeId ?? ''} disabled={busy} onChange={event => {
+          const userId = event.currentTarget.value;
+          setAssigneeDraft(userId);
+          void mutate('/assignment', 'PUT', { userId: userId || null }, 'assignee');
+        }}>
+          <option value="">Unassigned</option>
+          {task.assigneeId && !members.some(member => member.userId === task.assigneeId) &&
+            <option value={task.assigneeId}>Former member</option>}
+          {members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
+        </select>
+      </label>
     </section>
     <section className="wu-drawer-section">
       <h3>Blocker</h3>

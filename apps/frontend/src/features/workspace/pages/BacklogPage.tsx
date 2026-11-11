@@ -75,7 +75,7 @@ export function BacklogPage({
     (view.scope === 'all' || (view.scope === 'review' ? task.status === 'Review' : ['To do', 'Ready'].includes(task.status))) &&
     (!view.mine || (task.assigneeId === profileId && isOpenTask(task))) &&
     (!view.blocked || (task.isBlocked && isOpenTask(task))) &&
-    task.title.toLowerCase().includes(query) &&
+    (task.title.toLowerCase().includes(query) || task.taskKey?.toLowerCase().includes(query)) &&
     matchesTaskFacets(task, view.facets, today, nextSevenDaysEnd)
   ).sort((a, b) => {
     if (view.sort === 'priority') return (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
@@ -111,7 +111,7 @@ export function BacklogPage({
         </select>
         <label className="wu-list-search">
           <Search size={16} aria-hidden="true" />
-          <input type="search" aria-label="Search backlog tasks" placeholder="Search task titles" maxLength={200} value={view.search} onChange={event => update({ search: event.currentTarget.value })} />
+          <input type="search" aria-label="Search backlog tasks" placeholder="Search by title or task ID" maxLength={200} value={view.search} onChange={event => update({ search: event.currentTarget.value })} />
         </label>
         <select className="wu-select" aria-label="Sort tasks" value={view.sort}
           onChange={event => update({ sort: event.currentTarget.value as BacklogView['sort'] })}>

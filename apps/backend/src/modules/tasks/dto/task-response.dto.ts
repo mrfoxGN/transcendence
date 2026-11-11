@@ -5,6 +5,7 @@ import {
 
 export class TaskResponseDto {
   id!: string;
+  taskKey?: string;
   workspaceId!: string;
   creatorId!: string | null;
   title!: string;

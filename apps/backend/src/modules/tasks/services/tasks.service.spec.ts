@@ -76,6 +76,7 @@ function makeRepository() {
     create: jest.fn((value: object) => ({ ...value })),
     save: jest.fn((value: object) => Promise.resolve(value)),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
+    insert: jest.fn().mockResolvedValue({}),
     delete: jest.fn().mockResolvedValue({ affected: 1 }),
     createQueryBuilder: jest.fn(),
   };
@@ -687,6 +688,26 @@ describe('TasksService', () => {
   });
 
   describe('assignment', () => {
+    it('creates and assigns a task in the same transaction', async () => {
+      transactionTasks.save.mockImplementation(value => Promise.resolve({ ...value, taskNumber: 42 }));
+      const result = await service.create(workspaceId, userId, {
+        title: 'Assigned task', assigneeId: otherUserId, priority: TaskPriority.HIGH, dueDate: '2026-12-01',
+      });
+      expect(result).toMatchObject({ taskKey: 'TASK-42', priority: TaskPriority.HIGH, dueDate: '2026-12-01' });
+      expect(assignments.insert).toHaveBeenCalledWith(expect.objectContaining({ taskId: result.id, userId: otherUserId, assignedById: userId }));
+      expect(tasks.save).not.toHaveBeenCalled();
+    });
+
+    it('reassigns the existing row and treats repeating the same update as successful', async () => {
+      const existing = { id: 'assignment-id', taskId, userId, assignedById: userId, assignedAt: date };
+      assignments.findOne.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, userId: otherUserId });
+      const reassigned = await service.assign(taskId, userId, { userId: otherUserId }, true);
+      await service.assign(taskId, userId, { userId: otherUserId }, true);
+      expect(reassigned).toMatchObject({ id: existing.id, userId: otherUserId });
+      expect(assignments.save).toHaveBeenCalledTimes(1);
+      expect(assignments.delete).not.toHaveBeenCalled();
+    });
+
     it('assigns an active workspace member and records who assigned them', async () => {
       const result = await service.assign(taskId, userId, {
         userId: otherUserId,

@@ -142,6 +142,8 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 
 **Scope** `FRONTEND + BACKEND`
 
+**Status** Implemented. Migration `1794700000000` adds stable, globally unique `TASK-123` identifiers while preserving UUID links. Quick create accepts optional assignee, priority, and deadline. The task drawer supports Copy link, one-step reassignment, and retrying failed field saves. The builds, backend tests, MySQL checks, and simulated edit retries passed. Browser verification is pending.
+
 > Implement WU-10 in DevUP. Add stable readable task IDs and Copy link while keeping legacy task links valid. Add optional assignee, priority, and due date to quick create, and allow reassignment in one step. Show autosave progress and errors, retain failed input, and provide retry. Keep explicit actions for creation, posting, and irreversible operations. Verify link compatibility, failed-save recovery, and reassignment.
 
 ### WU-11 · Task attachments and practical bulk actions

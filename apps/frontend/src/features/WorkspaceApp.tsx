@@ -13,7 +13,7 @@ import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFace
 import { homeFilters } from './workspace/previewData';
 import { useWorkspaceChat } from './workspace/workspace-chat';
 import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
-import { loadBoard, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
+import { loadBoard, taskPriorities, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
 import { addCalendarDays, calendarDate, isDueInNextSevenDays, nextSevenDaysLabel } from './workspace/workspace-calendar';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
@@ -115,7 +115,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }), [board, members.items]);
   const columns = board?.columns ?? [];
   const boardColumns = board?.boardColumns ?? [];
-  const selectedTask = tasks.find(task => task.id === selectedTaskId);
+  const selectedTask = tasks.find(task => task.id === selectedTaskId || (selectedTaskId && task.taskKey === selectedTaskId.toUpperCase()));
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Last 30 days');
 
   useEffect(() => {
@@ -234,7 +234,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setTaskError('');
     try {
       const column = targetColumn ?? boardColumns.find(item => item.status === 'BACKLOG') ?? boardColumns[0];
-      await workspaceRequest(workspacePath + '/tasks', token, jsonRequest('POST', { title, description: String(form.get('description') ?? ''), boardColumnId: column?.id }));
+      await workspaceRequest(workspacePath + '/tasks', token, jsonRequest('POST', {
+        title,
+        description: String(form.get('description') ?? ''),
+        boardColumnId: column?.id,
+        assigneeId: form.get('assigneeId') || undefined,
+        priority: form.get('priority') || undefined,
+        dueDate: form.get('dueDate') || undefined,
+      }));
       setBoardAttempt(value => value + 1);
       recentActivity.retry();
       setModal(null);
@@ -354,7 +361,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function setSelectedTask(task: Task | null) {
     const url = new URL(location.href);
-    if (task) url.searchParams.set('task', task.id);
+    if (task) url.searchParams.set('task', task.taskKey ?? task.id);
     else url.searchParams.delete('task');
     history.replaceState({ page }, '', url);
     setSelectedTaskId(task?.id ?? null);
@@ -362,7 +369,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function openRelatedTask(task: Task) {
     const url = new URL(location.href);
-    url.searchParams.set('task', task.id);
+    url.searchParams.set('task', task.taskKey ?? task.id);
     history.pushState({ page, fromTask: selectedTaskId }, '', url);
     setSelectedTaskId(task.id);
   }
@@ -575,6 +582,17 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     {modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !submittingModal.current) setModal(null); }}><section className="wu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" disabled={taskSaving} onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}>
       <label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required maxLength={200} readOnly={taskSaving} /></label>
       <label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" readOnly={taskSaving} /></label>
+      <div className="wu-task-create-fields">
+      <label className="wu-field-label">Assignee<select name="assigneeId" disabled={taskSaving}>
+        <option value="">Unassigned</option>
+        {(members.items ?? []).map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
+      </select></label>
+      <label className="wu-field-label">Priority<select name="priority" disabled={taskSaving}>
+        <option value="">No priority</option>
+        {Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select></label>
+      <label className="wu-field-label">Due date<input name="dueDate" type="date" min="1000-01-01" max="9999-12-31" readOnly={taskSaving} /></label>
+      </div>
       {taskError && <p role="alert">{taskError}</p>}
       <div className="wu-modal-actions">
         <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>

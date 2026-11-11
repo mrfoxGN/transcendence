@@ -46,3 +46,10 @@
 }
 @keyframes wu-drawer-enter { from { transform: translateX(100%); } }
 @keyframes wu-skeleton-pulse { to { opacity: .55; } }
+.wu-modal:has(.wu-task-create-fields) { max-height: calc(100dvh - 28px); overflow: auto; }
+.wu-task-create-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.wu-task-create-fields > label { min-width: 0; }
+.wu-task-create-fields > label:first-child { grid-column: 1 / -1; }
+@media (max-width: 375px) {
+  .wu-task-create-fields { grid-template-columns: minmax(0, 1fr); }
+}

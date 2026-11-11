@@ -9,10 +9,11 @@ export const statusLabels = {
 type Status = keyof typeof statusLabels;
 export type BoardColumnConfig = { id: string; label: string; status: Status; limit?: number | null };
 export const statusCodes = Object.fromEntries(Object.entries(statusLabels).map(([code, label]) => [label, code])) as Record<string, Status>;
+export const taskPriorities = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', URGENT: 'Urgent' };
 
 export type Member = { userId: string; username: string; avatarUrl: string | null; isOwner: boolean; joinedAt: string };
 type ApiTask = {
-  id: string; title: string; description: string | null; acceptanceCriteria: string | null;
+  id: string; taskKey?: string; title: string; description: string | null; acceptanceCriteria: string | null;
   priority: string | null; status: Status; dueDate?: string | null; dueAt: string | null; isBlocked: boolean;
   blockedReason: string | null; completedAt: string | null; boardColumnId?: string; position?: number;
 };
@@ -46,7 +47,7 @@ export async function loadBoard(path: string, token: string, signal: AbortSignal
       ? calendarDate(new Date(item.dueAt), reportingTimeZone)
       : item.dueDate ?? null;
     return {
-      id: item.id, title: item.title, status: statusLabels[item.status], boardColumnId: item.boardColumnId, position: item.position,
+      id: item.id, taskKey: item.taskKey, title: item.title, status: statusLabels[item.status], boardColumnId: item.boardColumnId, position: item.position,
       description: item.description ?? '', acceptanceCriteria: item.acceptanceCriteria,
       priority: item.priority ? item.priority[0] + item.priority.slice(1).toLowerCase() : 'None',
       due: dueDate ? formatCalendarDate(dueDate, { month: 'short', day: 'numeric' }) : '—',

@@ -6,6 +6,7 @@ export class TaskMapper {
   static toResponse(task: Task): TaskResponseDto {
     return {
       id: task.id,
+      ...(task.taskNumber ? { taskKey: 'TASK-' + task.taskNumber } : {}),
       workspaceId: task.workspaceId,
       creatorId: task.creatorId,
       title: task.title,

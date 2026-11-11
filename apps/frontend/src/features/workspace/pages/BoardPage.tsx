@@ -72,6 +72,7 @@ type BoardPageProps = {
 function TaskCardContent({ task }: { task: Task }) {
   return <>
     <strong>{task.title}</strong>
+    {task.taskKey && <small className="wu-muted">{task.taskKey}</small>}
     <span className="wu-board-card-tags">
       {task.priority !== 'None' && <Pill tone={task.priority === 'High' ? 'orange' : 'neutral'}>{task.priority} priority</Pill>}
       {task.isBlocked && <Pill tone="red">Blocked</Pill>}
