@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   ConflictException,
   Injectable,
@@ -36,7 +37,7 @@ export class GitHubSyncService {
     userId: string,
   ): Promise<GitHubSyncResult> {
     // Every caller must be an authorized workspace member.
-    await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
 
     // Reuse an ongoing synchronization for this workspace.
     const existingSync = this.inFlightSyncs.get(workspaceId);

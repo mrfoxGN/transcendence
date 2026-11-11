@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable, defaultWorkspaceTimeZone } from '../../workspaces/workspace-policy';
 import {
   BadRequestException,
   ConflictException,
@@ -25,7 +26,7 @@ import { TransitionTaskDto } from '../dto/transition-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { TaskAssignment } from '../entities/task-assignment.entity';
 import { TaskStatusHistory } from '../entities/task-status-history.entity';
-import { taskDeadline, workspaceReportingTimeZone } from '../workspace-calendar';
+import { taskDeadline } from '../workspace-calendar';
 import { Task } from '../entities/task.entity';
 import { TaskAssignmentMapper } from '../mappers/task-assignment.mapper';
 import { TaskMapper } from '../mappers/task.mapper';
@@ -63,7 +64,8 @@ export class TasksService {
       throw new BadRequestException('Task title is required');
     }
 
-    await this.workspacesService.findOneForUser(workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(workspace);
     if (dto.assigneeId) await this.validateAssignee(workspaceId, dto.assigneeId);
 
     const now = new Date();
@@ -81,7 +83,7 @@ export class TasksService {
       isBlocked: false,
       blockedReason: null,
       blockedAt: null,
-      ...taskDeadline(dto.dueDate, dto.dueAt),
+      ...taskDeadline(dto.dueDate, dto.dueAt, workspace?.reportingTimeZone),
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -192,7 +194,7 @@ export class TasksService {
 
     return {
       workspaceId,
-      reportingTimeZone: workspaceReportingTimeZone,
+      reportingTimeZone: settings.reportingTimeZone ?? defaultWorkspaceTimeZone,
       activeWipLimit: settings.activeWipLimit,
       activeCount,
       assigneesByTaskId: Object.fromEntries(
@@ -203,7 +205,7 @@ export class TasksService {
     };
   }
 
-  async findById(taskId: string, userId: string): Promise<TaskResponseDto> {
+  async findById(taskId: string, userId: string, writable = false): Promise<TaskResponseDto> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
     });
@@ -212,7 +214,8 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    if (writable) assertWorkspaceWritable(workspace);
 
     return TaskMapper.toResponse(task);
   }
@@ -246,7 +249,8 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    assertWorkspaceWritable(workspace);
 
     const changes: Partial<Task> = {
       updatedAt: new Date(),
@@ -269,7 +273,7 @@ export class TasksService {
     }
 
     if (dto.dueDate !== undefined || dto.dueAt !== undefined) {
-      Object.assign(changes, taskDeadline(dto.dueDate, dto.dueAt));
+      Object.assign(changes, taskDeadline(dto.dueDate, dto.dueAt, workspace?.reportingTimeZone));
     }
 
     if (dto.position !== undefined) {
@@ -312,10 +316,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    );
+    ));
 
     const settings =
       !dto.boardColumnId && dto.toStatus === TaskStatus.IN_PROGRESS
@@ -460,7 +464,7 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(task.workspaceId, userId));
 
     const now = new Date();
 
@@ -491,10 +495,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       actorId,
-    );
+    ));
 
     await this.validateAssignee(existingTask.workspaceId, dto.userId);
 
@@ -562,10 +566,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    );
+    ));
 
     return this.dataSource.transaction(async (manager) => {
       const workspaceTasks = await manager
@@ -688,7 +692,7 @@ export class TasksService {
     userId: string,
     dependencyId: string,
   ): Promise<void> {
-    await this.findById(taskId, userId);
+    await this.findById(taskId, userId, true);
 
     const result = await this.dataSource
       .getRepository(TaskDependency)
@@ -710,7 +714,7 @@ export class TasksService {
       throw new BadRequestException('Block reason is required');
     }
 
-    await this.findById(taskId, userId);
+    await this.findById(taskId, userId, true);
 
     const now = new Date();
 
@@ -733,7 +737,7 @@ export class TasksService {
   }
 
   async unblock(taskId: string, userId: string): Promise<TaskResponseDto> {
-    await this.findById(taskId, userId);
+    await this.findById(taskId, userId, true);
 
     const result = await this.tasksRepository.update(
       { id: taskId, deletedAt: IsNull(), isBlocked: true },
@@ -805,10 +809,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    );
+    ));
 
     await this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
@@ -848,10 +852,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    );
+    ));
 
     return this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
@@ -904,10 +908,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    );
+    ));
 
     return this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
@@ -989,10 +993,10 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    );
+    ));
 
     await this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({

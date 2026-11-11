@@ -9,6 +9,8 @@ export class UserMapper {
       email: user.email,
       ...(user.verifiedEmail !== undefined ? { emailVerified: user.verifiedEmail === user.email } : {}),
       avatarUrl: user.avatarUrl,
+      ...(user.theme !== undefined && { theme: user.theme }),
+      ...(user.notificationBadge !== undefined && { notificationBadge: user.notificationBadge }),
       appRole: user.appRole,
       status: user.status,
       createdAt: user.createdAt,

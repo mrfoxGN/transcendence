@@ -46,10 +46,11 @@ type BacklogPageProps = {
   setSelectedTask: (task: Task) => void;
   onAddTask: () => void;
   addTaskButton: AddTaskButton;
+  readOnly?: boolean;
 };
 
 export function BacklogPage({
-  pageHeading, storageKey, viewsPath, token, tasks, profileId, today, nextSevenDaysEnd, setSelectedTask, onAddTask, addTaskButton,
+  pageHeading, storageKey, viewsPath, token, tasks, profileId, today, nextSevenDaysEnd, setSelectedTask, onAddTask, addTaskButton, readOnly = false,
 }: BacklogPageProps) {
   const [view, setView] = useState(() => readView(storageKey));
   const savedViews = useWorkspaceCollection<SavedView>(viewsPath, token);
@@ -150,6 +151,7 @@ export function BacklogPage({
       {savedViews.error && <p role="alert">Could not load saved views. <button className="wu-text-button" type="button" onClick={savedViews.retry}>Try again</button></p>}
       {storageError && <p role="alert">This browser could not remember your current filters.</p>}
       {backlogTasks.length > 0 ? <TaskTable items={backlogTasks} onSelect={setSelectedTask} />
+        : readOnly && !hasFilters ? <p className="wu-muted">No tasks in this backlog.</p>
         : <EmptyState icon={<WorkspaceIllustration kind="checklist" />} title="No matching tasks"
           detail={hasFilters ? 'Change your filters to see more tasks.' : 'Add a task to your backlog.'}
           action={hasFilters ? 'Clear filters' : 'Add a task'} onAction={hasFilters ? clearFilters : onAddTask} />}

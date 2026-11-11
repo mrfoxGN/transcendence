@@ -145,7 +145,9 @@ export class UsersService {
       dto.username === undefined &&
       dto.email === undefined &&
       dto.avatarUrl === undefined &&
-      dto.avatarImage === undefined
+      dto.avatarImage === undefined &&
+      dto.theme === undefined &&
+      dto.notificationBadge === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -155,6 +157,8 @@ export class UsersService {
     }
 
     const changes: Partial<User> = { updatedAt: new Date() };
+    if (dto.theme !== undefined) changes.theme = dto.theme;
+    if (dto.notificationBadge !== undefined) changes.notificationBadge = dto.notificationBadge;
     if (dto.avatarImage !== undefined) {
       if (dto.avatarUrl !== undefined) throw new BadRequestException('Choose either an image or a URL.');
       const encoded = dto.avatarImage.slice('data:image/jpeg;base64,'.length);

@@ -2,6 +2,10 @@
 .workspace-picker-panel { overflow-wrap: anywhere; }
 .workspace-picker-panel > .button--primary { width: 100%; }
 .workspace-picker-panel p { margin: 0 0 18px; color: var(--muted); }
+.workspace-picker-panel h2 { margin: 0 0 8px; font-size: 15px; }
+.workspace-picker-search { display: grid; gap: 6px; margin-bottom: 16px; font-weight: 650; }
+.workspace-picker-search input { min-width: 0; padding: 9px 12px; }
+.workspace-picker-notifications { justify-content: flex-end; }
 .workspace-picker-list { display: grid; gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
 .workspace-picker-list a {
   display: grid;

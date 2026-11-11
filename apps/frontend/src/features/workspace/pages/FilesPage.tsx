@@ -17,11 +17,12 @@ type FilesPageProps = {
   onUpload: (file: WorkspaceFile) => void;
   onDelete: (id: string) => void;
   owner: boolean;
+  readOnly?: boolean;
   profileId: string;
   onBackToTask?: () => void;
 };
 
-export function FilesPage({ pageHeading, path, token, files, members, onUpload, onDelete, owner, profileId, onBackToTask }: FilesPageProps) {
+export function FilesPage({ pageHeading, path, token, files, members, onUpload, onDelete, owner, profileId, onBackToTask, readOnly = false }: FilesPageProps) {
   const input = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState(() => window.location.hash.startsWith('#file-') ? window.location.hash.slice(6) : '');
   const [drawerOpen, setDrawerOpen] = useState(() => !!selectedId);
@@ -123,7 +124,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
   }
 
   return <>
-    {pageHeading(<button className="wu-button wu-button--primary" type="button" disabled={uploading || !token} onClick={() => input.current?.click()}><Upload size={15} />{uploading ? 'Uploading…' : 'Upload file'}</button>)}
+    {pageHeading(!readOnly && <button className="wu-button wu-button--primary" type="button" disabled={uploading || !token} onClick={() => input.current?.click()}><Upload size={15} />{uploading ? 'Uploading…' : 'Upload file'}</button>)}
     {onBackToTask && <button className="wu-text-button" type="button" onClick={onBackToTask}>Back to task</button>}
     <input ref={input} type="file" hidden onChange={event => {
       const chosen = event.currentTarget.files?.[0];
@@ -168,7 +169,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
               <td role="cell" data-label="Uploaded by">{item.uploaderId === profileId ? 'You' : uploaderNames.get(item.uploaderId ?? '') ?? '—'}</td>
               <td role="cell" className="wu-file-actions-cell"><div className="wu-file-actions">
                 <button className="wu-icon-button" type="button" aria-label={`Download ${item.displayName}`} title="Download file" onClick={() => void download(item)}><Download size={16} /></button>
-                {(owner || item.uploaderId === profileId) && <ActionMenu label={'Actions for ' + item.displayName} actions={[
+                {!readOnly && (owner || item.uploaderId === profileId) && <ActionMenu label={'Actions for ' + item.displayName} actions={[
                   { label: 'Delete file', run: () => { setError(''); setRemoving(item); } },
                 ]} />}
               </div></td>

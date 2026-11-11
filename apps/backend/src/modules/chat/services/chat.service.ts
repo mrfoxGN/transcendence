@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
@@ -93,7 +94,7 @@ export class ChatService {
     senderId: string,
     dto: SendChatMessageDto,
   ): Promise<ChatMessageResponseDto> {
-    await this.workspacesService.findOneForUser(workspaceId, senderId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, senderId));
 
     const content = dto.content.trim();
 

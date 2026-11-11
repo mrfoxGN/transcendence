@@ -5,6 +5,8 @@ export class UserResponseDto {
   username!: string;
   email!: string;
   emailVerified?: boolean;
+  theme?: 'system' | 'light' | 'dark';
+  notificationBadge?: boolean;
   avatarUrl!: string | null;
   appRole!: AppRole; // actual entity field
   status!: UserStatus; // actual entity field

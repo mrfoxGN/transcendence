@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   BadRequestException,
   ForbiddenException,
@@ -29,7 +30,7 @@ export class NotesService {
     userId: string,
     dto: CreateNoteDto,
   ): Promise<NoteResponseDto> {
-    await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
 
     const title = dto.title.trim();
 
@@ -126,6 +127,7 @@ export class NotesService {
       workspaceId,
       userId,
     );
+    assertWorkspaceWritable(workspace);
 
     const note = await this.notesRepository.findOne({
       where: { id: noteId, workspaceId, deletedAt: IsNull() },
@@ -186,6 +188,7 @@ export class NotesService {
       workspaceId,
       userId,
     );
+    assertWorkspaceWritable(workspace);
 
     const note = await this.notesRepository.findOne({
       where: { id: noteId, workspaceId, deletedAt: IsNull() },

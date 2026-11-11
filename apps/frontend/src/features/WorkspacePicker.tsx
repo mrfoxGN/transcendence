@@ -3,10 +3,11 @@ import { ArrowRight, Folder, Plus } from 'lucide-react';
 import './workspace-picker.css';
 import { NotificationInbox } from './workspace/NotificationInbox';
 import { accountRequest, authRoute } from './auth-routing';
+import { canSearchWorkspaces, recentWorkspaceIds } from './workspace/workspace-history';
 
 export const sessionKey = 'devup.access-token';
 
-type Profile = { username: string; emailVerified?: boolean };
+type Profile = { id: string; username: string; emailVerified?: boolean; notificationBadge?: boolean };
 export type Workspace = { id: string; name: string; description: string | null; archivedAt: string | null };
 
 export class SessionExpired extends Error {}
@@ -31,6 +32,21 @@ export function signOut(restoreDestination = false) {
   window.location.replace(restoreDestination ? authRoute('/login', location.pathname + location.search + location.hash) : '/login');
 }
 
+export function switchAccount(destination = '/workspaces') {
+  sessionStorage.removeItem(sessionKey);
+  location.assign(authRoute('/login', destination));
+}
+
+function WorkspaceList({ items }: { items: Workspace[] }) {
+  return <ul className="workspace-picker-list">{items.map(item => <li key={item.id}>
+    <a href={'/workspaces/' + encodeURIComponent(item.id)}>
+      <Folder size={20} aria-hidden="true" />
+      <span><strong>{item.name}</strong>{(item.archivedAt || item.description) && <small>{item.archivedAt ? 'Archived' : item.description}</small>}</span>
+      <ArrowRight size={18} aria-hidden="true" />
+    </a>
+  </li>)}</ul>;
+}
+
 export async function listActiveWorkspaces(token: string) {
   const workspaces = await request<Workspace[]>('workspaces', token);
   return workspaces.filter(workspace => !workspace.archivedAt);
@@ -47,6 +63,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
   const [emailPending, setEmailPending] = useState(false);
   const [emailFeedback, setEmailFeedback] = useState<{ message: string; error: boolean }>();
   const [joining, setJoining] = useState(false);
+  const [search, setSearch] = useState('');
   const inboxButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -102,15 +119,22 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
 
   if (!token) return null;
   const workspace = data?.workspaces.find(item => item.id === workspaceId);
-  const activeWorkspaces = data?.workspaces.filter(item => !item.archivedAt) ?? [];
-  const archivedWorkspaces = data?.workspaces.filter(item => item.archivedAt) ?? [];
+  const allWorkspaces = data?.workspaces ?? [];
+  const showSearch = canSearchWorkspaces(allWorkspaces.length);
+  const query = showSearch ? search.trim().toLowerCase() : '';
+  const matches = allWorkspaces.filter(item => item.name.toLowerCase().includes(query));
+  const activeWorkspaces = matches.filter(item => !item.archivedAt);
+  const archivedWorkspaces = matches.filter(item => item.archivedAt);
+  const recent = !query && data ? recentWorkspaceIds(data.profile.id)
+    .flatMap(id => activeWorkspaces.filter(item => item.id === id)) : [];
 
   return (
     <main className="auth-page workspace-picker">
       <header className="auth-header">
         <a href="/" className="brand" aria-label="DevUP home"><img src="/devup.svg" alt="" width="34" height="34" />DevUP</a>
         <div className="workspace-picker-actions workspace-picker-notifications">
-          <NotificationInbox token={token} workspaceId={activeWorkspaces[0]?.id} triggerRef={inboxButton} />
+          <NotificationInbox token={token} workspaceId={allWorkspaces.find(item => !item.archivedAt)?.id} triggerRef={inboxButton} showBadge={data?.profile.notificationBadge} />
+          <button className="button button--secondary" type="button" onClick={() => switchAccount()}>Switch account</button>
           <button className="button button--secondary" type="button" onClick={() => void logout().catch(() => {})} disabled={leaving}>Log out</button>
         </div>
       </header>
@@ -139,22 +163,19 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                 }}>{emailPending ? 'Sending…' : 'Send verification email'}</button>
                 {emailFeedback && <p role={emailFeedback.error ? 'alert' : 'status'}>{emailFeedback.message}</p>}
               </div>}
-              {activeWorkspaces.length > 0 ? (
-                <ul className="workspace-picker-list">
-                  {activeWorkspaces.map(item => (
-                    <li key={item.id}><a href={'/workspaces/' + encodeURIComponent(item.id)}>
-                      <Folder size={20} aria-hidden="true" />
-                      <span><strong>{item.name}</strong>{item.description && <small>{item.description}</small>}</span>
-                      <ArrowRight size={18} aria-hidden="true" />
-                    </a></li>
-                  ))}
-                </ul>
-              ) : <p>Create a workspace for your team or join one by accepting an invitation.</p>}
-              {!!archivedWorkspaces.length && <details>
+              {showSearch && <label className="workspace-picker-search">Search workspaces
+                <input type="search" placeholder="Search by workspace name" value={search} onChange={event => setSearch(event.target.value)} />
+              </label>}
+              {!!recent.length && <section aria-label="Recently opened workspaces">
+                <h2>Recently opened</h2><WorkspaceList items={recent} />
+              </section>}
+              {!!recent.length && !!activeWorkspaces.length && <h2>All active workspaces</h2>}
+              {!!activeWorkspaces.length && <WorkspaceList items={activeWorkspaces} />}
+              {!matches.length && query && <p role="status">No workspaces match your search.</p>}
+              {!allWorkspaces.length && <p>Create a workspace for your team or join one by accepting an invitation.</p>}
+              {!!archivedWorkspaces.length && <details open={query ? true : undefined}>
                 <summary>Archived workspaces ({archivedWorkspaces.length})</summary>
-                <ul className="workspace-picker-list">{archivedWorkspaces.map(item => <li key={item.id}>
-                  <a href={'/workspaces/' + encodeURIComponent(item.id) + '?page=settings'}><Folder size={20} aria-hidden="true" /><span><strong>{item.name}</strong><small>Archived</small></span><ArrowRight size={18} aria-hidden="true" /></a>
-                </li>)}</ul>
+                <WorkspaceList items={archivedWorkspaces} />
               </details>}
               {creating ? (
                 <form className="workspace-picker-form" onSubmit={createWorkspace}>

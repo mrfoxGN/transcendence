@@ -11,6 +11,7 @@ export class WorkspaceMapper {
       createdAt: workspace.createdAt,
       updatedAt: workspace.updatedAt,
       archivedAt: workspace.archivedAt,
+      ...(workspace.reportingTimeZone && { reportingTimeZone: workspace.reportingTimeZone }),
     };
   }
 }

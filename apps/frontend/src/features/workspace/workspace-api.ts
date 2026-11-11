@@ -15,6 +15,9 @@ export async function workspaceRequest(path: string, token: string | null, optio
   if (!response.ok) {
     const details = await response.json().catch(() => null);
     const message = details?.message;
+    if (response.status === 409 && typeof message === 'string' && message.startsWith('This workspace is archived.')) {
+      window.dispatchEvent(new Event('devup:workspace-archived'));
+    }
     throw new WorkspaceRequestError(response.status, Array.isArray(message) ? message.join(' ') : typeof message === 'string' ? message : 'Workspace request failed.');
   }
   return response;

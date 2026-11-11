@@ -67,6 +67,7 @@ type BoardPageProps = {
   setSelectedTask: (task: Task) => void;
   onAddTask: (column: BoardColumnConfig) => void;
   addTaskButton: AddTaskButton;
+  readOnly?: boolean;
 };
 
 function TaskCardContent({ task }: { task: Task }) {
@@ -94,16 +95,16 @@ function CardDropTarget({ taskId, columnId, placement }: {
   return <span ref={setNodeRef} className={`wu-card-drop wu-card-drop--${placement}`} data-active={isOver} aria-hidden="true" />;
 }
 
-function DraggableTask({ task, onOpen, onMove, columnId }: {
-  task: Task; onOpen: () => void; onMove: () => void; columnId: string;
+function DraggableTask({ task, onOpen, onMove, columnId, readOnly }: {
+  task: Task; onOpen: () => void; onMove: () => void; columnId: string; readOnly: boolean;
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({
-    id: task.id, data: { status: task.status, columnId },
+    id: task.id, data: { status: task.status, columnId }, disabled: readOnly,
   });
   return (
     <div ref={setNodeRef} className="wu-board-card-slot" data-dragging={isDragging}>
       <button className="wu-task-card" type="button" onPointerDown={(event) => listeners?.onPointerDown?.(event)} onClick={onOpen}><TaskCardContent task={task} /></button>
-      <button ref={setActivatorNodeRef} type="button" className="wu-board-grip"
+      {!readOnly && <><button ref={setActivatorNodeRef} type="button" className="wu-board-grip"
         {...attributes} {...listeners} aria-label={'Move ' + task.title}>
         <GripVertical size={17} aria-hidden="true" />
       </button>
@@ -111,18 +112,19 @@ function DraggableTask({ task, onOpen, onMove, columnId }: {
         <ArrowRightLeft size={16} aria-hidden="true" />
       </button>
       <CardDropTarget taskId={task.id} columnId={columnId} placement="before" />
-      <CardDropTarget taskId={task.id} columnId={columnId} placement="after" />
+      <CardDropTarget taskId={task.id} columnId={columnId} placement="after" /></>}
     </div>
   );
 }
 
-function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, rename, actions, limitEditor }: {
+function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, rename, actions, limitEditor, readOnly }: {
   column: BoardColumnConfig; tasks: Task[]; count: number;
   onOpenTask: (task: Task) => void; onAddTask: () => void;
   onMoveTask: (task: Task) => void;
   rename?: (label: string) => Promise<boolean>;
   actions: { label: string; run: () => void; disabled?: boolean }[];
   limitEditor?: ReactNode;
+  readOnly: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const { setNodeRef, isOver } = useDroppable({ id: column.id, data: { columnId: column.id } });
@@ -151,17 +153,17 @@ function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, 
       {column.label !== statusLabels[column.status] && <p className="wu-board-workflow">Workflow status · {statusLabels[column.status]}</p>}
       {limitEditor}
       <div className="wu-board-cards" tabIndex={tasks.length ? 0 : undefined} role="group" aria-label={column.label + ' tasks'}>
-        {tasks.map(task => <DraggableTask key={task.id} task={task} columnId={column.id}
+        {tasks.map(task => <DraggableTask key={task.id} task={task} columnId={column.id} readOnly={readOnly}
           onOpen={() => onOpenTask(task)} onMove={() => onMoveTask(task)} />)}
       </div>
-      <button className="wu-add-card" type="button" aria-label={'Add task to ' + column.label} title={'Add task to ' + column.label} onClick={onAddTask}><Plus size={17} aria-hidden="true" /></button>
+      {!readOnly && <button className="wu-add-card" type="button" aria-label={'Add task to ' + column.label} title={'Add task to ' + column.label} onClick={onAddTask}><Plus size={17} aria-hidden="true" /></button>}
     </section>
   );
 }
 
 export function BoardPage({
   pageHeading, facets, filter, setFilter, filteredTasks, columns, allTasks, canManage, savingColumns, saveColumns, error,
-  activeCount, activeWipLimit, onMoveTask, movingTask, setSelectedTask, onAddTask, addTaskButton,
+  activeCount, activeWipLimit, onMoveTask, movingTask, setSelectedTask, onAddTask, addTaskButton, readOnly = false,
 }: BoardPageProps) {
   const [draggedTask, setDraggedTask] = useState<Task>();
   const [adding, setAdding] = useState(false);
@@ -264,6 +266,7 @@ export function BoardPage({
       onDragCancel={() => setDraggedTask(undefined)}
       onDragEnd={({ active, over, activatorEvent }) => {
         setDraggedTask(undefined);
+        if (readOnly) return;
         const target = over?.data.current;
         const column = columns.find(item => item.id === target?.columnId);
         if (activatorEvent instanceof KeyboardEvent && column?.id === active.data.current?.columnId) return;
@@ -274,7 +277,7 @@ export function BoardPage({
         <div ref={grid} className="wu-board-grid">
           {columns.map((column, index) => {
             const columnTasks = tasksInColumn(column);
-            return <BoardColumn key={column.id} column={column} tasks={columnTasks.filter(task => visibleIds.has(task.id))} count={columnTasks.length}
+            return <BoardColumn key={column.id} column={column} tasks={columnTasks.filter(task => visibleIds.has(task.id))} count={columnTasks.length} readOnly={readOnly}
               onOpenTask={setSelectedTask} onAddTask={() => onAddTask(column)}
               onMoveTask={task => {
                 setMoveTask(task);

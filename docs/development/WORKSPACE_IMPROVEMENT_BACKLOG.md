@@ -199,6 +199,14 @@ Local API and MySQL integration checks covered registration with an outstanding 
 
 **Scope** `FRONTEND + BACKEND`
 
+**Implementation** Search appears at 11 workspaces. The full picker counts active and archived workspaces, and the sidebar switcher counts active workspaces. Recent workspace history stays in the current browser and is scoped to the signed-in account. The workspace switcher keeps the current account. **Switch account** opens sign-in for another account.
+
+Personal settings cover profile, avatar, account security, theme, and the unread notification badge. Theme and badge preferences are stored per user. Workspace settings cover access, board rules, GitHub, reporting time zone, and archiving. The reporting time zone defaults to Africa/Casablanca and can be changed by the workspace owner. Existing date-only deadlines retain their calendar dates.
+
+Archived workspaces display a banner on direct links. Members can browse shared content, download files, and read team chat. Shared changes to tasks, notes, files, team chat, board rules, integrations, workspace settings, and membership management are blocked. Owners can restore the workspace or revoke outstanding invitations. Members can leave, and invitees can decline. Personal settings, private messages, read receipts, and personal backlog views remain available. New mutations check archive state when authorized.
+
+Deploy migration `1795000000000` before the updated backend. Local MySQL integration checks verified owner permissions, reporting time zone, preference isolation, archived reads and write conflicts, restore, and leaving. React render checks covered the search threshold and the owner-only restore action.
+
 > Implement WU-16 in DevUP. Add workspace search and recent access, preserve labels and keyboard focus in collapsed navigation, and distinguish workspace switching from account switching. Separate personal and workspace settings. Define archive behavior, display it when opening an archived workspace directly, and enforce the same mutation rules on the API and frontend. Verify role-based settings, direct archive links, and preference isolation between users.
 
 ### WU-17 · Projects and milestones

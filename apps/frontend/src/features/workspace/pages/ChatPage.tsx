@@ -14,6 +14,7 @@ type ChatPageProps = {
   profileId: string;
   profileName: string;
   roster: Member[];
+  workspaceArchived?: boolean;
 };
 
 const clock = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -33,7 +34,7 @@ function Portrait({ name, small }: { name: string; small?: boolean }) {
   return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
 }
 
-export function ChatPage({ chat, selected, setSelected, profileId, profileName, roster }: ChatPageProps) {
+export function ChatPage({ chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [conversationError, setConversationError] = useState('');
@@ -59,6 +60,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
       })),
     }));
   const thread = threads.find(item => item.id === selected) ?? { id: selected, title: 'Direct message', member: 'DevUP member', unread: 0, messages: [] };
+  const readOnly = workspaceArchived && thread.id === 'team';
   const draft = drafts[thread.id] ?? { text: '' };
   const teammates = roster.filter(member => member.userId !== profileId);
   const direct = chat.conversations.find(item => item.id === thread.id);
@@ -205,7 +207,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
             void chat.loadOlder();
           }}>Load older messages</button>}
           {chat.loading && <p role="status">Loading messages…</p>}
-          {!chat.loading && !chat.error && !thread.messages.length && <p className="wu-chat-empty">Start the conversation with {thread.title}.</p>}
+          {!chat.loading && !chat.error && !thread.messages.length && <p className="wu-chat-empty">{readOnly ? 'No messages in this conversation.' : 'Start the conversation with ' + thread.title + '.'}</p>}
           {thread.messages.map((message, index) => {
             const date = new Date(message.sentAt);
             const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
@@ -223,7 +225,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
             </div>;
           })}
         </div>
-        <form className="wu-message-form" onSubmit={submitMessage}>
+        {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
           {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !draft.text.trim()}>Retry send</button></p>}
           <div className="wu-chat-composer">
             <textarea ref={composer} rows={1} aria-label="Message" placeholder={`Message ${thread.title}…`} value={draft.text}
@@ -231,7 +233,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !draft.text.trim()}><ArrowUp size={20} /></button>
           </div>
-        </form>
+        </form>}
       </Panel>
       <section className="wu-panel wu-chat-details" id="chat-details" aria-label="Conversation details">{details}</section>
     </div>

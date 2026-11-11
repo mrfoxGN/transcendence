@@ -11,8 +11,8 @@ import './notes.css';
 
 type Note = { id: string; title: string; content: string | null; updatedAt: string; creatorId: string | null };
 
-export function NotesPage({ pageHeading, path, token, owner, profileId, members }: {
-  pageHeading: PageHeading; path: string; token: string | null; owner: boolean; profileId: string; members: Member[];
+export function NotesPage({ pageHeading, path, token, owner, profileId, members, readOnly = false }: {
+  pageHeading: PageHeading; path: string; token: string | null; owner: boolean; profileId: string; members: Member[]; readOnly?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('updated');
@@ -28,7 +28,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
   const pending = useRef(0);
   const visibleNotes = items?.slice(0, documentPageSize);
   const selected = visibleNotes?.find(note => note.id === selectedId) ?? visibleNotes?.[0];
-  const canEdit = (note: Note) => owner || note.creatorId === profileId;
+  const canEdit = (note: Note) => !readOnly && (owner || note.creatorId === profileId);
 
   async function removeNote() {
     if (!removing || saving) return;
@@ -108,7 +108,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members 
   }
 
   return <>
-    {pageHeading(<button className="wu-button wu-button--primary" type="button" disabled={saving || !!editing || !items} onClick={() => start('new')}><Plus size={16} />New note</button>)}
+    {pageHeading(!readOnly && <button className="wu-button wu-button--primary" type="button" disabled={saving || !!editing || !items} onClick={() => start('new')}><Plus size={16} />New note</button>)}
     <div className="wu-notes-layout">
       <Panel className="wu-notes-list">
         <div className="wu-panel-heading"><h2>Workspace notes</h2></div>

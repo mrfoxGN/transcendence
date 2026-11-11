@@ -31,6 +31,7 @@ import { WorkspaceMembership } from '../entities/workspace-membership.entity';
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationMapper } from '../mappers/workspace-invitation.mapper';
 import { WorkspaceMapper } from '../mappers/workspace.mapper';
+import { assertWorkspaceWritable, validateWorkspaceTimeZone } from '../workspace-policy';
 
 import { WorkspaceKanbanSettingsResponseDto } from '../dto/workspace-kanban-settings-response.dto';
 import { WorkspaceKanbanSettingsMapper } from '../mappers/workspace-kanban-settings.mapper';
@@ -63,7 +64,7 @@ export class WorkspacesService {
   }
 
   async lockAssignmentMemberships(manager: EntityManager, workspaceId: string, actorId: string, assigneeId: string) {
-    await this.lockWorkspace(manager, workspaceId);
+    assertWorkspaceWritable(await this.lockWorkspace(manager, workspaceId));
     const memberships = manager.getRepository(WorkspaceMembership);
     if (!await memberships.findOneBy({ workspaceId, userId: actorId })) throw new ForbiddenException();
     if (assigneeId !== actorId && !await memberships.findOneBy({ workspaceId, userId: assigneeId })) {
@@ -79,6 +80,7 @@ export class WorkspacesService {
     await this.dataSource.transaction(async manager => {
       const workspace = await this.lockWorkspace(manager, workspaceId);
       if (workspace.ownerId !== actorId) throw new ForbiddenException();
+      assertWorkspaceWritable(workspace);
       if (targetId === actorId) throw new BadRequestException('Choose another workspace member');
       const target = await manager.getRepository(WorkspaceMembership).findOneBy({ workspaceId, userId: targetId });
       if (!target) throw new NotFoundException('Workspace member not found');
@@ -204,7 +206,7 @@ export class WorkspacesService {
     });
   }
 
-  async assertOwner(workspaceId: string, userId: string): Promise<void> {
+  async assertOwner(workspaceId: string, userId: string, writable = false): Promise<void> {
     const workspace = await this.dataSource.getRepository(Workspace).findOne({
       where: {
         id: workspaceId,
@@ -219,6 +221,7 @@ export class WorkspacesService {
     if (workspace.ownerId !== userId) {
       throw new ForbiddenException();
     }
+    if (writable) assertWorkspaceWritable(workspace);
   }
 
   async update(
@@ -226,122 +229,47 @@ export class WorkspacesService {
     userId: string,
     dto: UpdateWorkspaceDto,
   ): Promise<WorkspaceResponseDto> {
-    if (dto.name === undefined && dto.description === undefined) {
+    if (dto.name === undefined && dto.description === undefined && dto.reportingTimeZone === undefined) {
       throw new BadRequestException('No changes provided');
     }
 
-    const repository = this.dataSource.getRepository(Workspace);
-
-    const workspace = await repository.findOne({
-      where: {
-        id: workspaceId,
-        deletedAt: IsNull(),
-      },
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (workspace.ownerId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    if (dto.name !== undefined) {
-      workspace.name = dto.name;
-    }
-
-    if (dto.description !== undefined) {
-      workspace.description = dto.description;
-    }
-
-    workspace.updatedAt = new Date();
-
-    const savedWorkspace = await repository.save(workspace);
-
-    return WorkspaceMapper.toResponse(savedWorkspace);
+    return this.updateOwnedWorkspace(workspaceId, userId, () => ({
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.reportingTimeZone !== undefined && { reportingTimeZone: validateWorkspaceTimeZone(dto.reportingTimeZone) }),
+    }), true);
   }
 
-  async archive(
-    workspaceId: string,
-    userId: string,
-  ): Promise<WorkspaceResponseDto> {
-    const repository = this.dataSource.getRepository(Workspace);
-
-    const workspace = await repository.findOne({
-      where: {
-        id: workspaceId,
-        deletedAt: IsNull(),
-      },
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (workspace.ownerId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    workspace.archivedAt = new Date();
-    workspace.updatedAt = new Date();
-
-    const savedWorkspace = await repository.save(workspace);
-
-    return WorkspaceMapper.toResponse(savedWorkspace);
+  archive(workspaceId: string, userId: string): Promise<WorkspaceResponseDto> {
+    return this.updateOwnedWorkspace(workspaceId, userId, workspace => ({ archivedAt: workspace.archivedAt ?? new Date() }));
   }
 
-  async unarchive(
-    workspaceId: string,
-    userId: string,
-  ): Promise<WorkspaceResponseDto> {
-    const repository = this.dataSource.getRepository(Workspace);
-
-    const workspace = await repository.findOne({
-      where: {
-        id: workspaceId,
-        deletedAt: IsNull(),
-      },
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (workspace.ownerId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    workspace.archivedAt = null;
-    workspace.updatedAt = new Date();
-
-    const savedWorkspace = await repository.save(workspace);
-
-    return WorkspaceMapper.toResponse(savedWorkspace);
+  unarchive(workspaceId: string, userId: string): Promise<WorkspaceResponseDto> {
+    return this.updateOwnedWorkspace(workspaceId, userId, () => ({ archivedAt: null }));
   }
 
   async softDelete(workspaceId: string, userId: string): Promise<void> {
+    await this.updateOwnedWorkspace(workspaceId, userId, () => ({ deletedAt: new Date() }), true);
+  }
+
+  private async updateOwnedWorkspace(
+    workspaceId: string,
+    userId: string,
+    getChanges: (workspace: Workspace) => Partial<Workspace>,
+    writable = false,
+  ): Promise<WorkspaceResponseDto> {
     const repository = this.dataSource.getRepository(Workspace);
-
-    const workspace = await repository.findOne({
-      where: {
-        id: workspaceId,
-        deletedAt: IsNull(),
-      },
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (workspace.ownerId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    workspace.deletedAt = new Date();
-    workspace.updatedAt = new Date();
-
-    await repository.save(workspace);
+    const workspace = await repository.findOne({ where: { id: workspaceId, deletedAt: IsNull() } });
+    if (!workspace) throw new NotFoundException('Workspace not found');
+    if (workspace.ownerId !== userId) throw new ForbiddenException();
+    if (writable) assertWorkspaceWritable(workspace);
+    const changes = { ...getChanges(workspace), updatedAt: new Date() };
+    const result = await repository.update({
+      id: workspaceId, ownerId: userId, deletedAt: IsNull(),
+      ...(writable && { archivedAt: IsNull() }),
+    }, changes);
+    if (!result.affected) throw new ConflictException('Workspace changed. Refresh and try again.');
+    return WorkspaceMapper.toResponse({ ...workspace, ...changes });
   }
 
   async findMembers(
@@ -383,6 +311,7 @@ export class WorkspacesService {
     const membershipId = await this.dataSource.transaction(async manager => {
       const workspace = await this.lockWorkspace(manager, workspaceId);
       if (leaving ? memberUserId !== currentUserId : workspace.ownerId !== currentUserId) throw new ForbiddenException();
+      if (!leaving) assertWorkspaceWritable(workspace);
       if (workspace.ownerId === memberUserId) throw new BadRequestException('Transfer ownership before leaving or removing the owner');
       const memberships = manager.getRepository(WorkspaceMembership);
       const membership = await memberships.findOne({ where: { workspaceId, userId: memberUserId } });
@@ -449,6 +378,7 @@ export class WorkspacesService {
       throw new ForbiddenException();
     }
 
+    assertWorkspaceWritable(workspace);
     if (!dto.invitedUserId || dto.invitedEmail) {
       throw new BadRequestException('Provide one user ID or email address');
     }
@@ -540,6 +470,7 @@ export class WorkspacesService {
     const { invitation, workspaceName } = await this.dataSource.transaction(async manager => {
       const workspace = await this.lockWorkspace(manager, workspaceId);
       if (workspace.ownerId !== actorId) throw new ForbiddenException();
+      assertWorkspaceWritable(workspace);
       const repository = manager.getRepository(WorkspaceInvitation);
       const previous = invitationId ? await repository.findOneBy({ id: invitationId, workspaceId }) : null;
       if (invitationId && !previous) throw new NotFoundException('Invitation not found');
@@ -646,6 +577,7 @@ export class WorkspacesService {
       if (invitation.expiresAt && invitation.expiresAt <= new Date()) {
         throw new ConflictException('Invitation has expired. Ask the workspace owner to resend it.');
       }
+      assertWorkspaceWritable(workspace);
 
       const existingMembership = await membershipRepository.findOne({
         where: {
@@ -832,7 +764,7 @@ export class WorkspacesService {
     workspaceId: string,
     userId: string,
   ): Promise<WorkspaceKanbanSettingsResponseDto> {
-    await this.findOneForUser(workspaceId, userId);
+    const workspace = await this.findOneForUser(workspaceId, userId);
 
     const settingsRepository = this.dataSource.getRepository(
       WorkspaceKanbanSetting,
@@ -848,7 +780,7 @@ export class WorkspacesService {
       throw new NotFoundException('Kanban settings not found');
     }
 
-    return WorkspaceKanbanSettingsMapper.toResponse(settings);
+    return { ...WorkspaceKanbanSettingsMapper.toResponse(settings), ...(workspace?.reportingTimeZone && { reportingTimeZone: workspace.reportingTimeZone }) };
   }
 
   async updateKanbanSettings(
@@ -885,6 +817,7 @@ export class WorkspacesService {
       throw new ForbiddenException();
     }
 
+    assertWorkspaceWritable(workspace);
     if (dto.boardColumns) {
       const columns = dto.boardColumns.map(column => ({ ...column, label: column.label.trim() }));
       if (columns.some(column => !column.label) ||

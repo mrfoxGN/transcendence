@@ -1,5 +1,7 @@
 import {
   IsEmail,
+  IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   Length,
@@ -9,6 +11,13 @@ import {
 } from 'class-validator';
 
 export class UpdateProfileDto {
+  @ValidateIf((_, value: unknown) => value !== undefined)
+  @IsIn(['system', 'light', 'dark'])
+  theme?: 'system' | 'light' | 'dark';
+
+  @ValidateIf((_, value: unknown) => value !== undefined)
+  @IsBoolean()
+  notificationBadge?: boolean;
   @IsOptional()
   @IsString()
   @Length(3, 30)

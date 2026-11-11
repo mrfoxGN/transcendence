@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   BadRequestException,
   ForbiddenException,
@@ -47,7 +48,7 @@ export class FilesService {
     file: Express.Multer.File | undefined,
     dto: UploadWorkspaceFileDto,
   ): Promise<WorkspaceFileResponseDto> {
-    await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
 
     if (!file) {
       throw new BadRequestException('File is required');
@@ -189,6 +190,7 @@ export class FilesService {
       workspaceId,
       userId,
     );
+    assertWorkspaceWritable(workspace);
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {

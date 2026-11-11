@@ -4,21 +4,25 @@ import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import { FilterChips, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import { jsonRequest, workspaceRequest } from '../workspace-api';
+import { PersonalSettings, type PersonalProfile, type Theme } from './PersonalSettings';
 import type { PageHeading, PageKey } from '../types';
 import './settings.css';
 
-export type WorkspaceProfile = { name: string; description: string | null; ownerId: string; archivedAt: string | null };
+export type WorkspaceProfile = { name: string; description: string | null; ownerId: string; archivedAt: string | null; reportingTimeZone?: string };
 type KanbanSettings = { activeWipLimit: number; definitionOfReady: unknown; definitionOfDone: unknown };
 
 function definitionText(value: unknown) {
   return typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value, null, 2);
 }
 
-export function SettingsPage({ pageHeading, workspace, ownerName, profileId, profileName, token, path, navigate, onWorkspace, onBoard, onProfile, initialTab = 'General' }: {
-  pageHeading: PageHeading; workspace: WorkspaceProfile; ownerName?: string; profileId: string; profileName: string;
+const workspaceTabs = ['General', 'Access', 'Board settings', 'Integrations', 'Archive'];
+const personalTabs = ['Profile', 'Security', 'Appearance', 'Notifications'];
+
+export function SettingsPage({ pageHeading, workspace, ownerName, profile, token, path, navigate, onWorkspace, onBoard, onProfile, onTheme, initialTab = 'General' }: {
+  pageHeading: PageHeading; workspace: WorkspaceProfile; ownerName?: string; profile: PersonalProfile;
   token: string | null; path: string; navigate: (page: PageKey) => void;
-  onWorkspace: (workspace: WorkspaceProfile) => void; onBoard: () => void; onProfile: (name: string) => void;
-  initialTab?: 'General' | 'Profile';
+  onWorkspace: (workspace: WorkspaceProfile) => void; onBoard: () => void; onProfile: (profile: PersonalProfile) => void;
+  onTheme: (theme: Theme) => Promise<boolean>; initialTab?: 'General' | 'Profile' | 'Archive';
 }) {
   const [tab, setTab] = useState<string>(initialTab);
   const [settings, setSettings] = useState<KanbanSettings>();
@@ -30,7 +34,9 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
   const [confirm, setConfirm] = useState(false);
   const queue = useRef(Promise.resolve());
   const pending = useRef(0);
-  const isOwner = workspace.ownerId === profileId;
+  const isOwner = workspace.ownerId === profile.id;
+  const editable = isOwner && !workspace.archivedAt;
+  const personal = personalTabs.includes(tab);
 
   useEffect(() => {
     if (!token || tab !== 'Board settings') return;
@@ -43,19 +49,18 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
   }, [token, path, tab, attempt]);
 
   function save(key: string, value: string | number) {
-    if (!token || (tab === 'Profile' ? !profileId : !isOwner)) return;
+    if (!token || !editable) return;
     pending.current += 1;
     setBusy(true);
     queue.current = queue.current.then(async () => {
       setError('');
       setNotice('');
       try {
-        const target = tab === 'Profile' ? 'users/' + profileId : tab === 'Board settings' ? path + '/kanban-settings' : path;
+        const target = tab === 'Board settings' ? path + '/kanban-settings' : path;
         const response = await workspaceRequest(target, token, jsonRequest('PATCH', { [key]: value }));
         const result = await response.json();
-        if (tab === 'Profile') onProfile(result.username);
-        else if (tab === 'Board settings') { setSettings(result); onBoard(); }
-        else onWorkspace(result);
+        if (tab === 'Board settings') { setSettings(result); onBoard(); }
+        else { onWorkspace(result); if (key === 'reportingTimeZone') onBoard(); }
         setNotice('Changes saved.');
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Could not save changes. Edit the field to retry.');
@@ -81,12 +86,20 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
     }
   }
 
-  const editable = tab === 'Profile' ? !!profileId : isOwner;
+  function selectTab(value: string) { setTab(value); setError(''); setNotice(''); }
+
   return <>
     {pageHeading((busy || notice) && <span className="wu-muted" role="status">{busy ? 'Saving…' : notice}</span>)}
-    <FilterChips items={['General', 'Board settings', 'Profile']} active={tab} onChange={value => { setTab(value); setError(''); setNotice(''); }} />
+    <div className="wu-settings-navigation">
+      <div role="group" aria-label="Settings scope"><FilterChips items={['Workspace', 'Personal']} active={personal ? 'Personal' : 'Workspace'}
+        onChange={value => { if (value !== (personal ? 'Personal' : 'Workspace')) selectTab(value === 'Personal' ? 'Profile' : 'General'); }} /></div>
+      <div role="group" aria-label={personal ? 'Personal settings sections' : 'Workspace settings sections'}>
+        <FilterChips items={personal ? personalTabs : workspaceTabs} active={tab} onChange={selectTab} />
+      </div>
+    </div>
     <Panel className="wu-settings-panel">
       {error && !confirm && <p role="alert">{error}</p>}
+      {personal ? <PersonalSettings key={tab} tab={tab} profile={profile} token={token} onProfile={onProfile} onTheme={onTheme} /> :
       <div key={tab} className="wu-settings-form">
         {tab === 'General' && <>
           <h2>Workspace profile</h2>
@@ -94,6 +107,12 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
             onBlur={event => saveTextOnBlur(event, workspace.name, value => save('name', value))} onKeyDown={finishInputEdit} /></label>
           <label className="wu-field-label">Description<textarea name="description" defaultValue={workspace.description ?? ''} placeholder="What does this workspace organize?" rows={3} readOnly={!editable}
             onBlur={event => saveTextOnBlur(event, workspace.description ?? '', value => save('description', value))} /></label>
+          <label className="wu-field-label">Reporting time zone<input name="reportingTimeZone" list="wu-workspace-time-zones" maxLength={80}
+            defaultValue={workspace.reportingTimeZone ?? 'Africa/Casablanca'} placeholder="e.g. Africa/Casablanca" readOnly={!editable}
+            onBlur={event => saveTextOnBlur(event, workspace.reportingTimeZone ?? 'Africa/Casablanca', value => save('reportingTimeZone', value))} onKeyDown={finishInputEdit} />
+          </label>
+          <datalist id="wu-workspace-time-zones">{Array.from(new Set(['UTC', 'Africa/Casablanca', ...(Intl.supportedValuesOf?.('timeZone') ?? [])])).map(zone => <option key={zone} value={zone} />)}</datalist>
+          <p className="wu-muted">Used for reporting periods and relative due-date filters.</p>
           <div className="wu-readonly-field"><span>Owner</span><strong>{ownerName ?? 'Workspace owner'}</strong></div>
         </>}
         {tab === 'Board settings' && <>
@@ -110,11 +129,19 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profileId, pro
                 onBlur={event => saveTextOnBlur(event, definitionText(settings.definitionOfDone), value => save('definitionOfDone', value))} /></label>
             </>}
         </>}
-        {tab === 'Profile' && <><h2>Your profile</h2><label className="wu-field-label">Username<input name="username" defaultValue={profileName} placeholder="e.g. nourdev" required minLength={3} maxLength={30}
-          onBlur={event => saveTextOnBlur(event, profileName, value => save('username', value))} onKeyDown={finishInputEdit} /></label></>}
-      </div>
-      {tab === 'General' && <><hr /><button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('team')}><workspaceIcons.team size={15} />Manage members</button>
-        {isOwner && <button className="wu-text-button" type="button" onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</button>}</>}
+        {tab === 'Access' && <><h2>Workspace access</h2>
+          <div className="wu-readonly-field"><span>Your role</span><strong>{isOwner ? 'Owner' : 'Member'}</strong></div>
+          <button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('team')}><workspaceIcons.team size={15} />{editable ? 'Manage members' : 'View team'}</button>
+        </>}
+        {tab === 'Integrations' && <><h2>Integrations</h2>
+          <button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('github')}><workspaceIcons.github size={15} />View GitHub integration</button>
+        </>}
+        {tab === 'Archive' && <><h2>{workspace.archivedAt ? 'Workspace archived' : 'Archive workspace'}</h2>
+          <p className="wu-muted">Archiving pauses changes to shared work. The workspace owner can restore it at any time.</p>
+          {isOwner && <button className="wu-button wu-button--secondary" type="button" disabled={busy}
+            onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</button>}
+        </>}
+      </div>}
     </Panel>
     {confirm && <Drawer title={workspace.archivedAt ? 'Restore workspace?' : 'Archive workspace?'} confirmation onClose={() => setConfirm(false)}>
       {error && <p role="alert">{error}</p>}

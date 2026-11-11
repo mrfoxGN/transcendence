@@ -15,13 +15,14 @@ export type TeamInvitation = {
   invitePath?: string;
 };
 
-export function TeamPage({ pageHeading, workspaceName, members, loadError, retry, path, token, profileId, onInvite, invitations, delivery, onDelivery, refreshWorkspace }: {
+export function TeamPage({ pageHeading, workspaceName, members, loadError, retry, path, token, profileId, onInvite, invitations, delivery, onDelivery, refreshWorkspace, archived = false }: {
   pageHeading: PageHeading; workspaceName: string; members?: Member[]; loadError: boolean; retry: () => void;
   path: string; token: string | null; profileId: string; onInvite: () => void;
   invitations: { items?: TeamInvitation[]; error: boolean; retry: () => void };
   delivery?: TeamInvitation;
   onDelivery: (invitation?: TeamInvitation) => void;
   refreshWorkspace: () => void;
+  archived?: boolean;
 }) {
   const owner = members?.some(member => member.userId === profileId && member.isOwner);
   const [busy, setBusy] = useState(false);
@@ -50,8 +51,8 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
     setConfirmation({ title, action, detail, run });
   }
 
-  return <>{pageHeading(owner ? <button className="wu-button wu-button--primary" type="button" onClick={onInvite}><Plus size={16} />Invite member</button>
-    : members?.some(member => member.userId === profileId) && <button className="wu-button wu-button--secondary" type="button"
+  return <>{pageHeading(owner && !archived ? <button className="wu-button wu-button--primary" type="button" onClick={onInvite}><Plus size={16} />Invite member</button>
+    : !owner && members?.some(member => member.userId === profileId) && <button className="wu-button wu-button--secondary" type="button"
       onClick={() => confirm('Leave this workspace?', 'Leave workspace', 'You’ll lose access and your tasks will become unassigned.', async () => {
         await workspaceRequest(path + '/membership', token, { method: 'DELETE' });
         location.replace('/workspaces');
@@ -70,7 +71,7 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
             <td><span className="wu-person">{person.avatarUrl ? <img className="wu-avatar" src={person.avatarUrl} alt="" /> : <Avatar initials={person.username.slice(0, 2).toUpperCase()} preview={false} />}<strong>{person.username}</strong>{person.userId === profileId && <small>You</small>}</span></td>
             <td><Pill tone={person.isOwner ? 'blue' : 'neutral'}>{person.isOwner ? 'Owner' : 'Member'}</Pill></td>
             <td>{new Date(person.joinedAt).toLocaleDateString()}</td>
-            <td>{owner && !person.isOwner && <ActionMenu label={'Actions for ' + person.username} actions={[
+            <td>{owner && !archived && !person.isOwner && <ActionMenu label={'Actions for ' + person.username} actions={[
               { label: 'Transfer ownership', run: () => confirm('Transfer ownership to ' + person.username + '?', 'Transfer ownership', 'They’ll manage this workspace. You’ll stay as a member.', async () => {
                 await workspaceRequest(path + '/owner/' + person.userId, token, { method: 'PATCH' });
                 refreshWorkspace();
@@ -86,7 +87,7 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
     </Panel>
     {owner && <Panel className="wu-content-panel">
       <h2>Invitations</h2>
-      {delivery?.delivery === 'link' && delivery.invitePath && <div>
+      {!archived && delivery?.delivery === 'link' && delivery.invitePath && <div>
         <p role="status">Email delivery is unavailable. Share this link with {delivery.invitedEmail}.</p>
         <label className="wu-field-label">Invitation link
           <input readOnly value={new URL(delivery.invitePath, location.origin).href} onFocus={event => event.currentTarget.select()} />
@@ -102,7 +103,7 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
           <span>{invitation.invitedEmail ?? 'DevUP user'} · {statuses[invitation.status]}
             {invitation.status === 'PENDING' && invitation.expiresAt && ' · Expires ' + new Date(invitation.expiresAt).toLocaleDateString()}</span>
           {(invitation.status === 'PENDING' || invitation.status === 'EXPIRED') && <ActionMenu label={'Invitation actions for ' + (invitation.invitedEmail ?? 'DevUP user')} actions={[
-            ...(invitation.invitedEmail ? [{ label: 'Resend invitation', run: () => void runAction(async () => {
+            ...(!archived && invitation.invitedEmail ? [{ label: 'Resend invitation', run: () => void runAction(async () => {
               const result = await workspaceRequest(path + '/invitations/' + invitation.id + '/resend', token, { method: 'POST' });
               onDelivery(await result.json());
               invitations.retry();

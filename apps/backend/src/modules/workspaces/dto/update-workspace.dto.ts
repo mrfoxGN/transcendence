@@ -9,4 +9,9 @@ export class UpdateWorkspaceDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  reportingTimeZone?: string;
 }

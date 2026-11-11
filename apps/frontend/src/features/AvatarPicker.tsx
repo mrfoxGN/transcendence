@@ -32,8 +32,9 @@ async function prepareAvatar(file: File) {
   }
 }
 
-export function AvatarPicker({ onSave, onSkip, saving, error }: {
+export function AvatarPicker({ onSave, onSkip, saving, error, saveLabel = 'Save and continue', skipLabel = 'Skip for now' }: {
   onSave: (avatar: AvatarSelection) => void; onSkip: () => void; saving: boolean; error: string;
+  saveLabel?: string; skipLabel?: string;
 }) {
   const [selection, setSelection] = useState('');
   const [image, setImage] = useState('');
@@ -118,8 +119,8 @@ export function AvatarPicker({ onSave, onSkip, saving, error }: {
     </div>}
     {(inputError || error) && <p className="auth-error" role="alert">{inputError || error}</p>}
     <button className="button button--primary" type="submit" disabled={busy || !selection || (custom && !image && !url.trim())}>
-      {saving ? 'Saving…' : 'Save and continue'}
+      {saving ? 'Saving…' : saveLabel}
     </button>
-    <button className="button button--secondary" type="button" disabled={saving} onClick={onSkip}>Skip for now</button>
+    <button className="button button--secondary" type="button" disabled={saving} onClick={onSkip}>{skipLabel}</button>
   </form>;
 }

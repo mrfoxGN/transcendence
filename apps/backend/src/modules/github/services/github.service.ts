@@ -63,7 +63,7 @@ export class GitHubService {
     githubRepositoryId: string,
   ): Promise<ConnectedRepositoryResponseDto> {
     // Verify Transcendence workspace ownership.
-    await this.workspacesService.assertOwner(workspaceId, userId);
+    await this.workspacesService.assertOwner(workspaceId, userId, true);
 
     // Verify the temporary OAuth session belongs to
     // this workspace and Transcendence user.

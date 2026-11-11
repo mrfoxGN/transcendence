@@ -5,8 +5,8 @@ import { workspaceRequest } from './workspace-api';
 type Update = { id: string; message: string; createdAt: string; readAt: string | null; type: string; workspaceId: string | null; relatedResourceType: string | null; relatedResourceId: string | null };
 const limit = 20;
 
-export function NotificationInbox({ token, workspaceId, triggerRef }: {
-  token: string | null; workspaceId?: string; triggerRef?: Ref<HTMLButtonElement>;
+export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = true }: {
+  token: string | null; workspaceId?: string; triggerRef?: Ref<HTMLButtonElement>; showBadge?: boolean;
 }) {
   const id = useId();
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -102,8 +102,8 @@ export function NotificationInbox({ token, workspaceId, triggerRef }: {
     { label: 'Earlier', items: visible.filter(update => ![today, yesterday].includes(new Date(update.createdAt).toDateString())) },
   ];
   return <>
-    <button ref={triggerRef} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
-      onClick={() => { if (!document.getElementById(id)?.matches(':popover-open')) void refresh(); }}><Bell size={18} />{!!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
+    <button ref={triggerRef} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={showBadge && count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
+      onClick={() => { if (!document.getElementById(id)?.matches(':popover-open')) void refresh(); }}><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
     <section id={id} popover="auto" className="wu-inbox" aria-label="Notifications" aria-busy={busy}>
       <div className="wu-panel-heading">
         <h2>Notifications</h2>

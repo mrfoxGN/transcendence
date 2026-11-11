@@ -10,11 +10,12 @@ type Comment = { id: string; authorId: string | null; content: string; createdAt
 type Dependency = { id: string; dependsOnTaskId: string };
 type TaskEdit = { suffix: string; method: string; body?: Record<string, unknown> };
 
-export function TaskDetails({ task, tasks, members, token, profileId, onClose, onChange, files, openTask, openFile, onBack, boardColumns }: {
+export function TaskDetails({ task, tasks, members, token, profileId, onClose, onChange, files, openTask, openFile, onBack, boardColumns, readOnly = false }: {
   task: Task; tasks: Task[]; members: Member[]; token: string | null; profileId: string;
   onClose: () => void; onChange: () => void;
   files: WorkspaceFile[]; openTask: (task: Task) => void; openFile: (file: WorkspaceFile) => void; onBack?: () => void;
   boardColumns: BoardColumnConfig[];
+  readOnly?: boolean;
 }) {
   const path = 'tasks/' + task.id;
   const comments = useWorkspaceCollection<Comment>(path + '/comments', token);
@@ -34,7 +35,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   const pending = useRef(0);
 
   function mutate(suffix: string, method: string, body?: Record<string, unknown>, editKey?: string) {
-    if (!token) return Promise.resolve(false);
+    if (!token || readOnly) return Promise.resolve(false);
     const edit = { suffix, method, body };
     if (editKey) latestEdits.current[editKey] = edit;
     pending.current += 1;
@@ -128,7 +129,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <button className="wu-text-button" type="button" onClick={retryEdits}>Retry save</button>
     </div>}
     {(busy || (notice && !hasFailedEdits)) && <p role="status">{busy ? 'Saving changes…' : notice}</p>}
-    {editingTask ? <section className="wu-column-form wu-task-editor">
+    {editingTask && !readOnly ? <section className="wu-column-form wu-task-editor">
       <div className="wu-panel-heading"><h3>Edit task</h3><button className="wu-text-button" type="button" disabled={busy || hasFailedEdits} onClick={() => {
         if (pending.current) return;
         latestEdits.current = {};
@@ -148,12 +149,12 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         if (field.validity.valid) save('dueDate', field.value || null);
       }} /></label>
     </section> : <section className="wu-drawer-section">
-      <div className="wu-panel-heading"><h3>Description</h3><button className="wu-text-button" type="button" onClick={() => setEditingTask(true)}>Edit task</button></div>
+      <div className="wu-panel-heading"><h3>Description</h3>{!readOnly && <button className="wu-text-button" type="button" onClick={() => setEditingTask(true)}>Edit task</button>}</div>
       <p className="wu-task-copy">{task.description || 'No description yet.'}</p>
       <h3>Acceptance criteria</h3>
       <p className="wu-task-copy">{task.acceptanceCriteria || 'No acceptance criteria yet.'}</p>
     </section>}
-    {!!destinations.length && <section className="wu-drawer-section">
+    {!readOnly && !!destinations.length && <section className="wu-drawer-section">
       <h3>Move task</h3>
         <label className="wu-field-label">Destination<select name="column" value="" disabled={busy} onChange={event => {
           const column = destinations.find(item => item.id === event.currentTarget.value);
@@ -165,6 +166,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     </section>}
     <section className="wu-drawer-section">
       <h3>Assignee</h3>
+      {readOnly ? <p>{members.find(member => member.userId === task.assigneeId)?.username ?? (task.assigneeId ? 'Former member' : 'Unassigned')}</p> :
       <label className="wu-field-label">Choose a member
         <select name="member" value={assigneeDraft ?? task.assigneeId ?? ''} disabled={busy} onChange={event => {
           const userId = event.currentTarget.value;
@@ -176,11 +178,12 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
             <option value={task.assigneeId}>Former member</option>}
           {members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
         </select>
-      </label>
+      </label>}
     </section>
     <section className="wu-drawer-section">
       <h3>Blocker</h3>
-      {task.isBlocked ? <><p>{task.blockedReason}</p><button className="wu-button wu-button--secondary" disabled={busy} onClick={() => void mutate('/block', 'DELETE')}>Unblock task</button></>
+      {readOnly ? <p>{task.isBlocked ? task.blockedReason || 'Blocked' : 'No blocker'}</p>
+        : task.isBlocked ? <><p>{task.blockedReason}</p><button className="wu-button wu-button--secondary" disabled={busy} onClick={() => void mutate('/block', 'DELETE')}>Unblock task</button></>
         : <label className="wu-field-label">Reason<input name="reason" placeholder="e.g. Waiting for API access"
           onBlur={event => saveTextOnBlur(event, '', reason => void mutate('/block', 'POST', { reason }))} onKeyDown={finishInputEdit} /></label>}
     </section>
@@ -192,15 +195,15 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
           const related = tasks.find(candidate => candidate.id === item.dependsOnTaskId);
           return <div key={item.id}>
             {related ? <button className="wu-text-button" type="button" onClick={() => openTask(related)}>{related.title}</button> : 'Unavailable task'}
-            {' '}<button className="wu-text-button" disabled={busy} onClick={() => void mutate('/dependencies/' + item.id, 'DELETE')}>Remove</button>
+            {!readOnly && <>{' '}<button className="wu-text-button" disabled={busy} onClick={() => void mutate('/dependencies/' + item.id, 'DELETE')}>Remove</button></>}
           </div>;
         })}
-      <label className="wu-field-label">Depends on<select name="dependency" value="" disabled={busy}
+      {!readOnly && <label className="wu-field-label">Depends on<select name="dependency" value="" disabled={busy}
         onChange={event => void mutate('/dependencies', 'POST', { dependsOnTaskId: event.currentTarget.value })}>
         <option value="" disabled>Select a task that must finish first</option>
         {tasks.filter(item => item.id !== task.id && !dependencies.items?.some(dep => dep.dependsOnTaskId === item.id))
           .map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-      </select></label>
+      </select></label>}
     </section>
     {!!files.length && <section className="wu-drawer-section">
       <h3>Related files</h3>
@@ -212,7 +215,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         : !comments.items ? <p role="status">Loading comments…</p>
         : comments.items.map(comment => <div key={comment.id}>
           <strong>{members.find(member => member.userId === comment.authorId)?.username ?? 'Former member'}</strong>
-          {editingComment === comment.id ? <label className="wu-field-label">Edit comment<textarea autoFocus name="content"
+          {!readOnly && editingComment === comment.id ? <label className="wu-field-label">Edit comment<textarea autoFocus name="content"
             defaultValue={comment.content} placeholder="Update your comment" required onBlur={event => {
               const value = event.currentTarget.value.trim();
               if (value === comment.content.trim()) setEditingComment(undefined);
@@ -221,12 +224,12 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
               });
             }} /></label> : <p>{comment.content}</p>}
           <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time>
-          {profileId === comment.authorId && editingComment !== comment.id && <>
+          {!readOnly && profileId === comment.authorId && editingComment !== comment.id && <>
             <button className="wu-text-button" type="button" disabled={busy} onClick={() => setEditingComment(comment.id)}>Edit comment</button>
             <button className="wu-text-button" type="button" disabled={busy} onClick={() => void mutate('/comments/' + comment.id, 'DELETE')}>Delete comment</button>
           </>}
         </div>)}
-      <form onSubmit={async event => {
+      {!readOnly && <form onSubmit={async event => {
         event.preventDefault();
         const form = event.currentTarget;
         const content = String(new FormData(form).get('content')).trim();
@@ -234,15 +237,15 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       }}>
         <label className="wu-field-label">Add a comment<textarea name="content" rows={2} placeholder="Share an update or ask a question" required /></label>
         <button className="wu-button wu-button--secondary" disabled={busy}>Post comment</button>
-      </form>
+      </form>}
     </section>
-    {confirmDelete ? <section className="wu-drawer-section" aria-label="Confirm deletion">
+    {!readOnly && (confirmDelete ? <section className="wu-drawer-section" aria-label="Confirm deletion">
       <h3>Delete “{task.title}”?</h3>
       <p>This removes the task from the workspace board and backlog.</p>
       <div className="wu-modal-actions">
       <button className="wu-button wu-button--secondary" type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
       <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={async () => { if (await mutate('', 'DELETE')) onClose(); }}>Confirm task deletion</button>
-    </div></section> : <button className="wu-text-button" type="button" onClick={() => setConfirmDelete(true)}>Delete task</button>}
+    </div></section> : <button className="wu-text-button" type="button" onClick={() => setConfirmDelete(true)}>Delete task</button>)}
     </div>
   </Drawer>;
 }
