@@ -1,15 +1,21 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { accountRequest, authRoute, requestedWorkspace } from './auth-routing';
 import { sessionKey } from './WorkspacePicker';
+import { AvatarPicker, type AvatarSelection } from './AvatarPicker';
+import './account-onboarding.css';
 
-function AccountShell({ title, children }: { title: string; children: ReactNode }) {
-  return <main className="auth-page">
+function AccountShell({ title, children, onboarding = false }: { title: string; children: ReactNode; onboarding?: boolean }) {
+  return <main className={onboarding ? 'auth-page account-onboarding' : 'auth-page'}>
     <header className="auth-header"><a href="/" className="brand"><img src="/devup.svg" alt="" width="34" height="34" />DevUP</a></header>
     <section className="auth-shell" aria-labelledby="account-title">
       <h1 id="account-title">{title}</h1>
       <div className="auth-panel">{children}</div>
     </section>
   </main>;
+}
+
+function EmailArtwork() {
+  return <div className="account-email-artwork" aria-hidden="true"><span /></div>;
 }
 
 export function AccountRecovery({ mode }: { mode: 'request' | 'reset' | 'verify' }) {
@@ -49,7 +55,8 @@ export function AccountRecovery({ mode }: { mode: 'request' | 'reset' | 'verify'
     }
   }
 
-  return <AccountShell title={title}>
+  return <AccountShell title={title} onboarding={mode === 'verify'}>
+    {mode === 'verify' && <EmailArtwork />}
     {complete ? <div className="auth-success">
       <p role="status">{mode === 'request' ? 'If a DevUP account uses that email, a password reset link will be sent.'
         : mode === 'reset' ? 'Your password has been updated.' : 'Your email is verified.'}</p>
@@ -79,7 +86,7 @@ export function AccountRecovery({ mode }: { mode: 'request' | 'reset' | 'verify'
   </AccountShell>;
 }
 
-export function FirstRun() {
+export function FirstRun({ step }: { step: 'avatar' | 'email' }) {
   const token = sessionStorage.getItem(sessionKey);
   const destination = requestedWorkspace();
   const [profile, setProfile] = useState<{ id: string; username: string; email: string; emailVerified?: boolean }>();
@@ -88,6 +95,8 @@ export function FirstRun() {
   const [mailFeedback, setMailFeedback] = useState<{ message: string; error: boolean }>();
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const emailStep = step === 'email';
+  const emailPath = authRoute('/onboarding/email', destination);
 
   useEffect(() => {
     if (!token) {
@@ -110,24 +119,25 @@ export function FirstRun() {
     return () => controller.abort();
   }, [token, destination]);
 
-  async function saveAvatar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function nextAfterAvatar() {
+    location.replace(profile?.emailVerified ? destination : emailPath);
+  }
+
+  async function saveAvatar(avatar: AvatarSelection) {
     if (!profile || !token || saving) return;
-    const avatarUrl = String(new FormData(event.currentTarget).get('avatar') ?? '').trim();
-    if (!/^https:\/\//i.test(avatarUrl)) {
-      setAvatarError('Enter an HTTPS image URL.');
-      return;
-    }
     setSaving(true);
     setAvatarError('');
     try {
       const response = await fetch('/api/users/' + encodeURIComponent(profile.id), {
         method: 'PATCH',
         headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatarUrl }),
+        body: JSON.stringify(avatar),
       });
-      if (!response.ok) throw new Error('Could not save your avatar. Try again.');
-      location.replace(destination);
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(Array.isArray(result?.message) ? result.message.join(' ') : result?.message ?? 'Could not save your avatar. Try again.');
+      }
+      nextAfterAvatar();
     } catch (error) {
       setAvatarError(error instanceof Error ? error.message : 'Could not save your avatar.');
     } finally { setSaving(false); }
@@ -144,24 +154,21 @@ export function FirstRun() {
     } finally { setSending(false); }
   }
 
-  return <AccountShell title={profile ? 'Welcome, ' + profile.username : 'Set up your profile'}>
+  const title = emailStep ? profile?.emailVerified ? 'Email verified' : 'Verify your email' : 'Choose your avatar';
+  return <AccountShell title={title} onboarding>
     {loadError && <p role="alert">{loadError}</p>}
     {!profile && !loadError && <p role="status">Loading your profile…</p>}
-    {profile && <>
-      <form className="auth-form" onSubmit={saveAvatar}>
-        <label>Avatar image URL
-          <input name="avatar" type="url" placeholder="https://example.com/avatar.png" maxLength={500} required />
-        </label>
-        {avatarError && <p className="auth-error" role="alert">{avatarError}</p>}
-        <div className="workspace-picker-actions">
-          <button className="button button--primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save avatar and continue'}</button>
-          <button className="button button--secondary" type="button" disabled={saving} onClick={() => location.replace(destination)}>Skip avatar</button>
-        </div>
-      </form>
-      {!profile.emailVerified && <p><button className="button button--secondary" type="button" disabled={sending} onClick={() => void verify()}>
-        {sending ? 'Sending…' : 'Send verification email'}
-      </button></p>}
-      {mailFeedback && <p role={mailFeedback.error ? 'alert' : 'status'}>{mailFeedback.message}</p>}
-    </>}
+    {profile && (emailStep ? <div className="account-email-step">
+      <EmailArtwork />
+      <p>{profile.emailVerified ? 'Your email address is confirmed.' : <>Confirm <strong>{profile.email}</strong> to verify your account.</>}</p>
+      {!profile.emailVerified && <button className="button button--primary" type="button" disabled={sending} onClick={() => void verify()}>
+        {sending ? 'Sending…' : mailFeedback && !mailFeedback.error ? 'Resend verification email' : 'Send verification email'}
+      </button>}
+      {mailFeedback && <p className={mailFeedback.error ? 'auth-error' : undefined}
+        role={mailFeedback.error ? 'alert' : 'status'}>{mailFeedback.message}</p>}
+      <a className={profile.emailVerified ? 'button button--primary' : 'button button--secondary'} href={destination}>
+        {profile.emailVerified ? 'Continue to DevUP' : 'Verify later'}
+      </a>
+    </div> : <AvatarPicker saving={saving} error={avatarError} onSave={avatar => void saveAvatar(avatar)} onSkip={nextAfterAvatar} />)}
   </AccountShell>;
 }

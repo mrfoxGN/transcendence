@@ -144,7 +144,8 @@ export class UsersService {
     if (
       dto.username === undefined &&
       dto.email === undefined &&
-      dto.avatarUrl === undefined
+      dto.avatarUrl === undefined &&
+      dto.avatarImage === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -154,6 +155,18 @@ export class UsersService {
     }
 
     const changes: Partial<User> = { updatedAt: new Date() };
+    if (dto.avatarImage !== undefined) {
+      if (dto.avatarUrl !== undefined) throw new BadRequestException('Choose either an image or a URL.');
+      const encoded = dto.avatarImage.slice('data:image/jpeg;base64,'.length);
+      const image = Buffer.from(encoded, 'base64');
+      if (!dto.avatarImage.startsWith('data:image/jpeg;base64,')
+        || image.length < 5 || image.length > 24 * 1024 || image.toString('base64') !== encoded
+        || image[0] !== 0xff || image[1] !== 0xd8 || image[2] !== 0xff
+        || image[image.length - 2] !== 0xff || image[image.length - 1] !== 0xd9) {
+        throw new BadRequestException('Choose a valid avatar image.');
+      }
+      changes.avatarUrl = dto.avatarImage;
+    }
     if (dto.username !== undefined && dto.username !== user.username) {
       if (await this.usersRepository.existsBy({ username: dto.username })) {
         throw new ConflictException('Username already exists');

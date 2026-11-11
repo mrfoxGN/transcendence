@@ -48,8 +48,7 @@ export class User {
 
   @Column({
     name: 'avatar_url',
-    type: 'varchar',
-    length: 500,
+    type: 'text',
     nullable: true,
   })
   avatarUrl!: string | null;

@@ -18,7 +18,7 @@ const workspacePath = /^\/workspaces(?:\/([^/]+))?$/.exec(path);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {authMode ? <AuthPreview mode={authMode} /> : recoveryMode ? <AccountRecovery mode={recoveryMode} />
-      : path === '/onboarding' ? <FirstRun />
+      : path === '/onboarding' || path === '/onboarding/email' ? <FirstRun step={path.endsWith('/email') ? 'email' : 'avatar'} />
       : workspacePath ? workspacePath[1] ? <WorkspaceApp workspaceId={workspacePath[1]} /> : <WorkspacePicker /> : <LandingPage />}
   </StrictMode>,
 );
