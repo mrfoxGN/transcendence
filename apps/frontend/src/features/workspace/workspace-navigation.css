@@ -19,12 +19,12 @@
 .wu-chat-archive-note { margin: 0; padding: 8px 2px 2px; color: var(--wu-muted); }
 
 @media (min-width: 681px) {
-  [data-sidebar='collapsed'] .wu-nav-item[data-nav-tooltip] { position: relative; }
+  [data-sidebar='collapsed'] .wu-sidebar .wu-nav { overflow-x: hidden; }
   [data-sidebar='collapsed'] .wu-nav-item[data-nav-tooltip]:is(:hover, :focus-visible)::before {
     content: attr(data-nav-tooltip);
-    position: absolute;
+    position: fixed;
     z-index: 1;
-    inset-inline-start: calc(100% + 8px);
+    inset-inline-start: 64px;
     padding: 5px 9px;
     border: 1px solid var(--wu-line);
     border-radius: 6px;
