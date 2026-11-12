@@ -1,0 +1,52 @@
+.magic-button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+.magic-button--secondary { color: var(--ink); }
+.magic-button-shadow, .magic-button-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.magic-button-shadow {
+  inset: 1px -3px -3px;
+  background: linear-gradient(90deg, #5686ff, #9b6ef3 48%, #f46ab7);
+  translate: 0 4px;
+  filter: blur(10px);
+  opacity: .72;
+}
+.magic-button:is(:hover, :focus-visible) .magic-button-shadow { opacity: .95; filter: blur(14px); }
+.magic-button-edge {
+  background: linear-gradient(90deg, #1e4295, #8565db, #e783bf, #769af6, #1e4295) 0 0 / 200% 100%;
+}
+.magic-button-face {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 24px;
+  border-radius: inherit;
+  background: #245bc9;
+  translate: 0 -4px;
+}
+.magic-button--secondary .magic-button-face { background: #fbfcff; }
+.magic-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .magic-button-face { transition: translate 240ms cubic-bezier(.3,.7,.4,1); }
+  .magic-button-shadow { transition: opacity 240ms ease, filter 240ms ease; }
+  .magic-button-edge { animation: magic-button-flow 3s linear infinite; }
+  .magic-button:is(:hover, :focus-visible) .magic-button-face { translate: 0 -6px; }
+  .magic-button:active .magic-button-face { translate: 0 -1px; transition-duration: 50ms; }
+}
+@keyframes magic-button-flow { to { background-position: 200% 0; } }
+@media (max-width: 600px) {
+  .hero-actions .magic-button { min-width: 195px; }
+}

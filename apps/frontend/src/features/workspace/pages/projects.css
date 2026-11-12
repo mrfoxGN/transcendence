@@ -1,0 +1,55 @@
+.wu-project-grid, .wu-project-task-list { margin: 0; padding: 0; list-style: none; }
+.wu-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
+  gap: 12px;
+}
+.wu-project-card, .wu-project-panel {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: clamp(14px, 2vw, 22px);
+  color: var(--wu-ink);
+  overflow-wrap: anywhere;
+}
+.wu-project-card { width: 100%; height: 100%; text-align: start; cursor: pointer; }
+.wu-project-panel + .wu-project-panel { margin-top: 12px; }
+.wu-project-card:hover { border-color: var(--wu-blue); }
+.wu-project-card-heading, .wu-project-actions, .wu-project-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wu-project-card-heading { justify-content: space-between; font-size: 17px; }
+.wu-project-card-heading svg, .wu-project-actions { flex-shrink: 0; }
+.wu-project-panel h2, .wu-project-panel h3, .wu-project-panel p { margin: 0; }
+.wu-project-panel h2 { font-size: 18px; }
+.wu-project-panel h3 { font-size: 16px; }
+.wu-project-back { margin-block: 4px 12px; }
+.wu-project-progress { display: grid; gap: 5px; font-size: 13px; color: var(--wu-muted); }
+.wu-project-progress progress { width: 100%; height: 8px; appearance: none; border: 0; border-radius: 99px; background: var(--wu-surface-soft); }
+.wu-project-progress progress::-webkit-progress-bar { border-radius: 99px; background: var(--wu-surface-soft); }
+.wu-project-progress progress::-webkit-progress-value { border-radius: 99px; background: var(--wu-blue); }
+.wu-project-progress progress::-moz-progress-bar { border-radius: 99px; background: var(--wu-blue); }
+.wu-project-form, .wu-project-milestone { display: grid; gap: 12px; }
+.wu-project-milestone { border-top: 1px solid var(--wu-line); padding-top: 12px; }
+.wu-project-link-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.wu-project-link-form label { flex: 1 1 190px; min-width: 0; }
+.wu-project-form button { justify-self: start; }
+.wu-project-task {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 6px;
+  color: var(--wu-ink);
+  border: 0;
+  border-bottom: 1px solid var(--wu-line);
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+.wu-project-task:hover { background: var(--wu-surface-soft); }
+.wu-project-task > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.wu-project-task small { color: var(--wu-muted); }

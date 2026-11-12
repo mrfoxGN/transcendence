@@ -1,0 +1,78 @@
+.account-onboarding .auth-shell { width: min(100%, 424px); }
+.account-onboarding .auth-panel { padding: clamp(20px, 5vw, 32px); }
+.avatar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 3vw, 18px);
+  justify-items: center;
+  margin: 0 auto 10px;
+  width: min(100%, 300px);
+}
+.avatar-choice {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: #eef0fb;
+  color: #4358a7;
+  cursor: pointer;
+}
+.avatar-choice img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.avatar-choice:hover, .avatar-choice[aria-pressed='true'] { border-color: #5268c8; }
+.avatar-choice:focus-visible, .avatar-upload:focus-within { outline: 2px solid #5268c8; outline-offset: 3px; }
+.avatar-choice--custom { border: 2px dashed #8795c6; background: #f5f6fc; }
+.avatar-choice-check {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  background: #4057b1;
+}
+.avatar-custom-options { display: grid; gap: 12px; padding: 12px; border-radius: 12px; background: #f5f6fc; }
+.auth-form .avatar-upload {
+  display: flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px dashed #8795c6;
+  border-radius: 8px;
+  color: #354b9c;
+}
+.auth-form .avatar-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.account-email-step { display: grid; gap: 12px; text-align: center; }
+.account-email-step p { margin: 0; overflow-wrap: anywhere; }
+.account-email-artwork {
+  position: relative;
+  width: 88px;
+  height: 58px;
+  margin: 8px auto 16px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(150deg, #ff7596, #d92d66);
+  box-shadow: 0 9px 24px #c6326738;
+}
+.account-email-artwork::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(145deg, #ed4b80, #fd779b);
+  clip-path: polygon(0 100%, 50% 42%, 100% 100%);
+}
+.account-email-artwork span {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#ffb0c5, #ff6892);
+  clip-path: polygon(0 0, 100% 0, 50% 67%);
+}

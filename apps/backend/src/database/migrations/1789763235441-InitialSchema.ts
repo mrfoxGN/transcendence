@@ -1,0 +1,487 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class InitialSchema1789763235441 implements MigrationInterface {
+  name = 'InitialSchema1789763235441';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE TABLE \`users\` (\`id\` char(36) NOT NULL, \`username\` varchar(50) NOT NULL, \`email\` varchar(320) NOT NULL, \`password_hash\` varchar(255) NOT NULL, \`avatar_url\` varchar(500) NULL, \`app_role\` enum ('USER', 'ADMIN') NOT NULL, \`status\` enum ('ACTIVE', 'DISABLED') NOT NULL, \`last_seen_at\` datetime(6) NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, \`deleted_at\` datetime(6) NULL, UNIQUE INDEX \`IDX_fe0bb3f6520ee0469504521e71\` (\`username\`), UNIQUE INDEX \`IDX_97672ac88f789774dd47f7c8be\` (\`email\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`workspaces\` (\`id\` char(36) NOT NULL, \`owner_id\` char(36) NOT NULL, \`name\` varchar(120) NOT NULL, \`description\` text NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, \`archived_at\` datetime(6) NULL, \`deleted_at\` datetime(6) NULL, PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`activities\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`actor_user_id\` char(36) NULL, \`action_type\` varchar(100) NOT NULL, \`resource_type\` varchar(100) NULL, \`resource_id\` char(36) NULL, \`metadata\` json NULL, \`created_at\` datetime(6) NOT NULL, INDEX \`idx_activities_workspace_created_at\` (\`workspace_id\`, \`created_at\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`direct_conversations\` (\`id\` char(36) NOT NULL, \`user_a_id\` char(36) NOT NULL, \`user_b_id\` char(36) NOT NULL, \`user_a_last_read_at\` datetime(6) NULL, \`user_b_last_read_at\` datetime(6) NULL, \`last_message_at\` datetime(6) NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, INDEX \`idx_direct_conversations_last_message_at\` (\`last_message_at\`), UNIQUE INDEX \`uq_direct_conversations_user_pair\` (\`user_a_id\`, \`user_b_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`direct_messages\` (\`id\` char(36) NOT NULL, \`conversation_id\` char(36) NOT NULL, \`sender_id\` char(36) NOT NULL, \`content\` text NOT NULL, \`created_at\` datetime(6) NOT NULL, \`edited_at\` datetime(6) NULL, \`deleted_at\` datetime(6) NULL, INDEX \`idx_direct_messages_conversation_created_at\` (\`conversation_id\`, \`created_at\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`chat_messages\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`sender_id\` char(36) NULL, \`content\` text NOT NULL, \`created_at\` datetime(6) NOT NULL, \`edited_at\` datetime(6) NULL, \`deleted_at\` datetime(6) NULL, INDEX \`idx_chat_messages_workspace_created_at\` (\`workspace_id\`, \`created_at\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`friendships\` (\`id\` char(36) NOT NULL, \`user_a_id\` char(36) NOT NULL, \`user_b_id\` char(36) NOT NULL, \`requested_by_id\` char(36) NOT NULL, \`status\` enum ('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED') NOT NULL, \`requested_at\` datetime(6) NOT NULL, \`responded_at\` datetime(6) NULL, UNIQUE INDEX \`uq_friendships_user_pair\` (\`user_a_id\`, \`user_b_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`github_accounts\` (\`id\` char(36) NOT NULL, \`user_id\` char(36) NOT NULL, \`github_user_id\` varchar(32) NOT NULL, \`github_login\` varchar(255) NOT NULL, \`avatar_url\` varchar(500) NULL, \`profile_url\` varchar(500) NULL, \`connected_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, UNIQUE INDEX \`IDX_706b85c143ca9fce6b0d2109b3\` (\`github_user_id\`), UNIQUE INDEX \`REL_2abe4d09959ff963e5489f345d\` (\`user_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`github_installations\` (\`id\` char(36) NOT NULL, \`github_installation_id\` varchar(32) NOT NULL, \`connected_by_id\` char(36) NULL, \`target_github_id\` varchar(32) NOT NULL, \`target_login\` varchar(255) NOT NULL, \`target_type\` enum ('USER', 'ORGANIZATION') NOT NULL, \`status\` enum ('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, UNIQUE INDEX \`IDX_c50669ae15455855ae68a7ce5b\` (\`github_installation_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`repositories\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`installation_id\` char(36) NULL, \`connected_by_id\` char(36) NULL, \`github_repository_id\` varchar(32) NOT NULL, \`owner_login\` varchar(255) NOT NULL, \`name\` varchar(255) NOT NULL, \`full_name\` varchar(512) NOT NULL, \`repository_url\` varchar(1000) NOT NULL, \`default_branch\` varchar(255) NOT NULL, \`visibility\` enum ('PUBLIC', 'PRIVATE', 'INTERNAL') NOT NULL, \`last_synced_at\` datetime(6) NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, \`disconnected_at\` datetime(6) NULL, UNIQUE INDEX \`uq_repositories_workspace_github_repository\` (\`workspace_id\`, \`github_repository_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`github_webhook_deliveries\` (\`id\` char(36) NOT NULL, \`delivery_id\` varchar(100) NOT NULL, \`repository_id\` char(36) NULL, \`event_type\` varchar(100) NOT NULL, \`event_action\` varchar(100) NULL, \`status\` enum ('RECEIVED', 'PROCESSING', 'PROCESSED', 'FAILED', 'IGNORED') NOT NULL, \`received_at\` datetime(6) NOT NULL, \`processed_at\` datetime(6) NULL, \`error_message\` text NULL, UNIQUE INDEX \`IDX_f4d16026490647e7eede5bdca1\` (\`delivery_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`notes\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`creator_id\` char(36) NULL, \`title\` varchar(200) NOT NULL, \`content\` longtext NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, \`deleted_at\` datetime(6) NULL, PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`notifications\` (\`id\` char(36) NOT NULL, \`user_id\` char(36) NOT NULL, \`workspace_id\` char(36) NULL, \`type\` varchar(100) NOT NULL, \`message\` varchar(1000) NOT NULL, \`related_resource_type\` varchar(100) NULL, \`related_resource_id\` char(36) NULL, \`payload\` json NULL, \`created_at\` datetime(6) NOT NULL, \`read_at\` datetime(6) NULL, INDEX \`idx_notifications_user_read_created_at\` (\`user_id\`, \`read_at\`, \`created_at\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`repository_commits\` (\`id\` char(36) NOT NULL, \`repository_id\` char(36) NOT NULL, \`sha\` varchar(64) NOT NULL, \`message\` text NOT NULL, \`author_github_user_id\` varchar(32) NULL, \`author_name\` varchar(255) NULL, \`committer_name\` varchar(255) NULL, \`matched_user_id\` char(36) NULL, \`committed_at\` datetime(6) NOT NULL, \`github_url\` varchar(1000) NULL, \`created_at\` datetime(6) NOT NULL, INDEX \`idx_repository_commits_repository_committed_at\` (\`repository_id\`, \`committed_at\`), UNIQUE INDEX \`uq_repository_commits_repository_sha\` (\`repository_id\`, \`sha\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`repository_entries\` (\`id\` char(36) NOT NULL, \`repository_id\` char(36) NOT NULL, \`branch_name\` varchar(255) NOT NULL, \`path\` varchar(2048) NOT NULL, \`path_hash\` char(64) NOT NULL, \`parent_path\` varchar(2048) NULL, \`name\` varchar(255) NOT NULL, \`entry_type\` enum ('FILE', 'DIRECTORY', 'SYMLINK', 'SUBMODULE') NOT NULL, \`object_sha\` varchar(64) NULL, \`size_bytes\` bigint NULL, \`last_synced_at\` datetime(6) NOT NULL, UNIQUE INDEX \`uq_repository_entries_repository_branch_path_hash\` (\`repository_id\`, \`branch_name\`, \`path_hash\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`tasks\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`creator_id\` char(36) NULL, \`title\` varchar(200) NOT NULL, \`description\` text NULL, \`acceptance_criteria\` text NULL, \`status\` enum ('BACKLOG', 'READY', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELLED') NOT NULL, \`priority\` enum ('LOW', 'MEDIUM', 'HIGH', 'URGENT') NULL, \`position\` int NOT NULL DEFAULT '0', \`is_blocked\` tinyint NOT NULL DEFAULT 0, \`blocked_reason\` text NULL, \`blocked_at\` datetime(6) NULL, \`due_at\` datetime(6) NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, \`completed_at\` datetime(6) NULL, \`cancelled_at\` datetime(6) NULL, \`deleted_at\` datetime(6) NULL, INDEX \`idx_tasks_due_at\` (\`due_at\`), INDEX \`idx_tasks_workspace_priority\` (\`workspace_id\`, \`priority\`), INDEX \`idx_tasks_workspace_status_position\` (\`workspace_id\`, \`status\`, \`position\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`task_comments\` (\`id\` char(36) NOT NULL, \`task_id\` char(36) NOT NULL, \`author_id\` char(36) NULL, \`content\` text NOT NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, \`edited_at\` datetime(6) NULL, \`deleted_at\` datetime(6) NULL, INDEX \`idx_task_comments_task_created_at\` (\`task_id\`, \`created_at\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`task_assignments\` (\`id\` char(36) NOT NULL, \`task_id\` char(36) NOT NULL, \`user_id\` char(36) NOT NULL, \`assigned_by_id\` char(36) NULL, \`assigned_at\` datetime(6) NOT NULL, UNIQUE INDEX \`REL_b389f4488d0a8241c3c9827396\` (\`task_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`task_dependencies\` (\`id\` char(36) NOT NULL, \`task_id\` char(36) NOT NULL, \`depends_on_task_id\` char(36) NOT NULL, \`created_by_id\` char(36) NULL, \`created_at\` datetime(6) NOT NULL, UNIQUE INDEX \`uq_task_dependencies_task_depends_on\` (\`task_id\`, \`depends_on_task_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`task_repository_links\` (\`id\` char(36) NOT NULL, \`task_id\` char(36) NOT NULL, \`repository_id\` char(36) NOT NULL, \`link_type\` enum ('REPOSITORY', 'BRANCH', 'FILE', 'COMMIT') NOT NULL, \`branch_name\` varchar(255) NULL, \`file_path\` varchar(2048) NULL, \`commit_sha\` varchar(64) NULL, \`created_by_id\` char(36) NULL, \`created_at\` datetime(6) NOT NULL, PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`task_status_history\` (\`id\` char(36) NOT NULL, \`task_id\` char(36) NOT NULL, \`from_status\` enum ('BACKLOG', 'READY', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELLED') NULL, \`to_status\` enum ('BACKLOG', 'READY', 'IN_PROGRESS', 'REVIEW', 'DONE', 'CANCELLED') NOT NULL, \`changed_by_id\` char(36) NULL, \`changed_at\` datetime(6) NOT NULL, \`note\` varchar(500) NULL, INDEX \`idx_task_status_history_task_changed_at\` (\`task_id\`, \`changed_at\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`workspace_invitations\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`invited_by_id\` char(36) NULL, \`invited_user_id\` char(36) NULL, \`invited_email\` varchar(320) NULL, \`status\` enum ('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED', 'EXPIRED') NOT NULL, \`token_hash\` varchar(255) NULL, \`expires_at\` datetime(6) NULL, \`responded_at\` datetime(6) NULL, \`created_at\` datetime(6) NOT NULL, PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`workspace_kanban_settings\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`active_wip_limit\` int NOT NULL DEFAULT '3', \`definition_of_ready\` json NULL, \`definition_of_done\` json NULL, \`created_at\` datetime(6) NOT NULL, \`updated_at\` datetime(6) NOT NULL, UNIQUE INDEX \`REL_deef22e630d48e3507d65a9687\` (\`workspace_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_kanban_settings\` ADD CONSTRAINT \`chk_workspace_kanban_settings_active_wip_limit_positive\` CHECK (\`active_wip_limit\` > 0)`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`workspace_files\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`uploader_id\` char(36) NULL, \`task_id\` char(36) NULL, \`original_name\` varchar(255) NOT NULL, \`display_name\` varchar(255) NOT NULL, \`storage_key\` varchar(512) NOT NULL, \`mime_type\` varchar(255) NULL, \`size_bytes\` bigint NOT NULL, \`created_at\` datetime(6) NOT NULL, \`deleted_at\` datetime(6) NULL, UNIQUE INDEX \`IDX_500e7762b145ca94e2c09f6a74\` (\`storage_key\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE \`workspace_memberships\` (\`id\` char(36) NOT NULL, \`workspace_id\` char(36) NOT NULL, \`user_id\` char(36) NOT NULL, \`joined_at\` datetime(6) NOT NULL, UNIQUE INDEX \`uq_workspace_memberships_workspace_user\` (\`workspace_id\`, \`user_id\`), PRIMARY KEY (\`id\`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspaces\` ADD CONSTRAINT \`FK_3bc45ecdd8fdc2108bb92516dde\` FOREIGN KEY (\`owner_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`activities\` ADD CONSTRAINT \`FK_047e6c57104382a7b73aa37b055\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`activities\` ADD CONSTRAINT \`FK_ce7b8f09ff204404af559f6c4ac\` FOREIGN KEY (\`actor_user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_conversations\` ADD CONSTRAINT \`FK_7492fb3cd961f8fa8d109b2bd74\` FOREIGN KEY (\`user_a_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_conversations\` ADD CONSTRAINT \`FK_721d718e9e01e9a697cf2fe0477\` FOREIGN KEY (\`user_b_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_messages\` ADD CONSTRAINT \`FK_23b6ec745858aed8de854af3410\` FOREIGN KEY (\`conversation_id\`) REFERENCES \`direct_conversations\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_messages\` ADD CONSTRAINT \`FK_867d7903affb6b677ca85674050\` FOREIGN KEY (\`sender_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`chat_messages\` ADD CONSTRAINT \`FK_105fb20346e10b08f75cc85a1a6\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`chat_messages\` ADD CONSTRAINT \`FK_9e5fc47ecb06d4d7b84633b1718\` FOREIGN KEY (\`sender_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`friendships\` ADD CONSTRAINT \`FK_6735d6ce4030c538c210a0c15c7\` FOREIGN KEY (\`user_a_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`friendships\` ADD CONSTRAINT \`FK_5e3b774b41724b0d3f796fcf010\` FOREIGN KEY (\`user_b_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`friendships\` ADD CONSTRAINT \`FK_febba0019c98bc0b79d77179752\` FOREIGN KEY (\`requested_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE RESTRICT ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`github_accounts\` ADD CONSTRAINT \`FK_2abe4d09959ff963e5489f345da\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`github_installations\` ADD CONSTRAINT \`FK_923bd25e02122ac6f74be2274b4\` FOREIGN KEY (\`connected_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repositories\` ADD CONSTRAINT \`FK_ef165ed919cfdafd420660e3186\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repositories\` ADD CONSTRAINT \`FK_04528850550bd0f2bd69dda3d49\` FOREIGN KEY (\`installation_id\`) REFERENCES \`github_installations\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repositories\` ADD CONSTRAINT \`FK_05b35066384060058a231317747\` FOREIGN KEY (\`connected_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`github_webhook_deliveries\` ADD CONSTRAINT \`FK_ae9365beebcbc3abf589929cac4\` FOREIGN KEY (\`repository_id\`) REFERENCES \`repositories\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notes\` ADD CONSTRAINT \`FK_9d730754849395585397c08042e\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notes\` ADD CONSTRAINT \`FK_d1b844ddf71a8fc99cf767a22d5\` FOREIGN KEY (\`creator_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notifications\` ADD CONSTRAINT \`FK_9a8a82462cab47c73d25f49261f\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notifications\` ADD CONSTRAINT \`FK_ff8a9bf1b558104a843964c01ec\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repository_commits\` ADD CONSTRAINT \`FK_83c9dddf2d3f22fecc572731d37\` FOREIGN KEY (\`repository_id\`) REFERENCES \`repositories\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repository_commits\` ADD CONSTRAINT \`FK_63f6eea59c8cede6de01524440f\` FOREIGN KEY (\`matched_user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repository_entries\` ADD CONSTRAINT \`FK_cc98aa72298df2b9d1d048dbe80\` FOREIGN KEY (\`repository_id\`) REFERENCES \`repositories\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`tasks\` ADD CONSTRAINT \`FK_5cb6ca4667dfa947871694da959\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`tasks\` ADD CONSTRAINT \`FK_f4cb489461bc751498a28852356\` FOREIGN KEY (\`creator_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_comments\` ADD CONSTRAINT \`FK_ba9e465cfc707006e60aae59946\` FOREIGN KEY (\`task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_comments\` ADD CONSTRAINT \`FK_76901a920ba9ec5be8dbd64d747\` FOREIGN KEY (\`author_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_assignments\` ADD CONSTRAINT \`FK_b389f4488d0a8241c3c98273966\` FOREIGN KEY (\`task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_assignments\` ADD CONSTRAINT \`FK_1673eab025dbc14e188bd4df67c\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_assignments\` ADD CONSTRAINT \`FK_0190cfefe94c1aa591a2ca1af3b\` FOREIGN KEY (\`assigned_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_dependencies\` ADD CONSTRAINT \`FK_1ae6688b1bd90fffe857f4cb707\` FOREIGN KEY (\`task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_dependencies\` ADD CONSTRAINT \`FK_26dedda08faccdb95aff99e112e\` FOREIGN KEY (\`depends_on_task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_dependencies\` ADD CONSTRAINT \`FK_d6cc17fed2cece5ec14626b7a55\` FOREIGN KEY (\`created_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_repository_links\` ADD CONSTRAINT \`FK_3db54f950a0afc927f2ea855f14\` FOREIGN KEY (\`task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_repository_links\` ADD CONSTRAINT \`FK_6c05ed7b2768758c96af7f41d20\` FOREIGN KEY (\`repository_id\`) REFERENCES \`repositories\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_repository_links\` ADD CONSTRAINT \`FK_91eb094a874229ecd49d184eb11\` FOREIGN KEY (\`created_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_status_history\` ADD CONSTRAINT \`FK_984dd79c26d9f7dfec056068176\` FOREIGN KEY (\`task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_status_history\` ADD CONSTRAINT \`FK_25e70247d45f0442fab5239da27\` FOREIGN KEY (\`changed_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_invitations\` ADD CONSTRAINT \`FK_cf5df369b7a86ea3cdf18c7b56d\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_invitations\` ADD CONSTRAINT \`FK_df43d23188e48d0920ce4c2895d\` FOREIGN KEY (\`invited_by_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_invitations\` ADD CONSTRAINT \`FK_fcdda3808100eeb7245ebc47bfd\` FOREIGN KEY (\`invited_user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_kanban_settings\` ADD CONSTRAINT \`FK_deef22e630d48e3507d65a96874\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_files\` ADD CONSTRAINT \`FK_5d19b6f95fd7563dfd7efda060d\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_files\` ADD CONSTRAINT \`FK_2b64f3c0159b890953b2d0c2709\` FOREIGN KEY (\`uploader_id\`) REFERENCES \`users\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_files\` ADD CONSTRAINT \`FK_a0fe8d85952175167cf1e27c3a0\` FOREIGN KEY (\`task_id\`) REFERENCES \`tasks\`(\`id\`) ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_memberships\` ADD CONSTRAINT \`FK_c478a264ff4081763bb45418ca9\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_memberships\` ADD CONSTRAINT \`FK_14cd888d48ea02703648cff0be6\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_memberships\` DROP FOREIGN KEY \`FK_14cd888d48ea02703648cff0be6\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_memberships\` DROP FOREIGN KEY \`FK_c478a264ff4081763bb45418ca9\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_files\` DROP FOREIGN KEY \`FK_a0fe8d85952175167cf1e27c3a0\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_files\` DROP FOREIGN KEY \`FK_2b64f3c0159b890953b2d0c2709\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_files\` DROP FOREIGN KEY \`FK_5d19b6f95fd7563dfd7efda060d\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_kanban_settings\` DROP FOREIGN KEY \`FK_deef22e630d48e3507d65a96874\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_invitations\` DROP FOREIGN KEY \`FK_fcdda3808100eeb7245ebc47bfd\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_invitations\` DROP FOREIGN KEY \`FK_df43d23188e48d0920ce4c2895d\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspace_invitations\` DROP FOREIGN KEY \`FK_cf5df369b7a86ea3cdf18c7b56d\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_status_history\` DROP FOREIGN KEY \`FK_25e70247d45f0442fab5239da27\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_status_history\` DROP FOREIGN KEY \`FK_984dd79c26d9f7dfec056068176\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_repository_links\` DROP FOREIGN KEY \`FK_91eb094a874229ecd49d184eb11\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_repository_links\` DROP FOREIGN KEY \`FK_6c05ed7b2768758c96af7f41d20\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_repository_links\` DROP FOREIGN KEY \`FK_3db54f950a0afc927f2ea855f14\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_dependencies\` DROP FOREIGN KEY \`FK_d6cc17fed2cece5ec14626b7a55\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_dependencies\` DROP FOREIGN KEY \`FK_26dedda08faccdb95aff99e112e\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_dependencies\` DROP FOREIGN KEY \`FK_1ae6688b1bd90fffe857f4cb707\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_assignments\` DROP FOREIGN KEY \`FK_0190cfefe94c1aa591a2ca1af3b\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_assignments\` DROP FOREIGN KEY \`FK_1673eab025dbc14e188bd4df67c\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_assignments\` DROP FOREIGN KEY \`FK_b389f4488d0a8241c3c98273966\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_comments\` DROP FOREIGN KEY \`FK_76901a920ba9ec5be8dbd64d747\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`task_comments\` DROP FOREIGN KEY \`FK_ba9e465cfc707006e60aae59946\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`tasks\` DROP FOREIGN KEY \`FK_f4cb489461bc751498a28852356\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`tasks\` DROP FOREIGN KEY \`FK_5cb6ca4667dfa947871694da959\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repository_entries\` DROP FOREIGN KEY \`FK_cc98aa72298df2b9d1d048dbe80\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repository_commits\` DROP FOREIGN KEY \`FK_63f6eea59c8cede6de01524440f\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repository_commits\` DROP FOREIGN KEY \`FK_83c9dddf2d3f22fecc572731d37\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notifications\` DROP FOREIGN KEY \`FK_ff8a9bf1b558104a843964c01ec\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notifications\` DROP FOREIGN KEY \`FK_9a8a82462cab47c73d25f49261f\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notes\` DROP FOREIGN KEY \`FK_d1b844ddf71a8fc99cf767a22d5\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`notes\` DROP FOREIGN KEY \`FK_9d730754849395585397c08042e\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`github_webhook_deliveries\` DROP FOREIGN KEY \`FK_ae9365beebcbc3abf589929cac4\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repositories\` DROP FOREIGN KEY \`FK_05b35066384060058a231317747\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repositories\` DROP FOREIGN KEY \`FK_04528850550bd0f2bd69dda3d49\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`repositories\` DROP FOREIGN KEY \`FK_ef165ed919cfdafd420660e3186\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`github_installations\` DROP FOREIGN KEY \`FK_923bd25e02122ac6f74be2274b4\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`github_accounts\` DROP FOREIGN KEY \`FK_2abe4d09959ff963e5489f345da\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`friendships\` DROP FOREIGN KEY \`FK_febba0019c98bc0b79d77179752\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`friendships\` DROP FOREIGN KEY \`FK_5e3b774b41724b0d3f796fcf010\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`friendships\` DROP FOREIGN KEY \`FK_6735d6ce4030c538c210a0c15c7\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`chat_messages\` DROP FOREIGN KEY \`FK_9e5fc47ecb06d4d7b84633b1718\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`chat_messages\` DROP FOREIGN KEY \`FK_105fb20346e10b08f75cc85a1a6\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_messages\` DROP FOREIGN KEY \`FK_867d7903affb6b677ca85674050\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_messages\` DROP FOREIGN KEY \`FK_23b6ec745858aed8de854af3410\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_conversations\` DROP FOREIGN KEY \`FK_721d718e9e01e9a697cf2fe0477\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`direct_conversations\` DROP FOREIGN KEY \`FK_7492fb3cd961f8fa8d109b2bd74\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`activities\` DROP FOREIGN KEY \`FK_ce7b8f09ff204404af559f6c4ac\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`activities\` DROP FOREIGN KEY \`FK_047e6c57104382a7b73aa37b055\``,
+    );
+    await queryRunner.query(
+      `ALTER TABLE \`workspaces\` DROP FOREIGN KEY \`FK_3bc45ecdd8fdc2108bb92516dde\``,
+    );
+    await queryRunner.query(
+      `DROP INDEX \`uq_workspace_memberships_workspace_user\` ON \`workspace_memberships\``,
+    );
+    await queryRunner.query(`DROP TABLE \`workspace_memberships\``);
+    await queryRunner.query(
+      `DROP INDEX \`IDX_500e7762b145ca94e2c09f6a74\` ON \`workspace_files\``,
+    );
+    await queryRunner.query(`DROP TABLE \`workspace_files\``);
+    await queryRunner.query(
+      `DROP INDEX \`REL_deef22e630d48e3507d65a9687\` ON \`workspace_kanban_settings\``,
+    );
+    await queryRunner.query(`DROP TABLE \`workspace_kanban_settings\``);
+    await queryRunner.query(`DROP TABLE \`workspace_invitations\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_task_status_history_task_changed_at\` ON \`task_status_history\``,
+    );
+    await queryRunner.query(`DROP TABLE \`task_status_history\``);
+    await queryRunner.query(`DROP TABLE \`task_repository_links\``);
+    await queryRunner.query(
+      `DROP INDEX \`uq_task_dependencies_task_depends_on\` ON \`task_dependencies\``,
+    );
+    await queryRunner.query(`DROP TABLE \`task_dependencies\``);
+    await queryRunner.query(
+      `DROP INDEX \`REL_b389f4488d0a8241c3c9827396\` ON \`task_assignments\``,
+    );
+    await queryRunner.query(`DROP TABLE \`task_assignments\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_task_comments_task_created_at\` ON \`task_comments\``,
+    );
+    await queryRunner.query(`DROP TABLE \`task_comments\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_tasks_workspace_status_position\` ON \`tasks\``,
+    );
+    await queryRunner.query(
+      `DROP INDEX \`idx_tasks_workspace_priority\` ON \`tasks\``,
+    );
+    await queryRunner.query(`DROP INDEX \`idx_tasks_due_at\` ON \`tasks\``);
+    await queryRunner.query(`DROP TABLE \`tasks\``);
+    await queryRunner.query(
+      `DROP INDEX \`uq_repository_entries_repository_branch_path_hash\` ON \`repository_entries\``,
+    );
+    await queryRunner.query(`DROP TABLE \`repository_entries\``);
+    await queryRunner.query(
+      `DROP INDEX \`uq_repository_commits_repository_sha\` ON \`repository_commits\``,
+    );
+    await queryRunner.query(
+      `DROP INDEX \`idx_repository_commits_repository_committed_at\` ON \`repository_commits\``,
+    );
+    await queryRunner.query(`DROP TABLE \`repository_commits\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_notifications_user_read_created_at\` ON \`notifications\``,
+    );
+    await queryRunner.query(`DROP TABLE \`notifications\``);
+    await queryRunner.query(`DROP TABLE \`notes\``);
+    await queryRunner.query(
+      `DROP INDEX \`IDX_f4d16026490647e7eede5bdca1\` ON \`github_webhook_deliveries\``,
+    );
+    await queryRunner.query(`DROP TABLE \`github_webhook_deliveries\``);
+    await queryRunner.query(
+      `DROP INDEX \`uq_repositories_workspace_github_repository\` ON \`repositories\``,
+    );
+    await queryRunner.query(`DROP TABLE \`repositories\``);
+    await queryRunner.query(
+      `DROP INDEX \`IDX_c50669ae15455855ae68a7ce5b\` ON \`github_installations\``,
+    );
+    await queryRunner.query(`DROP TABLE \`github_installations\``);
+    await queryRunner.query(
+      `DROP INDEX \`REL_2abe4d09959ff963e5489f345d\` ON \`github_accounts\``,
+    );
+    await queryRunner.query(
+      `DROP INDEX \`IDX_706b85c143ca9fce6b0d2109b3\` ON \`github_accounts\``,
+    );
+    await queryRunner.query(`DROP TABLE \`github_accounts\``);
+    await queryRunner.query(
+      `DROP INDEX \`uq_friendships_user_pair\` ON \`friendships\``,
+    );
+    await queryRunner.query(`DROP TABLE \`friendships\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_chat_messages_workspace_created_at\` ON \`chat_messages\``,
+    );
+    await queryRunner.query(`DROP TABLE \`chat_messages\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_direct_messages_conversation_created_at\` ON \`direct_messages\``,
+    );
+    await queryRunner.query(`DROP TABLE \`direct_messages\``);
+    await queryRunner.query(
+      `DROP INDEX \`uq_direct_conversations_user_pair\` ON \`direct_conversations\``,
+    );
+    await queryRunner.query(
+      `DROP INDEX \`idx_direct_conversations_last_message_at\` ON \`direct_conversations\``,
+    );
+    await queryRunner.query(`DROP TABLE \`direct_conversations\``);
+    await queryRunner.query(
+      `DROP INDEX \`idx_activities_workspace_created_at\` ON \`activities\``,
+    );
+    await queryRunner.query(`DROP TABLE \`activities\``);
+    await queryRunner.query(`DROP TABLE \`workspaces\``);
+    await queryRunner.query(
+      `DROP INDEX \`IDX_97672ac88f789774dd47f7c8be\` ON \`users\``,
+    );
+    await queryRunner.query(
+      `DROP INDEX \`IDX_fe0bb3f6520ee0469504521e71\` ON \`users\``,
+    );
+    await queryRunner.query(`DROP TABLE \`users\``);
+  }
+}
