@@ -1,0 +1,90 @@
+/* Run from repository root in WSL bash:
+   use: docker compose exec -T backend node < scripts/api-smoke.cjs (WSL bash).
+   Creates uniquely named fixtures and retains them for manual Swagger testing. */
+const assert = require('node:assert/strict');
+const base = process.env.API_URL || 'http://127.0.0.1:3000';
+let token;
+let passed = 0;
+async function req(method, path, body, expected = 200, auth = true) {
+  const headers = auth && token ? {Authorization: `Bearer ${token}`} : {};
+  if (body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const r = await fetch(base + path, {method, headers, body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000)});
+  const text = await r.text();
+  let data; try {data = JSON.parse(text)} catch {data = text}
+  assert.equal(r.status, expected, `${method} ${path}: ${text}`);
+  passed++; console.log(`PASS ${method} ${path} ${r.status}`);
+  return data;
+}
+(async () => {
+  await req('GET', '/health');
+  const spec = await req('GET', '/api-json');
+  const ops = Object.values(spec.paths).flatMap(Object.values);
+  const schemas = Object.values(spec.components.schemas || {});
+  console.log('SWAGGER', JSON.stringify({operations:ops.length, schemas:schemas.length, schemasWithProperties:schemas.filter(s=>s.properties && Object.keys(s.properties).length).length, securedOperations:ops.filter(o=>o.security).length}));
+  await req('GET', '/workspaces', undefined, 401, false);
+  const stamp = Date.now().toString();
+  const creds = {email:`smoke${stamp}@example.com`, password:'SmokeTest123!'};
+  const user = await req('POST','/auth/register',{...creds,username:`smoke${stamp}`},201,false);
+  const other = await req('POST','/auth/register',{email:`other${stamp}@example.com`,password:creds.password,username:`other${stamp}`},201,false);
+  await req('POST','/auth/login',{...creds,password:'wrong'},401,false);
+  token = (await req('POST','/auth/login',creds,200,false)).accessToken;
+  assert.equal((await req('GET','/auth/profile')).id,user.id);
+  await req('GET',`/users/${other.id}`,undefined,403);
+  await req('POST','/workspaces',{name:'bad',unknown:true},400);
+  const workspace = await req('POST','/workspaces',{name:`Frontend smoke ${stamp}`},201);
+  const w = `/workspaces/${workspace.id}`;
+  await req('GET','/workspaces');
+  await req('GET',w+'/members');
+  await req('GET',w+'/kanban-settings');
+  const task = await req('POST',w+'/tasks',{title:'Connect frontend',priority:'HIGH'},201);
+  const t = `/tasks/${task.id}`;
+  await req('GET',w+'/board'); await req('GET',t);
+  await req('PATCH',t,{description:'Smoke test'});
+  await req('POST',t+'/transition',{toStatus:'READY'},201);
+  await req('POST',t+'/comments',{content:'Test comment'},201); await req('GET',t+'/comments');
+  await req('POST',t+'/assignment',{userId:user.id},201); await req('GET',t+'/assignment');
+  await req('POST',t+'/block',{reason:'Smoke blocker'}); await req('DELETE',t+'/block');
+  const note = await req('POST',w+'/notes',{title:'Frontend notes',content:'Smoke'},201);
+  await req('GET',w+'/notes'); await req('PATCH',w+'/notes/'+note.id,{content:'Updated'});
+  const {io} = require('socket.io-client');
+  const socket = io(base,{auth:{token},transports:['websocket'],reconnection:false});
+  const event = (name) => new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Socket timeout '+name)),10000); socket.once(name,data=>{clearTimeout(timer);resolve(data)})});
+  await event('workspace-chat.ready'); socket.emit('workspace-chat.join',workspace.id);
+  // Allow the asynchronous room membership check to finish before sending.
+  await new Promise(resolve=>setTimeout(resolve,500));
+  const workspaceEvent = event('workspace-message.created');
+  await req('POST',w+'/messages',{content:'Hello workspace'},201);
+  assert.equal((await workspaceEvent).content,'Hello workspace'); passed++; console.log('PASS workspace Socket.IO delivery');
+  await req('GET',w+'/messages');
+  const form = new FormData(); form.append('file',new Blob(['hello smoke'],{type:'text/plain'}),'smoke.txt');
+  const file = await req('POST',w+'/files',form,201); await req('GET',w+'/files');
+  assert.equal(await req('GET',w+'/files/'+file.id+'/download'),'hello smoke');
+  const conversation = await req('POST','/direct-conversations/'+other.id);
+  const c = '/direct-conversations/'+conversation.id;
+  const directEvent=event('direct-message.created');
+  await req('POST',c+'/messages',{content:'Hello directly'},201);
+  assert.equal((await directEvent).content,'Hello directly'); passed++; console.log('PASS direct Socket.IO delivery');
+  socket.disconnect();
+  await req('GET',c+'/messages'); await req('PATCH',c+'/read',undefined,204); await req('GET','/direct-conversations');
+  await req('PATCH',w+'/kanban-settings',{activeWipLimit:1});
+  await req('POST',t+'/transition',{toStatus:'IN_PROGRESS'},201);
+  const task2=await req('POST',w+'/tasks',{title:'WIP check'},201);
+  await req('POST','/tasks/'+task2.id+'/transition',{toStatus:'READY'},201);
+  await req('POST','/tasks/'+task2.id+'/transition',{toStatus:'IN_PROGRESS'},409);
+  const invitation=await req('POST',w+'/invitations',{invitedUserId:other.id},201);
+  const ownerToken=token;
+  token=(await req('POST','/auth/login',{email:`other${stamp}@example.com`,password:creds.password},200,false)).accessToken;
+  await req('GET',w,undefined,403);
+  const notices=await req('GET','/notifications');
+  assert(notices.some(n=>n.relatedResourceId===invitation.id));
+  await req('PATCH',w+'/invitations/'+invitation.id+'/accept');
+  await req('GET',w);
+  await req('PATCH',w,{name:'Unauthorized rename'},403);
+  token=ownerToken;
+  await req('GET',w+'/activities'); await req('GET','/notifications'); await req('GET','/notifications/unread-count');
+  await req('POST','/auth/logout'); await req('GET','/auth/profile');
+  const cors = await fetch(base+'/workspaces',{method:'OPTIONS',headers:{Origin:'http://localhost:5173','Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'authorization'}});
+  console.log('CORS',cors.status,'allow-origin:',cors.headers.get('access-control-allow-origin'));
+  console.log('FIXTURES',creds.email,'workspace',workspace.id,'password',creds.password);
+  console.log('RESULT',passed,'checks passed');
+})().catch(error=>{console.error(error);process.exit(1)});

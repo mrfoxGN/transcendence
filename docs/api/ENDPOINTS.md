@@ -1,0 +1,69 @@
+# Runtime endpoint inventory
+
+Generated from the running Swagger document on 2026-11-02. Auth declaration reflects Swagger only: omitted declarations do not mean a business route is public.
+
+| Method | Path | Swagger auth declared |
+|---|---|---|
+| GET | `/` | False |
+| GET | `/health` | False |
+| GET | `/users/{id}` | False |
+| PATCH | `/users/{id}` | False |
+| GET | `/workspaces` | False |
+| POST | `/workspaces` | False |
+| GET | `/workspaces/{id}/members` | False |
+| PATCH | `/workspaces/{id}/kanban-settings` | False |
+| GET | `/workspaces/{id}/kanban-settings` | False |
+| GET | `/workspaces/{id}` | False |
+| PATCH | `/workspaces/{id}` | False |
+| DELETE | `/workspaces/{id}` | False |
+| PATCH | `/workspaces/{id}/archive` | False |
+| PATCH | `/workspaces/{id}/unarchive` | False |
+| DELETE | `/workspaces/{id}/members/{userId}` | False |
+| PATCH | `/workspaces/{id}/invitations/{invitationId}/accept` | False |
+| PATCH | `/workspaces/{id}/invitations/{invitationId}/reject` | False |
+| PATCH | `/workspaces/{id}/invitations/{invitationId}/cancel` | False |
+| POST | `/workspaces/{id}/invitations` | False |
+| GET | `/workspaces/{workspaceId}/activities` | False |
+| GET | `/notifications` | True |
+| GET | `/notifications/unread-count` | True |
+| PATCH | `/notifications/read-all` | True |
+| PATCH | `/notifications/{id}/read` | True |
+| POST | `/workspaces/{workspaceId}/tasks` | True |
+| GET | `/workspaces/{workspaceId}/board` | True |
+| GET | `/tasks/{id}` | True |
+| PATCH | `/tasks/{id}` | True |
+| DELETE | `/tasks/{id}` | True |
+| POST | `/tasks/{id}/transition` | True |
+| GET | `/tasks/{id}/assignment` | True |
+| POST | `/tasks/{id}/assignment` | True |
+| DELETE | `/tasks/{id}/assignment` | True |
+| POST | `/tasks/{id}/comments` | True |
+| GET | `/tasks/{id}/comments` | True |
+| PATCH | `/tasks/{taskId}/comments/{commentId}` | True |
+| DELETE | `/tasks/{taskId}/comments/{commentId}` | True |
+| POST | `/tasks/{id}/dependencies` | True |
+| GET | `/tasks/{id}/dependencies` | True |
+| DELETE | `/tasks/{id}/dependencies/{dependencyId}` | True |
+| POST | `/tasks/{id}/block` | True |
+| DELETE | `/tasks/{id}/block` | True |
+| GET | `/direct-conversations` | True |
+| POST | `/direct-conversations/{userId}` | True |
+| POST | `/direct-conversations/{id}/messages` | True |
+| GET | `/direct-conversations/{id}/messages` | True |
+| PATCH | `/direct-conversations/{id}/read` | True |
+| GET | `/workspaces/{workspaceId}/messages` | True |
+| POST | `/workspaces/{workspaceId}/messages` | True |
+| POST | `/workspaces/{workspaceId}/files` | True |
+| GET | `/workspaces/{workspaceId}/files` | True |
+| DELETE | `/workspaces/{workspaceId}/files/{fileId}` | True |
+| GET | `/workspaces/{workspaceId}/files/{fileId}` | True |
+| GET | `/workspaces/{workspaceId}/files/{fileId}/download` | True |
+| POST | `/workspaces/{workspaceId}/notes` | True |
+| GET | `/workspaces/{workspaceId}/notes` | True |
+| GET | `/workspaces/{workspaceId}/notes/{noteId}` | True |
+| PATCH | `/workspaces/{workspaceId}/notes/{noteId}` | True |
+| DELETE | `/workspaces/{workspaceId}/notes/{noteId}` | True |
+| POST | `/auth/register` | False |
+| POST | `/auth/login` | False |
+| GET | `/auth/profile` | True |
+| POST | `/auth/logout` | True |

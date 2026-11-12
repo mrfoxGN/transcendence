@@ -46,6 +46,21 @@ button.wu-metric-card .wu-metric-card-copy { padding-inline-end: 16px; }
   pointer-events: none;
 }
 
+.workspace-app[data-theme='dark'] .wu-metric-card {
+  background: linear-gradient(155deg, #242424, #191919 72%);
+  box-shadow: inset 0 0 0 1px #ffffff12, inset 0 1px #ffffff0b;
+}
+.workspace-app[data-theme='dark'] button.wu-metric-card:hover {
+  background: linear-gradient(155deg, #2c2c2c, #202020 72%);
+  box-shadow: inset 0 0 0 1px #ffffff20;
+}
+.workspace-app[data-theme='dark'] .wu-metric-card-icon {
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--metric-ink) 12%, #242424);
+}
+.workspace-app[data-theme='dark'] .wu-metric-card-copy small { color: var(--wu-muted); }
+.workspace-app[data-theme='dark'] .wu-metric-card-wave { opacity: .42; }
+
 @media (max-width: 680px) {
   .wu-metric-card { gap: 8px; }
   .wu-metric-card-icon { width: 32px; height: 32px; }
