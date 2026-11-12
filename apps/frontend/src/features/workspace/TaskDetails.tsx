@@ -1,4 +1,4 @@
-import { useRef, useState, type FocusEvent } from 'react';
+import { useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace-api';
@@ -10,11 +10,12 @@ type Comment = { id: string; authorId: string | null; content: string; createdAt
 type Dependency = { id: string; dependsOnTaskId: string };
 type TaskEdit = { suffix: string; method: string; body?: Record<string, unknown> };
 
-export function TaskDetails({ task, tasks, members, token, profileId, onClose, onChange, files, openTask, openFile, onBack, boardColumns, readOnly = false }: {
+export function TaskDetails({ task, tasks, members, token, profileId, onClose, onChange, files, openTask, openFile, onBack, boardColumns, projectSection, readOnly = false }: {
   task: Task; tasks: Task[]; members: Member[]; token: string | null; profileId: string;
   onClose: () => void; onChange: () => void;
   files: WorkspaceFile[]; openTask: (task: Task) => void; openFile: (file: WorkspaceFile) => void; onBack?: () => void;
   boardColumns: BoardColumnConfig[];
+  projectSection?: ReactNode;
   readOnly?: boolean;
 }) {
   const path = 'tasks/' + task.id;
@@ -123,6 +124,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <div><dt>Priority</dt><dd>{task.priority === 'None' ? 'No priority' : task.priority}</dd></div>
       <div><dt>Due date</dt><dd>{task.dueDate ? task.due : 'No due date'}</dd></div>
     </dl>
+    {projectSection}
     {error && <p role="alert">{error}</p>}
     {hasFailedEdits && !busy && <div role="alert">
       <p>Couldn’t save your changes. {Object.values(failedEdits)[0].message}</p>

@@ -7,6 +7,8 @@ import { Avatar } from './workspace/components';
 import { rememberWorkspace } from './workspace/workspace-history';
 import './workspace/workspace-navigation.css';
 import { TaskDetails } from './workspace/TaskDetails';
+import { TaskProjectField } from './workspace/TaskProjectField';
+import type { Project } from './workspace/workspace-projects';
 import { WorkspaceSwitcher } from './workspace/WorkspaceSwitcher';
 import { WorkspaceCommand } from './workspace/WorkspaceCommand';
 import { NotificationInbox } from './workspace/NotificationInbox';
@@ -19,6 +21,7 @@ import { loadBoard, taskPriorities, type BoardColumnConfig, type Member } from '
 import { addCalendarDays, calendarDate, isDueInNextSevenDays, nextSevenDaysLabel } from './workspace/workspace-calendar';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
+import { ProjectsPage } from './workspace/pages/ProjectsPage';
 import { BacklogPage } from './workspace/pages/BacklogPage';
 import { BoardPage } from './workspace/pages/BoardPage';
 import { GithubPage } from './workspace/pages/GithubPage';
@@ -33,6 +36,7 @@ import type { PersonalProfile, Theme } from './workspace/pages/PersonalSettings'
 
 const navigation: { key: PageKey; label: string; icon: typeof workspaceIcons.home }[] = [
   { key: 'home', label: 'Home', icon: workspaceIcons.home },
+  { key: 'projects', label: 'Projects', icon: workspaceIcons.projects },
   { key: 'backlog', label: 'Backlog', icon: workspaceIcons.backlog },
   { key: 'board', label: 'Board', icon: workspaceIcons.board },
   { key: 'github', label: 'GitHub', icon: workspaceIcons.github },
@@ -75,6 +79,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const token = sessionStorage.getItem(sessionKey);
   const [page, setPage] = useState<PageKey>(getPageFromUrl);
   const [settingsSection, setSettingsSection] = useState(location.hash);
+  const [projectSection, setProjectSection] = useState(() => location.hash.slice(1));
   const themeSaving = useRef(false);
   const [browserDark, setBrowserDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const [workspace, setWorkspace] = useState<WorkspaceProfile>();
@@ -108,6 +113,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const filePath = workspacePath + '/files';
   const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath, token);
   const members = useWorkspaceCollection<Member>(workspacePath + '/members', token);
+  const projectsPath = workspacePath + '/projects';
+  const projects = useWorkspaceCollection<Project>(projectsPath, page === 'projects' || selectedTaskId ? token : null);
   const invitations = useWorkspaceCollection<TeamInvitation>(workspacePath + '/invitations', page === 'team' && workspace?.ownerId === profileId ? token : null);
   const recentActivity = useWorkspaceCollection<ActivityEvent>(workspacePath + '/activities?limit=5', token);
   const tasks = useMemo(() => (board?.tasks ?? []).map(task => {
@@ -172,10 +179,15 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }, [workspacePath, token, boardAttempt]);
 
   useEffect(() => {
+    if (boardAttempt > 0) projects.retry();
+  }, [boardAttempt]);
+
+  useEffect(() => {
     document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · DevUP`;
     const onPop = () => {
       setPage(getPageFromUrl());
       setSettingsSection(location.hash);
+      setProjectSection(location.hash.slice(1));
       setChatThread(getChatThreadFromUrl());
       setSelectedTaskId(new URLSearchParams(location.search).get('task'));
     };
@@ -231,6 +243,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   function navigate(next: PageKey, section = '') {
     setPage(next);
     if (next === 'settings') setSettingsSection(section ? '#' + section : '');
+    if (next === 'projects') setProjectSection(section);
     setFilter('All tasks');
     if (section === 'board-review') setFacets(emptyFacets);
     const url = new URL(window.location.href);
@@ -410,6 +423,13 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setSelectedTaskId(task.id);
   }
 
+  function openProjectTask(id: string) {
+    const url = new URL(location.href);
+    url.searchParams.set('task', id);
+    history.replaceState({ page }, '', url);
+    setSelectedTaskId(id);
+  }
+
   function openActivityResource(event: ActivityEvent) {
     if (event.resourceType === 'task') {
       const task = tasks.find(item => item.id === event.resourceId);
@@ -432,6 +452,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         : <LoadingPanel label="Loading workspace tasks" />}</>;
     }
     switch (page) {
+      case 'projects': {
+        const projectId = projectSection.startsWith('project-') ? projectSection.slice('project-'.length) : null;
+        return <ProjectsPage key={(projectId ?? 'list') + (archived ? '-archived' : '')}
+          pageHeading={pageHeading} projects={projects.items} failed={projects.error} retry={projects.retry}
+          projectId={projectId} onProject={id => navigate('projects', id ? 'project-' + id : '')}
+          onOpenTask={openProjectTask} tasks={tasks} members={members.items ?? []} profileId={profileId}
+          path={projectsPath} token={token} readOnly={archived} />;
+      }
       case 'home': return (
         <HomePage
           pageHeading={pageHeading}
@@ -628,6 +656,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     </div>
     {workspace && selectedTask && <TaskDetails key={selectedTask.id + (archived ? '-archived' : '')} task={selectedTask} tasks={tasks} members={members.items ?? []}
       readOnly={archived}
+      projectSection={<TaskProjectField taskId={selectedTask.id} projects={projects.items} error={projects.error} retry={projects.retry}
+        path={projectsPath} token={token} readOnly={archived} openProject={id => navigate('projects', 'project-' + id)} />}
       token={token} profileId={profileId} onClose={() => setSelectedTask(null)} onChange={() => setBoardAttempt(value => value + 1)}
       files={(workspaceFiles.items ?? []).filter(file => file.taskId === selectedTask.id)} boardColumns={boardColumns}
       openTask={openRelatedTask} openFile={file => navigate('files', 'file-' + file.id)}

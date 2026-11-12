@@ -63,6 +63,12 @@ export class WorkspacesService {
     return workspace;
   }
 
+  async lockWritableWorkspaceForMember(manager: EntityManager, workspaceId: string, userId: string) {
+    const workspace = await this.lockWorkspace(manager, workspaceId);
+    if (!await manager.getRepository(WorkspaceMembership).existsBy({ workspaceId, userId })) throw new ForbiddenException();
+    assertWorkspaceWritable(workspace);
+  }
+
   async lockAssignmentMemberships(manager: EntityManager, workspaceId: string, actorId: string, assigneeId: string) {
     assertWorkspaceWritable(await this.lockWorkspace(manager, workspaceId));
     const memberships = manager.getRepository(WorkspaceMembership);

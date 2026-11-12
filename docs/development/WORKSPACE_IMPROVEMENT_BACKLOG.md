@@ -213,6 +213,12 @@ Deploy migration `1795000000000` before the updated backend. Local MySQL integra
 
 **Scope** `FRONTEND + BACKEND`
 
+**Implementation** Projects live inside a workspace and can have an owner, a target date, and a planning status. Members can create and edit projects and milestones in active workspaces. Archived workspaces retain read access. An existing task can stay ungrouped or link to one project and an optional milestone in that project. The task drawer links back to its project.
+
+Project and milestone progress count completed tasks over linked, non-cancelled tasks. Planning status is set separately. Deleting a milestone keeps its tasks in the project. Deleting a project unlinks its tasks. A project owner becomes unassigned when their workspace membership ends.
+
+Deploy migration `1795100000000` before the updated backend.
+
 > Implement WU-17 in DevUP. Add a lightweight project model with an owner, target date, status, milestones, and linked tasks. Keep workspace progress distinct from project progress and allow existing tasks to remain ungrouped. Verify that a teammate can navigate from a task to its project, inspect milestone work, and reconcile progress with the linked tasks.
 
 ### WU-18 · GitHub connection and pull-request context
