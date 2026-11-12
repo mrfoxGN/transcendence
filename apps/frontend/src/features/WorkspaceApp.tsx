@@ -600,7 +600,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           analyticsPeriod={analyticsPeriod}
           setAnalyticsPeriod={setAnalyticsPeriod}
           today={today} reportingTimeZone={reportingTimeZone}
-          tasks={tasks} columns={columns} activeCount={board?.activeCount ?? 0} activeWipLimit={board?.activeWipLimit ?? 0}
+          tasks={tasks} activeWipLimit={board?.activeWipLimit ?? 0}
+          path={workspacePath + '/analytics'} token={token} onOpenTask={openTaskById} refreshKey={boardAttempt}
         />
       );
       case 'settings': return (

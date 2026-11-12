@@ -253,6 +253,10 @@ The workspace owner's Audit trail records membership revocation, invitation crea
 
 **Scope** `FRONTEND + BACKEND`
 
+**Implementation** Open, overdue, and active counts are current snapshots. Active includes In progress and Review. Period reports use the workspace time zone and include today up to the report timestamp. Daily cumulative flow counts each task in its last known status at the end of that day. The chart and data table share the same report, and drill-downs use its timestamp.
+
+Completion counts measure entries into Done. Reopening a task can contribute a later completion when it returns to Done. Stage duration sums elapsed time in In progress or Review that overlaps the period, including repeat visits. Cancelled tasks count in the Cancelled flow bucket and retain earlier work. Deleted tasks leave flow at deletion, retain earlier contributions, and appear as deleted in historical drill-downs. Current cards exclude cancelled and deleted tasks. For tasks without recorded transitions, the report uses the available task status and any legacy completion or cancellation timestamp.
+
 > Implement WU-21 in DevUP Analytics. Separate current snapshots from date-range reports and provide task drill-downs and a readable chart data table. Use stored status history for time in progress, time in review, and cumulative flow. Document workspace timezone and how reopened, cancelled, and deleted tasks count. Verify with known task timelines, reconcile chart and drill-down totals, and confirm the period selector affects only period metrics.
 
 ### WU-22 · Personal notification inbox
