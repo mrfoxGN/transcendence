@@ -231,6 +231,12 @@ Deploy migration `1795100000000` before the updated backend.
 
 **Scope** `FRONTEND + BACKEND`
 
+**Implementation** Files support server-side type and uploader filters, upload progress with a 10 MiB limit, file renaming by the uploader or workspace owner, and backlinks to linked tasks. The preview drawer renders raster images and plain text or CSV up to 256 KiB. Other formats can be downloaded.
+
+Notes support title and content search, shared pins, author and update metadata, direct links, and references to workspace tasks by readable ID. The note creator or workspace owner can edit, pin, delete, and restore. Members can read notes and revision history. Archived workspaces retain read access.
+
+Deploy migration `1795200000000` before the updated backend. Note updates and revision restores require the current revision number. Stale writes return a conflict. The editor preserves the draft and lets the user review the latest version before choosing how to continue. Restoring a revision records the version being replaced.
+
 > Implement WU-19 after WU-02. Add file type and uploader filters, upload progress, the visible 10 MiB limit, safe supported previews, rename, and task backlinks. Add note search, pins, author and updated metadata, copyable links, task references, and clear edit permissions. Add conflict handling and revision restore before realtime editing. Verify metadata search, unsupported file types, concurrent note edits, and authorized restore.
 
 ### WU-20 · Actionable workspace history

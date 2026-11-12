@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  PayloadTooLargeException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,14 @@ import { ListWorkspaceFilesDto } from '../dto/list-workspace-files.dto';
 import { UploadWorkspaceFileDto } from '../dto/upload-workspace-file.dto';
 import { WorkspaceFileResponseDto } from '../dto/workspace-file-response.dto';
 import { WorkspaceFile } from '../entities/workspace-file.entity';
+
+export const workspaceFileLimit = 10 * 1024 * 1024;
+
+const fileKindFilters = {
+  image: (column: string) => `${column} LIKE 'image/%'`,
+  text: (column: string) => `${column} LIKE 'text/%'`,
+  document: (column: string) => `(${column} IN ('application/pdf','application/msword','application/rtf') OR ${column} LIKE 'application/vnd.ms-%' OR ${column} LIKE 'application/vnd.openxmlformats-officedocument.%' OR ${column} LIKE 'application/vnd.oasis.opendocument.%')`,
+};
 
 @Injectable()
 export class FilesService {
@@ -53,6 +62,7 @@ export class FilesService {
     if (!file) {
       throw new BadRequestException('File is required');
     }
+    if (file.size > workspaceFileLimit) throw new PayloadTooLargeException('Choose a file no larger than 10 MiB.');
 
     if (dto.taskId) {
       const task = await this.tasksService.findById(dto.taskId, userId);
@@ -139,6 +149,11 @@ export class FilesService {
       where: {
         workspaceId,
         deletedAt: IsNull(),
+        ...(query.uploaderId && { uploaderId: query.uploaderId }),
+        ...(query.kind && { mimeType: Raw(column => {
+          if (query.kind === 'other') return `(${column} IS NULL OR NOT (${Object.values(fileKindFilters).map(filter => filter(column)).join(' OR ')}))`;
+          return fileKindFilters[query.kind!](column);
+        }) }),
         ...(search && {
           displayName: Raw(
             (column) => `${column} LIKE :search ESCAPE '!'`,
@@ -179,6 +194,20 @@ export class FilesService {
     }
 
     return this.toResponse(file);
+  }
+
+  async rename(workspaceId: string, fileId: string, userId: string, name: string) {
+    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(workspace);
+    const where = { id: fileId, workspaceId, deletedAt: IsNull() };
+    const file = await this.workspaceFilesRepository.findOne({ where });
+    if (!file) throw new NotFoundException('File not found');
+    if (file.uploaderId !== userId && workspace.ownerId !== userId) throw new ForbiddenException('Only the uploader or workspace owner can rename this file');
+    const displayName = name.trim();
+    if (!displayName) throw new BadRequestException('Enter a filename.');
+    const result = await this.workspaceFilesRepository.update(where, { displayName });
+    if (!result.affected) throw new NotFoundException('File not found');
+    return this.toResponse({ ...file, displayName });
   }
 
   async remove(

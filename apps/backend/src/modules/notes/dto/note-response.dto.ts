@@ -1,4 +1,6 @@
 export class NoteResponseDto {
+  revision!: number;
+  pinnedAt!: Date | null;
   id!: string;
   workspaceId!: string;
   creatorId!: string | null;

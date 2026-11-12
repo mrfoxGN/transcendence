@@ -5,6 +5,12 @@ import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('notes')
 export class Note {
+  @Column({ type: 'int', unsigned: true, default: 1 })
+  revision!: number;
+
+  @Column({ name: 'pinned_at', type: 'datetime', precision: 6, nullable: true })
+  pinnedAt!: Date | null;
+
   @PrimaryColumn({
     type: 'char',
     length: 36,

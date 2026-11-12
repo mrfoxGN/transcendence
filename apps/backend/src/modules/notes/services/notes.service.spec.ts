@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -34,18 +35,25 @@ function makeNote(overrides: Partial<Note> = {}): Note {
     createdAt: date,
     updatedAt: date,
     deletedAt: null,
+    revision: 1,
+    pinnedAt: null,
     ...overrides,
   });
 }
 
 function makeRepository() {
-  return {
+  const repository = {
     create: jest.fn((value: object) => value),
     save: jest.fn((value: object) => Promise.resolve(value)),
     find: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockResolvedValue(null),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
+  const manager = {
+    getRepository: jest.fn(() => repository),
+    query: jest.fn().mockResolvedValue([]),
+  };
+  return { ...repository, manager: { ...manager, transaction: jest.fn(async callback => callback(manager)) } };
 }
 
 describe('NotesService', () => {
@@ -118,6 +126,7 @@ describe('NotesService', () => {
         deletedAt: expect.anything() as unknown,
       },
       order: {
+        pinnedAt: 'DESC',
         updatedAt: 'DESC',
         createdAt: 'DESC',
         id: 'DESC',
@@ -138,7 +147,7 @@ describe('NotesService', () => {
     );
   });
 
-  it('searches note titles and sorts before paging', async () => {
+  it('searches note titles and content and sorts before paging', async () => {
     await service.findAll(workspaceId, creatorId, {
       page: 2,
       search: 'sprint_2',
@@ -147,11 +156,13 @@ describe('NotesService', () => {
     });
 
     const options = repository.find.mock.calls[0][0];
-    expect(options.where.workspaceId).toBe(workspaceId);
-    expect(options.where.title.objectLiteralParameters).toEqual({
+    expect(options.where.every((scope: { workspaceId: string }) => scope.workspaceId === workspaceId)).toBe(true);
+    expect(options.where[0].title.objectLiteralParameters).toEqual({
       search: '%sprint!_2%',
     });
+    expect(options.where[1].content.objectLiteralParameters).toEqual({ search: '%sprint!_2%' });
     expect(options.order).toEqual({
+      pinnedAt: 'DESC',
       title: 'ASC',
       updatedAt: 'DESC',
       createdAt: 'DESC',
@@ -184,7 +195,7 @@ describe('NotesService', () => {
 
   it('rejects an empty update', async () => {
     await expect(
-      service.update(workspaceId, noteId, creatorId, {}),
+      service.update(workspaceId, noteId, creatorId, { revision: 1 }),
     ).rejects.toThrow(BadRequestException);
 
     expect(repository.update).not.toHaveBeenCalled();
@@ -195,6 +206,7 @@ describe('NotesService', () => {
 
     await expect(
       service.update(workspaceId, noteId, memberId, {
+        revision: 1,
         title: 'Changed',
       }),
     ).rejects.toThrow(ForbiddenException);
@@ -208,6 +220,7 @@ describe('NotesService', () => {
       .mockResolvedValueOnce(makeNote({ title: 'Changed' }));
 
     const result = await service.update(workspaceId, noteId, creatorId, {
+      revision: 1,
       title: '  Changed  ',
     });
 
@@ -216,6 +229,9 @@ describe('NotesService', () => {
       expect.objectContaining({ title: 'Changed' }),
     );
     expect(result.title).toBe('Changed');
+    expect(result.revision).toBe(2);
+    expect(repository.manager.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO note_revisions'),
+      [noteId, 1, 'Meeting notes', 'Discuss the backend', date]);
   });
 
   it('lets the workspace owner clear the content', async () => {
@@ -224,6 +240,7 @@ describe('NotesService', () => {
       .mockResolvedValueOnce(makeNote({ content: null }));
 
     const result = await service.update(workspaceId, noteId, ownerId, {
+      revision: 1,
       content: null,
     });
 
@@ -240,9 +257,27 @@ describe('NotesService', () => {
 
     await expect(
       service.update(workspaceId, noteId, creatorId, {
+        revision: 1,
         title: 'Changed',
       }),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects a stale editor before writing a revision or overwriting the note', async () => {
+    repository.findOne.mockResolvedValue(makeNote({ revision: 2 }));
+    await expect(service.update(workspaceId, noteId, creatorId, { revision: 1, content: 'Stale draft' }))
+      .rejects.toThrow(ConflictException);
+    expect(repository.manager.query).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('restores a snapshot as a new revision and leaves the pin intact', async () => {
+    repository.findOne.mockResolvedValue(makeNote({ revision: 3, pinnedAt: date }));
+    repository.manager.query.mockResolvedValueOnce([{ title: 'Original', content: 'Original text' }]);
+    const result = await service.restoreRevision(workspaceId, noteId, ownerId, 1, 3);
+    expect(result).toMatchObject({ title: 'Original', content: 'Original text', revision: 4, pinnedAt: date });
+    expect(repository.manager.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO note_revisions'),
+      [noteId, 3, 'Meeting notes', 'Discuss the backend', date]);
   });
 
   it('soft deletes a note for its creator', async () => {

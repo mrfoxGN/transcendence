@@ -1,7 +1,15 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class ListWorkspaceFilesDto {
+  @IsOptional()
+  @IsUUID()
+  uploaderId?: string;
+
+  @IsOptional()
+  @IsIn(['image', 'document', 'text', 'other'])
+  kind?: 'image' | 'document' | 'text' | 'other';
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

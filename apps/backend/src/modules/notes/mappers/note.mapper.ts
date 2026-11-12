@@ -11,6 +11,8 @@ export class NoteMapper {
       content: note.content,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
+      revision: note.revision ?? 1,
+      pinnedAt: note.pinnedAt ?? null,
     };
   }
 }

@@ -423,7 +423,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setSelectedTaskId(task.id);
   }
 
-  function openProjectTask(id: string) {
+  function openTaskById(id: string) {
     const url = new URL(location.href);
     url.searchParams.set('task', id);
     history.replaceState({ page }, '', url);
@@ -457,7 +457,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         return <ProjectsPage key={(projectId ?? 'list') + (archived ? '-archived' : '')}
           pageHeading={pageHeading} projects={projects.items} failed={projects.error} retry={projects.retry}
           projectId={projectId} onProject={id => navigate('projects', id ? 'project-' + id : '')}
-          onOpenTask={openProjectTask} tasks={tasks} members={members.items ?? []} profileId={profileId}
+          onOpenTask={openTaskById} tasks={tasks} members={members.items ?? []} profileId={profileId}
           path={projectsPath} token={token} readOnly={archived} />;
       }
       case 'home': return (
@@ -563,6 +563,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           onBackToTask={history.state?.fromTask ? () => history.back() : undefined}
           onUpload={file => { workspaceFiles.setItems(current => [file, ...(current ?? [])]); recentActivity.retry(); }}
           onDelete={id => { workspaceFiles.setItems(current => current?.filter(file => file.id !== id)); recentActivity.retry(); }}
+          onRename={updated => workspaceFiles.setItems(current => current?.map(file => file.id === updated.id ? updated : file))}
+          onOpenTask={openTaskById}
         />
       );
       case 'notes': return (
@@ -573,6 +575,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           token={token}
           readOnly={archived}
           owner={workspace.ownerId === profileId} profileId={profileId} members={members.items ?? []}
+          tasks={tasks} onOpenTask={openTaskById}
         />
       );
       case 'analytics': return (
