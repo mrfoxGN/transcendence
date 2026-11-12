@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, In, IsNull, Repository } from 'typeorm';
 
 import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
-import { ActivitiesService } from '../../activities/services/activities.service';
+import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { canTransitionTask, compareBoardTasks, defaultBoardColumns, taskColumn } from '../../workspaces/board-columns';
@@ -149,7 +149,15 @@ export class TasksService {
       );
     }
 
+    if (dto.assigneeId) await this.taskHistory(savedTask, userId, 'TASK_ASSIGNED', { assigneeId: dto.assigneeId });
     return TaskMapper.toResponse(savedTask);
+  }
+
+  private taskHistory(task: Pick<Task, 'id' | 'workspaceId' | 'title'>, actorUserId: string, actionType: string, metadata = {}) {
+    return recordActivity(this.activitiesService, {
+      workspaceId: task.workspaceId, actorUserId, actionType, resourceType: 'task', resourceId: task.id,
+      metadata: { title: task.title, ...metadata },
+    });
   }
 
   async getBoard(
@@ -479,6 +487,7 @@ export class TasksService {
     if (!result.affected) {
       throw new NotFoundException('Task not found');
     }
+    await this.taskHistory(task, userId, 'TASK_DELETED');
   }
 
   async assign(
@@ -502,7 +511,7 @@ export class TasksService {
 
     await this.validateAssignee(existingTask.workspaceId, dto.userId);
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       await this.workspacesService.lockAssignmentMemberships(manager, existingTask.workspaceId, actorId, dto.userId);
       const task = await manager.getRepository(Task).findOne({
         where: { id: taskId, deletedAt: IsNull() },
@@ -522,7 +531,7 @@ export class TasksService {
       if (existingAssignment && !replace) {
         throw new ConflictException('Task already assigned');
       }
-      if (existingAssignment?.userId === dto.userId) return TaskAssignmentMapper.toResponse(existingAssignment);
+      if (existingAssignment?.userId === dto.userId) return { assignment: existingAssignment, changed: false };
 
       const assignment = assignmentsRepository.create({
         id: existingAssignment?.id ?? randomUUID(),
@@ -534,8 +543,10 @@ export class TasksService {
 
       const savedAssignment = await assignmentsRepository.save(assignment);
 
-      return TaskAssignmentMapper.toResponse(savedAssignment);
+      return { assignment: savedAssignment, changed: true };
     });
+    if (result.changed) await this.taskHistory(existingTask, actorId, 'TASK_ASSIGNED', { assigneeId: dto.userId });
+    return TaskAssignmentMapper.toResponse(result.assignment);
   }
 
   private async validateAssignee(workspaceId: string, userId: string) {
@@ -714,7 +725,7 @@ export class TasksService {
       throw new BadRequestException('Block reason is required');
     }
 
-    await this.findById(taskId, userId, true);
+    const task = await this.findById(taskId, userId, true);
 
     const now = new Date();
 
@@ -733,11 +744,12 @@ export class TasksService {
       throw new ConflictException('Task is already blocked');
     }
 
+    await this.taskHistory(task, userId, 'TASK_BLOCKED');
     return this.findById(taskId, userId);
   }
 
   async unblock(taskId: string, userId: string): Promise<TaskResponseDto> {
-    await this.findById(taskId, userId, true);
+    const task = await this.findById(taskId, userId, true);
 
     const result = await this.tasksRepository.update(
       { id: taskId, deletedAt: IsNull(), isBlocked: true },
@@ -754,6 +766,7 @@ export class TasksService {
       throw new ConflictException('Task is not blocked');
     }
 
+    await this.taskHistory(task, userId, 'TASK_UNBLOCKED');
     return this.findById(taskId, userId);
   }
 
@@ -814,7 +827,7 @@ export class TasksService {
       userId,
     ));
 
-    await this.dataSource.transaction(async (manager) => {
+    const removed = await this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
         where: { id: taskId, deletedAt: IsNull() },
         lock: { mode: 'pessimistic_write' },
@@ -831,7 +844,9 @@ export class TasksService {
       if (!result.affected && !allowMissing) {
         throw new NotFoundException('Task assignment not found');
       }
+      return !!result.affected;
     });
+    if (removed) await this.taskHistory(existingTask, userId, 'TASK_UNASSIGNED');
   }
   async addComment(
     taskId: string,

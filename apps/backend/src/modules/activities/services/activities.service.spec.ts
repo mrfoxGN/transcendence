@@ -7,6 +7,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 function makeRepository() {
   return {
+    manager: { query: jest.fn().mockResolvedValue([]) },
     create: jest.fn((data: Partial<Activity>): Activity =>
       Object.assign(new Activity(), data),
     ),
@@ -103,6 +104,7 @@ describe('ActivitiesService', () => {
     expect(repository.find).toHaveBeenCalledWith({
       where: {
         workspaceId,
+        actionType: expect.anything(),
       },
       order: {
         createdAt: 'DESC',
@@ -153,5 +155,14 @@ describe('ActivitiesService', () => {
       before: '2026-11-02T00:00:00Z',
     })).rejects.toThrow('The start must be before the end');
     expect(repository.find).not.toHaveBeenCalled();
+  });
+
+  it('separates current and legacy audit events from the shared feed', async () => {
+    await service.findAllForWorkspace(workspaceId, {});
+    await service.findPageForWorkspace(workspaceId, {}, true);
+    const [shared, audit] = repository.find.mock.calls.map(([options]) =>
+      (options as { where: { actionType: { getSql: (column: string) => string } } }).where.actionType.getSql('action_type'));
+    expect(shared).toContain("NOT LIKE :activityPrefix ESCAPE '!' AND action_type <> 'MEMBER_REMOVED'");
+    expect(audit).toContain("LIKE :activityPrefix ESCAPE '!' OR action_type = 'MEMBER_REMOVED'");
   });
 });

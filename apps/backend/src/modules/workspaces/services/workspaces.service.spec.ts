@@ -25,6 +25,8 @@ function mockMethods<T>(value: T): { [K in keyof T]: jest.Mock } {
   return value as { [K in keyof T]: jest.Mock };
 }
 
+const activitySink = () => ({ create: jest.fn().mockResolvedValue({}) }) as never;
+
 describe('WorkspacesService', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
   const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
@@ -426,7 +428,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = new WorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
 
     const response = await service.archive(workspaceId, ownerId);
 
@@ -485,7 +487,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = new WorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
 
     const response = await service.unarchive(workspaceId, ownerId);
 
@@ -807,7 +809,7 @@ describe('WorkspacesService removeMember', () => {
     expect(activitiesService.create).toHaveBeenCalledWith({
       workspaceId,
       actorUserId: ownerId,
-      actionType: 'MEMBER_REMOVED',
+      actionType: 'AUDIT_MEMBER_REMOVED',
       resourceType: 'workspace_membership',
       resourceId: membership.id,
       metadata: {
@@ -1049,6 +1051,7 @@ describe('WorkspacesService createInvitation', () => {
       dataSource,
       usersService,
       notificationsService,
+      activitySink(),
     );
 
     const response = await service.createInvitation(workspaceId, ownerId, {
@@ -1159,6 +1162,7 @@ describe('WorkspacesService createInvitation', () => {
       dataSource,
       usersService,
       notificationsService,
+      activitySink(),
     );
 
     jest
@@ -2161,7 +2165,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = new WorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
 
     const response = await service.cancelInvitation(
       workspaceId,
@@ -2360,7 +2364,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = new WorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
 
     const result = await service.updateKanbanSettings(workspaceId, ownerId, {
       activeWipLimit: 5,

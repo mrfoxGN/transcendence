@@ -10,7 +10,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DataSource, IsNull, type EntityManager } from 'typeorm';
 
 import { InvitationStatus } from '../../../database/enums/database.enums';
-import { ActivitiesService } from '../../activities/services/activities.service';
+import { ActivitiesService, activityEntry, recordActivity } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { Task } from '../../tasks/entities/task.entity';
@@ -91,6 +91,10 @@ export class WorkspacesService {
       const target = await manager.getRepository(WorkspaceMembership).findOneBy({ workspaceId, userId: targetId });
       if (!target) throw new NotFoundException('Workspace member not found');
       await manager.getRepository(Workspace).update(workspaceId, { ownerId: targetId, updatedAt: new Date() });
+      await manager.save(Activity, activityEntry({
+        workspaceId, actorUserId: actorId, actionType: 'AUDIT_OWNERSHIP_TRANSFERRED',
+        resourceType: 'workspace_access', resourceId: workspaceId, metadata: { memberUserId: targetId },
+      }));
     });
   }
 
@@ -275,7 +279,14 @@ export class WorkspacesService {
       ...(writable && { archivedAt: IsNull() }),
     }, changes);
     if (!result.affected) throw new ConflictException('Workspace changed. Refresh and try again.');
+    if (changes.archivedAt !== undefined && Boolean(changes.archivedAt) !== Boolean(workspace.archivedAt)) {
+      await this.auditHistory(workspaceId, userId, changes.archivedAt ? 'AUDIT_WORKSPACE_ARCHIVED' : 'AUDIT_WORKSPACE_RESTORED', 'workspace_archive', workspaceId);
+    }
     return WorkspaceMapper.toResponse({ ...workspace, ...changes });
+  }
+
+  private auditHistory(workspaceId: string, actorUserId: string, actionType: string, resourceType: string, resourceId: string) {
+    return recordActivity(this.activitiesService, { workspaceId, actorUserId, actionType, resourceType, resourceId });
   }
 
   async findMembers(
@@ -335,7 +346,7 @@ export class WorkspacesService {
       await this.activitiesService.create({
         workspaceId,
         actorUserId: currentUserId,
-        actionType: 'MEMBER_REMOVED',
+        actionType: leaving ? 'MEMBER_LEFT' : 'AUDIT_MEMBER_REMOVED',
         resourceType: 'workspace_membership',
         resourceId: membershipId,
         metadata: {
@@ -460,6 +471,7 @@ export class WorkspacesService {
       );
     }
 
+    await this.auditHistory(workspaceId, currentUserId, 'AUDIT_INVITATION_CREATED', 'workspace_invitation', savedInvitation.id);
     return WorkspaceInvitationMapper.toResponse(savedInvitation);
   }
 
@@ -509,6 +521,7 @@ export class WorkspacesService {
       return { invitation: await repository.save(invitation), workspaceName: workspace.name };
     });
     const invitePath = '/join-workspace#' + new URLSearchParams({ workspace: workspaceId, invitation: invitation.id, token });
+    await this.auditHistory(workspaceId, actorId, invitationId ? 'AUDIT_INVITATION_RESENT' : 'AUDIT_INVITATION_CREATED', 'workspace_invitation', invitation.id);
     const sent = await this.sendInvitationEmail(invitation.invitedEmail!, workspaceName, invitePath);
     return { ...WorkspaceInvitationMapper.toResponse(invitation), invitePath, delivery: sent ? 'sent' as const : 'link' as const };
   }
@@ -759,11 +772,14 @@ export class WorkspacesService {
         { status: InvitationStatus.CANCELLED, respondedAt },
       );
       if (!result.affected) throw new ConflictException('Invitation changed. Refresh and try again.');
+      await this.auditHistory(workspaceId, currentUserId, 'AUDIT_INVITATION_REVOKED', 'workspace_invitation', invitationId);
       return WorkspaceInvitationMapper.toResponse({ ...invitation, status: InvitationStatus.CANCELLED, respondedAt });
     }
     invitation.status = InvitationStatus.CANCELLED;
     invitation.respondedAt = respondedAt;
-    return WorkspaceInvitationMapper.toResponse(await invitationRepository.save(invitation));
+    const saved = await invitationRepository.save(invitation);
+    await this.auditHistory(workspaceId, currentUserId, 'AUDIT_INVITATION_REVOKED', 'workspace_invitation', invitationId);
+    return WorkspaceInvitationMapper.toResponse(saved);
   }
 
   async getKanbanSettings(
@@ -831,7 +847,7 @@ export class WorkspacesService {
         new Set(columns.map(column => column.label.toLowerCase())).size !== columns.length) {
         throw new BadRequestException('Column names and IDs must be unique');
       }
-      return this.dataSource.transaction(async manager => {
+      const updated = await this.dataSource.transaction(async manager => {
         const repository = manager.getRepository(WorkspaceKanbanSetting);
         const settings = await repository.findOne({ where: { workspaceId }, lock: { mode: 'pessimistic_write' } });
         if (!settings) throw new NotFoundException('Kanban settings not found');
@@ -926,6 +942,8 @@ export class WorkspacesService {
         settings.updatedAt = new Date();
         return WorkspaceKanbanSettingsMapper.toResponse(await repository.save(settings));
       });
+      await this.boardHistory(workspaceId, userId, dto);
+      return updated;
     }
 
     const settingsRepository = this.dataSource.getRepository(
@@ -958,6 +976,20 @@ export class WorkspacesService {
 
     const savedSettings = await settingsRepository.save(settings);
 
+    await this.boardHistory(workspaceId, userId, dto);
     return WorkspaceKanbanSettingsMapper.toResponse(savedSettings);
+  }
+
+  private boardHistory(workspaceId: string, actorUserId: string, dto: UpdateWorkspaceKanbanSettingsDto) {
+    const fields = [
+      ...(dto.boardColumns ? ['columns'] : []),
+      ...(dto.activeWipLimit !== undefined ? ['active work limit'] : []),
+      ...(dto.definitionOfReady !== undefined ? ['definition of ready'] : []),
+      ...(dto.definitionOfDone !== undefined ? ['definition of done'] : []),
+    ];
+    return recordActivity(this.activitiesService, {
+      workspaceId, actorUserId, actionType: 'BOARD_SETTINGS_UPDATED', resourceType: 'board_settings', resourceId: workspaceId,
+      metadata: { fields },
+    });
   }
 }

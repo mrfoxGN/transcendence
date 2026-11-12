@@ -1,7 +1,7 @@
 .wu-event-feed { container: activity-feed / inline-size; margin: 0; padding: 0; list-style: none; }
 .wu-event-row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) max-content 90px;
+  grid-template-columns: 36px minmax(0, 1fr) max-content minmax(90px, max-content);
   grid-template-areas: "icon copy time action";
   align-items: center;
   gap: 12px;
@@ -24,6 +24,7 @@
 .wu-event-action button { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; white-space: nowrap; font-size: 13px; }
 .wu-activity-pagination { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 12px; }
 .wu-activity-fields { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 12px; }
+.wu-activity-toolbar > [aria-label='History view'] { margin-bottom: 10px; }
 .wu-activity-fields > label { flex: 1 1 150px; min-width: 0; max-width: 220px; }
 .wu-activity-fields :is(input, select) { min-width: 0; width: 100%; }
 

@@ -14,6 +14,10 @@ jest.mock('@nestjs/config', () => ({
 
 import { GitHubSyncService } from './github-sync.service';
 
+jest.mock('@nestjs/typeorm', () => ({
+  InjectRepository: () => () => undefined,
+}));
+
 describe('GitHubSyncService', () => {
   let service: GitHubSyncService;
 
@@ -55,6 +59,7 @@ describe('GitHubSyncService', () => {
   const workspacesService = {
     findOneForUser: jest.fn(),
   };
+  const activities = { create: jest.fn().mockResolvedValue({}) };
 
   const githubApiService = {
     getPublicRepository: jest.fn(),
@@ -140,6 +145,7 @@ describe('GitHubSyncService', () => {
       workspacesService as never,
       githubApiService as never,
       githubTokenCryptoService as never,
+      activities as never,
     );
   });
 
@@ -153,6 +159,9 @@ describe('GitHubSyncService', () => {
     expect(result.fetchedCommits).toBe(1);
     expect(result.storedCommits).toBe(1);
     expect(result.lastSyncedAt).toBeInstanceOf(Date);
+    expect(activities.create).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_COMPLETED', resourceId: repositoryId,
+    }));
   });
 
   it('verifies workspace membership', async () => {

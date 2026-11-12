@@ -434,12 +434,27 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     if (event.resourceType === 'task') {
       const task = tasks.find(item => item.id === event.resourceId);
       if (task) { setSelectedTask(task); return true; }
+      if (event.resourceId && event.resourceState === 'available') {
+        openTaskById(event.resourceId);
+        setBoardAttempt(value => value + 1);
+        return true;
+      }
       setToast('This task is unavailable.');
-    } else if (event.actionType === 'FILE_UPLOADED' && event.resourceId) {
-      navigate('files', 'file-' + event.resourceId);
-      return true;
+      return false;
     }
-    return false;
+    if (!event.resourceId) return false;
+    switch (event.resourceType) {
+      case 'workspace_file': navigate('files', 'file-' + event.resourceId); break;
+      case 'note': navigate('notes', 'note-' + event.resourceId); break;
+      case 'github': navigate('github'); break;
+      case 'board_settings': navigate('settings', 'board'); break;
+      case 'workspace_archive': navigate('settings', 'archive'); break;
+      case 'workspace_membership':
+      case 'workspace_access':
+      case 'workspace_invitation': navigate('team'); break;
+      default: return false;
+    }
+    return true;
   }
 
   function renderPage() {
@@ -528,6 +543,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <ActivityPage
           pageHeading={pageHeading}
           path={workspacePath} token={token} members={members.items ?? []} openResource={openActivityResource}
+          canAudit={workspace.ownerId === profileId}
         />
       );
       case 'team': return (
@@ -590,7 +606,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       case 'settings': return (
         <SettingsPage
           key={settingsSection}
-          initialTab={settingsSection === '#profile' ? 'Profile' : settingsSection === '#archive' ? 'Archive' : 'General'}
+          initialTab={settingsSection === '#profile' ? 'Profile' : settingsSection === '#archive' ? 'Archive' : settingsSection === '#board' ? 'Board settings' : 'General'}
           pageHeading={pageHeading}
           workspace={workspace} ownerName={members.items?.find(member => member.isOwner)?.username}
           profile={profile} token={token} path={workspacePath}

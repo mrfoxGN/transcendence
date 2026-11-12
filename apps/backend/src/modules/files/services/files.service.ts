@@ -14,7 +14,7 @@ import { access, mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { IsNull, Raw, Repository } from 'typeorm';
 
-import { ActivitiesService } from '../../activities/services/activities.service';
+import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
 import { TasksService } from '../../tasks/services/tasks.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ListWorkspaceFilesDto } from '../dto/list-workspace-files.dto';
@@ -207,6 +207,10 @@ export class FilesService {
     if (!displayName) throw new BadRequestException('Enter a filename.');
     const result = await this.workspaceFilesRepository.update(where, { displayName });
     if (!result.affected) throw new NotFoundException('File not found');
+    if (displayName !== file.displayName) await recordActivity(this.activitiesService, {
+      workspaceId, actorUserId: userId, actionType: 'FILE_RENAMED', resourceType: 'workspace_file', resourceId: fileId,
+      metadata: { displayName },
+    });
     return this.toResponse({ ...file, displayName });
   }
 

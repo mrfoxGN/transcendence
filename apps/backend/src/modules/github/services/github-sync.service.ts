@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
 import { Repository as ConnectedRepository } from '../entities/repository.entity';
 import { RepositoryCommit } from '../entities/repository-commit.entity';
 import { GitHubApiService } from './github-api.service';
@@ -30,6 +31,7 @@ export class GitHubSyncService {
     private readonly workspacesService: WorkspacesService,
     private readonly githubApiService: GitHubApiService,
     private readonly githubTokenCryptoService: GitHubTokenCryptoService,
+    private readonly activities: ActivitiesService,
   ) {}
 
   async syncRepository(
@@ -46,7 +48,20 @@ export class GitHubSyncService {
       return existingSync;
     }
 
-    const syncPromise = this.performSync(workspaceId);
+    const syncPromise = this.performSync(workspaceId).then(async result => {
+      await recordActivity(this.activities, {
+        workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_COMPLETED', resourceType: 'github', resourceId: result.repositoryId,
+        metadata: { title: result.fullName, storedCommits: result.storedCommits },
+      });
+      return result;
+    }, async error => {
+      if (!(error instanceof NotFoundException && error.message === 'No GitHub repository connected to this workspace')) {
+        await recordActivity(this.activities, {
+          workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_FAILED', resourceType: 'github', resourceId: workspaceId,
+        });
+      }
+      throw error;
+    });
     this.inFlightSyncs.set(workspaceId, syncPromise);
 
     try {

@@ -17,6 +17,8 @@ import { NoteResponseDto } from '../dto/note-response.dto';
 import { Note } from '../entities/note.entity';
 import { NoteMapper } from '../mappers/note.mapper';
 import { UpdateNoteDto } from '../dto/update-note.dto';
+import { ActivitiesService, activityEntry, recordActivity } from '../../activities/services/activities.service';
+import { Activity } from '../../activities/entities/activity.entity';
 
 type Revision = { revision: number; title: string; savedAt: Date };
 
@@ -26,6 +28,7 @@ export class NotesService {
     @InjectRepository(Note)
     private readonly notesRepository: Repository<Note>,
     private readonly workspacesService: WorkspacesService,
+    private readonly activities: ActivitiesService,
   ) {}
 
   async create(
@@ -58,7 +61,12 @@ export class NotesService {
 
     const savedNote = await this.notesRepository.save(note);
 
+    await recordActivity(this.activities, this.noteHistory(savedNote, userId, 'NOTE_CREATED'));
     return NoteMapper.toResponse(savedNote);
+  }
+
+  private noteHistory(note: Note, actorUserId: string, actionType: string) {
+    return { workspaceId: note.workspaceId, actorUserId, actionType, resourceType: 'note', resourceId: note.id, metadata: { title: note.title } };
   }
 
   async findAll(
@@ -156,12 +164,13 @@ export class NotesService {
       );
       if (!snapshot) throw new NotFoundException('Note revision not found');
       return snapshot;
-    });
+    }, 'NOTE_RESTORED');
   }
 
   private async change(
     workspaceId: string, noteId: string, userId: string, revision: number,
     getChanges: (manager: EntityManager, note: Note) => Promise<Partial<Note>>,
+    restoredAction?: 'NOTE_RESTORED',
   ) {
     const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
     assertWorkspaceWritable(workspace);
@@ -184,7 +193,10 @@ export class NotesService {
       changes.revision = note.revision + 1;
       const result = await repository.update(where, changes);
       if (!result.affected) throw new NotFoundException('Note not found');
-      return NoteMapper.toResponse({ ...note, ...changes });
+      const updated = { ...note, ...changes };
+      const action = restoredAction ?? (contentChanged ? 'NOTE_UPDATED' : updated.pinnedAt ? 'NOTE_PINNED' : 'NOTE_UNPINNED');
+      await manager.save(Activity, activityEntry(this.noteHistory(updated, userId, action)));
+      return NoteMapper.toResponse(updated);
     });
   }
 
@@ -219,5 +231,6 @@ export class NotesService {
     if (!result.affected) {
       throw new NotFoundException('Note not found');
     }
+    await recordActivity(this.activities, this.noteHistory(note, userId, 'NOTE_DELETED'));
   }
 }

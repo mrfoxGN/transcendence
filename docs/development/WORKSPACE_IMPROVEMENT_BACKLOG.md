@@ -243,6 +243,10 @@ Deploy migration `1795200000000` before the updated backend. Note updates and re
 
 **Scope** `FRONTEND + BACKEND`
 
+**Implementation** The shared Activity feed records task assignment, unassignment, blockers, file renames, note changes, board settings, and GitHub sync outcomes. It resolves task, file, and note availability in the workspace and marks deleted resources. Actions open the relevant item or settings section.
+
+The workspace owner's Audit trail records membership revocation, invitation creation, resend and revocation, ownership transfer, and archive and restore actions. Historical membership removals are also audit-only. The audit endpoint checks current workspace ownership. Audit entries share the existing activity table and exclude invitation secrets and raw integration errors. Ownership transfer and note edits record history in the same transaction. Other events follow the existing best-effort activity write behavior.
+
 > Implement WU-20 after WU-04. Emit meaningful events for assignments, blockers, notes, board settings, and GitHub sync. Give each event a descriptive action and handle deleted resources. Separate admin and security events into a permission-restricted audit trail. Verify that each visible filter has real events, live links open the right resource, deleted targets have a clear state, and unauthorized accounts cannot access audit events.
 
 ### WU-21 · Trustworthy Analytics

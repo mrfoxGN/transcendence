@@ -22,7 +22,7 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
   pageHeading: PageHeading; workspace: WorkspaceProfile; ownerName?: string; profile: PersonalProfile;
   token: string | null; path: string; navigate: (page: PageKey) => void;
   onWorkspace: (workspace: WorkspaceProfile) => void; onBoard: () => void; onProfile: (profile: PersonalProfile) => void;
-  onTheme: (theme: Theme) => Promise<boolean>; initialTab?: 'General' | 'Profile' | 'Archive';
+  onTheme: (theme: Theme) => Promise<boolean>; initialTab?: 'General' | 'Profile' | 'Archive' | 'Board settings';
 }) {
   const [tab, setTab] = useState<string>(initialTab);
   const [settings, setSettings] = useState<KanbanSettings>();

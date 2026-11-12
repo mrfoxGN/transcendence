@@ -52,6 +52,7 @@ function makeRepository() {
   const manager = {
     getRepository: jest.fn(() => repository),
     query: jest.fn().mockResolvedValue([]),
+    save: jest.fn().mockResolvedValue({}),
   };
   return { ...repository, manager: { ...manager, transaction: jest.fn(async callback => callback(manager)) } };
 }
@@ -70,6 +71,7 @@ describe('NotesService', () => {
       {
         findOneForUser,
       } as unknown as WorkspacesService,
+      { create: jest.fn().mockResolvedValue({}) } as never,
     );
   });
 
