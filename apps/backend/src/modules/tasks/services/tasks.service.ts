@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { DataSource, In, IsNull, Repository } from 'typeorm';
 
+import { notifyTask } from '../../notifications/notification-events';
 import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
 import { UsersService } from '../../users/services/users.service';
@@ -124,6 +125,7 @@ export class TasksService {
             id: randomUUID(), taskId: saved.id, userId: dto.assigneeId,
             assignedById: userId, assignedAt: now,
           });
+          if (dto.assigneeId !== userId) await notifyTask(manager, saved, userId, `create:${saved.id}`, 'assignments', { assigneeId: dto.assigneeId });
         }
         return saved;
       })
@@ -431,6 +433,7 @@ export class TasksService {
       });
 
       await manager.getRepository(TaskStatusHistory).save(history);
+      await notifyTask(manager, task, userId, `status:${history.id}`, 'status');
 
       return {
         response: TaskMapper.toResponse(task),
@@ -542,6 +545,7 @@ export class TasksService {
       });
 
       const savedAssignment = await assignmentsRepository.save(assignment);
+      if (dto.userId !== actorId) await notifyTask(manager, task, actorId, `assignment:${randomUUID()}`, 'assignments', { assigneeId: dto.userId });
 
       return { assignment: savedAssignment, changed: true };
     });
@@ -793,6 +797,27 @@ export class TasksService {
     }
   }
 
+  async getWatch(taskId: string, userId: string): Promise<{ watching: boolean }> {
+    await this.findById(taskId, userId);
+    const rows: unknown[] = await this.dataSource.query(
+      'SELECT 1 FROM task_watchers WHERE task_id = ? AND user_id = ?', [taskId, userId],
+    );
+    return { watching: rows.length > 0 };
+  }
+
+  async setWatch(taskId: string, userId: string, watching: boolean): Promise<{ watching: boolean }> {
+    await this.findById(taskId, userId);
+    if (watching) {
+      await this.dataSource.query(
+        `INSERT INTO task_watchers (task_id, user_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE user_id = task_watchers.user_id`, [taskId, userId],
+      );
+    } else {
+      await this.dataSource.query('DELETE FROM task_watchers WHERE task_id = ? AND user_id = ?', [taskId, userId]);
+    }
+    return { watching };
+  }
+
   async getAssignment(
     taskId: string,
     userId: string,
@@ -884,8 +909,18 @@ export class TasksService {
 
       const now = new Date();
 
-      const comment = manager.getRepository(TaskComment).create({
-        id: randomUUID(),
+      const repository = manager.getRepository(TaskComment);
+      if (dto.requestId) {
+        const previous = await repository.findOneBy({ id: dto.requestId });
+        if (previous) {
+          if (previous.taskId !== taskId || previous.authorId !== userId || previous.deletedAt) {
+            throw new ConflictException('Comment request ID is already in use');
+          }
+          return TaskCommentMapper.toResponse(previous);
+        }
+      }
+      const comment = repository.create({
+        id: dto.requestId ?? randomUUID(),
         taskId,
         authorId: userId,
         content,
@@ -895,10 +930,11 @@ export class TasksService {
         deletedAt: null,
       });
 
-      const savedComment = await manager
-        .getRepository(TaskComment)
-        .save(comment);
+      if (dto.requestId) await repository.insert(comment);
+      else await repository.save(comment);
+      const savedComment = comment;
 
+      await notifyTask(manager, task, userId, `comment:${savedComment.id}`, 'comments', { content });
       return TaskCommentMapper.toResponse(savedComment);
     });
   }

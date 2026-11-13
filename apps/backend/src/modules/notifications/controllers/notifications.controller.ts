@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -9,6 +10,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { IsBoolean, IsIn } from 'class-validator';
+import { configurableCategories } from '../notification-events';
 import type { Request } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -20,6 +23,14 @@ interface AuthenticatedRequest extends Request {
   user: {
     id: string;
   };
+}
+
+class NotificationPreferenceDto {
+  @IsIn(configurableCategories)
+  category!: typeof configurableCategories[number];
+
+  @IsBoolean()
+  enabled!: boolean;
 }
 
 @Controller('notifications')
@@ -37,6 +48,16 @@ export class NotificationsController {
     query: ListNotificationsDto,
   ): Promise<NotificationResponseDto[]> {
     return this.notificationsService.findAll(request.user.id, query);
+  }
+
+  @Get('preferences')
+  getPreferences(@Req() request: AuthenticatedRequest) {
+    return this.notificationsService.getPreferences(request.user.id);
+  }
+
+  @Patch('preferences')
+  setPreference(@Req() request: AuthenticatedRequest, @Body() dto: NotificationPreferenceDto) {
+    return this.notificationsService.setPreference(request.user.id, dto.category, dto.enabled);
   }
 
   @Get('unread-count')

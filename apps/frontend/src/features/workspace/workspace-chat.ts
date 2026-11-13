@@ -149,8 +149,8 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     return result.id;
   }
 
-  async function send(id: string, content: string) {
-    const message: ServerMessage = await (await workspaceRequest(path(id), token, jsonRequest('POST', { content }))).json();
+  async function send(id: string, content: string, requestId: string) {
+    const message: ServerMessage = await (await workspaceRequest(path(id), token, jsonRequest('POST', id === 'team' ? { content, requestId } : { content }))).json();
     merge(id, [message]);
   }
 

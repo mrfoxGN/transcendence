@@ -21,6 +21,9 @@
 .wu-inbox ul { margin: 0; padding: 0; list-style: none; }
 .wu-inbox li { display: flex; align-items: start; justify-content: space-between; gap: 8px; padding: 10px; border-bottom: 1px solid var(--wu-line); overflow-wrap: anywhere; }
 .wu-inbox li[data-unread='true'] { border-inline-start: 3px solid var(--wu-blue); }
+.wu-inbox-actions, .wu-inbox-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.wu-inbox-preferences { margin: 8px 0 12px; padding: 8px 12px; border: 1px solid var(--wu-line); border-radius: 8px; }
+.wu-inbox-filters select { min-width: 0; max-width: 100%; }
 .wu-inbox time { color: var(--wu-muted); font-size: 12px; }
 .wu-inbox-trigger { position: relative; }
 .wu-inbox-trigger > span { position: absolute; inset: 0 0 auto auto; min-width: 15px; padding: 1px 3px; border-radius: 10px; color: var(--wu-on-blue); background: var(--wu-blue); font-size: 10px; }

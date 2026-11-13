@@ -1,9 +1,10 @@
 import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
 
+import { deliverWorkspaceNotifications, mentionRecipients } from '../../notifications/notification-events';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ChatMessageResponseDto } from '../dto/chat-message-response.dto';
 import { ListChatMessagesDto } from '../dto/list-chat-messages.dto';
@@ -103,7 +104,7 @@ export class ChatService {
     }
 
     const message = this.chatMessagesRepository.create({
-      id: randomUUID(),
+      id: dto.requestId ?? randomUUID(),
       workspaceId,
       senderId,
       content,
@@ -112,7 +113,36 @@ export class ChatService {
       deletedAt: null,
     });
 
-    const saved = await this.chatMessagesRepository.save(message);
+    let replay = false;
+    const saved = dto.requestId || /(?:^|\s)@/u.test(content)
+      ? await this.chatMessagesRepository.manager.transaction(async manager => {
+        const repository = manager.getRepository(ChatMessage);
+        if (dto.requestId) {
+          await manager.query('SELECT id FROM workspaces WHERE id = ? FOR UPDATE', [workspaceId]);
+          const previous = await repository.findOneBy({ id: dto.requestId });
+          if (previous) {
+            if (previous.workspaceId !== workspaceId || previous.senderId !== senderId || previous.deletedAt) {
+              throw new ConflictException('Message request ID is already in use');
+            }
+            replay = true;
+            return previous;
+          }
+        }
+        await repository.insert(message);
+        const savedMessage = message;
+        const recipients = await mentionRecipients(manager, workspaceId, content);
+        await deliverWorkspaceNotifications(manager, {
+          eventId: `chat:${savedMessage.id}`,
+          actorId: senderId,
+          workspaceId,
+          resourceType: 'workspace_chat',
+          resourceId: workspaceId,
+          candidates: new Map(recipients.map(id => [id, 'mentions'])),
+          message: () => 'You were mentioned in team chat',
+        });
+        return savedMessage;
+      })
+      : await this.chatMessagesRepository.save(message);
 
     const response: ChatMessageResponseDto = {
       id: saved.id,
@@ -122,7 +152,7 @@ export class ChatService {
       createdAt: saved.createdAt,
     };
 
-    this.workspaceChatGateway.emitMessageCreated(workspaceId, response);
+    if (!replay) this.workspaceChatGateway.emitMessageCreated(workspaceId, response);
 
     return response;
   }

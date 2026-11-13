@@ -157,6 +157,7 @@ describe('TasksService', () => {
       [WorkspaceKanbanSetting, makeRepository()],
     ]);
     const manager = {
+      query: jest.fn().mockResolvedValue([]),
       getRepository: jest.fn(
         (entity: abstract new (...args: never[]) => object) => {
           const repository = repositories.get(entity);

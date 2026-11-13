@@ -42,7 +42,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const [section, setSection] = useState<(typeof sections)[number]>('Details');
-  const [drafts, setDrafts] = useState<Record<string, { text: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { text: string; requestId?: string }>>({});
   const [drawer, setDrawer] = useState<'details' | 'new'>();
   const [showList, setShowList] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
@@ -126,7 +126,9 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
     setSending(true);
     setSendError('');
     try {
-      await chat.send(thread.id, body);
+      const requestId = draft.requestId ?? crypto.randomUUID();
+      setDrafts(current => ({ ...current, [thread.id]: { text: draft.text, requestId } }));
+      await chat.send(thread.id, body, requestId);
       setDrafts(current => current[thread.id]?.text === draft.text ? { ...current, [thread.id]: { text: '' } } : current);
       composer.current?.focus();
     } catch (error) {
@@ -228,7 +230,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
         {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
           {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !draft.text.trim()}>Retry send</button></p>}
           <div className="wu-chat-composer">
-            <textarea ref={composer} rows={1} aria-label="Message" placeholder={`Message ${thread.title}…`} value={draft.text}
+            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team or mention @username…' : `Message ${thread.title}…`} value={draft.text}
               onChange={event => setDrafts(current => ({ ...current, [thread.id]: { ...draft, text: event.target.value } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !draft.text.trim()}><ArrowUp size={20} /></button>

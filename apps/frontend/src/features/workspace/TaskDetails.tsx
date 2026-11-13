@@ -1,4 +1,4 @@
-import { useRef, useState, type FocusEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace-api';
@@ -19,6 +19,36 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   readOnly?: boolean;
 }) {
   const path = 'tasks/' + task.id;
+  const [watching, setWatching] = useState<boolean>();
+  const [watchBusy, setWatchBusy] = useState(false);
+  const [watchError, setWatchError] = useState('');
+  const [watchRetry, setWatchRetry] = useState(0);
+  useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    setWatchError('');
+    void workspaceRequest(path + '/watch', token, { signal: controller.signal })
+      .then(response => response.json())
+      .then((result: { watching: boolean }) => { if (!controller.signal.aborted) setWatching(result.watching); })
+      .catch(() => { if (!controller.signal.aborted) setWatchError('Could not load watch status.'); });
+    return () => controller.abort();
+  }, [path, token, watchRetry]);
+
+  async function toggleWatch() {
+    if (watching === undefined || watchBusy) return;
+    setWatchBusy(true);
+    setWatchError('');
+    try {
+      const response = await workspaceRequest(path + '/watch', token, { method: watching ? 'DELETE' : 'PUT' });
+      const result: { watching: boolean } = await response.json();
+      setWatching(result.watching);
+    } catch {
+      setWatchError('Could not update watch status. Try again.');
+    } finally {
+      setWatchBusy(false);
+    }
+  }
+  const commentRequest = useRef<{ content: string; id: string } | undefined>(undefined);
   const comments = useWorkspaceCollection<Comment>(path + '/comments', token);
   const dependencies = useWorkspaceCollection<Dependency>(path + '/dependencies', token);
   const [busy, setBusy] = useState(false);
@@ -112,8 +142,12 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     <div className="wu-panel-heading">
       {task.taskKey && <Pill>{task.taskKey}</Pill>}
       <button className="wu-text-button" type="button" onClick={() => void copyTaskLink()}>Copy link</button>
+      {watching !== undefined && <button className="wu-text-button" type="button" disabled={watchBusy}
+        onClick={() => void toggleWatch()}>{watchBusy ? 'Updating…' : watching ? 'Unwatch task' : 'Watch task'}</button>}
       {linkCopied && <span className="wu-muted" role="status">Link copied.</span>}
     </div>
+    {watchError && <p role="alert">{watchError} {watching === undefined && <button className="wu-text-button" type="button"
+      onClick={() => setWatchRetry(value => value + 1)}>Retry</button>}</p>}
     {linkToCopy && <label className="wu-field-label">Task link
       <input value={linkToCopy} readOnly autoFocus onFocus={event => event.currentTarget.select()} />
     </label>}
@@ -235,9 +269,14 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         event.preventDefault();
         const form = event.currentTarget;
         const content = String(new FormData(form).get('content')).trim();
-        if (content && await mutate('/comments', 'POST', { content })) form.reset();
+        if (!content || pending.current) return;
+        if (commentRequest.current?.content !== content) commentRequest.current = { content, id: crypto.randomUUID() };
+        if (await mutate('/comments', 'POST', { content, requestId: commentRequest.current.id })) {
+          commentRequest.current = undefined;
+          form.reset();
+        }
       }}>
-        <label className="wu-field-label">Add a comment<textarea name="content" rows={2} placeholder="Share an update or ask a question" required /></label>
+        <label className="wu-field-label">Add a comment<textarea name="content" rows={2} placeholder="Share an update or mention @username" required /></label>
         <button className="wu-button wu-button--secondary" disabled={busy}>Post comment</button>
       </form>}
     </section>

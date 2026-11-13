@@ -93,6 +93,21 @@ export class TasksController {
     return this.tasksService.remove(taskId, request.user.id);
   }
 
+  @Get('tasks/:id/watch')
+  getWatch(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.tasksService.getWatch(id, request.user.id);
+  }
+
+  @Put('tasks/:id/watch')
+  watch(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.tasksService.setWatch(id, request.user.id, true);
+  }
+
+  @Delete('tasks/:id/watch')
+  unwatch(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.tasksService.setWatch(id, request.user.id, false);
+  }
+
   @Get('tasks/:id/assignment')
   getAssignment(
     @Param('id', ParseUUIDPipe) taskId: string,

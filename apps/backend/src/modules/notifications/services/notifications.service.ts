@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 
+import { configurableCategories, notificationCategories } from '../notification-events';
+import { WorkspaceInvitation } from '../../workspaces/entities/workspace-invitation.entity';
 import { ListNotificationsDto } from '../dto/list-notifications.dto';
 import { NotificationResponseDto } from '../dto/notification-response.dto';
 import { Notification } from '../entities/notification.entity';
@@ -53,15 +55,11 @@ export class NotificationsService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where =
-      query.unreadOnly === true
-        ? {
-            userId,
-            readAt: IsNull(),
-          }
-        : {
-            userId,
-          };
+    const where = {
+      userId,
+      ...(query.unreadOnly ? { readAt: IsNull() } : {}),
+      ...(query.category ? { type: In(notificationCategories[query.category]) } : {}),
+    };
 
     const notifications = await this.notificationsRepository.find({
       where,
@@ -73,7 +71,45 @@ export class NotificationsService {
       take: limit,
     });
 
-    return notifications.map((notification) => this.toResponse(notification));
+    const invitationIds = notifications.flatMap(notification =>
+      notification.type === 'WORKSPACE_INVITATION' && notification.relatedResourceId
+        ? [notification.relatedResourceId] : []);
+    const invitations = invitationIds.length
+      ? await this.notificationsRepository.manager.getRepository(WorkspaceInvitation).findBy({
+        id: In(invitationIds),
+        invitedUserId: userId,
+      })
+      : [];
+    const invitationsById = new Map(invitations.map(invitation => [invitation.id, invitation]));
+    return notifications.map(notification => {
+      const response = this.toResponse(notification);
+      if (notification.type !== 'WORKSPACE_INVITATION') return response;
+      const invitation = invitationsById.get(notification.relatedResourceId ?? '');
+      const expired = invitation?.status === 'PENDING' && invitation.expiresAt && invitation.expiresAt <= new Date();
+      return { ...response, invitationStatus: expired ? 'EXPIRED' : invitation?.status ?? 'UNAVAILABLE' };
+    });
+  }
+
+  async getPreferences(userId: string) {
+    const rows: { category: string }[] = await this.notificationsRepository.query(
+      'SELECT category FROM notification_preferences WHERE user_id = ?', [userId],
+    );
+    const disabled = new Set(rows.map(row => row.category));
+    return Object.fromEntries(configurableCategories.map(category => [category, !disabled.has(category)]));
+  }
+
+  async setPreference(userId: string, category: typeof configurableCategories[number], enabled: boolean) {
+    if (enabled) {
+      await this.notificationsRepository.query(
+        'DELETE FROM notification_preferences WHERE user_id = ? AND category = ?', [userId, category],
+      );
+    } else {
+      await this.notificationsRepository.query(
+        `INSERT INTO notification_preferences (user_id, category) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE category = notification_preferences.category`, [userId, category],
+      );
+    }
+    return { enabled };
   }
 
   async countUnread(userId: string): Promise<{ count: number }> {

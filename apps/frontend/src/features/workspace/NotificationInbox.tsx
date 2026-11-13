@@ -1,8 +1,11 @@
 import { useEffect, useId, useState, type Ref } from 'react';
-import { Bell } from 'lucide-react';
-import { workspaceRequest } from './workspace-api';
+import { Bell, Settings2 } from 'lucide-react';
+import { jsonRequest, workspaceRequest } from './workspace-api';
 
-type Update = { id: string; message: string; createdAt: string; readAt: string | null; type: string; workspaceId: string | null; relatedResourceType: string | null; relatedResourceId: string | null };
+const preferenceLabels = { assignments: 'Task assignments', mentions: 'Mentions', comments: 'Comments on watched tasks', status: 'Task status changes' };
+const invitationLabels: Record<string, string> = { ACCEPTED: 'Invitation accepted', REJECTED: 'Invitation declined', CANCELLED: 'Invitation withdrawn', EXPIRED: 'Invitation expired', UNAVAILABLE: 'Invitation unavailable' };
+type Preferences = Record<keyof typeof preferenceLabels, boolean>;
+type Update = { id: string; message: string; createdAt: string; readAt: string | null; type: string; workspaceId: string | null; relatedResourceType: string | null; relatedResourceId: string | null; invitationStatus?: string };
 const limit = 20;
 
 export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = true }: {
@@ -12,11 +15,40 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
   const [updates, setUpdates] = useState<Update[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [unreadOnly, setUnreadOnly] = useState(true);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(0);
   const [more, setMore] = useState(false);
-  const [resolved, setResolved] = useState<Record<string, string>>({});
+  const [category, setCategory] = useState('');
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [preferences, setPreferences] = useState<Preferences>();
+  const [preferenceBusy, setPreferenceBusy] = useState(false);
+  const [preferenceError, setPreferenceError] = useState('');
+
+  async function loadPreferences() {
+    setPreferenceBusy(true);
+    setPreferenceError('');
+    try {
+      setPreferences(await request<Preferences>('/preferences'));
+    } catch {
+      setPreferenceError('Could not load notification preferences.');
+    } finally {
+      setPreferenceBusy(false);
+    }
+  }
+
+  async function savePreference(key: keyof Preferences, enabled: boolean) {
+    setPreferenceBusy(true);
+    setPreferenceError('');
+    try {
+      await workspaceRequest('notifications/preferences', token, jsonRequest('PATCH', { category: key, enabled }));
+      setPreferences(current => current && { ...current, [key]: enabled });
+    } catch {
+      setPreferenceError('Could not save this preference. Try again.');
+    } finally {
+      setPreferenceBusy(false);
+    }
+  }
 
   async function request<T>(path = '', method = 'GET'): Promise<T> {
     const response = await workspaceRequest('notifications' + path, token, { method });
@@ -33,7 +65,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', check); };
   }, [token]);
 
-  async function refresh(mark?: string, nextPage = 1, onlyUnread = unreadOnly) {
+  async function refresh(mark?: string, nextPage = 1, onlyUnread = unreadOnly, filter = category) {
     if (busy || !token) return;
     setBusy(true);
     setError('');
@@ -44,10 +76,12 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
           setUpdates(current => current.map(update => ({ ...update, readAt: update.readAt ?? new Date().toISOString() })));
         } else {
           const updated = await request<Update>('/' + encodeURIComponent(mark) + '/read', 'PATCH');
-          setUpdates(current => current.map(update => update.id === mark ? updated : update));
+          setUpdates(current => current.map(update => update.id === mark ? { ...update, readAt: updated.readAt } : update));
         }
-      } else {
-        const results = await request<Update[]>(`?limit=${limit}&page=${nextPage}&unreadOnly=${onlyUnread}`);
+      }
+      if (!mark || onlyUnread) {
+        if (mark) nextPage = 1;
+        const results = await request<Update[]>(`?limit=${limit}&page=${nextPage}&unreadOnly=${onlyUnread}${filter ? '&category=' + encodeURIComponent(filter) : ''}`);
         setUpdates(current => nextPage === 1 ? results : [...new Map([...current, ...results].map(item => [item.id, item])).values()]);
         setPage(nextPage);
         setMore(results.length === limit);
@@ -66,14 +100,19 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
     setError('');
     try {
       await workspaceRequest(`workspaces/${update.workspaceId}/invitations/${update.relatedResourceId}/${action}`, token, { method: 'PATCH' });
-      setResolved(current => ({ ...current, [update.id]: action === 'accept' ? 'Invitation accepted' : 'Invitation declined' }));
+      const invitationStatus = action === 'accept' ? 'ACCEPTED' : 'REJECTED';
+      setUpdates(current => current.map(item => item.id === update.id ? { ...item, invitationStatus } : item));
       if (!update.readAt) {
         const marked = await request<Update>('/' + update.id + '/read', 'PATCH').catch(() => undefined);
-        if (marked) setUpdates(current => current.map(item => item.id === marked.id ? marked : item));
+        if (marked) setUpdates(current => current.map(item => item.id === marked.id ? { ...item, readAt: marked.readAt } : item));
         void request<{ count: number }>('/unread-count').then(result => setCount(result.count)).catch(() => {});
       }
-      if (action === 'accept') {
-        location.assign('/workspaces/' + update.workspaceId);
+      if (action === 'accept') location.assign('/workspaces/' + update.workspaceId);
+      else if (unreadOnly) {
+        const results = await request<Update[]>(`?limit=${limit}&unreadOnly=true${category ? '&category=' + encodeURIComponent(category) : ''}`);
+        setUpdates(results);
+        setPage(1);
+        setMore(results.length === limit);
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not update this invitation.');
@@ -87,6 +126,8 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
     const workspace = update.workspaceId ?? workspaceId;
     if (!workspace) return;
     const base = '/workspaces/' + encodeURIComponent(workspace);
+    if (update.type === 'WORKSPACE_INVITATION' && update.invitationStatus === 'ACCEPTED') return base;
+    if (update.relatedResourceType === 'workspace_chat') return base + '?page=chat';
     if (update.relatedResourceType === 'task') return base + '?page=board&task=' + encodeURIComponent(update.relatedResourceId);
     if (update.relatedResourceType === 'direct_conversation') return base + '?page=chat#dm-' + encodeURIComponent(update.relatedResourceId);
   }
@@ -107,9 +148,33 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
     <section id={id} popover="auto" className="wu-inbox" aria-label="Notifications" aria-busy={busy}>
       <div className="wu-panel-heading">
         <h2>Notifications</h2>
-        <button className="wu-text-button" type="button" disabled={busy || !updates.some(update => !update.readAt)} onClick={() => void refresh('all')}>Mark all as read</button>
+        <div className="wu-inbox-actions">
+          <button className="wu-text-button" type="button" disabled={busy || !count} onClick={() => void refresh('all')}>Mark all as read</button>
+          <button className="wu-icon-button" type="button" aria-label="Notification preferences" aria-expanded={showPreferences}
+            onClick={() => { setShowPreferences(!showPreferences); if (!showPreferences && !preferences) void loadPreferences(); }}><Settings2 size={17} /></button>
+        </div>
       </div>
+      {showPreferences && <fieldset className="wu-inbox-preferences" disabled={preferenceBusy}>
+        <legend>Notify me about</legend>
+        {preferenceBusy && !preferences && <p role="status">Loading preferences…</p>}
+        {preferenceError && <p role="alert">{preferenceError} {!preferences && <button className="wu-text-button" type="button" onClick={() => void loadPreferences()}>Retry</button>}</p>}
+        {preferences && (Object.keys(preferenceLabels) as (keyof Preferences)[]).map(key => <label className="wu-check-row" key={key}>
+          <input type="checkbox" checked={preferences[key]} onChange={event => void savePreference(key, event.currentTarget.checked)} /> {preferenceLabels[key]}
+        </label>)}
+      </fieldset>}
+      <div className="wu-inbox-filters">
+      <select aria-label="Notification category" value={category} disabled={busy} onChange={event => {
+        const value = event.currentTarget.value;
+        setCategory(value);
+        void refresh(undefined, 1, unreadOnly, value);
+      }}>
+        <option value="">All categories</option>
+        <option value="assignments">Assignments</option><option value="mentions">Mentions</option>
+        <option value="comments">Comments</option><option value="status">Status changes</option>
+        <option value="invitations">Invitations</option><option value="messages">Messages</option>
+      </select>
       <label className="wu-check-row"><input type="checkbox" checked={unreadOnly} disabled={busy} onChange={event => { const value = event.target.checked; setUnreadOnly(value); void refresh(undefined, 1, value); }} /> Unread only</label>
+      </div>
       {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => void refresh()}>Refresh</button></p>}
       {busy && !updates.length && <p role="status">Loading notifications…</p>}
       {!busy && !error && !visible.length && <p className="wu-muted">{unreadOnly ? 'You’re all caught up.' : 'No notifications yet.'}</p>}
@@ -118,8 +183,13 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
         <ul>{group.items.map(update => <li key={update.id} data-unread={!update.readAt}>
           <div>{update.message}<br /><time dateTime={update.createdAt}>{new Date(update.createdAt).toLocaleString()}</time></div>
           <div>
-            {relatedLink(update) && <a className="wu-text-button" href={relatedLink(update)}>Open</a>}
-            {update.type === 'WORKSPACE_INVITATION' && (resolved[update.id] ? <p role="status">{resolved[update.id]}</p> : <>
+            {relatedLink(update) && <a className="wu-text-button" href={relatedLink(update)} onClick={event => {
+              if (update.readAt || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              const href = event.currentTarget.href;
+              void request('/' + update.id + '/read', 'PATCH').finally(() => location.assign(href)).catch(() => {});
+            }}>Open</a>}
+            {update.type === 'WORKSPACE_INVITATION' && (update.invitationStatus !== 'PENDING' ? <p>{invitationLabels[update.invitationStatus ?? 'UNAVAILABLE']}</p> : <>
               <button className="wu-text-button" type="button" disabled={busy} onClick={() => void respond(update, 'accept')}>Accept</button>
               <button className="wu-text-button" type="button" disabled={busy} onClick={() => void respond(update, 'reject')}>Decline</button>
             </>)}
