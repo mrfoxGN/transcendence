@@ -12,7 +12,11 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   const [workspaceUnread, setWorkspaceUnread] = useState(0);
   const [directUnread, setDirectUnread] = useState(0);
   const [unreadAttempt, setUnreadAttempt] = useState(0);
-  const [nextPage, setNextPage] = useState<Record<string, number>>({});
+  const [olderCursor, setOlderCursor] = useState<Record<string, string | undefined>>({});
+  const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting'>('connecting');
+  const historyFrontier = useRef<Record<string, string | undefined>>({});
+  const olderRequest = useRef<AbortController | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -73,15 +77,30 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     if (!token || !selected) return;
     const controller = new AbortController();
     setLoading(true);
-    void workspaceRequest(path(selected) + '?limit=' + pageSize, token, { signal: controller.signal })
-      .then(response => response.json() as Promise<ServerMessage[]>)
-      .then(items => {
+    setError('');
+    async function catchUp(id: string) {
+      let cursor = historyFrontier.current[id];
+      const isInitial = !cursor;
+      do {
+        const suffix = cursor ? '&after=' + encodeURIComponent(cursor) : '';
+        const items: ServerMessage[] = await (await workspaceRequest(path(id) + '?limit=' + pageSize + suffix, token, {
+          signal: controller.signal,
+        })).json();
         if (controller.signal.aborted) return;
-        merge(selected, items);
-        setNextPage(current => ({ ...current, [selected]: items.length === pageSize ? 2 : 0 }));
+        merge(id, items);
+        if (isInitial) {
+          setOlderCursor(current => ({ ...current, [id]: items.length === pageSize ? items[0].id : undefined }));
+        }
         const latest = items.at(-1);
-        if (latest) markRead(selected, latest.id);
-      })
+        if (latest) {
+          cursor = latest.id;
+          historyFrontier.current[id] = cursor;
+        }
+        if (isInitial || items.length < pageSize) break;
+      } while (!controller.signal.aborted);
+      if (cursor) markRead(id, cursor);
+    }
+    void catchUp(selected)
       .catch(() => { if (!controller.signal.aborted) setError('Could not load messages.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -89,7 +108,9 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
 
   useEffect(() => {
     if (!token || !profileId) return;
+    setConnection('connecting');
     const socket = io({ auth: { token } });
+    const poll = () => { if (activeThread.current && document.visibilityState === 'visible') setAttempt(value => value + 1); };
     socketRef.current = socket;
     function incoming(id: string, message: ServerMessage) {
       if (activeThread.current) merge(id, [message]);
@@ -100,11 +121,16 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     socket.on('workspace-chat.ready', () => {
       socketReady.current = true;
       socket.emit('workspace-chat.watch', workspaceId);
-      if (activeThread.current) socket.emit('workspace-chat.join', workspaceId);
       refreshUnread();
-      setAttempt(value => value + 1);
+      if (activeThread.current) joinAndSync(socket);
+      else setConnection('connected');
     });
-    socket.on('disconnect', () => { socketReady.current = false; });
+    function reconnecting() {
+      socketReady.current = false;
+      setConnection('reconnecting');
+    }
+    socket.on('disconnect', reconnecting);
+    socket.on('connect_error', reconnecting);
     socket.on('workspace-message.created', (message: ServerMessage) => {
       if (message.workspaceId === workspaceId) incoming('team', message);
     });
@@ -127,20 +153,32 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     document.addEventListener('visibilitychange', refreshOnReturn);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') refreshUnread();
+      poll();
     }, 30_000);
     return () => {
       document.removeEventListener('visibilitychange', refreshOnReturn);
       window.clearInterval(timer);
       socketRef.current = null;
       socketReady.current = false;
+      socket.removeAllListeners();
       socket.disconnect();
     };
   }, [workspaceId, token, profileId]);
 
+  function joinAndSync(socket: ReturnType<typeof io>) {
+    socket.timeout(5_000).emit('workspace-chat.join', workspaceId, (error: Error | null, joined: boolean) => {
+      if (socketRef.current !== socket || !socket.connected || !activeThread.current) return;
+      setConnection(!error && joined ? 'connected' : 'reconnecting');
+      setAttempt(value => value + 1);
+    });
+  }
+
   const chatOpen = selected !== null;
   useEffect(() => {
     const socket = socketRef.current;
-    if (socket && socketReady.current) socket.emit(chatOpen ? 'workspace-chat.join' : 'workspace-chat.leave', workspaceId);
+    if (!socket || !socketReady.current) return;
+    if (chatOpen) joinAndSync(socket);
+    else socket.emit('workspace-chat.leave', workspaceId);
   }, [chatOpen, workspaceId]);
 
   async function openConversation(userId: string) {
@@ -150,27 +188,45 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   }
 
   async function send(id: string, content: string, requestId: string) {
-    const message: ServerMessage = await (await workspaceRequest(path(id), token, jsonRequest('POST', id === 'team' ? { content, requestId } : { content }))).json();
+    const message: ServerMessage = await (await workspaceRequest(path(id), token, jsonRequest('POST', { content, requestId }))).json();
     merge(id, [message]);
   }
 
+  useEffect(() => {
+    setLoadingOlder(false);
+    return () => { olderRequest.current?.abort(); olderRequest.current = null; };
+  }, [selected, token, workspaceId]);
+
   async function loadOlder() {
     if (!selected) return;
-    const page = nextPage[selected];
-    if (!page || loading) return;
-    setLoading(true);
+    const cursor = olderCursor[selected];
+    if (!cursor || loading || olderRequest.current) return;
+    const controller = new AbortController();
+    olderRequest.current = controller;
+    setLoadingOlder(true);
     setError('');
     try {
-      const items: ServerMessage[] = await (await workspaceRequest(path(selected) + '?limit=' + pageSize + '&page=' + page, token)).json();
+      const items: ServerMessage[] = await (await workspaceRequest(
+        path(selected) + '?limit=' + pageSize + '&before=' + encodeURIComponent(cursor), token, { signal: controller.signal },
+      )).json();
+      if (controller.signal.aborted) return;
       merge(selected, items);
-      setNextPage(current => ({ ...current, [selected]: items.length === pageSize ? page + 1 : 0 }));
+      setOlderCursor(current => ({ ...current, [selected]: items.length === pageSize ? items[0].id : undefined }));
     } catch {
-      setError('Could not load older messages.');
+      if (!controller.signal.aborted) setError('Could not load older messages.');
     } finally {
-      if (activeThread.current === selected) setLoading(false);
+      if (olderRequest.current === controller) {
+        olderRequest.current = null;
+        setLoadingOlder(false);
+      }
     }
   }
 
-  return { conversations, messages, workspaceUnread, unreadTotal: workspaceUnread + directUnread, loading, error, hasOlder: !!(selected && nextPage[selected]), openConversation, send, loadOlder,
-    retry: () => { setError(''); setAttempt(value => value + 1); } };
+  return { conversations, messages, workspaceUnread, unreadTotal: workspaceUnread + directUnread, loading, loadingOlder, error, connection, hasOlder: !!(selected && olderCursor[selected]), openConversation, send, loadOlder,
+    retry: () => { setError(''); setAttempt(value => value + 1); },
+    reconnect: () => {
+      const socket = socketRef.current;
+      if (socket && socketReady.current) joinAndSync(socket);
+      else socket?.connect();
+    } };
 }

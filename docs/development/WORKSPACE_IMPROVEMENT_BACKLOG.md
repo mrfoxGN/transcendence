@@ -58,7 +58,7 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 | Ticket | Change | Acceptance check |
 | --- | --- | --- |
 | [x] **WU-22 · Personal notification inbox** · `FRONTEND + BACKEND` | Add assignment, mention, followed-task comment, and relevant status notifications. Add task watching, categories, preferences, and persistent invitation outcomes. Keep personal updates distinct from workspace Activity. | An assignment or mention generates one notification for the intended person. The link opens the exact task or conversation. Read state and invitation outcomes survive reload. |
-| [ ] **WU-23 · Chat reliability** · `FRONTEND + BACKEND` | Preserve scroll while reading older messages. Show **Jump to latest**, connection state, and retry. Keep drafts per conversation. Use cursor-based history and idempotent message sending. | Incoming messages do not pull the reader away from older content. Retrying a send after a network interruption produces one message. Reconnect recovers missed history. |
+| [x] **WU-23 · Chat reliability** · `FRONTEND + BACKEND` | Preserve scroll while reading older messages. Show **Jump to latest**, connection state, and retry. Keep drafts per conversation. Use cursor-based history and idempotent message sending. | Incoming messages do not pull the reader away from older content. Retrying a send after a network interruption produces one message. Reconnect recovers missed history. |
 | [ ] **WU-24 · Chat collaboration** · `FRONTEND + BACKEND` | Add replies, mentions, message search, and permission-checked attachments. Add reactions after those workflows are reliable. | A reply keeps its message context. A mention reaches only its intended participant. Search finds older messages. Attachment access follows conversation membership after reload and when links are copied. |
 | [ ] **WU-25 · Later product extensions** · `DISCOVERY` | Evaluate voice/video, custom fields, workflow automation, and advanced roadmaps against actual team usage. Voice/video requires authorized session signaling and a media stack. | Each extension has a user problem, an owner, an agreed scope, and acceptance checks before implementation. |
 
@@ -270,6 +270,8 @@ Completion counts measure entries into Done. Reopening a task can contribute a l
 ### WU-23 · Chat reliability
 
 **Scope** `FRONTEND + BACKEND`
+
+Chat keeps the visible message in place when older or newer messages arrive. Jump to latest returns to the bottom. Drafts are stored per account, workspace, and conversation for the browser tab. Team and direct messages use `before` and `after` cursors and accept a request ID for safe send retries. The production builds, backend suite, and local MySQL checks passed. Browser scroll and reconnect behavior still need manual verification.
 
 > Implement WU-23 in DevUP Chat. Preserve the reading position when incoming messages arrive above the fold and show Jump to latest when the user is away from the bottom. Add connection status and retry, retain drafts per conversation, use cursor-based history, and make sends idempotent. Verify reconnect catch-up, pagination while new messages arrive, preserved scroll and drafts, and one delivered message after retry.
 

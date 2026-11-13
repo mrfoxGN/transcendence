@@ -562,7 +562,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'chat': return token && (
         <ChatPage
-          chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
+          key={profileId + ':' + workspaceId} workspaceId={workspaceId} chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
           profileName={profileName} roster={members.items ?? []} workspaceArchived={archived}
         />
       );

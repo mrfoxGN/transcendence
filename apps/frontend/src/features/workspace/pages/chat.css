@@ -96,7 +96,9 @@
 .wu-chat-thread-head .wu-chat-back, .wu-chat-thread-head .wu-chat-info, .wu-chat-search-row .wu-chat-list-close { display: none; }
 .wu-chat-thread-head .wu-icon-button { flex: none; }
 .wu-chat-call-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; background: var(--wu-surface-soft); color: var(--wu-muted); font-size: 13px; }
-.wu-messages { flex: 1; min-height: 0; padding: 0 3px 10px; overscroll-behavior: contain; scrollbar-width: none; }
+.wu-chat-connection { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--wu-muted); }
+.wu-chat-jump { align-self: center; }
+.wu-messages { overflow-anchor: none; flex: 1; min-height: 0; padding: 0 3px 10px; overscroll-behavior: contain; scrollbar-width: none; }
 .wu-messages::-webkit-scrollbar { display: none; }
 .wu-chat-date { display: flex; justify-content: center; padding: 13px 0; }
 .wu-chat-date span { padding: 3px 9px; border-radius: 12px; background: var(--wu-surface-soft); color: var(--wu-muted); font-size: 12px; }

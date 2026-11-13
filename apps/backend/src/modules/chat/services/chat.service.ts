@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
 
 import { deliverWorkspaceNotifications, mentionRecipients } from '../../notifications/notification-events';
+import { listByMessageCursor } from '../message-cursor';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ChatMessageResponseDto } from '../dto/chat-message-response.dto';
 import { ListChatMessagesDto } from '../dto/list-chat-messages.dto';
@@ -68,7 +69,9 @@ export class ChatService {
       throw new BadRequestException('Invalid page');
     }
 
-    const messages = await this.chatMessagesRepository.find({
+    const messages = query.before || query.after
+      ? await listByMessageCursor(this.chatMessagesRepository, 'workspace_id', workspaceId, query, limit)
+      : await this.chatMessagesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
@@ -81,7 +84,8 @@ export class ChatService {
       take: limit,
     });
 
-    return messages.reverse().map((message) => ({
+    if (!query.after) messages.reverse();
+    return messages.map((message) => ({
       id: message.id,
       workspaceId: message.workspaceId,
       senderId: message.senderId,
@@ -128,6 +132,7 @@ export class ChatService {
             return previous;
           }
         }
+        message.createdAt = new Date();
         await repository.insert(message);
         const savedMessage = message;
         const recipients = await mentionRecipients(manager, workspaceId, content);

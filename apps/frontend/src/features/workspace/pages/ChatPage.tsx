@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Video, X } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
 import { Avatar, IconTile, Panel } from '../components';
@@ -7,7 +7,10 @@ import type { Member } from '../workspace-tasks';
 import type { useWorkspaceChat } from '../workspace-chat';
 import './chat.css';
 
+type Draft = { text: string; requestId?: string };
+
 type ChatPageProps = {
+  workspaceId: string;
   chat: ReturnType<typeof useWorkspaceChat>;
   selected: string;
   setSelected: (id: string) => void;
@@ -34,15 +37,24 @@ function Portrait({ name, small }: { name: string; small?: boolean }) {
   return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
 }
 
-export function ChatPage({ chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
+export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
   const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState('');
+  const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
   const [conversationError, setConversationError] = useState('');
-  const scrollSnapshot = useRef<{ height: number; top: number } | undefined>(undefined);
+  const view = useRef<{ thread: string; atLatest: boolean; anchor?: { id: string; offset: number } } | undefined>(undefined);
+  const [showJump, setShowJump] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const [section, setSection] = useState<(typeof sections)[number]>('Details');
-  const [drafts, setDrafts] = useState<Record<string, { text: string; requestId?: string }>>({});
+  const draftKey = `devup:chat-drafts:${profileId}:${workspaceId}`;
+  const [drafts, setDrafts] = useState<Record<string, Draft>>(() => {
+    try { return JSON.parse(sessionStorage.getItem(draftKey) ?? '{}') ?? {}; }
+    catch { return {}; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(draftKey, JSON.stringify(drafts)); }
+    catch { /* Drafts remain available while this view is open. */ }
+  }, [draftKey, drafts]);
   const [drawer, setDrawer] = useState<'details' | 'new'>();
   const [showList, setShowList] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
@@ -62,6 +74,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
   const thread = threads.find(item => item.id === selected) ?? { id: selected, title: 'Direct message', member: 'DevUP member', unread: 0, messages: [] };
   const readOnly = workspaceArchived && thread.id === 'team';
   const draft = drafts[thread.id] ?? { text: '' };
+  const sendError = sendErrors[thread.id];
   const teammates = roster.filter(member => member.userId !== profileId);
   const direct = chat.conversations.find(item => item.id === thread.id);
   const members = [{ id: profileId, name: profileName, role: 'You' },
@@ -75,13 +88,34 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
     (!search || item.title.toLowerCase().includes(search) || item.messages.some(message => message.text.toLowerCase().includes(search)))
   );
 
-  useEffect(() => {
+  function recordPosition() {
     const list = messageList.current;
     if (!list) return;
-    const snapshot = scrollSnapshot.current;
-    list.scrollTop = snapshot ? snapshot.top + list.scrollHeight - snapshot.height : list.scrollHeight;
-    scrollSnapshot.current = undefined;
-  }, [thread.id, thread.messages.length]);
+    const top = list.getBoundingClientRect().top;
+    const atLatest = list.scrollHeight - list.clientHeight - list.scrollTop < 40;
+    const firstVisible = atLatest ? undefined : Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .find(row => row.getBoundingClientRect().bottom > top);
+    view.current = {
+      thread: thread.id, atLatest,
+      anchor: firstVisible?.dataset.messageId ? {
+        id: firstVisible.dataset.messageId, offset: firstVisible.getBoundingClientRect().top - top,
+      } : undefined,
+    };
+    setShowJump(!atLatest);
+  }
+
+  useLayoutEffect(() => {
+    const list = messageList.current;
+    if (!list) return;
+    const previous = view.current;
+    if (!previous || previous.thread !== thread.id || previous.atLatest) {
+      list.scrollTop = list.scrollHeight;
+    } else if (previous.anchor) {
+      const row = list.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(previous.anchor.id)}"]`);
+      if (row) list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top - previous.anchor.offset;
+    }
+    recordPosition();
+  });
 
   useEffect(() => {
     const input = composer.current;
@@ -93,10 +127,8 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
   function selectThread(id: string) {
     setSelected(id);
     setCallNotice(undefined);
-    setSendError('');
     setSection('Details');
     setShowList(false);
-    scrollSnapshot.current = undefined;
     const url = new URL(location.href);
     url.hash = id === 'team' ? '' : 'dm-' + id;
     history.replaceState(history.state, '', url);
@@ -124,15 +156,15 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
     const body = draft.text.trim();
     if (!body || sending) return;
     setSending(true);
-    setSendError('');
+    setSendErrors(current => ({ ...current, [thread.id]: '' }));
     try {
       const requestId = draft.requestId ?? crypto.randomUUID();
       setDrafts(current => ({ ...current, [thread.id]: { text: draft.text, requestId } }));
       await chat.send(thread.id, body, requestId);
-      setDrafts(current => current[thread.id]?.text === draft.text ? { ...current, [thread.id]: { text: '' } } : current);
+      setDrafts(current => current[thread.id]?.requestId === requestId ? { ...current, [thread.id]: { text: '' } } : current);
       composer.current?.focus();
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : 'Could not send the message.');
+      setSendErrors(current => ({ ...current, [thread.id]: error instanceof Error ? error.message : 'Could not send the message.' }));
     } finally {
       setSending(false);
     }
@@ -201,19 +233,19 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
         {callNotice && <div className="wu-chat-call-notice"><span role="status">{callNotice} calling is unavailable in this workspace.</span>
           <button type="button" className="wu-icon-button" aria-label="Dismiss calling notice" onClick={() => setCallNotice(undefined)}><X size={16} /></button>
         </div>}
-        <div ref={messageList} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
+        {chat.connection !== 'connected' && <div className="wu-chat-connection">
+          <span role="status">{chat.connection === 'connecting' ? 'Connecting to chat…' : 'Reconnecting to chat…'}</span>
+          {chat.connection === 'reconnecting' && <button className="wu-text-button" type="button" onClick={chat.reconnect}>Retry connection</button>}
+        </div>}
+        <div ref={messageList} onScroll={recordPosition} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
           {chat.error && <p role="alert">{chat.error} <button className="wu-text-button" type="button" onClick={chat.retry}>Try again</button></p>}
-          {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading} onClick={() => {
-            const list = messageList.current;
-            if (list) scrollSnapshot.current = { height: list.scrollHeight, top: list.scrollTop };
-            void chat.loadOlder();
-          }}>Load older messages</button>}
+          {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading || chat.loadingOlder} onClick={() => void chat.loadOlder()}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</button>}
           {chat.loading && <p role="status">Loading messages…</p>}
           {!chat.loading && !chat.error && !thread.messages.length && <p className="wu-chat-empty">{readOnly ? 'No messages in this conversation.' : 'Start the conversation with ' + thread.title + '.'}</p>}
           {thread.messages.map((message, index) => {
             const date = new Date(message.sentAt);
             const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
-            return <div key={message.id}>
+            return <div key={message.id} data-message-id={message.id}>
               {newDay && <div className="wu-chat-date"><span>{dayLabel(date)}</span></div>}
               <article className={`wu-message${message.own ? ' is-own' : ''}`}>
                 <Portrait name={message.own ? profileName : message.author} small />
@@ -227,11 +259,15 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
             </div>;
           })}
         </div>
+        {showJump && <button className="wu-text-button wu-chat-jump" type="button" onClick={() => {
+          if (messageList.current) messageList.current.scrollTop = messageList.current.scrollHeight;
+          recordPosition();
+        }}>Jump to latest</button>}
         {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
           {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !draft.text.trim()}>Retry send</button></p>}
           <div className="wu-chat-composer">
-            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team or mention @username…' : `Message ${thread.title}…`} value={draft.text}
-              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { ...draft, text: event.target.value } }))}
+            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team or mention @username…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
+              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !draft.text.trim()}><ArrowUp size={20} /></button>
           </div>

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -8,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { IsNull, QueryFailedError, Repository } from 'typeorm';
 
+import { listByMessageCursor } from '../../chat/message-cursor';
 import { UserStatus } from '../../../database/enums/database.enums';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
@@ -199,6 +201,7 @@ export class SocialService {
 
     const result = await this.messagesRepository.manager.transaction(
       async (manager) => {
+        if (dto.requestId) await manager.query('SELECT id FROM direct_conversations WHERE id = ? FOR UPDATE', [conversationId]);
         const conversation = await manager.findOneBy(DirectConversation, {
           id: conversationId,
         });
@@ -211,10 +214,19 @@ export class SocialService {
           throw new NotFoundException('Conversation not found');
         }
 
+        if (dto.requestId) {
+          const previous = await manager.findOneBy(DirectMessage, { id: dto.requestId });
+          if (previous) {
+            if (previous.conversationId !== conversationId || previous.senderId !== senderId || previous.deletedAt) {
+              throw new ConflictException('Message request ID is already in use');
+            }
+            return { message: previous, replay: true as const };
+          }
+        }
         const now = new Date();
 
         const message = manager.create(DirectMessage, {
-          id: randomUUID(),
+          id: dto.requestId ?? randomUUID(),
           conversationId,
           senderId,
           content,
@@ -223,7 +235,8 @@ export class SocialService {
           deletedAt: null,
         });
 
-        const saved = await manager.save(DirectMessage, message);
+        if (dto.requestId) await manager.insert(DirectMessage, message);
+        const saved = dto.requestId ? message : await manager.save(DirectMessage, message);
 
         await manager.update(
           DirectConversation,
@@ -232,6 +245,7 @@ export class SocialService {
         );
 
         return {
+          replay: false as const,
           userAId: conversation.userAId,
           userBId: conversation.userBId,
           message: {
@@ -244,6 +258,11 @@ export class SocialService {
         };
       },
     );
+
+    if (result.replay) {
+      const { id, conversationId, senderId, content, createdAt } = result.message;
+      return { id, conversationId, senderId, content, createdAt };
+    }
 
     try {
       this.directChatGateway.emitMessageCreated(
@@ -308,7 +327,9 @@ export class SocialService {
       throw new BadRequestException('Invalid page');
     }
 
-    const messages = await this.messagesRepository.find({
+    const messages = query.before || query.after
+      ? await listByMessageCursor(this.messagesRepository, 'conversation_id', conversationId, query, limit)
+      : await this.messagesRepository.find({
       where: {
         conversationId,
         deletedAt: IsNull(),
@@ -321,7 +342,8 @@ export class SocialService {
       take: limit,
     });
 
-    return messages.reverse().map((message) => ({
+    if (!query.after) messages.reverse();
+    return messages.map((message) => ({
       id: message.id,
       conversationId: message.conversationId,
       senderId: message.senderId,
