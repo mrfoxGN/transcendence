@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by noureddine, mrfoxGN, KHALEDHIHI.*
+*This project has been created as part of the 42 curriculum by LOGIN_1, LOGIN_2, LOGIN_3.*
 
 # DevUP
 
@@ -37,17 +37,20 @@ AI assistance was used to draft the workspace backlog, develop and review fronte
 
 ## Team Information
 
-The names and responsibilities below come from Git history. Confirm the exact 42 Intra logins and formally assigned roles before submission.
+Replace the login and role placeholders before submission. Git author names identify the contributions recorded in this repository.
 
-| Contributor | Role in the repository | Responsibilities |
-| --- | --- | --- |
-| noureddine | Frontend and full-stack developer | DevUP interface, API integration, workspace workflows, account onboarding, and release fixes |
-| mrfoxGN | Backend developer | NestJS and MySQL foundations, workspaces, file management, activity, notifications, and GitHub integration |
-| KHALEDHIHI | Backend developer | Task workflows, notes, direct messaging, logout, and backend test maintenance |
+| 42 Intra login | Git author | Assigned role | Responsibilities |
+| --- | --- | --- | --- |
+| `LOGIN_1` | noureddine | `ROLE_1` | DevUP interface, API integration, workspace workflows, account onboarding, and release fixes |
+| `LOGIN_2` | mrfoxGN | `ROLE_2` | NestJS and MySQL foundations, workspaces, file management, activity, notifications, and GitHub integration |
+| `LOGIN_3` | KHALEDHIHI | `ROLE_3` | Task workflows, notes, direct messaging, logout, and backend test maintenance |
 
 ## Project Management
 
-Work was organized by feature area and then tracked as numbered workspace improvement tickets. The [backlog](docs/development/WORKSPACE_IMPROVEMENT_BACKLOG.md) records scope, acceptance checks, and implementation status. Git branches and commits record integration and per-ticket delivery. Repository handoff documents record API behavior and outstanding work. Meeting cadence and external communication channels are pending team confirmation.
+Work was organized by feature area and then tracked as numbered workspace improvement tickets. The [backlog](docs/development/WORKSPACE_IMPROVEMENT_BACKLOG.md) records scope, acceptance checks, and implementation status. Git branches and commits record integration and per-ticket delivery. Repository handoff documents record API behavior and outstanding work.
+
+- Meeting cadence: `MEETING_CADENCE`
+- Team communication channels: `COMMUNICATION_CHANNELS`
 
 ## Technical Stack
 
