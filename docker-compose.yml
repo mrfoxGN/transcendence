@@ -73,11 +73,9 @@ services:
       <<: *database-environment
       APP_PORT: "3000"
       JWT_SECRET: ${JWT_SECRET:-devup-local-compose-only-change-before-deploying}
-      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL:-http://localhost:${FRONTEND_PORT:-8080}}
-      GITHUB_OAUTH_FRONTEND_URL: ${GITHUB_OAUTH_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-8080}}
-
-    ports:
-      - "127.0.0.1:${APP_PORT:-3000}:3000"
+      AUTH_PUBLIC_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+      GITHUB_OAUTH_FRONTEND_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+      GITHUB_OAUTH_CALLBACK_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}/api/github/callback
 
     volumes:
       - ./apps/backend:/app
@@ -99,8 +97,13 @@ services:
   frontend:
     build: ./apps/frontend
     restart: unless-stopped
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+    volumes:
+      - frontend_tls:/etc/nginx/tls
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+      - "127.0.0.1:${HTTPS_PORT:-443}:443"
     depends_on:
       backend:
         condition: service_healthy
@@ -108,3 +111,4 @@ services:
 volumes:
   mysql_data:
   backend_node_modules:
+  frontend_tls:
