@@ -90,9 +90,9 @@ describe('GitHubService - Repository and Commits Read', () => {
   it('returns connected repository information from MySQL', async () => {
     const result = await service.getWorkspaceRepository(workspaceId, userId);
 
-    expect(result.id).toBe(repositoryId);
-    expect(result.fullName).toBe(repository.fullName);
-    expect(result.lastSyncedAt).toEqual(repository.lastSyncedAt);
+    expect(result?.id).toBe(repositoryId);
+    expect(result?.fullName).toBe(repository.fullName);
+    expect(result?.lastSyncedAt).toEqual(repository.lastSyncedAt);
 
     expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
       workspaceId,
@@ -114,12 +114,12 @@ describe('GitHubService - Repository and Commits Read', () => {
     expect(connectedRepositories.findOne).not.toHaveBeenCalled();
   });
 
-  it('returns 404 when no repository is connected', async () => {
+  it('returns no connection when no repository is connected', async () => {
     connectedRepositories.findOne.mockResolvedValueOnce(null);
 
     await expect(
       service.getWorkspaceRepository(workspaceId, userId),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).resolves.toBeNull();
   });
 
   it('retrieves stored commits from MySQL', async () => {

@@ -109,7 +109,8 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   useEffect(() => {
     if (!token || !profileId) return;
     setConnection('connecting');
-    const socket = io({ auth: { token } });
+    const socket = io({ auth: { token }, autoConnect: false, upgrade: false });
+    const connectTimer = window.setTimeout(() => socket.connect(), 0);
     const poll = () => { if (activeThread.current && document.visibilityState === 'visible') setAttempt(value => value + 1); };
     socketRef.current = socket;
     function incoming(id: string, message: ServerMessage) {
@@ -160,6 +161,7 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
       window.clearInterval(timer);
       socketRef.current = null;
       socketReady.current = false;
+      window.clearTimeout(connectTimer);
       socket.removeAllListeners();
       socket.disconnect();
     };

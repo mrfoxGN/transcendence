@@ -10,7 +10,7 @@ import { WorkspaceActivityList, type ActivityEvent } from './ActivityPage';
 import type { PageHeading, Task, PageKey, AddTaskButton } from '../types';
 import { WorkspaceProgress } from './WorkspaceProgress';
 import { LoadingPanel } from '../WorkspaceControls';
-import { fileSize, workspaceRequest, WorkspaceRequestError, type WorkspaceFile } from '../workspace-api';
+import { fileSize, workspaceRequest, type WorkspaceFile } from '../workspace-api';
 import './home.css';
 
 const attentionView = 'Needs attention';
@@ -78,19 +78,17 @@ export function HomePage({
     const controller = new AbortController();
     const options = { signal: controller.signal };
     void workspaceRequest(githubPath + '/repository', token, options)
-      .then(response => response.json())
+      .then(response => response.status === 204 ? null : response.json())
       .then(async repository => {
+        if (controller.signal.aborted) return;
+        if (!repository) { setGithub(null); return; }
         const info = { name: repository.fullName, branch: repository.defaultBranch, lastSyncedAt: repository.lastSyncedAt };
         if (!controller.signal.aborted) setGithub(info);
         const response = await workspaceRequest(githubPath + '/commits?limit=1', token, options);
         const result = await response.json() as { total: number };
         if (!controller.signal.aborted) setGithub({ ...info, commitCount: result.total });
       })
-      .catch(error => {
-        if (controller.signal.aborted) return;
-        if (error instanceof WorkspaceRequestError && error.status === 404) setGithub(null);
-        else setGithubError(true);
-      });
+      .catch(() => { if (!controller.signal.aborted) setGithubError(true); });
     return () => controller.abort();
   }, [githubPath, token, githubAttempt]);
   const assigned = tasks.filter(task => isOpenTask(task) && task.assigneeId === profileId);

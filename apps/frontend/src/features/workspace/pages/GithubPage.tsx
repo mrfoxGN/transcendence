@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
 import { FilterChips, Panel } from '../components';
-import { jsonRequest, useWorkspaceCollection, workspaceRequest, WorkspaceRequestError } from '../workspace-api';
+import { jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
 import type { PageHeading } from '../types';
 import './github.css';
 
@@ -39,12 +39,11 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
     if (!token) return;
     const controller = new AbortController();
     void workspaceRequest(path + '/repository', token, { signal: controller.signal })
-      .then(response => response.json())
+      .then(response => response.status === 204 ? null : response.json())
       .then(result => { if (!controller.signal.aborted) setRepository(result); })
       .catch(error => {
         if (controller.signal.aborted) return;
-        if (error instanceof WorkspaceRequestError && error.status === 404) setRepository(null);
-        else setError(error.message);
+        setError(error.message);
       });
     return () => controller.abort();
   }, [path, token, attempt]);
