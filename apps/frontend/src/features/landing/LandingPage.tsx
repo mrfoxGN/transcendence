@@ -9,6 +9,7 @@ import { LandingDetails } from './LandingDetails';
 import { LogoCarousel } from './LogoCarousel';
 import { ContainerScroll, ScrollTextReveal } from './LandingMotion';
 import { MagicButton } from './MagicButton';
+import { LegalLinks } from './LegalLinks';
 import './hero.css';
 import './auth.css';
 
@@ -124,6 +125,7 @@ export function LandingPage() {
           </div>
           <div className="footer-bottom">
             <span>&copy; DevUP</span>
+            <LegalLinks />
             <a href="#top">Back to top <ArrowUp size={15} aria-hidden="true" /></a>
           </div>
         </div>
