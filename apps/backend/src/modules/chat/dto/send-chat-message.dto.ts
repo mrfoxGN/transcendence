@@ -1,9 +1,12 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class SendChatMessageDto {
   @IsString()
-  @IsNotEmpty()
   content!: string;
+
+  @IsOptional()
+  @IsUUID()
+  replyToId?: string;
 
   @IsOptional()
   @IsUUID('4')

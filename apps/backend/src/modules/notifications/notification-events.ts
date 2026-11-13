@@ -4,7 +4,7 @@ import { Task } from '../tasks/entities/task.entity';
 
 export const notificationCategories = {
   assignments: ['TASK_ASSIGNED'],
-  mentions: ['TASK_MENTION', 'CHAT_MENTION'],
+  mentions: ['TASK_MENTION', 'CHAT_MENTION', 'DIRECT_MENTION'],
   comments: ['WATCHED_TASK_COMMENT'],
   status: ['WATCHED_TASK_STATUS'],
   invitations: ['WORKSPACE_INVITATION', 'WORKSPACE_INVITATION_ACCEPTED', 'FRIEND_REQUEST', 'FRIEND_REQUEST_ACCEPTED'],
@@ -56,9 +56,13 @@ export async function deliverWorkspaceNotifications(manager: EntityManager, even
   }
 }
 
-export async function mentionRecipients(manager: EntityManager, workspaceId: string, content: string): Promise<string[]> {
-  const names = [...content.matchAll(/(?:^|\s)@(?:"([^"\r\n]{1,50})"|([\p{L}\p{N}_-]{1,50})(?![\p{L}\p{N}_-]))/gu)]
+export function mentionedNames(content: string) {
+  return [...content.matchAll(/(?:^|\s)@(?:"([^"\r\n]{1,50})"|([\p{L}\p{N}_-]{1,50})(?![\p{L}\p{N}_-]))/gu)]
     .map(match => match[1] ?? match[2]);
+}
+
+export async function mentionRecipients(manager: EntityManager, workspaceId: string, content: string): Promise<string[]> {
+  const names = mentionedNames(content);
   if (!names.length) return [];
   const rows: { id: string }[] = await manager.query(
     `SELECT user.id FROM users user

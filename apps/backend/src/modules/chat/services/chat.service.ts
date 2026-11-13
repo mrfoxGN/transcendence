@@ -5,6 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
 
 import { deliverWorkspaceNotifications, mentionRecipients } from '../../notifications/notification-events';
+import type { Response } from 'express';
+import { attachmentFields, downloadChatAttachment, messageContext, searchMessages, validateReply } from '../message-collaboration';
 import { listByMessageCursor } from '../message-cursor';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ChatMessageResponseDto } from '../dto/chat-message-response.dto';
@@ -69,9 +71,11 @@ export class ChatService {
       throw new BadRequestException('Invalid page');
     }
 
-    const messages = query.before || query.after
-      ? await listByMessageCursor(this.chatMessagesRepository, 'workspace_id', workspaceId, query, limit)
-      : await this.chatMessagesRepository.find({
+    const messages = query.q?.trim()
+      ? await searchMessages(this.chatMessagesRepository, 'workspace_id', workspaceId, query.q.trim(), skip, limit)
+      : query.before || query.after
+        ? await listByMessageCursor(this.chatMessagesRepository, 'workspace_id', workspaceId, query, limit)
+        : await this.chatMessagesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
@@ -84,8 +88,10 @@ export class ChatService {
       take: limit,
     });
 
-    if (!query.after) messages.reverse();
+    if (!query.after && !query.q?.trim()) messages.reverse();
+    const context = await messageContext(this.chatMessagesRepository, { workspaceId }, messages);
     return messages.map((message) => ({
+      ...context(message),
       id: message.id,
       workspaceId: message.workspaceId,
       senderId: message.senderId,
@@ -94,16 +100,23 @@ export class ChatService {
     }));
   }
 
+  async downloadAttachment(workspaceId: string, userId: string, messageId: string, response: Response) {
+    await this.workspacesService.findOneForUser(workspaceId, userId);
+    return downloadChatAttachment(this.chatMessagesRepository, 'workspace_id', workspaceId, messageId, response);
+  }
+
   async sendMessage(
     workspaceId: string,
     senderId: string,
     dto: SendChatMessageDto,
+    file?: Express.Multer.File,
   ): Promise<ChatMessageResponseDto> {
     assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, senderId));
 
     const content = dto.content.trim();
+    const attachment = attachmentFields(file);
 
-    if (!content) {
+    if (!content && !file) {
       throw new BadRequestException('Message content is required');
     }
 
@@ -112,13 +125,15 @@ export class ChatService {
       workspaceId,
       senderId,
       content,
+      ...(dto.replyToId ? { replyToId: dto.replyToId } : {}),
+      ...attachment,
       createdAt: new Date(),
       editedAt: null,
       deletedAt: null,
     });
 
     let replay = false;
-    const saved = dto.requestId || /(?:^|\s)@/u.test(content)
+    const saved = dto.requestId || dto.replyToId || file || /(?:^|\s)@/u.test(content)
       ? await this.chatMessagesRepository.manager.transaction(async manager => {
         const repository = manager.getRepository(ChatMessage);
         if (dto.requestId) {
@@ -132,6 +147,7 @@ export class ChatService {
             return previous;
           }
         }
+        await validateReply(repository, { workspaceId }, dto.replyToId);
         message.createdAt = new Date();
         await repository.insert(message);
         const savedMessage = message;
@@ -149,7 +165,9 @@ export class ChatService {
       })
       : await this.chatMessagesRepository.save(message);
 
+    const context = await messageContext(this.chatMessagesRepository, { workspaceId }, [saved]);
     const response: ChatMessageResponseDto = {
+      ...context(saved),
       id: saved.id,
       workspaceId: saved.workspaceId,
       senderId: saved.senderId,

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -10,9 +11,14 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { chatAttachmentLimit } from '../../chat/message-collaboration';
+import type { Request, Response } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
@@ -54,13 +60,26 @@ export class SocialController {
     return this.socialService.openConversation(request.user.id, userId);
   }
 
+  @Get(':id/messages/:messageId/attachment')
+  downloadAttachment(
+    @Param('id', ParseUUIDPipe) threadId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.socialService.downloadAttachment(threadId, request.user.id, messageId, response);
+  }
+
   @Post(':id/messages')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: chatAttachmentLimit, files: 1 } }))
   sendMessage(
     @Param('id', ParseUUIDPipe) conversationId: string,
     @Body() dto: SendDirectMessageDto,
     @Req() request: AuthenticatedRequest,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<DirectMessageResponseDto> {
-    return this.socialService.sendMessage(request.user.id, conversationId, dto);
+    if (!file && !dto.content.trim()) throw new BadRequestException('Message content is required');
+    return file ? this.socialService.sendMessage(request.user.id, conversationId, dto, file) : this.socialService.sendMessage(request.user.id, conversationId, dto);
   }
 
   @Get(':id/messages')

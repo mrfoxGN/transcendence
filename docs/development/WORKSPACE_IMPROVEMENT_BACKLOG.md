@@ -59,7 +59,7 @@ The findings come from a frontend and backend source audit. API wiring was inspe
 | --- | --- | --- |
 | [x] **WU-22 · Personal notification inbox** · `FRONTEND + BACKEND` | Add assignment, mention, followed-task comment, and relevant status notifications. Add task watching, categories, preferences, and persistent invitation outcomes. Keep personal updates distinct from workspace Activity. | An assignment or mention generates one notification for the intended person. The link opens the exact task or conversation. Read state and invitation outcomes survive reload. |
 | [x] **WU-23 · Chat reliability** · `FRONTEND + BACKEND` | Preserve scroll while reading older messages. Show **Jump to latest**, connection state, and retry. Keep drafts per conversation. Use cursor-based history and idempotent message sending. | Incoming messages do not pull the reader away from older content. Retrying a send after a network interruption produces one message. Reconnect recovers missed history. |
-| [ ] **WU-24 · Chat collaboration** · `FRONTEND + BACKEND` | Add replies, mentions, message search, and permission-checked attachments. Add reactions after those workflows are reliable. | A reply keeps its message context. A mention reaches only its intended participant. Search finds older messages. Attachment access follows conversation membership after reload and when links are copied. |
+| [x] **WU-24 · Chat collaboration** · `FRONTEND + BACKEND` | Add replies, mentions, message search, and permission-checked attachments. Add reactions after those workflows are reliable. | A reply keeps its message context. A mention reaches only its intended participant. Search finds older messages. Attachment access follows conversation membership after reload and when links are copied. |
 | [ ] **WU-25 · Later product extensions** · `DISCOVERY` | Evaluate voice/video, custom fields, workflow automation, and advanced roadmaps against actual team usage. Voice/video requires authorized session signaling and a media stack. | Each extension has a user problem, an owner, an agreed scope, and acceptance checks before implementation. |
 
 ## Implementation prompts
@@ -278,6 +278,8 @@ Chat keeps the visible message in place when older or newer messages arrive. Jum
 ### WU-24 · Chat collaboration
 
 **Scope** `FRONTEND + BACKEND`
+
+Team and direct chat support replies, participant mentions, conversation history search, and one attachment up to 5 MB per message. Replies preserve source context and attachment downloads check current conversation access. Reactions remain a follow-up.
 
 > Implement WU-24 after WU-23. Add replies with source-message context, participant-scoped mentions, message search, and conversation-authorized attachments. Add reactions after these flows are reliable. Verify reply links, mention targeting, older search results, and attachment access after reload, with copied links, and from an outsider account.
 

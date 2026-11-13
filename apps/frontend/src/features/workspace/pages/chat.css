@@ -96,6 +96,16 @@
 .wu-chat-thread-head .wu-chat-back, .wu-chat-thread-head .wu-chat-info, .wu-chat-search-row .wu-chat-list-close { display: none; }
 .wu-chat-thread-head .wu-icon-button { flex: none; }
 .wu-chat-call-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; background: var(--wu-surface-soft); color: var(--wu-muted); font-size: 13px; }
+.wu-chat-tools, .wu-chat-attachment, .wu-chat-draft-chip, .wu-chat-search-results form { display: flex; align-items: center; gap: 8px; }
+.wu-chat-attachment { flex-wrap: wrap; overflow-wrap: anywhere; }
+.wu-chat-draft-chip, .wu-chat-search-results { padding: 8px; border: 1px solid var(--wu-line); border-radius: 8px; }
+.wu-chat-draft-chip { justify-content: space-between; margin-bottom: 6px; }
+.wu-chat-draft-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wu-chat-search-results { max-height: 30dvh; overflow: auto; }
+.wu-chat-search-results form input { flex: 1; min-width: 0; }
+.wu-chat-search-results article { padding: 8px 0; border-bottom: 1px solid var(--wu-line); overflow-wrap: anywhere; }
+.wu-chat-quote { margin: 0 0 6px; padding-inline-start: 8px; border-inline-start: 2px solid var(--wu-blue); }
+.wu-chat-reply { font-size: 0.85em; }
 .wu-chat-connection { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: var(--wu-muted); }
 .wu-chat-jump { align-self: center; }
 .wu-messages { overflow-anchor: none; flex: 1; min-height: 0; padding: 0 3px 10px; overscroll-behavior: contain; scrollbar-width: none; }

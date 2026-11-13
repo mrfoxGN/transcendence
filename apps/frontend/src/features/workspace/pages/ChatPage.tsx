@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Video, X } from 'lucide-react';
+import { Paperclip, Reply, ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Video, X } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
 import { Avatar, IconTile, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import type { Member } from '../workspace-tasks';
-import type { useWorkspaceChat } from '../workspace-chat';
+import type { ServerMessage, useWorkspaceChat } from '../workspace-chat';
 import './chat.css';
 
-type Draft = { text: string; requestId?: string };
+type Draft = { text: string; requestId?: string; reply?: { id: string; preview: string } };
 
 type ChatPageProps = {
   workspaceId: string;
@@ -44,6 +44,20 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
   const view = useRef<{ thread: string; atLatest: boolean; anchor?: { id: string; offset: number } } | undefined>(undefined);
   const [showJump, setShowJump] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchedTerm, setSearchedTerm] = useState('');
+  const [results, setResults] = useState<ServerMessage[]>([]);
+  const [searchPage, setSearchPage] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [hasMoreResults, setHasMoreResults] = useState(false);
+  const searchRequest = useRef<AbortController | undefined>(undefined);
+  const [attachments, setAttachments] = useState<Record<string, File | undefined>>({});
+  const [attachmentError, setAttachmentError] = useState('');
+  const [copiedAttachment, setCopiedAttachment] = useState('');
+  const fileInput = useRef<HTMLInputElement>(null);
+  useEffect(() => () => searchRequest.current?.abort(), [selected]);
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const [section, setSection] = useState<(typeof sections)[number]>('Details');
   const draftKey = `devup:chat-drafts:${profileId}:${workspaceId}`;
@@ -68,6 +82,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
       ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
       messages: (chat.messages[item.id] ?? []).map(message => ({
         id: message.id, text: message.content, sentAt: message.createdAt,
+        reply: message.reply, attachmentName: message.attachmentName,
         own: message.senderId === profileId, author: teammateName(message.senderId),
       })),
     }));
@@ -75,6 +90,8 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
   const readOnly = workspaceArchived && thread.id === 'team';
   const draft = drafts[thread.id] ?? { text: '' };
   const sendError = sendErrors[thread.id];
+  const file = attachments[thread.id];
+  const canSend = !!(draft.text.trim() || file);
   const teammates = roster.filter(member => member.userId !== profileId);
   const direct = chat.conversations.find(item => item.id === thread.id);
   const members = [{ id: profileId, name: profileName, role: 'You' },
@@ -124,12 +141,74 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
   }, [draft.text, thread.id]);
 
+  async function searchHistory(page = 1) {
+    const term = page === 1 ? searchTerm.trim() : searchedTerm;
+    if (!term) return;
+    searchRequest.current?.abort();
+    const controller = new AbortController();
+    searchRequest.current = controller;
+    setSearching(true);
+    setSearchError('');
+    if (page === 1) {
+      setResults([]);
+      setSearchPage(0);
+      setHasMoreResults(false);
+      setSearchedTerm(term);
+    }
+    try {
+      const matches = await chat.search(thread.id, term, page, controller.signal);
+      if (controller.signal.aborted) return;
+      setResults(current => page === 1 ? matches : [...new Map([...current, ...matches].map(item => [item.id, item])).values()]);
+      setSearchPage(page);
+      setHasMoreResults(matches.length === 25);
+    } catch {
+      if (!controller.signal.aborted) setSearchError('Could not search this conversation. Try again.');
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
+    }
+  }
+
+  async function download(messageId: string, name: string) {
+    setAttachmentError('');
+    try {
+      const blob = await chat.downloadAttachment(thread.id, messageId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setAttachmentError('Could not download this attachment.');
+    }
+  }
+
+  async function copyAttachmentLink(messageId: string) {
+    const url = new URL(location.href);
+    url.searchParams.set('page', 'chat');
+    url.searchParams.set('attachment', messageId);
+    url.hash = thread.id === 'team' ? '' : 'dm-' + thread.id;
+    try { await navigator.clipboard.writeText(url.href); setCopiedAttachment(messageId); }
+    catch { setAttachmentError('Could not copy the attachment link.'); }
+  }
+
   function selectThread(id: string) {
+    searchRequest.current?.abort();
+    setSearching(false);
+    setSearchOpen(false);
+    setResults([]);
+    setSearchTerm('');
+    setSearchedTerm('');
+    setSearchPage(0);
+    setHasMoreResults(false);
+    setSearchError('');
+    setAttachmentError('');
     setSelected(id);
     setCallNotice(undefined);
     setSection('Details');
     setShowList(false);
     const url = new URL(location.href);
+    url.searchParams.delete('attachment');
     url.hash = id === 'team' ? '' : 'dm-' + id;
     history.replaceState(history.state, '', url);
   }
@@ -154,13 +233,14 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.text.trim();
-    if (!body || sending) return;
+    if (!canSend || sending) return;
     setSending(true);
     setSendErrors(current => ({ ...current, [thread.id]: '' }));
     try {
       const requestId = draft.requestId ?? crypto.randomUUID();
-      setDrafts(current => ({ ...current, [thread.id]: { text: draft.text, requestId } }));
-      await chat.send(thread.id, body, requestId);
+      setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId } }));
+      await chat.send(thread.id, body, requestId, draft.reply?.id, file);
+      setAttachments(current => ({ ...current, [thread.id]: undefined }));
       setDrafts(current => current[thread.id]?.requestId === requestId ? { ...current, [thread.id]: { text: '' } } : current);
       composer.current?.focus();
     } catch (error) {
@@ -233,6 +313,32 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
         {callNotice && <div className="wu-chat-call-notice"><span role="status">{callNotice} calling is unavailable in this workspace.</span>
           <button type="button" className="wu-icon-button" aria-label="Dismiss calling notice" onClick={() => setCallNotice(undefined)}><X size={16} /></button>
         </div>}
+        {attachmentError && <p role="alert">{attachmentError}</p>}
+        {new URLSearchParams(location.search).get('attachment') && <button type="button" className="wu-text-button"
+          onClick={() => void download(new URLSearchParams(location.search).get('attachment')!, 'Attachment')}>Download linked attachment</button>}
+        <div className="wu-chat-tools"><button className="wu-text-button" type="button" aria-expanded={searchOpen}
+          onClick={() => setSearchOpen(value => !value)}><Search size={15} /> Search messages</button></div>
+        {searchOpen && <section className="wu-chat-search-results" aria-label="Search conversation">
+          <form onSubmit={event => { event.preventDefault(); void searchHistory(); }}>
+            <input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" value={searchTerm} maxLength={200}
+              onChange={event => setSearchTerm(event.target.value)} />
+            <button className="wu-text-button" type="submit" disabled={searching || !searchTerm.trim()}>Search</button>
+          </form>
+          {searching && <p role="status">Searching…</p>}
+          {searchError && <p role="alert">{searchError}</p>}
+          {!searching && searchPage > 0 && !results.length && <p>No matching messages.</p>}
+          {results.map(message => <article key={message.id}>
+            <strong>{message.senderId === profileId ? 'You' : teammateName(message.senderId)}</strong>{' '}
+            <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
+            {message.reply && <blockquote>{message.reply.preview}</blockquote>}
+            {message.content && <p>{message.content}</p>}
+            {message.attachmentName && <button className="wu-text-button" type="button"
+              onClick={() => void download(message.id, message.attachmentName!)}>{message.attachmentName}</button>}
+            {!readOnly && <button className="wu-text-button" type="button" disabled={sending}
+              onClick={() => { setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview: message.content || message.attachmentName || 'Attachment' } } })); composer.current?.focus(); }}>Reply</button>}
+          </article>)}
+          {hasMoreResults && <button className="wu-text-button" type="button" disabled={searching} onClick={() => void searchHistory(searchPage + 1)}>More results</button>}
+        </section>}
         {chat.connection !== 'connected' && <div className="wu-chat-connection">
           <span role="status">{chat.connection === 'connecting' ? 'Connecting to chat…' : 'Reconnecting to chat…'}</span>
           {chat.connection === 'reconnecting' && <button className="wu-text-button" type="button" onClick={chat.reconnect}>Retry connection</button>}
@@ -252,8 +358,14 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
                 <div className="wu-message-content">
                   <div className="wu-message-meta"><strong>{message.own ? 'You' : message.author}</strong><time dateTime={message.sentAt}>{clock.format(date)}</time></div>
                   <div className="wu-message-bubble">
+                    {message.reply && <blockquote className="wu-chat-quote"><strong>{message.reply.unavailable ? 'Original message' : message.reply.senderId === profileId ? 'You' : teammateName(message.reply.senderId)}</strong><p>{message.reply.preview}</p></blockquote>}
                     {message.text && <p>{message.text}</p>}
+                    {message.attachmentName && <div className="wu-chat-attachment"><button className="wu-text-button" type="button" onClick={() => void download(message.id, message.attachmentName!)}><Paperclip size={15} /> {message.attachmentName}</button><button className="wu-text-button" type="button" onClick={() => void copyAttachmentLink(message.id)}>{copiedAttachment === message.id ? 'Link copied' : 'Copy link'}</button></div>}
                   </div>
+                  {!readOnly && <button className="wu-text-button wu-chat-reply" type="button" disabled={sending} onClick={() => {
+                    setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview: message.text || message.attachmentName || 'Attachment' } } }));
+                    composer.current?.focus();
+                  }}><Reply size={14} /> Reply</button>}
                 </div>
               </article>
             </div>;
@@ -264,12 +376,27 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
           recordPosition();
         }}>Jump to latest</button>}
         {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
-          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !draft.text.trim()}>Retry send</button></p>}
+          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !canSend}>Retry send</button></p>}
+          {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview}</span><button className="wu-icon-button" type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></button></div>}
+          {file && <div className="wu-chat-draft-chip"><span>{file.name}</span><button className="wu-icon-button" type="button" aria-label="Remove attachment" disabled={sending} onClick={() => {
+            setAttachments(current => ({ ...current, [thread.id]: undefined }));
+            setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined } }));
+          }}><X size={16} /></button></div>}
           <div className="wu-chat-composer">
+            <input ref={fileInput} type="file" hidden onChange={event => {
+              const attachment = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (!attachment) return;
+              if (!attachment.size || attachment.size > 5 * 1024 * 1024) { setAttachmentError('Choose a file between 1 byte and 5 MB.'); return; }
+              setAttachmentError('');
+              setAttachments(current => ({ ...current, [thread.id]: attachment }));
+              setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined } }));
+            }} />
+            <button className="wu-icon-button" type="button" aria-label="Attach file" disabled={sending} onClick={() => fileInput.current?.click()}><Paperclip size={19} /></button>
             <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team or mention @username…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
-              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value } }))}
+              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value, reply: draft.reply } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !draft.text.trim()}><ArrowUp size={20} /></button>
+            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></button>
           </div>
         </form>}
       </Panel>

@@ -1,7 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, MaxLength, Max, Min } from 'class-validator';
 
 export class ListChatMessagesDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  q?: string;
+
   @IsOptional()
   @IsUUID()
   before?: string;

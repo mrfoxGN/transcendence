@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { jsonRequest, workspaceRequest } from './workspace-api';
 
 type Conversation = { id: string; otherUserId: string; lastMessageAt: string | null; otherUsername?: string; unreadCount?: number };
-export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string };
+export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string; attachmentName?: string; reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean } };
 const pageSize = 30;
 
 export function useWorkspaceChat(workspaceId: string, token: string | null, selected: string | null, profileId: string) {
@@ -187,8 +187,16 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     return result.id;
   }
 
-  async function send(id: string, content: string, requestId: string) {
-    const message: ServerMessage = await (await workspaceRequest(path(id), token, jsonRequest('POST', { content, requestId }))).json();
+  async function send(id: string, content: string, requestId: string, replyToId?: string, file?: File) {
+    const fields = { content, requestId, ...(replyToId ? { replyToId } : {}) };
+    let options = jsonRequest('POST', fields);
+    if (file) {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(fields)) form.set(key, value);
+      form.set('file', file);
+      options = { method: 'POST', body: form };
+    }
+    const message: ServerMessage = await (await workspaceRequest(path(id), token, options)).json();
     merge(id, [message]);
   }
 
@@ -222,7 +230,11 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     }
   }
 
-  return { conversations, messages, workspaceUnread, unreadTotal: workspaceUnread + directUnread, loading, loadingOlder, error, connection, hasOlder: !!(selected && olderCursor[selected]), openConversation, send, loadOlder,
+  return { conversations, messages,
+    search: async (id: string, query: string, page: number, signal: AbortSignal): Promise<ServerMessage[]> =>
+      (await workspaceRequest(path(id) + '?limit=25&page=' + page + '&q=' + encodeURIComponent(query), token, { signal })).json(),
+    downloadAttachment: async (threadId: string, messageId: string) =>
+      (await workspaceRequest(path(threadId) + '/' + messageId + '/attachment', token)).blob(), workspaceUnread, unreadTotal: workspaceUnread + directUnread, loading, loadingOlder, error, connection, hasOlder: !!(selected && olderCursor[selected]), openConversation, send, loadOlder,
     retry: () => { setError(''); setAttempt(value => value + 1); },
     reconnect: () => {
       const socket = socketRef.current;
