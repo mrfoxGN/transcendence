@@ -45,14 +45,14 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(200)
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    async logout(@Req() request: AuthenticatedRequest) {
-      await this.authService.logout(request.user.id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async logout(@Req() request: AuthenticatedRequest) {
+    await this.authService.logout(request.user.id);
 
-      return {
-        message: 'Logout successful',
-        loggedOut: true,
-      };
-    }
+    return {
+      message: 'Logout successful',
+      loggedOut: true,
+    };
+  }
 }

@@ -14,6 +14,10 @@ jest.mock('@nestjs/config', () => ({
 
 import { GitHubSyncService } from './github-sync.service';
 
+jest.mock('@nestjs/typeorm', () => ({
+  InjectRepository: () => () => undefined,
+}));
+
 describe('GitHubSyncService', () => {
   let service: GitHubSyncService;
 
@@ -48,13 +52,14 @@ describe('GitHubSyncService', () => {
     authorName: 'Anass',
     committerName: 'Anass',
     committedAt: new Date('2026-11-01T12:00:00Z'),
-    githubUrl: 'https://github.com/mrfoxGN/transcendence/commit/' +
-      'a'.repeat(40),
+    githubUrl:
+      'https://github.com/mrfoxGN/transcendence/commit/' + 'a'.repeat(40),
   };
 
   const workspacesService = {
     findOneForUser: jest.fn(),
   };
+  const activities = { create: jest.fn().mockResolvedValue({}) };
 
   const githubApiService = {
     getPublicRepository: jest.fn(),
@@ -64,7 +69,6 @@ describe('GitHubSyncService', () => {
   const githubTokenCryptoService = {
     decrypt: jest.fn(),
   };
-
 
   const databaseRepository = {
     findOne: jest.fn(),
@@ -105,9 +109,7 @@ describe('GitHubSyncService', () => {
       ...remoteRepository,
     });
 
-    githubApiService.listRecentCommits.mockResolvedValue([
-      commit,
-    ]);
+    githubApiService.listRecentCommits.mockResolvedValue([commit]);
 
     databaseRepository.findOne.mockResolvedValue({
       ...localRepository,
@@ -117,35 +119,25 @@ describe('GitHubSyncService', () => {
       ...localRepository,
     });
 
-    transactionRepository.save.mockImplementation(
-      async (value: object) => value,
+    transactionRepository.save.mockImplementation((value: object) =>
+      Promise.resolve(value),
     );
 
     queryBuilder.insert.mockReturnValue(queryBuilder);
     queryBuilder.into.mockReturnValue(queryBuilder);
     queryBuilder.values.mockReturnValue(queryBuilder);
     queryBuilder.orIgnore.mockReturnValue(queryBuilder);
-
     queryBuilder.execute.mockResolvedValue({});
 
-    manager.getRepository.mockReturnValue(
-      transactionRepository,
-    );
-
-    manager.createQueryBuilder.mockReturnValue(
-      queryBuilder,
-    );
-
+    manager.getRepository.mockReturnValue(transactionRepository);
+    manager.createQueryBuilder.mockReturnValue(queryBuilder);
     manager.count.mockResolvedValue(1);
 
-    dataSource.getRepository.mockReturnValue(
-      databaseRepository,
-    );
+    dataSource.getRepository.mockReturnValue(databaseRepository);
 
     dataSource.transaction.mockImplementation(
-      async (
-        callback: (manager: typeof manager) => Promise<unknown>,
-      ) => callback(manager),
+      async (callback: (manager: typeof manager) => Promise<unknown>) =>
+        callback(manager),
     );
 
     service = new GitHubSyncService(
@@ -153,11 +145,11 @@ describe('GitHubSyncService', () => {
       workspacesService as never,
       githubApiService as never,
       githubTokenCryptoService as never,
+      activities as never,
     );
   });
 
-  const sync = () =>
-    service.syncRepository(workspaceId, userId);
+  const sync = () => service.syncRepository(workspaceId, userId);
 
   it('synchronizes recent commits successfully', async () => {
     const result = await sync();
@@ -167,14 +159,18 @@ describe('GitHubSyncService', () => {
     expect(result.fetchedCommits).toBe(1);
     expect(result.storedCommits).toBe(1);
     expect(result.lastSyncedAt).toBeInstanceOf(Date);
+    expect(activities.create).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_COMPLETED', resourceId: repositoryId,
+    }));
   });
 
   it('verifies workspace membership', async () => {
     await sync();
 
-    expect(
-      workspacesService.findOneForUser,
-    ).toHaveBeenCalledWith(workspaceId, userId);
+    expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
   });
 
   it('rejects unauthorized users', async () => {
@@ -182,21 +178,15 @@ describe('GitHubSyncService', () => {
       new ForbiddenException(),
     );
 
-    await expect(sync()).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(sync()).rejects.toBeInstanceOf(ForbiddenException);
 
-    expect(
-      githubApiService.listRecentCommits,
-    ).not.toHaveBeenCalled();
+    expect(githubApiService.listRecentCommits).not.toHaveBeenCalled();
   });
 
   it('rejects workspaces without a connected repository', async () => {
     databaseRepository.findOne.mockResolvedValueOnce(null);
 
-    await expect(sync()).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(sync()).rejects.toBeInstanceOf(NotFoundException);
 
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
@@ -207,9 +197,7 @@ describe('GitHubSyncService', () => {
       githubRepositoryId: '999999999',
     });
 
-    await expect(sync()).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(sync()).rejects.toBeInstanceOf(ConflictException);
 
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
@@ -234,27 +222,20 @@ describe('GitHubSyncService', () => {
 
   it('handles repositories without commits', async () => {
     githubApiService.listRecentCommits.mockResolvedValueOnce([]);
-
     manager.count.mockResolvedValueOnce(0);
 
     const result = await sync();
 
     expect(result.fetchedCommits).toBe(0);
     expect(result.storedCommits).toBe(0);
-
-    expect(
-      manager.createQueryBuilder,
-    ).not.toHaveBeenCalled();
-
+    expect(manager.createQueryBuilder).not.toHaveBeenCalled();
     expect(transactionRepository.save).toHaveBeenCalled();
   });
 
   it('rejects repositories disconnected during synchronization', async () => {
     transactionRepository.findOne.mockResolvedValueOnce(null);
 
-    await expect(sync()).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(sync()).rejects.toBeInstanceOf(ConflictException);
 
     expect(transactionRepository.save).not.toHaveBeenCalled();
   });
@@ -264,9 +245,7 @@ describe('GitHubSyncService', () => {
       new Error('GitHub unavailable'),
     );
 
-    await expect(sync()).rejects.toThrow(
-      'GitHub unavailable',
-    );
+    await expect(sync()).rejects.toThrow('GitHub unavailable');
 
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
@@ -276,9 +255,7 @@ describe('GitHubSyncService', () => {
       new Error('Database insertion failed'),
     );
 
-    await expect(sync()).rejects.toThrow(
-      'Database insertion failed',
-    );
+    await expect(sync()).rejects.toThrow('Database insertion failed');
 
     expect(transactionRepository.save).not.toHaveBeenCalled();
   });
@@ -290,45 +267,48 @@ describe('GitHubSyncService', () => {
       expect.objectContaining({
         fullName: remoteRepository.fullName,
         defaultBranch: remoteRepository.defaultBranch,
-        lastSyncedAt: expect.any(Date),
-        updatedAt: expect.any(Date),
       }),
     );
+
+    const calls = transactionRepository.save.mock.calls as unknown[][];
+    const savedRepository = calls[0]?.[0];
+
+    if (
+      typeof savedRepository !== 'object' ||
+      savedRepository === null ||
+      !('lastSyncedAt' in savedRepository) ||
+      !('updatedAt' in savedRepository)
+    ) {
+      throw new Error('Saved repository must include sync timestamps');
+    }
+
+    expect(savedRepository.lastSyncedAt).toBeInstanceOf(Date);
+    expect(savedRepository.updatedAt).toBeInstanceOf(Date);
   });
 
   it('shares an ongoing sync between workspace members', async () => {
     const secondUserId = 'd30a15a4-bb32-4c4f-a34b-7de84cc7ab63';
 
     let signalStarted!: () => void;
-    let releaseFetch!: (commits: typeof commit[]) => void;
+    let releaseFetch!: (commits: (typeof commit)[]) => void;
 
     const fetchStarted = new Promise<void>((resolve) => {
       signalStarted = resolve;
     });
 
-    githubApiService.listRecentCommits.mockImplementationOnce(
-      () => {
-        signalStarted();
+    githubApiService.listRecentCommits.mockImplementationOnce(() => {
+      signalStarted();
 
-        return new Promise<typeof commit[]>((resolve) => {
-          releaseFetch = resolve;
-        });
-      },
-    );
+      return new Promise<(typeof commit)[]>((resolve) => {
+        releaseFetch = resolve;
+      });
+    });
 
-    // Member A starts synchronization.
-    const firstRequest = service.syncRepository(
-      workspaceId,
-      userId,
-    );
+    const firstRequest = service.syncRepository(workspaceId, userId);
 
     await fetchStarted;
 
-    // Member B refreshes while A's request is still running.
-    const secondRequest = service.syncRepository(
-      workspaceId,
-      secondUserId,
-    );
+    const secondRequest = service.syncRepository(workspaceId, secondUserId);
 
     releaseFetch([commit]);
 
@@ -338,19 +318,9 @@ describe('GitHubSyncService', () => {
     ]);
 
     expect(firstResult).toEqual(secondResult);
-
-    expect(
-      workspacesService.findOneForUser,
-    ).toHaveBeenCalledTimes(2);
-
-    expect(
-      githubApiService.getPublicRepository,
-    ).toHaveBeenCalledTimes(1);
-
-    expect(
-      githubApiService.listRecentCommits,
-    ).toHaveBeenCalledTimes(1);
-
+    expect(workspacesService.findOneForUser).toHaveBeenCalledTimes(2);
+    expect(githubApiService.getPublicRepository).toHaveBeenCalledTimes(1);
+    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(1);
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
   });
 
@@ -359,45 +329,39 @@ describe('GitHubSyncService', () => {
       new Error('GitHub unavailable'),
     );
 
-    await expect(sync()).rejects.toThrow(
-      'GitHub unavailable',
-    );
+    await expect(sync()).rejects.toThrow('GitHub unavailable');
 
     const result = await sync();
 
     expect(result.repositoryId).toBe(repositoryId);
-
-    expect(
-      githubApiService.getPublicRepository,
-    ).toHaveBeenCalledTimes(2);
+    expect(githubApiService.getPublicRepository).toHaveBeenCalledTimes(2);
   });
 
   it('rejects unauthorized members during an ongoing sync', async () => {
-    const unauthorizedUserId =
-      'a8f0f1e9-b154-45df-8bc1-cfa06104b947';
+    const unauthorizedUserId = 'a8f0f1e9-b154-45df-8bc1-cfa06104b947';
 
     let signalStarted!: () => void;
-    let releaseFetch!: (commits: typeof commit[]) => void;
+    let releaseFetch!: (commits: (typeof commit)[]) => void;
 
     const fetchStarted = new Promise<void>((resolve) => {
       signalStarted = resolve;
     });
 
-    githubApiService.listRecentCommits.mockImplementationOnce(
-      () => {
-        signalStarted();
+    githubApiService.listRecentCommits.mockImplementationOnce(() => {
+      signalStarted();
 
-        return new Promise<typeof commit[]>((resolve) => {
-          releaseFetch = resolve;
-        });
-      },
-    );
+      return new Promise<(typeof commit)[]>((resolve) => {
+        releaseFetch = resolve;
+      });
+    });
 
     workspacesService.findOneForUser.mockImplementation(
-      async (_workspaceId: string, memberId: string) => {
+      (_workspaceId: string, memberId: string) => {
         if (memberId === unauthorizedUserId) {
-          throw new ForbiddenException();
+          return Promise.reject(new ForbiddenException());
         }
+
+        return Promise.resolve(undefined);
       },
     );
 
@@ -406,43 +370,31 @@ describe('GitHubSyncService', () => {
     await fetchStarted;
 
     await expect(
-      service.syncRepository(
-        workspaceId,
-        unauthorizedUserId,
-      ),
+      service.syncRepository(workspaceId, unauthorizedUserId),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     releaseFetch([commit]);
 
     await authorizedRequest;
 
-    expect(
-      githubApiService.listRecentCommits,
-    ).toHaveBeenCalledTimes(1);
+    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(1);
   });
-
 
   it('uses decrypted OAuth credentials for GitHub requests', async () => {
     await sync();
 
-    expect(
-      githubTokenCryptoService.decrypt,
-    ).toHaveBeenCalledWith(
+    expect(githubTokenCryptoService.decrypt).toHaveBeenCalledWith(
       'encrypted-test-token',
       repositoryId,
     );
 
-    expect(
-      githubApiService.getPublicRepository,
-    ).toHaveBeenCalledWith(
+    expect(githubApiService.getPublicRepository).toHaveBeenCalledWith(
       'mrfoxGN',
       'transcendence',
       'test-oauth-token',
     );
 
-    expect(
-      githubApiService.listRecentCommits,
-    ).toHaveBeenCalledWith(
+    expect(githubApiService.listRecentCommits).toHaveBeenCalledWith(
       'mrfoxGN',
       'transcendence',
       'test-oauth-token',
@@ -455,17 +407,9 @@ describe('GitHubSyncService', () => {
       encryptedOAuthToken: null,
     });
 
-    await expect(sync()).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(sync()).rejects.toBeInstanceOf(ConflictException);
 
-    expect(
-      githubTokenCryptoService.decrypt,
-    ).not.toHaveBeenCalled();
-
-    expect(
-      githubApiService.getPublicRepository,
-    ).not.toHaveBeenCalled();
+    expect(githubTokenCryptoService.decrypt).not.toHaveBeenCalled();
+    expect(githubApiService.getPublicRepository).not.toHaveBeenCalled();
   });
-
 });

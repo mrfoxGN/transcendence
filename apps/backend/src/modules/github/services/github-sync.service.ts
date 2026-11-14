@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   ConflictException,
   Injectable,
@@ -7,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
 import { Repository as ConnectedRepository } from '../entities/repository.entity';
 import { RepositoryCommit } from '../entities/repository-commit.entity';
 import { GitHubApiService } from './github-api.service';
@@ -22,16 +24,14 @@ export interface GitHubSyncResult {
 
 @Injectable()
 export class GitHubSyncService {
-  private readonly inFlightSyncs = new Map<
-    string,
-    Promise<GitHubSyncResult>
-  >();
+  private readonly inFlightSyncs = new Map<string, Promise<GitHubSyncResult>>();
 
   constructor(
     private readonly dataSource: DataSource,
     private readonly workspacesService: WorkspacesService,
     private readonly githubApiService: GitHubApiService,
     private readonly githubTokenCryptoService: GitHubTokenCryptoService,
+    private readonly activities: ActivitiesService,
   ) {}
 
   async syncRepository(
@@ -39,10 +39,7 @@ export class GitHubSyncService {
     userId: string,
   ): Promise<GitHubSyncResult> {
     // Every caller must be an authorized workspace member.
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
 
     // Reuse an ongoing synchronization for this workspace.
     const existingSync = this.inFlightSyncs.get(workspaceId);
@@ -51,7 +48,20 @@ export class GitHubSyncService {
       return existingSync;
     }
 
-    const syncPromise = this.performSync(workspaceId);
+    const syncPromise = this.performSync(workspaceId).then(async result => {
+      await recordActivity(this.activities, {
+        workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_COMPLETED', resourceType: 'github', resourceId: result.repositoryId,
+        metadata: { title: result.fullName, storedCommits: result.storedCommits },
+      });
+      return result;
+    }, async error => {
+      if (!(error instanceof NotFoundException && error.message === 'No GitHub repository connected to this workspace')) {
+        await recordActivity(this.activities, {
+          workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_FAILED', resourceType: 'github', resourceId: workspaceId,
+        });
+      }
+      throw error;
+    });
     this.inFlightSyncs.set(workspaceId, syncPromise);
 
     try {
@@ -62,9 +72,7 @@ export class GitHubSyncService {
     }
   }
 
-  private async performSync(
-    workspaceId: string,
-  ): Promise<GitHubSyncResult> {
+  private async performSync(workspaceId: string): Promise<GitHubSyncResult> {
     // Find the connected repository.
     const repository = await this.dataSource
       .getRepository(ConnectedRepository)
@@ -107,12 +115,8 @@ export class GitHubSyncService {
       accessToken,
     );
 
-    if (
-      remote.githubRepositoryId !== repository.githubRepositoryId
-    ) {
-      throw new ConflictException(
-        'GitHub repository identity has changed',
-      );
+    if (remote.githubRepositoryId !== repository.githubRepositoryId) {
+      throw new ConflictException('GitHub repository identity has changed');
     }
 
     // 4. Fetch recent commits.
@@ -126,8 +130,7 @@ export class GitHubSyncService {
 
     // 5. Persist synchronization atomically.
     return this.dataSource.transaction(async (manager) => {
-      const repositoryManager =
-        manager.getRepository(ConnectedRepository);
+      const repositoryManager = manager.getRepository(ConnectedRepository);
 
       const active = await repositoryManager.findOne({
         where: {
@@ -138,9 +141,7 @@ export class GitHubSyncService {
       });
 
       if (!active) {
-        throw new ConflictException(
-          'Repository is no longer connected',
-        );
+        throw new ConflictException('Repository is no longer connected');
       }
 
       // Avoid storing the same commit twice.
@@ -179,14 +180,11 @@ export class GitHubSyncService {
 
       await repositoryManager.save(active);
 
-      const storedCommits = await manager.count(
-        RepositoryCommit,
-        {
-          where: {
-            repositoryId: active.id,
-          },
+      const storedCommits = await manager.count(RepositoryCommit, {
+        where: {
+          repositoryId: active.id,
         },
-      );
+      });
 
       return {
         repositoryId: active.id,

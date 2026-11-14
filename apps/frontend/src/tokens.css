@@ -1,0 +1,46 @@
+:root {
+  --color-ink: #0F172A; --color-ink-light: #ECECEE;
+  --color-canvas: #FAF9F6; --color-canvas-light: #FFFFFE;
+  --color-violet: #A855F7; --color-violet-light: #F8F1FE;
+  --color-blue: #3B82F6; --color-blue-light: #EFF5FE;
+  --color-lime: #A3F460; --color-lime-light: #F8FEF2;
+  --color-pink: #FC3095; --color-pink-2: #FF4BA6; --color-pink-3: #FF6796;
+  --color-pink-light: #FFB9DE; --color-pink-light-2: #FDEAF5; --color-pink-light-3: #FFEAF1;
+  --color-mint: #10BE6C; --color-mint-2: #1FD295; --color-mint-3: #05D47A;
+  --color-mint-light: #E8FCF3; --color-mint-light-2: #E2FAF1;
+  --color-orange: #FAA51C; --color-orange-2: #FEA221; --color-orange-3: #FD9133;
+  --color-orange-light: #FCEBDB; --color-orange-light-2: #FEF3E4;
+  --color-yellow: #FDC64E; --color-yellow-2: #FEBA2F; --color-yellow-light: #FFF2CA;
+  --color-red: #FC3843; --color-red-2: #FF123A; --color-red-3: #FF6B6B;
+  --color-red-light: #FCDBDB; --color-red-light-2: #FEECEF;
+  --color-indigo: #762AE7; --color-indigo-2: #6D2AFE; --color-indigo-3: #5540F9;
+  --color-indigo-light: #F0E4FB; --color-indigo-light-2: #F1EEFE;
+  --color-gray: #525866; --color-gray-2: #878B94; --color-gray-3: #B2B5BB;
+  --color-gray-light: #D4D5D9; --color-gray-light-2: #E2E8F0;
+  --color-white: #FFFFFF; --color-black: #000000;
+}
+
+/* Workspace color studies. Use icon gradients for category and feature icons,
+   and surface gradients for selected stat cards, folder tiles, or inspectors. */
+:root {
+  --workspace-accent-icon-ink: var(--color-white);
+  --workspace-accent-blue-icon: linear-gradient(145deg, #245bc9, #377bd1);
+  --workspace-accent-violet-icon: linear-gradient(145deg, #6941d3, #865cde);
+  --workspace-accent-pink-icon: linear-gradient(145deg, #a83270, #c84787);
+  --workspace-accent-mint-icon: linear-gradient(145deg, #126b52, #238962);
+  --workspace-accent-orange-icon: linear-gradient(145deg, #9c4c16, #bb6323);
+
+  --workspace-accent-blue-surface: linear-gradient(145deg, var(--color-white), var(--color-blue-light));
+  --workspace-accent-violet-surface: linear-gradient(145deg, var(--color-white), var(--color-violet-light));
+  --workspace-accent-pink-surface: linear-gradient(145deg, var(--color-white), var(--color-pink-light-2));
+  --workspace-accent-mint-surface: linear-gradient(145deg, var(--color-white), var(--color-mint-light));
+  --workspace-accent-orange-surface: linear-gradient(145deg, var(--color-white), var(--color-orange-light-2));
+}
+
+[data-theme="dark"] {
+  --workspace-accent-blue-surface: linear-gradient(145deg, #1a1a1a, #19273b);
+  --workspace-accent-violet-surface: linear-gradient(145deg, #1a1a1a, #292139);
+  --workspace-accent-pink-surface: linear-gradient(145deg, #1a1a1a, #34212d);
+  --workspace-accent-mint-surface: linear-gradient(145deg, #1a1a1a, #192e28);
+  --workspace-accent-orange-surface: linear-gradient(145deg, #1a1a1a, #33271e);
+}

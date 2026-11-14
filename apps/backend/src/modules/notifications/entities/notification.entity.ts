@@ -87,7 +87,7 @@ export class Notification {
     type: 'json',
     nullable: true,
   })
-  payload!: unknown | null;
+  payload!: unknown;
 
   @Column({
     name: 'created_at',

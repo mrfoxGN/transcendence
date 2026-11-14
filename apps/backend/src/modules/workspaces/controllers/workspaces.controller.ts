@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
+import { SaveBacklogViewDto } from '../dto/save-backlog-view.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { WorkspaceInvitationResponseDto } from '../dto/workspace-invitation-response.dto';
 import { WorkspaceMemberResponseDto } from '../dto/workspace-member-response.dto';
@@ -31,17 +33,50 @@ import { UpdateWorkspaceKanbanSettingsDto } from '../dto/update-workspace-kanban
 @Controller('workspaces')
 @UseGuards(JwtAuthGuard)
 export class WorkspacesController {
-  constructor(
-    private readonly workspacesService: WorkspacesService,
-  ) {}
+  constructor(private readonly workspacesService: WorkspacesService) {}
+
+  @Delete(':id/membership')
+  leaveWorkspace(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.workspacesService.leaveWorkspace(id, request.user.id);
+  }
+
+  @Patch(':id/owner/:userId')
+  transferOwnership(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.workspacesService.transferOwnership(id, request.user.id, userId);
+  }
+
+  @Post(':id/invitations/:invitationId/redeem')
+  redeemInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const token = (body as { token?: unknown } | undefined)?.token;
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+      throw new BadRequestException('This invitation link is invalid');
+    }
+    return this.workspacesService.acceptInvitation(id, invitationId, request.user.id, token);
+  }
+
+  @Post(':id/invitations/:invitationId/resend')
+  resendInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.workspacesService.resendInvitation(id, request.user.id, invitationId);
+  }
 
   @Get()
   getMyWorkspaces(
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto[]> {
-    return this.workspacesService.findAllForUser(
-      request.user.id,
-    );
+    return this.workspacesService.findAllForUser(request.user.id);
   }
 
   @Get(':id/members')
@@ -49,13 +84,25 @@ export class WorkspacesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceMemberResponseDto[]> {
-    return this.workspacesService.findMembers(
-      id,
-      request.user.id,
-    );
+    return this.workspacesService.findMembers(id, request.user.id);
   }
 
+  @Get(':id/backlog-views')
+  getBacklogViews(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<SaveBacklogViewDto[]> {
+    return this.workspacesService.getBacklogViews(id, request.user.id);
+  }
 
+  @Post(':id/backlog-views')
+  saveBacklogView(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveBacklogViewDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<SaveBacklogViewDto[]> {
+    return this.workspacesService.saveBacklogView(id, request.user.id, dto);
+  }
 
   @Patch(':id/kanban-settings')
   updateWorkspaceKanbanSettings(
@@ -75,10 +122,7 @@ export class WorkspacesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceKanbanSettingsResponseDto> {
-    return this.workspacesService.getKanbanSettings(
-      id,
-      request.user.id,
-    );
+    return this.workspacesService.getKanbanSettings(id, request.user.id);
   }
 
   @Get(':id')
@@ -86,10 +130,7 @@ export class WorkspacesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto> {
-    return this.workspacesService.findOneForUser(
-      id,
-      request.user.id,
-    );
+    return this.workspacesService.findOneForUser(id, request.user.id);
   }
 
   @Patch(':id')
@@ -98,11 +139,7 @@ export class WorkspacesController {
     @Body() dto: UpdateWorkspaceDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto> {
-    return this.workspacesService.update(
-      id,
-      request.user.id,
-      dto,
-    );
+    return this.workspacesService.update(id, request.user.id, dto);
   }
 
   @Patch(':id/archive')
@@ -110,10 +147,7 @@ export class WorkspacesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto> {
-    return this.workspacesService.archive(
-      id,
-      request.user.id,
-    );
+    return this.workspacesService.archive(id, request.user.id);
   }
 
   @Patch(':id/unarchive')
@@ -121,10 +155,7 @@ export class WorkspacesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto> {
-    return this.workspacesService.unarchive(
-      id,
-      request.user.id,
-    );
+    return this.workspacesService.unarchive(id, request.user.id);
   }
 
   @Delete(':id/members/:userId')
@@ -133,11 +164,7 @@ export class WorkspacesController {
     @Param('userId', ParseUUIDPipe) userId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
-    return this.workspacesService.removeMember(
-      id,
-      request.user.id,
-      userId,
-    );
+    return this.workspacesService.removeMember(id, request.user.id, userId);
   }
 
   @Delete(':id')
@@ -145,10 +172,15 @@ export class WorkspacesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
-    return this.workspacesService.softDelete(
-      id,
-      request.user.id,
-    );
+    return this.workspacesService.softDelete(id, request.user.id);
+  }
+
+  @Get(':id/invitations')
+  listWorkspaceInvitations(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<WorkspaceInvitationResponseDto[]> {
+    return this.workspacesService.listPendingInvitations(id, request.user.id);
   }
 
   @Patch(':id/invitations/:invitationId/accept')
@@ -196,11 +228,7 @@ export class WorkspacesController {
     @Body() dto: CreateWorkspaceInvitationDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceInvitationResponseDto> {
-    return this.workspacesService.createInvitation(
-      id,
-      request.user.id,
-      dto,
-    );
+    return this.workspacesService.createInvitation(id, request.user.id, dto);
   }
 
   @Post()
@@ -208,9 +236,6 @@ export class WorkspacesController {
     @Body() dto: CreateWorkspaceDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<WorkspaceResponseDto> {
-    return this.workspacesService.create(
-      request.user.id,
-      dto,
-    );
+    return this.workspacesService.create(request.user.id, dto);
   }
 }

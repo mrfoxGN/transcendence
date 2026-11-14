@@ -1,3 +1,4 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
@@ -19,6 +20,37 @@ export class ChatService {
     private readonly workspaceChatGateway: WorkspaceChatGateway,
   ) {}
 
+  async unreadCount(workspaceId: string, userId: string): Promise<number> {
+    await this.workspacesService.findOneForUser(workspaceId, userId);
+    const rows: { count: string | number }[] = await this.chatMessagesRepository.query(
+      `SELECT COUNT(*) AS count
+       FROM workspace_memberships AS membership
+       INNER JOIN chat_messages AS message ON message.workspace_id = membership.workspace_id
+       WHERE membership.workspace_id = ? AND membership.user_id = ?
+         AND message.deleted_at IS NULL
+         AND (message.sender_id IS NULL OR message.sender_id <> membership.user_id)
+         AND message.created_at >= membership.joined_at
+         AND (membership.chat_read_at IS NULL
+           OR (message.created_at, message.id) > (membership.chat_read_at, membership.chat_read_message_id))`,
+      [workspaceId, userId],
+    );
+    return Number(rows[0].count);
+  }
+
+  async markRead(workspaceId: string, userId: string, messageId: string): Promise<void> {
+    await this.workspacesService.findOneForUser(workspaceId, userId);
+    const result: { affectedRows: number } = await this.chatMessagesRepository.query(
+      `UPDATE workspace_memberships AS membership
+       INNER JOIN chat_messages AS message ON message.workspace_id = membership.workspace_id
+       SET membership.chat_read_at = message.created_at, membership.chat_read_message_id = message.id
+       WHERE membership.workspace_id = ? AND membership.user_id = ?
+         AND message.id = ? AND message.deleted_at IS NULL
+         AND (membership.chat_read_at IS NULL
+           OR (message.created_at, message.id) > (membership.chat_read_at, membership.chat_read_message_id))`,
+      [workspaceId, userId, messageId],
+    );
+    if (result.affectedRows > 0) this.workspaceChatGateway.emitReadUpdated(userId, workspaceId);
+  }
 
   async listMessages(
     workspaceId: string,
@@ -62,7 +94,7 @@ export class ChatService {
     senderId: string,
     dto: SendChatMessageDto,
   ): Promise<ChatMessageResponseDto> {
-    await this.workspacesService.findOneForUser(workspaceId, senderId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, senderId));
 
     const content = dto.content.trim();
 
@@ -90,10 +122,7 @@ export class ChatService {
       createdAt: saved.createdAt,
     };
 
-    this.workspaceChatGateway.emitMessageCreated(
-      workspaceId,
-      response,
-    );
+    this.workspaceChatGateway.emitMessageCreated(workspaceId, response);
 
     return response;
   }

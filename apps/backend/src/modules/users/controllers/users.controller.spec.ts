@@ -76,7 +76,7 @@ describe('Users endpoints', () => {
   });
 
   it('GET requires a token', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${id}`)
       .expect(401);
 
@@ -84,7 +84,7 @@ describe('Users endpoints', () => {
   });
 
   it('GET rejects an invalid token', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${id}`)
       .set('Authorization', 'Bearer invalid.token.value')
       .expect(401);
@@ -93,7 +93,7 @@ describe('Users endpoints', () => {
   it('GET rejects a token without a user ID', async () => {
     const badToken = await jwtService.signAsync({ sub: 123 });
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${id}`)
       .set('Authorization', `Bearer ${badToken}`)
       .expect(401);
@@ -104,7 +104,7 @@ describe('Users endpoints', () => {
       new NotFoundException('User not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
@@ -116,14 +116,14 @@ describe('Users endpoints', () => {
       tokenVersion: 0,
     });
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
   });
 
   it('GET returns the logged-in user', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -133,21 +133,21 @@ describe('Users endpoints', () => {
   });
 
   it('GET forbids another user ID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get(`/users/${otherId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
   });
 
   it('GET rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .get('/users/not-a-uuid')
       .set('Authorization', `Bearer ${token}`)
       .expect(400);
   });
 
   it('PATCH requires a token', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .send({ username: 'newname' })
       .expect(401);
@@ -162,18 +162,18 @@ describe('Users endpoints', () => {
       ...changes,
     });
 
-    const response = await request(app.getHttpServer())
+    const response = await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send(changes)
       .expect(200);
 
-    expect(response.body.username).toBe('newname');
+    expect((response.body as { username: unknown }).username).toBe('newname');
     expect(usersService.updateProfile).toHaveBeenCalledWith(id, changes);
   });
 
   it('PATCH forbids another user ID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${otherId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ username: 'newname' })
@@ -183,7 +183,7 @@ describe('Users endpoints', () => {
   });
 
   it('PATCH rejects an invalid UUID', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch('/users/not-a-uuid')
       .set('Authorization', `Bearer ${token}`)
       .send({ username: 'newname' })
@@ -191,13 +191,13 @@ describe('Users endpoints', () => {
   });
 
   it('PATCH rejects invalid and forbidden fields', async () => {
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ username: 'ab' })
       .expect(400);
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ passwordHash: 'hacked' })
@@ -211,7 +211,7 @@ describe('Users endpoints', () => {
       new BadRequestException('No changes provided'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send({})
@@ -223,7 +223,7 @@ describe('Users endpoints', () => {
       new NotFoundException('User not found'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ username: 'newname' })
@@ -235,7 +235,7 @@ describe('Users endpoints', () => {
       new ConflictException('Username already exists'),
     );
 
-    await request(app.getHttpServer())
+    await request(app.getHttpServer() as import('http').Server)
       .patch(`/users/${id}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ username: 'takenname' })

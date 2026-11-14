@@ -8,22 +8,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
-import {
-  IsNull,
-  QueryFailedError,
-  Repository,
-} from 'typeorm';
+import { IsNull, QueryFailedError, Repository } from 'typeorm';
 
-import {
-  AppRole,
-  UserStatus,
-} from '../../../database/enums/database.enums';
+import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { User } from '../entities/user.entity';
 import { UserMapper } from '../mappers/user.mapper';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
-
 
 function isDuplicateError(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) {
@@ -89,9 +81,7 @@ export class UsersService {
     });
   }
 
-  async create(
-    createUserDto: CreateUserDto,
-  ): Promise<UserResponseDto> {
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     // 1. Check username and email
     const existingUser = await this.usersRepository.findOne({
       where: [
@@ -101,15 +91,11 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException(
-        'Username or email already exists',
-      );
+      throw new ConflictException('Username or email already exists');
     }
 
     // 2. Hash the password
-    const passwordHash = await argon2.hash(
-      createUserDto.password,
-    );
+    const passwordHash = await argon2.hash(createUserDto.password);
 
     // 3. Create the entity
     const now = new Date();
@@ -135,9 +121,7 @@ export class UsersService {
       return UserMapper.toResponse(savedUser);
     } catch (error: unknown) {
       if (isDuplicateError(error)) {
-        throw new ConflictException(
-          'Username or email already exists',
-        );
+        throw new ConflictException('Username or email already exists');
       }
 
       throw error;
@@ -160,7 +144,10 @@ export class UsersService {
     if (
       dto.username === undefined &&
       dto.email === undefined &&
-      dto.avatarUrl === undefined
+      dto.avatarUrl === undefined &&
+      dto.avatarImage === undefined &&
+      dto.theme === undefined &&
+      dto.notificationBadge === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -169,28 +156,46 @@ export class UsersService {
       throw new BadRequestException('Username and email cannot be null');
     }
 
+    const changes: Partial<User> = { updatedAt: new Date() };
+    if (dto.theme !== undefined) changes.theme = dto.theme;
+    if (dto.notificationBadge !== undefined) changes.notificationBadge = dto.notificationBadge;
+    if (dto.avatarImage !== undefined) {
+      if (dto.avatarUrl !== undefined) throw new BadRequestException('Choose either an image or a URL.');
+      const encoded = dto.avatarImage.slice('data:image/jpeg;base64,'.length);
+      const image = Buffer.from(encoded, 'base64');
+      if (!dto.avatarImage.startsWith('data:image/jpeg;base64,')
+        || image.length < 5 || image.length > 24 * 1024 || image.toString('base64') !== encoded
+        || image[0] !== 0xff || image[1] !== 0xd8 || image[2] !== 0xff
+        || image[image.length - 2] !== 0xff || image[image.length - 1] !== 0xd9) {
+        throw new BadRequestException('Choose a valid avatar image.');
+      }
+      changes.avatarUrl = dto.avatarImage;
+    }
     if (dto.username !== undefined && dto.username !== user.username) {
       if (await this.usersRepository.existsBy({ username: dto.username })) {
         throw new ConflictException('Username already exists');
       }
-      user.username = dto.username;
+      changes.username = dto.username;
     }
 
     if (dto.email !== undefined && dto.email !== user.email) {
       if (await this.usersRepository.existsBy({ email: dto.email })) {
         throw new ConflictException('Email already exists');
       }
-      user.email = dto.email;
+      Object.assign(changes, {
+        email: dto.email, verifiedEmail: null, emailVerifyDigest: null, emailVerifyExpiresAt: null,
+        passwordResetDigest: null, passwordResetExpiresAt: null,
+      });
     }
 
     if (dto.avatarUrl !== undefined) {
-      user.avatarUrl = dto.avatarUrl;
+      changes.avatarUrl = dto.avatarUrl;
     }
 
-    user.updatedAt = new Date();
-
     try {
-      return UserMapper.toResponse(await this.usersRepository.save(user));
+      const updated = await this.usersRepository.update({ id, deletedAt: IsNull() }, changes);
+      if (!updated.affected) throw new NotFoundException('User not found');
+      return UserMapper.toResponse({ ...user, ...changes });
     } catch (error: unknown) {
       if (isDuplicateError(error)) {
         throw new ConflictException('Username or email already exists');

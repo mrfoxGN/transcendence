@@ -10,6 +10,7 @@ export class WorkspaceKanbanSettingsMapper {
       activeWipLimit: settings.activeWipLimit,
       definitionOfReady: settings.definitionOfReady,
       definitionOfDone: settings.definitionOfDone,
+      ...(settings.boardColumns ? { boardColumns: settings.boardColumns } : {}),
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };

@@ -1,24 +1,34 @@
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
+  PayloadTooLargeException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { access, mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Raw, Repository } from 'typeorm';
 
-import { ActivitiesService } from '../../activities/services/activities.service';
+import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
 import { TasksService } from '../../tasks/services/tasks.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ListWorkspaceFilesDto } from '../dto/list-workspace-files.dto';
 import { UploadWorkspaceFileDto } from '../dto/upload-workspace-file.dto';
 import { WorkspaceFileResponseDto } from '../dto/workspace-file-response.dto';
 import { WorkspaceFile } from '../entities/workspace-file.entity';
+
+export const workspaceFileLimit = 10 * 1024 * 1024;
+
+const fileKindFilters = {
+  image: (column: string) => `${column} LIKE 'image/%'`,
+  text: (column: string) => `${column} LIKE 'text/%'`,
+  document: (column: string) => `(${column} IN ('application/pdf','application/msword','application/rtf') OR ${column} LIKE 'application/vnd.ms-%' OR ${column} LIKE 'application/vnd.openxmlformats-officedocument.%' OR ${column} LIKE 'application/vnd.oasis.opendocument.%')`,
+};
 
 @Injectable()
 export class FilesService {
@@ -47,36 +57,29 @@ export class FilesService {
     file: Express.Multer.File | undefined,
     dto: UploadWorkspaceFileDto,
   ): Promise<WorkspaceFileResponseDto> {
-    await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
 
     if (!file) {
       throw new BadRequestException('File is required');
     }
+    if (file.size > workspaceFileLimit) throw new PayloadTooLargeException('Choose a file no larger than 10 MiB.');
 
     if (dto.taskId) {
       const task = await this.tasksService.findById(dto.taskId, userId);
 
       if (task.workspaceId !== workspaceId) {
-        throw new BadRequestException(
-          'Task does not belong to this workspace',
-        );
+        throw new BadRequestException('Task does not belong to this workspace');
       }
     }
 
     const id = randomUUID();
     const storageFileName = randomUUID();
 
-    const workspaceStorageDirectory = join(
-      this.storageRoot,
-      workspaceId,
-    );
+    const workspaceStorageDirectory = join(this.storageRoot, workspaceId);
 
     const storageKey = `${workspaceId}/${storageFileName}`;
 
-    const absolutePath = join(
-      workspaceStorageDirectory,
-      storageFileName,
-    );
+    const absolutePath = join(workspaceStorageDirectory, storageFileName);
 
     await mkdir(workspaceStorageDirectory, {
       recursive: true,
@@ -101,8 +104,7 @@ export class FilesService {
     let savedFile: WorkspaceFile;
 
     try {
-      savedFile =
-        await this.workspaceFilesRepository.save(workspaceFile);
+      savedFile = await this.workspaceFilesRepository.save(workspaceFile);
     } catch (error) {
       await unlink(absolutePath).catch(() => undefined);
       throw error;
@@ -124,9 +126,7 @@ export class FilesService {
     } catch (error) {
       this.logger.error(
         `Could not create FILE_UPLOADED activity for file ${savedFile.id}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
 
@@ -138,26 +138,37 @@ export class FilesService {
     userId: string,
     query: ListWorkspaceFilesDto,
   ): Promise<WorkspaceFileResponseDto[]> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const search = query.search?.trim().replace(/[!%_]/g, character => '!' + character);
     const files = await this.workspaceFilesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
+        ...(query.uploaderId && { uploaderId: query.uploaderId }),
+        ...(query.kind && { mimeType: Raw(column => {
+          if (query.kind === 'other') return `(${column} IS NULL OR NOT (${Object.values(fileKindFilters).map(filter => filter(column)).join(' OR ')}))`;
+          return fileKindFilters[query.kind!](column);
+        }) }),
+        ...(search && {
+          displayName: Raw(
+            (column) => `${column} LIKE :search ESCAPE '!'`,
+            { search: '%' + search + '%' },
+          ),
+        }),
       },
       order: {
+        ...(query.sort === 'name' && { displayName: 'ASC' as const }),
+        ...(query.sort === 'size' && { sizeBytes: 'DESC' as const }),
         createdAt: 'DESC',
         id: 'DESC',
       },
       skip,
-      take: limit,
+      take: limit + (query.lookahead === '1' ? 1 : 0),
     });
 
     return files.map((file) => this.toResponse(file));
@@ -168,10 +179,7 @@ export class FilesService {
     fileId: string,
     userId: string,
   ): Promise<WorkspaceFileResponseDto> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {
@@ -188,16 +196,34 @@ export class FilesService {
     return this.toResponse(file);
   }
 
+  async rename(workspaceId: string, fileId: string, userId: string, name: string) {
+    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(workspace);
+    const where = { id: fileId, workspaceId, deletedAt: IsNull() };
+    const file = await this.workspaceFilesRepository.findOne({ where });
+    if (!file) throw new NotFoundException('File not found');
+    if (file.uploaderId !== userId && workspace.ownerId !== userId) throw new ForbiddenException('Only the uploader or workspace owner can rename this file');
+    const displayName = name.trim();
+    if (!displayName) throw new BadRequestException('Enter a filename.');
+    const result = await this.workspaceFilesRepository.update(where, { displayName });
+    if (!result.affected) throw new NotFoundException('File not found');
+    if (displayName !== file.displayName) await recordActivity(this.activitiesService, {
+      workspaceId, actorUserId: userId, actionType: 'FILE_RENAMED', resourceType: 'workspace_file', resourceId: fileId,
+      metadata: { displayName },
+    });
+    return this.toResponse({ ...file, displayName });
+  }
+
   async remove(
     workspaceId: string,
     fileId: string,
     userId: string,
   ): Promise<void> {
-    const workspace =
-      await this.workspacesService.findOneForUser(
-        workspaceId,
-        userId,
-      );
+    const workspace = await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
+    assertWorkspaceWritable(workspace);
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {
@@ -211,19 +237,13 @@ export class FilesService {
       throw new NotFoundException('File not found');
     }
 
-    if (
-      file.uploaderId !== userId &&
-      workspace.ownerId !== userId
-    ) {
+    if (file.uploaderId !== userId && workspace.ownerId !== userId) {
       throw new ForbiddenException(
         'Only the uploader or workspace owner can delete this file',
       );
     }
 
-    const absolutePath = join(
-      this.storageRoot,
-      file.storageKey,
-    );
+    const absolutePath = join(this.storageRoot, file.storageKey);
 
     // Delete the physical file before marking it as deleted.
     // If deletion fails, keep the database record active so
@@ -242,20 +262,17 @@ export class FilesService {
         // The file was already removed.
         // We can safely continue with the database update.
         if (code === 'ENOENT') {
-          this.logger.warn(
-            `Physical file already missing for file ${file.id}`,
-          );
+          this.logger.warn(`Physical file already missing for file ${file.id}`);
           break;
         }
 
         // Retry only transient filesystem errors.
-        const retryable =
-          code === 'EBUSY' || code === 'EAGAIN';
+        const retryable = code === 'EBUSY' || code === 'EAGAIN';
 
         if (retryable && attempt < 3) {
           this.logger.warn(
             `Retrying physical deletion for file ${file.id} ` +
-            `(attempt ${attempt}, code ${code})`,
+              `(attempt ${attempt}, code ${code})`,
           );
 
           await new Promise<void>((resolve) =>
@@ -268,10 +285,8 @@ export class FilesService {
         // Never silently ignore filesystem errors.
         this.logger.error(
           `Physical deletion failed for file ${file.id} ` +
-          `in workspace ${workspaceId} (code: ${code})`,
-          error instanceof Error
-            ? error.stack
-            : String(error),
+            `in workspace ${workspaceId} (code: ${code})`,
+          error instanceof Error ? error.stack : String(error),
         );
 
         throw new ServiceUnavailableException(
@@ -301,9 +316,7 @@ export class FilesService {
     } catch (error) {
       this.logger.error(
         `Could not create FILE_DELETED activity for file ${file.id}`,
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
     }
   }
@@ -318,10 +331,7 @@ export class FilesService {
     mimeType: string | null;
     sizeBytes: string;
   }> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      userId,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const file = await this.workspaceFilesRepository.findOne({
       where: {
@@ -335,10 +345,7 @@ export class FilesService {
       throw new NotFoundException('File not found');
     }
 
-    const absolutePath = join(
-      this.storageRoot,
-      file.storageKey,
-    );
+    const absolutePath = join(this.storageRoot, file.storageKey);
 
     try {
       await access(absolutePath);
@@ -354,9 +361,7 @@ export class FilesService {
     };
   }
 
-  private toResponse(
-    file: WorkspaceFile,
-  ): WorkspaceFileResponseDto {
+  private toResponse(file: WorkspaceFile): WorkspaceFileResponseDto {
     return {
       id: file.id,
       workspaceId: file.workspaceId,

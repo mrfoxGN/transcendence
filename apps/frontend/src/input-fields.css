@@ -1,0 +1,58 @@
+:root {
+  --input-rest: color-mix(in srgb, var(--color-blue-light) 45%, var(--color-white));
+  --input-hover: var(--color-blue-light);
+  --input-focus: var(--color-white);
+  --input-accent: var(--color-blue);
+  --input-ink: var(--color-ink);
+  --input-muted: var(--color-gray);
+}
+
+.workspace-app {
+  --input-rest: color-mix(in srgb, var(--wu-surface-soft) 72%, var(--wu-surface));
+  --input-hover: color-mix(in srgb, var(--wu-line) 36%, var(--wu-surface-soft));
+  --input-focus: var(--wu-surface);
+  --input-accent: var(--wu-blue);
+  --input-ink: var(--wu-ink);
+  --input-muted: var(--wu-muted);
+}
+
+/* Icon groups draw the field surface around the icon and its input together. */
+:is(.wu-field-label, .auth-form, .workspace-picker-form, .wu-board-rename) :is(input, textarea, select),
+:is(.wu-select, .wu-chat-composer textarea, .wu-chat-search, .wu-command-input) {
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--input-rest);
+  color: var(--input-ink);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+:is(.wu-field-label, .auth-form, .workspace-picker-form, .wu-board-rename) :is(input, textarea, select):hover:not(:disabled, [readonly]),
+:is(.wu-select, .wu-chat-composer textarea):hover:not(:disabled, [readonly]),
+:is(.wu-chat-search, .wu-command-input):hover {
+  background: var(--input-hover);
+}
+
+:is(.wu-field-label, .auth-form, .workspace-picker-form, .wu-board-rename) :is(input, textarea, select):focus,
+:is(.wu-select, .wu-chat-composer textarea):focus,
+:is(.wu-chat-search, .wu-command-input):focus-within {
+  border-color: var(--input-accent);
+  outline: 1px solid var(--input-accent);
+  outline-offset: 0;
+  background: var(--input-focus);
+}
+
+:is(.wu-field-label, .auth-form, .workspace-picker-form, .wu-board-rename, .wu-chat-composer, .wu-chat-search, .wu-command-input) :is(input, textarea)::placeholder {
+  color: var(--input-muted);
+  opacity: 1;
+}
+
+:is(.wu-field-label, .auth-form, .workspace-picker-form, .wu-board-rename, .wu-chat-composer) :is(input, textarea, select):disabled,
+.wu-select:disabled { opacity: .58; cursor: not-allowed; }
+
+:is(.wu-chat-search, .wu-command-input) input:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.wu-field-label, .auth-form, .workspace-picker-form, .wu-board-rename) :is(input, textarea, select),
+  :is(.wu-select, .wu-chat-composer textarea, .wu-chat-search, .wu-command-input) { transition: none; }
+}

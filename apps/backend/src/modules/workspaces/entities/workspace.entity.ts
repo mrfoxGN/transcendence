@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
+import { defaultWorkspaceTimeZone } from '../workspace-policy';
 
 @Entity('workspaces')
 export class Workspace {
@@ -36,6 +37,9 @@ export class Workspace {
     nullable: true,
   })
   description!: string | null;
+
+  @Column({ name: 'reporting_time_zone', type: 'varchar', length: 80, default: defaultWorkspaceTimeZone })
+  reportingTimeZone?: string;
 
   @Column({
     name: 'created_at',

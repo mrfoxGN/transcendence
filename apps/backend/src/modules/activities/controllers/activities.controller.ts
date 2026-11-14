@@ -36,14 +36,29 @@ export class ActivitiesController {
     @Req() request: AuthenticatedRequest,
     @Query() query: ListActivitiesDto,
   ): Promise<ActivityResponseDto[]> {
-    await this.workspacesService.findOneForUser(
-      workspaceId,
-      request.user.id,
-    );
+    await this.workspacesService.findOneForUser(workspaceId, request.user.id);
 
-    return this.activitiesService.findAllForWorkspace(
-      workspaceId,
-      query,
-    );
+    return this.activitiesService.findAllForWorkspace(workspaceId, query);
+  }
+
+  @Get('page')
+  async findPage(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+    @Query() query: ListActivitiesDto,
+  ) {
+    await this.workspacesService.findOneForUser(workspaceId, request.user.id);
+
+    return this.activitiesService.findPageForWorkspace(workspaceId, query);
+  }
+
+  @Get('audit')
+  async findAudit(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+    @Query() query: ListActivitiesDto,
+  ) {
+    await this.workspacesService.assertOwner(workspaceId, request.user.id);
+    return this.activitiesService.findPageForWorkspace(workspaceId, query, true);
   }
 }

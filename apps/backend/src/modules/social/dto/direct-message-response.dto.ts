@@ -1,4 +1,3 @@
-
 export class DirectMessageResponseDto {
   id!: string;
   conversationId!: string;

@@ -6,4 +6,5 @@ export class WorkspaceResponseDto {
   createdAt!: Date;
   updatedAt!: Date;
   archivedAt!: Date | null;
+  reportingTimeZone?: string;
 }

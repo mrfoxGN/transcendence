@@ -14,11 +14,7 @@ import { SocialService } from './services/social.service';
   imports: [
     UsersModule,
     NotificationsModule,
-    TypeOrmModule.forFeature([
-      Friendship,
-      DirectConversation,
-      DirectMessage,
-    ]),
+    TypeOrmModule.forFeature([Friendship, DirectConversation, DirectMessage]),
   ],
   controllers: [SocialController],
   providers: [SocialService, DirectChatGateway],

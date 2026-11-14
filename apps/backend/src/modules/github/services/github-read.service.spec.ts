@@ -49,8 +49,7 @@ describe('GitHubService - Repository and Commits Read', () => {
     authorName: 'Anass',
     committerName: 'Anass',
     committedAt: new Date('2026-11-04T12:00:00Z'),
-    githubUrl: 'https://github.com/example/repo/commit/' +
-      'a'.repeat(40),
+    githubUrl: 'https://github.com/example/repo/commit/' + 'a'.repeat(40),
   };
 
   const workspacesService = {
@@ -89,20 +88,18 @@ describe('GitHubService - Repository and Commits Read', () => {
   });
 
   it('returns connected repository information from MySQL', async () => {
-    const result = await service.getWorkspaceRepository(
-      workspaceId,
-      userId,
-    );
+    const result = await service.getWorkspaceRepository(workspaceId, userId);
 
     expect(result.id).toBe(repositoryId);
     expect(result.fullName).toBe(repository.fullName);
     expect(result.lastSyncedAt).toEqual(repository.lastSyncedAt);
 
-    expect(workspacesService.findOneForUser)
-      .toHaveBeenCalledWith(workspaceId, userId);
+    expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
 
-    expect(githubApiService.getPublicRepository)
-      .not.toHaveBeenCalled();
+    expect(githubApiService.getPublicRepository).not.toHaveBeenCalled();
   });
 
   it('rejects unauthorized repository access', async () => {
@@ -126,17 +123,13 @@ describe('GitHubService - Repository and Commits Read', () => {
   });
 
   it('retrieves stored commits from MySQL', async () => {
-    const result = await service.listWorkspaceCommits(
-      workspaceId,
-      userId,
-    );
+    const result = await service.listWorkspaceCommits(workspaceId, userId);
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0].sha).toBe(commit.sha);
     expect(result.total).toBe(1);
 
-    expect(githubApiService.listRecentCommits)
-      .not.toHaveBeenCalled();
+    expect(githubApiService.listRecentCommits).not.toHaveBeenCalled();
   });
 
   it('uses default pagination and newest-first sorting', async () => {
@@ -154,10 +147,7 @@ describe('GitHubService - Repository and Commits Read', () => {
   });
 
   it('calculates pagination correctly', async () => {
-    repositoryCommits.findAndCount.mockResolvedValueOnce([
-      [commit],
-      25,
-    ]);
+    repositoryCommits.findAndCount.mockResolvedValueOnce([[commit], 25]);
 
     const result = await service.listWorkspaceCommits(
       workspaceId,
@@ -187,17 +177,11 @@ describe('GitHubService - Repository and Commits Read', () => {
       [1.5, 20],
     ]) {
       await expect(
-        service.listWorkspaceCommits(
-          workspaceId,
-          userId,
-          page,
-          limit,
-        ),
+        service.listWorkspaceCommits(workspaceId, userId, page, limit),
       ).rejects.toBeInstanceOf(BadRequestException);
     }
 
-    expect(repositoryCommits.findAndCount)
-      .not.toHaveBeenCalled();
+    expect(repositoryCommits.findAndCount).not.toHaveBeenCalled();
   });
 
   it('rejects unauthorized commit access', async () => {
@@ -209,8 +193,7 @@ describe('GitHubService - Repository and Commits Read', () => {
       service.listWorkspaceCommits(workspaceId, userId),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
-    expect(repositoryCommits.findAndCount)
-      .not.toHaveBeenCalled();
+    expect(repositoryCommits.findAndCount).not.toHaveBeenCalled();
   });
 
   it('returns 404 for commits without a connected repository', async () => {
@@ -220,7 +203,6 @@ describe('GitHubService - Repository and Commits Read', () => {
       service.listWorkspaceCommits(workspaceId, userId),
     ).rejects.toBeInstanceOf(NotFoundException);
 
-    expect(repositoryCommits.findAndCount)
-      .not.toHaveBeenCalled();
+    expect(repositoryCommits.findAndCount).not.toHaveBeenCalled();
   });
 });

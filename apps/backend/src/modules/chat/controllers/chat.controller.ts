@@ -2,8 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -29,17 +31,31 @@ type AuthenticatedRequest = Request & {
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
+  @Get('unread-count')
+  async unreadCount(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<{ count: number }> {
+    return { count: await this.chatService.unreadCount(workspaceId, request.user.id) };
+  }
+
+  @Patch(':messageId/read')
+  @HttpCode(204)
+  markRead(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.chatService.markRead(workspaceId, request.user.id, messageId);
+  }
+
   @Get()
   listMessages(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Query() query: ListChatMessagesDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ChatMessageResponseDto[]> {
-    return this.chatService.listMessages(
-      workspaceId,
-      request.user.id,
-      query,
-    );
+    return this.chatService.listMessages(workspaceId, request.user.id, query);
   }
 
   @Post()
@@ -48,10 +64,6 @@ export class ChatController {
     @Body() dto: SendChatMessageDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ChatMessageResponseDto> {
-    return this.chatService.sendMessage(
-      workspaceId,
-      request.user.id,
-      dto,
-    );
+    return this.chatService.sendMessage(workspaceId, request.user.id, dto);
   }
 }

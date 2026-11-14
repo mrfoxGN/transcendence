@@ -26,6 +26,7 @@ import {
 } from '../../../database/enums/database.enums';
 import type { UsersService } from '../../users/services/users.service';
 import type { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceKanbanSetting } from '../../workspaces/entities/workspace-kanban-setting.entity';
 import { Task } from '../entities/task.entity';
 import { TaskAssignment } from '../entities/task-assignment.entity';
 import { TaskComment } from '../entities/task-comment.entity';
@@ -73,8 +74,9 @@ function makeRepository() {
     find: jest.fn().mockResolvedValue([]),
     count: jest.fn().mockResolvedValue(0),
     create: jest.fn((value: object) => ({ ...value })),
-    save: jest.fn(async (value: object) => value),
+    save: jest.fn((value: object) => Promise.resolve(value)),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
+    insert: jest.fn().mockResolvedValue({}),
     delete: jest.fn().mockResolvedValue({ affected: 1 }),
     createQueryBuilder: jest.fn(),
   };
@@ -91,6 +93,7 @@ describe('TasksService', () => {
   let history: ReturnType<typeof makeRepository>;
   let workspaces: {
     findOneForUser: jest.Mock;
+    lockAssignmentMemberships: jest.Mock;
     getKanbanSettings: jest.Mock;
   };
   let users: { findById: jest.Mock };
@@ -127,6 +130,7 @@ describe('TasksService', () => {
 
     workspaces = {
       findOneForUser: jest.fn().mockResolvedValue({ id: workspaceId }),
+      lockAssignmentMemberships: jest.fn().mockResolvedValue(undefined),
       getKanbanSettings: jest.fn().mockResolvedValue({ activeWipLimit: 3 }),
     };
     users = {
@@ -141,21 +145,27 @@ describe('TasksService', () => {
       }),
     };
 
-    const repositories = new Map<Function, ReturnType<typeof makeRepository>>([
+    const repositories = new Map<
+      abstract new (...args: never[]) => object,
+      ReturnType<typeof makeRepository>
+    >([
       [Task, transactionTasks],
       [TaskAssignment, assignments],
       [TaskComment, comments],
       [TaskDependency, dependencies],
       [TaskStatusHistory, history],
+      [WorkspaceKanbanSetting, makeRepository()],
     ]);
     const manager = {
-      getRepository: jest.fn((entity: Function) => {
-        const repository = repositories.get(entity);
-        if (!repository) {
-          throw new Error('Unexpected repository requested by the service');
-        }
-        return repository;
-      }),
+      getRepository: jest.fn(
+        (entity: abstract new (...args: never[]) => object) => {
+          const repository = repositories.get(entity);
+          if (!repository) {
+            throw new Error('Unexpected repository requested by the service');
+          }
+          return repository;
+        },
+      ),
     };
     dataSource = {
       getRepository: manager.getRepository,
@@ -268,39 +278,35 @@ describe('TasksService', () => {
           actorUserId: userId,
           actionType: 'TASK_CREATED',
           resourceType: 'task',
-          resourceId: expect.any(String),
+          resourceId: expect.any(String) as unknown,
           metadata: expect.objectContaining({
             title: 'Build profile',
             status: TaskStatus.BACKLOG,
             priority: null,
-          }),
+          }) as unknown,
         }),
       );
     });
 
     it('still creates the task when activity creation fails', async () => {
-      activities.create.mockRejectedValue(
-        new Error('Activity unavailable'),
-      );
+      activities.create.mockRejectedValue(new Error('Activity unavailable'));
 
       jest
         .spyOn(
-          (service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }).logger,
+          (
+            service as unknown as {
+              logger: {
+                error: (...args: unknown[]) => void;
+              };
+            }
+          ).logger,
           'error',
         )
         .mockImplementation(() => undefined);
 
-      const result = await service.create(
-        workspaceId,
-        userId,
-        {
-          title: 'Build profile',
-        },
-      );
+      const result = await service.create(workspaceId, userId, {
+        title: 'Build profile',
+      });
 
       expect(result.title).toBe('Build profile');
       expect(tasks.save).toHaveBeenCalledTimes(1);
@@ -351,11 +357,21 @@ describe('TasksService', () => {
     it('trims the title, converts the due date, and preserves omitted fields', async () => {
       const dueAt = '2026-12-01T10:00:00.000Z';
       await service.update(taskId, userId, { title: '  Updated  ', dueAt });
-      const changes = tasks.update.mock.calls[0][1];
+      const changes = (tasks.update.mock.calls as unknown[][])[0][1];
       expect(changes).toEqual({
         title: 'Updated',
         dueAt: new Date(dueAt),
-        updatedAt: expect.any(Date),
+        dueDate: '2026-12-01',
+        updatedAt: expect.any(Date) as unknown,
+      });
+    });
+
+    it('stores a calendar deadline independently of the legacy timestamp', async () => {
+      await service.update(taskId, userId, { dueDate: '2026-03-23' });
+      expect(tasks.update).toHaveBeenCalledWith(expect.anything() as unknown, {
+        dueDate: '2026-03-23',
+        dueAt: new Date('2026-03-23T00:00:00Z'),
+        updatedAt: expect.any(Date) as unknown,
       });
     });
 
@@ -366,19 +382,20 @@ describe('TasksService', () => {
         priority: null,
         dueAt: null,
       });
-      expect(tasks.update).toHaveBeenCalledWith(expect.anything(), {
+      expect(tasks.update).toHaveBeenCalledWith(expect.anything() as unknown, {
         description: null,
         acceptanceCriteria: null,
         priority: null,
         dueAt: null,
-        updatedAt: expect.any(Date),
+        dueDate: null,
+        updatedAt: expect.any(Date) as unknown,
       });
     });
 
     it('updates task priority', async () => {
       await service.update(taskId, userId, { priority: TaskPriority.HIGH });
       expect(tasks.update).toHaveBeenCalledWith(
-        expect.anything(),
+        expect.anything() as unknown,
         expect.objectContaining({ priority: TaskPriority.HIGH }),
       );
     });
@@ -390,10 +407,13 @@ describe('TasksService', () => {
           .mockResolvedValueOnce(task)
           .mockResolvedValueOnce(makeTask({ position }));
         const result = await service.update(taskId, userId, { position });
-        expect(tasks.update).toHaveBeenCalledWith(expect.anything(), {
-          position,
-          updatedAt: expect.any(Date),
-        });
+        expect(tasks.update).toHaveBeenCalledWith(
+          expect.anything() as unknown,
+          {
+            position,
+            updatedAt: expect.any(Date) as unknown,
+          },
+        );
         expect(result.position).toBe(position);
       },
     );
@@ -425,8 +445,8 @@ describe('TasksService', () => {
       expect(tasks.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: taskId }),
         {
-          deletedAt: expect.any(Date),
-          updatedAt: expect.any(Date),
+          deletedAt: expect.any(Date) as unknown,
+          updatedAt: expect.any(Date) as unknown,
         },
       );
       expect(tasks.delete).not.toHaveBeenCalled();
@@ -466,8 +486,8 @@ describe('TasksService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             workspaceId,
-            deletedAt: expect.anything(),
-          }),
+            deletedAt: expect.anything() as unknown,
+          }) as unknown,
           order: { position: 'ASC', createdAt: 'ASC', id: 'ASC' },
         }),
       );
@@ -491,6 +511,32 @@ describe('TasksService', () => {
   });
 
   describe('status transitions', () => {
+    it('moves a completed card into a full column before an existing card', async () => {
+      task.status = TaskStatus.DONE;
+      task.completedAt = new Date();
+      const anchor = makeTask({ id: otherTaskId, status: TaskStatus.IN_PROGRESS });
+      const settings = dataSource.getRepository(WorkspaceKanbanSetting) as ReturnType<typeof makeRepository>;
+      settings.findOne.mockResolvedValue({
+        activeWipLimit: 1,
+        boardColumns: [{ id: 'active', label: 'Active', status: TaskStatus.IN_PROGRESS, limit: 1 }],
+      });
+      query.getMany.mockResolvedValue([task, anchor]);
+
+      const moved = await service.transition(taskId, userId, {
+        toStatus: TaskStatus.IN_PROGRESS,
+        boardColumnId: 'active',
+        placement: 'before',
+        anchorTaskId: anchor.id,
+      });
+
+      expect(moved).toMatchObject({
+        status: TaskStatus.IN_PROGRESS, boardColumnId: 'active', completedAt: null, position: 0,
+      });
+      expect(transactionTasks.update).toHaveBeenCalledWith({ id: anchor.id }, { position: 1 });
+      expect(transactionTasks.count).not.toHaveBeenCalled();
+      expect(history.save).toHaveBeenCalled();
+    });
+
     const allowed: Array<[TaskStatus, TaskStatus]> = [
       [TaskStatus.BACKLOG, TaskStatus.READY],
       [TaskStatus.BACKLOG, TaskStatus.CANCELLED],
@@ -536,7 +582,7 @@ describe('TasksService', () => {
             fromStatus: from,
             toStatus: to,
             changedById: userId,
-            changedAt: expect.any(Date),
+            changedAt: expect.any(Date) as unknown,
             note: 'Reviewed',
           }),
         );
@@ -576,37 +622,31 @@ describe('TasksService', () => {
     it('still transitions the task when activity creation fails', async () => {
       task.status = TaskStatus.BACKLOG;
 
-      activities.create.mockRejectedValue(
-        new Error('Activity unavailable'),
-      );
+      activities.create.mockRejectedValue(new Error('Activity unavailable'));
 
       jest
         .spyOn(
-          (service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }).logger,
+          (
+            service as unknown as {
+              logger: {
+                error: (...args: unknown[]) => void;
+              };
+            }
+          ).logger,
           'error',
         )
         .mockImplementation(() => undefined);
 
-      const result = await service.transition(
-        taskId,
-        userId,
-        {
-          toStatus: TaskStatus.READY,
-          note: 'Ready to start',
-        },
-      );
+      const result = await service.transition(taskId, userId, {
+        toStatus: TaskStatus.READY,
+        note: 'Ready to start',
+      });
 
       expect(result.status).toBe(TaskStatus.READY);
 
       expect(history.save).toHaveBeenCalledTimes(1);
 
-      expect(
-        activities.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(activities.create).toHaveBeenCalledTimes(1);
     });
 
     it('rejects READY to IN_PROGRESS when active WIP is full', async () => {
@@ -650,6 +690,26 @@ describe('TasksService', () => {
   });
 
   describe('assignment', () => {
+    it('creates and assigns a task in the same transaction', async () => {
+      transactionTasks.save.mockImplementation(value => Promise.resolve({ ...value, taskNumber: 42 }));
+      const result = await service.create(workspaceId, userId, {
+        title: 'Assigned task', assigneeId: otherUserId, priority: TaskPriority.HIGH, dueDate: '2026-12-01',
+      });
+      expect(result).toMatchObject({ taskKey: 'TASK-42', priority: TaskPriority.HIGH, dueDate: '2026-12-01' });
+      expect(assignments.insert).toHaveBeenCalledWith(expect.objectContaining({ taskId: result.id, userId: otherUserId, assignedById: userId }));
+      expect(tasks.save).not.toHaveBeenCalled();
+    });
+
+    it('reassigns the existing row and treats repeating the same update as successful', async () => {
+      const existing = { id: 'assignment-id', taskId, userId, assignedById: userId, assignedAt: date };
+      assignments.findOne.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, userId: otherUserId });
+      const reassigned = await service.assign(taskId, userId, { userId: otherUserId }, true);
+      await service.assign(taskId, userId, { userId: otherUserId }, true);
+      expect(reassigned).toMatchObject({ id: existing.id, userId: otherUserId });
+      expect(assignments.save).toHaveBeenCalledTimes(1);
+      expect(assignments.delete).not.toHaveBeenCalled();
+    });
+
     it('assigns an active workspace member and records who assigned them', async () => {
       const result = await service.assign(taskId, userId, {
         userId: otherUserId,
@@ -663,7 +723,7 @@ describe('TasksService', () => {
           taskId,
           userId: otherUserId,
           assignedById: userId,
-          assignedAt: expect.any(Date),
+          assignedAt: expect.any(Date) as unknown,
         }),
       );
       expect(result.userId).toBe(otherUserId);
@@ -784,8 +844,8 @@ describe('TasksService', () => {
           where: expect.objectContaining({
             id: commentId,
             taskId,
-            deletedAt: expect.anything(),
-          }),
+            deletedAt: expect.anything() as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -809,7 +869,7 @@ describe('TasksService', () => {
       comments.find.mockResolvedValue([makeComment()]);
       const result = await service.listComments(taskId, userId);
       expect(comments.find).toHaveBeenCalledWith({
-        where: { taskId, deletedAt: expect.anything() },
+        where: { taskId, deletedAt: expect.anything() as unknown },
         order: { createdAt: 'ASC', id: 'ASC' },
       });
       expect(result[0].id).toBe(commentId);
@@ -821,8 +881,8 @@ describe('TasksService', () => {
       await service.removeComment(taskId, commentId, userId);
       expect(comments.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          deletedAt: expect.any(Date),
-          updatedAt: expect.any(Date),
+          deletedAt: expect.any(Date) as unknown,
+          updatedAt: expect.any(Date) as unknown,
         }),
       );
       expect(comments.delete).not.toHaveBeenCalled();
@@ -980,19 +1040,19 @@ describe('TasksService', () => {
       const result = await service.block(taskId, userId, {
         reason: '  Waiting for access  ',
       });
-      const [criteria, changes] = tasks.update.mock.calls[0];
+      const [criteria, changes] = (tasks.update.mock.calls as unknown[][])[0];
       expect(criteria).toEqual(
         expect.objectContaining({
           id: taskId,
           isBlocked: false,
-          deletedAt: expect.anything(),
+          deletedAt: expect.anything() as unknown,
         }),
       );
       expect(changes).toEqual({
         isBlocked: true,
         blockedReason: 'Waiting for access',
-        blockedAt: expect.any(Date),
-        updatedAt: expect.any(Date),
+        blockedAt: expect.any(Date) as unknown,
+        updatedAt: expect.any(Date) as unknown,
       });
       expect(result.isBlocked).toBe(true);
       expect(result.status).toBe(TaskStatus.IN_PROGRESS);
@@ -1039,7 +1099,7 @@ describe('TasksService', () => {
           isBlocked: false,
           blockedReason: null,
           blockedAt: null,
-          updatedAt: expect.any(Date),
+          updatedAt: expect.any(Date) as unknown,
         },
       );
       expect(result.isBlocked).toBe(false);

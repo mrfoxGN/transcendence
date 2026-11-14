@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Generated,
   Index,
   JoinColumn,
   ManyToOne,
@@ -23,12 +24,17 @@ import { Workspace } from '../../workspaces/entities/workspace.entity';
 ])
 @Index('idx_tasks_workspace_priority', ['workspaceId', 'priority'])
 @Index('idx_tasks_due_at', ['dueAt'])
+@Index('uq_tasks_task_number', ['taskNumber'], { unique: true })
 export class Task {
   @PrimaryColumn({
     type: 'char',
     length: 36,
   })
   id!: string;
+
+  @Column({ name: 'task_number', type: 'int', unsigned: true })
+  @Generated('increment')
+  taskNumber!: number;
 
   @Column({
     name: 'workspace_id',
@@ -87,6 +93,9 @@ export class Task {
   })
   status!: TaskStatus;
 
+  @Column({ name: 'board_column_id', type: 'varchar', length: 40, nullable: true })
+  boardColumnId?: string | null;
+
   @Column({
     type: 'enum',
     enum: TaskPriority,
@@ -129,6 +138,9 @@ export class Task {
     nullable: true,
   })
   dueAt!: Date | null;
+
+  @Column({ name: 'due_date', type: 'date', nullable: true })
+  dueDate!: string | null;
 
   @Column({
     name: 'created_at',

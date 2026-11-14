@@ -8,7 +8,10 @@ export class TaskBoardColumnDto {
 
 export class TaskBoardResponseDto {
   workspaceId!: string;
+  reportingTimeZone!: string;
   activeWipLimit!: number;
   activeCount!: number;
+  assigneesByTaskId!: Record<string, string>;
+  boardColumns?: import('../../workspaces/dto/update-workspace-kanban-settings.dto').BoardColumnDto[];
   columns!: TaskBoardColumnDto[];
 }

@@ -10,4 +10,6 @@ export class WorkspaceInvitationResponseDto {
   expiresAt!: Date | null;
   respondedAt!: Date | null;
   createdAt!: Date;
+  delivery?: 'sent' | 'link';
+  invitePath?: string;
 }

@@ -18,14 +18,11 @@ describe('NotificationsService', () => {
     update: jest.Mock;
   };
 
-  const userId =
-    '11111111-1111-4111-8111-111111111111';
+  const userId = '11111111-1111-4111-8111-111111111111';
 
-  const workspaceId =
-    '22222222-2222-4222-8222-222222222222';
+  const workspaceId = '22222222-2222-4222-8222-222222222222';
 
-  const notificationId =
-    '33333333-3333-4333-8333-333333333333';
+  const notificationId = '33333333-3333-4333-8333-333333333333';
 
   const notification = {
     id: notificationId,
@@ -34,8 +31,7 @@ describe('NotificationsService', () => {
     type: 'TASK_ASSIGNED',
     message: 'You were assigned to Backend API',
     relatedResourceType: 'task',
-    relatedResourceId:
-      '44444444-4444-4444-8444-444444444444',
+    relatedResourceId: '44444444-4444-4444-8444-444444444444',
     payload: null,
     createdAt: new Date('2026-10-30T12:00:00Z'),
     readAt: null,
@@ -51,32 +47,24 @@ describe('NotificationsService', () => {
       update: jest.fn(),
     };
 
-    service = new NotificationsService(
-      repository as never,
-    );
+    service = new NotificationsService(repository as never);
 
     jest.clearAllMocks();
   });
 
   describe('createForUser', () => {
     it('creates an unread notification', async () => {
-      repository.create.mockImplementation(
-        (value) => value,
-      );
+      repository.create.mockImplementation((value: unknown) => value);
 
-      repository.save.mockImplementation(
-        (value) => value,
-      );
+      repository.save.mockImplementation((value: unknown) => value);
 
       const result = await service.createForUser({
         userId,
         workspaceId,
         type: 'TASK_ASSIGNED',
-        message:
-          'You were assigned to Backend API',
+        message: 'You were assigned to Backend API',
         relatedResourceType: 'task',
-        relatedResourceId:
-          '44444444-4444-4444-8444-444444444444',
+        relatedResourceId: '44444444-4444-4444-8444-444444444444',
       });
 
       expect(repository.create).toHaveBeenCalledWith(
@@ -97,14 +85,9 @@ describe('NotificationsService', () => {
 
   describe('findAll', () => {
     it('returns user notifications', async () => {
-      repository.find.mockResolvedValue([
-        notification,
-      ]);
+      repository.find.mockResolvedValue([notification]);
 
-      const result = await service.findAll(
-        userId,
-        {},
-      );
+      const result = await service.findAll(userId, {});
 
       expect(repository.find).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -114,9 +97,7 @@ describe('NotificationsService', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(
-        notificationId,
-      );
+      expect(result[0].id).toBe(notificationId);
     });
 
     it('applies pagination', async () => {
@@ -146,8 +127,8 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             userId,
-            readAt: expect.anything(),
-          }),
+            readAt: expect.anything() as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -157,8 +138,7 @@ describe('NotificationsService', () => {
     it('returns unread count', async () => {
       repository.count.mockResolvedValue(4);
 
-      const result =
-        await service.countUnread(userId);
+      const result = await service.countUnread(userId);
 
       expect(result).toEqual({
         count: 4,
@@ -174,14 +154,9 @@ describe('NotificationsService', () => {
         ...notification,
       });
 
-      repository.save.mockImplementation(
-        (value) => value,
-      );
+      repository.save.mockImplementation((value: unknown) => value);
 
-      const result = await service.markAsRead(
-        notificationId,
-        userId,
-      );
+      const result = await service.markAsRead(notificationId, userId);
 
       expect(repository.findOne).toHaveBeenCalledWith({
         where: {
@@ -192,7 +167,7 @@ describe('NotificationsService', () => {
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          readAt: expect.any(Date),
+          readAt: expect.any(Date) as unknown,
         }),
       );
 
@@ -205,10 +180,7 @@ describe('NotificationsService', () => {
         readAt: new Date(),
       });
 
-      await service.markAsRead(
-        notificationId,
-        userId,
-      );
+      await service.markAsRead(notificationId, userId);
 
       expect(repository.save).not.toHaveBeenCalled();
     });
@@ -217,10 +189,7 @@ describe('NotificationsService', () => {
       repository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.markAsRead(
-          notificationId,
-          userId,
-        ),
+        service.markAsRead(notificationId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
@@ -231,8 +200,7 @@ describe('NotificationsService', () => {
         affected: 3,
       });
 
-      const result =
-        await service.markAllAsRead(userId);
+      const result = await service.markAllAsRead(userId);
 
       expect(repository.update).toHaveBeenCalled();
 
@@ -246,8 +214,7 @@ describe('NotificationsService', () => {
         affected: 0,
       });
 
-      const result =
-        await service.markAllAsRead(userId);
+      const result = await service.markAllAsRead(userId);
 
       expect(result).toEqual({
         updated: 0,

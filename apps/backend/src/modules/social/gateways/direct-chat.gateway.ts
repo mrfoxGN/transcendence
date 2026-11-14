@@ -64,10 +64,7 @@ export class DirectChatGateway implements OnGatewayConnection {
 
       await client.join(`user:${authUser.user.id}`);
 
-      const timeout = setTimeout(
-        () => client.disconnect(),
-        expiresInMs,
-      );
+      const timeout = setTimeout(() => client.disconnect(), expiresInMs);
       client.once('disconnect', () => clearTimeout(timeout));
     } catch {
       client.disconnect();
@@ -87,5 +84,9 @@ export class DirectChatGateway implements OnGatewayConnection {
 
   disconnectUser(userId: string): void {
     this.server.in(`user:${userId}`).disconnectSockets(true);
+  }
+
+  emitReadUpdated(userId: string): void {
+    this.server.to(`user:${userId}`).emit('direct-chat.read');
   }
 }
