@@ -88,4 +88,35 @@ export class User {
     nullable: true,
   })
   deletedAt!: Date | null;
+
+  @Column({
+    name: 'verified_email',
+    type: 'varchar',
+    length: 320,
+    nullable: true,
+  })
+  verifiedEmail!: string | null;
+
+  @Column({
+    name: 'email_verify_code_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  emailVerifyCodeHash!: string | null;
+
+  @Column({
+    name: 'email_verify_expires_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
+  emailVerifyExpiresAt!: Date | null;
+
+  @Column({
+    name: 'email_verify_attempts',
+    type: 'int',
+    default: 0,
+  })
+  emailVerifyAttempts!: number;
 }
