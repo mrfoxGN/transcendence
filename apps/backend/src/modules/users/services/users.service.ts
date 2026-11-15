@@ -3,8 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
-
+import { access, mkdir, unlink, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
@@ -139,6 +141,25 @@ export class UsersService {
     id: string,
     dto: UpdateProfileDto,
   ): Promise<UserResponseDto> {
+    if (
+      dto.username === undefined &&
+      dto.email === undefined &&
+      dto.avatarUrl === undefined &&
+      dto.avatarImage === undefined
+    ) {
+      throw new BadRequestException('No changes provided');
+    }
+
+    if (dto.username === null || dto.email === null) {
+      throw new BadRequestException('Username and email cannot be null');
+    }
+
+    if (dto.avatarUrl !== undefined && dto.avatarImage !== undefined) {
+      throw new BadRequestException(
+        'Choose either an avatar URL or an avatar image',
+      );
+    }
+
     const user = await this.usersRepository.findOneBy({
       id,
       deletedAt: IsNull(),
@@ -148,50 +169,91 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (
-      dto.username === undefined &&
-      dto.email === undefined &&
-      dto.avatarUrl === undefined
-    ) {
-      throw new BadRequestException('No changes provided');
-    }
-
-    if (dto.username === null || dto.email === null) {
-      throw new BadRequestException('Username and email cannot be null');
-    }
+    const changes: Partial<User> = {
+      updatedAt: new Date(),
+    };
 
     if (dto.username !== undefined && dto.username !== user.username) {
       if (await this.usersRepository.existsBy({ username: dto.username })) {
         throw new ConflictException('Username already exists');
       }
-      user.username = dto.username;
+
+      changes.username = dto.username;
     }
 
     if (dto.email !== undefined && dto.email !== user.email) {
       if (await this.usersRepository.existsBy({ email: dto.email })) {
         throw new ConflictException('Email already exists');
       }
-      user.email = dto.email;
-      user.verifiedEmail = null;
-      user.emailVerifyCodeHash = null;
-      user.emailVerifyExpiresAt = null;
-      user.emailVerifyAttempts = 0;
+
+      changes.email = dto.email;
+      changes.verifiedEmail = null;
+      changes.emailVerifyCodeHash = null;
+      changes.emailVerifyExpiresAt = null;
+      changes.emailVerifyAttempts = 0;
     }
 
     if (dto.avatarUrl !== undefined) {
-      user.avatarUrl = dto.avatarUrl;
+      changes.avatarUrl = dto.avatarUrl;
     }
 
-    user.updatedAt = new Date();
+    let newAvatarUrl: string | null = null;
 
     try {
-      return UserMapper.toResponse(await this.usersRepository.save(user));
+      if (dto.avatarImage !== undefined) {
+        newAvatarUrl = await this.saveAvatarImage(id, dto.avatarImage);
+        changes.avatarUrl = newAvatarUrl;
+      }
+
+      const result = await this.usersRepository.update(
+        { id, deletedAt: IsNull() },
+        changes,
+      );
+
+      if (!result.affected) {
+        throw new NotFoundException('User not found');
+      }
     } catch (error: unknown) {
+      if (newAvatarUrl) {
+        await this.removeStoredAvatar(id, newAvatarUrl);
+      }
+
       if (isDuplicateError(error)) {
         throw new ConflictException('Username or email already exists');
       }
+
       throw error;
     }
+
+    if (changes.avatarUrl !== undefined && user.avatarUrl) {
+      await this.removeStoredAvatar(id, user.avatarUrl);
+    }
+
+    return UserMapper.toResponse({ ...user, ...changes });
+  }
+
+  private async removeStoredAvatar(
+    userId: string,
+    avatarUrl: string,
+  ): Promise<void> {
+    const match =
+      /^\/users\/([0-9a-f-]{36})\/avatar\/([0-9a-f-]{36})\.jpg$/i.exec(
+        avatarUrl,
+      );
+
+    if (!match || match[1] !== userId) {
+      return;
+    }
+
+    const absolutePath = join(
+      process.cwd(),
+      'storage',
+      'avatars',
+      userId,
+      `${match[2]}.jpg`,
+    );
+
+    await unlink(absolutePath).catch(() => undefined);
   }
 
   async revokeTokens(id: string): Promise<void> {
@@ -476,5 +538,80 @@ export class UsersService {
     }
 
     return user.id;
+  }
+
+  private async saveAvatarImage(
+    userId: string,
+    avatarImage: string,
+  ): Promise<string> {
+    const prefix = 'data:image/jpeg;base64,';
+
+    if (!avatarImage.startsWith(prefix)) {
+      throw new BadRequestException('Avatar must be a JPEG image');
+    }
+
+    const encoded = avatarImage.slice(prefix.length);
+
+    if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+      throw new BadRequestException('Invalid avatar image');
+    }
+
+    const image = Buffer.from(encoded, 'base64');
+
+    if (
+      image.length < 5 ||
+      image.length > 24 * 1024 ||
+      image.toString('base64') !== encoded ||
+      image[0] !== 0xff ||
+      image[1] !== 0xd8 ||
+      image[2] !== 0xff ||
+      image[image.length - 2] !== 0xff ||
+      image[image.length - 1] !== 0xd9
+    ) {
+      throw new BadRequestException('Invalid avatar image');
+    }
+
+    const fileName = `${randomUUID()}.jpg`;
+    const directory = join(process.cwd(), 'storage', 'avatars', userId);
+    const absolutePath = join(directory, fileName);
+
+    try {
+      await mkdir(directory, { recursive: true });
+      await writeFile(absolutePath, image);
+    } catch {
+      await unlink(absolutePath).catch(() => undefined);
+      throw new ServiceUnavailableException('Could not save avatar image');
+    }
+
+    return `/users/${userId}/avatar/${fileName}`;
+  }
+
+  async getAvatarPath(userId: string, avatarId: string): Promise<string> {
+    const user = await this.usersRepository.findOneBy({
+      id: userId,
+      deletedAt: IsNull(),
+    });
+
+    const avatarUrl = `/users/${userId}/avatar/${avatarId}.jpg`;
+
+    if (!user || user.avatarUrl !== avatarUrl) {
+      throw new NotFoundException('Avatar not found');
+    }
+
+    const absolutePath = join(
+      process.cwd(),
+      'storage',
+      'avatars',
+      userId,
+      `${avatarId}.jpg`,
+    );
+
+    try {
+      await access(absolutePath);
+    } catch {
+      throw new NotFoundException('Avatar file not found');
+    }
+
+    return absolutePath;
   }
 }

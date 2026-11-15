@@ -7,9 +7,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
@@ -24,6 +25,21 @@ type AuthenticatedRequest = Request & {
 @UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get(':id/avatar/:avatarId')
+  async getAvatar(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Param('avatarId', ParseUUIDPipe) avatarId: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const absolutePath = await this.usersService.getAvatarPath(
+      userId,
+      avatarId,
+    );
+
+    response.type('image/jpeg');
+    response.sendFile(absolutePath);
+  }
 
   @Get(':id')
   getUser(
