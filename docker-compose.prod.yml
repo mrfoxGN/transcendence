@@ -1,5 +1,7 @@
-# Simplified production Compose — retains health checks, monitoring and persistent data.
+# One Compose configuration for localhost and remote deployment.
+# Only the values in the local .env need to change between environments.
 name: transcendence-prod
+
 services:
   mysql:
     image: mysql:8.4
@@ -10,18 +12,18 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
     volumes:
-    - mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     networks:
-    - database
+      - database
     healthcheck:
       test:
-      - CMD-SHELL
-      - mysql --protocol=TCP -h 127.0.0.1 -u "$$MYSQL_USER" --password="$$MYSQL_PASSWORD" --database="$$MYSQL_DATABASE"
-        -e "SELECT 1" >/dev/null 2>&1
+        - CMD-SHELL
+        - 'mysql --protocol=TCP -h 127.0.0.1 -u "$$MYSQL_USER" --password="$$MYSQL_PASSWORD" --database="$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1'
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 20s
+
   migrate:
     image: ${BACKEND_IMAGE:-transcendence-backend:prod}
     build:
@@ -34,16 +36,14 @@ services:
       DB_NAME: ${DB_NAME:?DB_NAME is required}
       DB_USER: ${DB_USER:?DB_USER is required}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-    command:
-    - npm
-    - run
-    - migration:run:prod
-    restart: 'no'
+    command: ["npm", "run", "migration:run:prod"]
+    restart: "no"
     networks:
-    - database
+      - database
     depends_on:
       mysql:
         condition: service_healthy
+
   backend:
     image: ${BACKEND_IMAGE:-transcendence-backend:prod}
     build:
@@ -64,10 +64,10 @@ services:
       GITHUB_OAUTH_CALLBACK_URL: ${GITHUB_OAUTH_CALLBACK_URL:-}
       GITHUB_TOKEN_ENCRYPTION_KEY: ${GITHUB_TOKEN_ENCRYPTION_KEY:-}
     volumes:
-    - backend_storage:/app/storage
+      - backend_storage:/app/storage
     networks:
-    - application
-    - database
+      - application
+      - database
     depends_on:
       mysql:
         condition: service_healthy
@@ -75,134 +75,22 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test:
-      - CMD
-      - node
-      - -e
-      - "const http = require('node:http'); const request = http.get('http://127.0.0.1:3000/health', response =>\
-        \ {\n  response.resume();\n  process.exit(response.statusCode === 200 ? 0 : 1);\n}); request.setTimeout(3000,\
-        \ () => { request.destroy(); process.exit(1); }); request.on('error', () => process.exit(1));"
+        - CMD
+        - node
+        - -e
+        - >-
+          const http = require('node:http');
+          const request = http.get('http://127.0.0.1:3000/health', response => {
+            response.resume();
+            process.exit(response.statusCode === 200 ? 0 : 1);
+          });
+          request.setTimeout(3000, () => { request.destroy(); process.exit(1); });
+          request.on('error', () => process.exit(1));
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-  status-page:
-    image: twinproduction/gatus:latest
-    restart: unless-stopped
 
-    volumes:
-      - ./monitoring/status/config.yaml:/config/config.yaml:ro
-
-    environment:
-      GATUS_CONFIG_PATH: /config/config.yaml
-
-    networks:
-    - application
-    - monitoring
-    - database
-  cadvisor:
-    image: ghcr.io/google/cadvisor:v0.60.6
-    restart: unless-stopped
-    read_only: true
-    command:
-    - --docker_only=true
-    volumes:
-    - /:/rootfs:ro
-    - /sys:/sys:ro
-    - /var/lib/docker:/var/lib/docker:ro
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-    - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
-    networks:
-    - monitoring
-  node-exporter:
-    image: prom/node-exporter:v1.12.1
-    restart: unless-stopped
-    user: 65534:65534
-    read_only: true
-    command:
-    - --path.procfs=/host/proc
-    - --path.sysfs=/host/sys
-    - --path.rootfs=/host/root
-    volumes:
-    - /proc:/host/proc:ro
-    - /sys:/host/sys:ro
-    - /:/host/root:ro,rslave
-    networks:
-    - monitoring
-  prometheus:
-    image: prom/prometheus:v3.16.0
-    restart: unless-stopped
-    command:
-    - --config.file=/etc/prometheus/prometheus.yml
-    - --storage.tsdb.path=/prometheus
-    - --storage.tsdb.retention.time=7d
-    volumes:
-    - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
-    - prometheus_data:/prometheus
-    networks:
-    - monitoring
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - -q
-      - -O
-      - /dev/null
-      - http://127.0.0.1:9090/-/ready
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-  grafana:
-    image: grafana/grafana:12.4.14
-    restart: unless-stopped
-    environment:
-      GF_SERVER_ROOT_URL: https://localhost/grafana/
-      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
-      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:?GRAFANA_SECRET_KEY is required}
-      GF_SECURITY_COOKIE_SECURE: 'true'
-      GF_AUTH_ANONYMOUS_ENABLED: 'false'
-      GF_USERS_ALLOW_SIGN_UP: 'false'
-    volumes:
-    - grafana_data:/var/lib/grafana
-    - ./monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
-    - ./monitoring/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/default.yml:ro
-    - ./monitoring/dashboards:/etc/grafana/dashboards:ro
-    networks:
-    - monitoring
-    - application
-    depends_on:
-      prometheus:
-        condition: service_healthy
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - -q
-      - -O
-      - /dev/null
-      - http://127.0.0.1:3000/grafana/api/health
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-  nginx:
-    image: nginx:stable-alpine
-    ports:
-    - 0.0.0.0:80:80
-    - 0.0.0.0:443:443
-    - 0.0.0.0:8443:8443
-    volumes:
-    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    - ./nginx/certs:/etc/nginx/certs:ro
-    networks:
-    - application
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
   frontend:
     build:
       context: ./apps/frontend
@@ -210,15 +98,158 @@ services:
     image: transcendence-frontend:prod
     restart: unless-stopped
     networks:
-    - application
+      - application
+
+  status-page:
+    image: twinproduction/gatus:latest
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/status/config.yaml:/config/config.yaml:ro
+    environment:
+      GATUS_CONFIG_PATH: /config/config.yaml
+    networks:
+      - application
+      - monitoring
+      - database
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6
+    restart: unless-stopped
+    read_only: true
+    command: ["--docker_only=true"]
+    # These mounts are for rootful Docker. Rootless Docker uses different paths.
+    volumes:
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  grafana:
+    image: grafana/grafana:12.4.14
+    restart: unless-stopped
+    environment:
+      # Explicit :443 works too; no separate config needed between localhost and EC2.
+      GF_SERVER_ROOT_URL: "https://${PUBLIC_HOST:-localhost}:${HTTPS_PORT:-443}/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:?GRAFANA_SECRET_KEY is required}
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ./monitoring/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/default.yml:ro
+      - ./monitoring/dashboards:/etc/grafana/dashboards:ro
+    networks:
+      - monitoring
+      - application
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/grafana/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  cert-init:
+    image: alpine:3.22
+    restart: "no"
+    environment:
+      # Single source of truth: TLS host follows PUBLIC_HOST.
+      TLS_HOST: ${PUBLIC_HOST:-localhost}
+    volumes:
+      - ./scripts/generate-certs.sh:/scripts/generate-certs.sh:ro
+      - ./nginx/certs:/certs
+    networks:
+      - application
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        apk add --no-cache openssl
+        exec /bin/sh /scripts/generate-certs.sh
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-127.0.0.1}:${HTTP_PORT:-80}:80"
+      - "${BIND_IP:-127.0.0.1}:${HTTPS_PORT:-443}:443"
+      - "${BIND_IP:-127.0.0.1}:${GATUS_PORT:-8443}:8443"
+    environment:
+      HTTPS_PORT: "${HTTPS_PORT:-443}"
+      GATUS_PORT: "${GATUS_PORT:-8443}"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    # Replace ONLY our placeholders. Nginx variables ($host, $request_uri, etc.) remain intact.
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        envsubst '$$HTTPS_PORT $$GATUS_PORT' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf
+        nginx -t -c /tmp/nginx.conf
+        exec nginx -c /tmp/nginx.conf -g 'daemon off;'
+    networks:
+      - application
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
 networks:
-  application: null
+  application: {}
   database:
     internal: true
   monitoring:
     internal: true
+
 volumes:
-  mysql_data: null
-  backend_storage: null
-  prometheus_data: null
-  grafana_data: null
+  mysql_data: {}
+  backend_storage: {}
+  prometheus_data: {}
+  grafana_data: {}

@@ -11,20 +11,11 @@ http {
     server_tokens off;
     proxy_hide_header X-Powered-By;
 
-    # ==========================================
-    # RATE LIMITING
-    # ==========================================
-
     map $uri $login_limit_key {
         default "";
         ~*^/(?:api/)?auth/login/?$ $binary_remote_addr;
     }
-
     limit_req_zone $login_limit_key zone=auth_login:10m rate=5r/m;
-
-    # ==========================================
-    # LOGGING
-    # ==========================================
 
     log_format app_access
         '$remote_addr [$time_iso8601] '
@@ -32,155 +23,91 @@ http {
         '$status $body_bytes_sent '
         'request_time=$request_time '
         'upstream_time=$upstream_response_time';
-
     access_log /dev/stdout app_access;
-
-    # ==========================================
-    # WEBSOCKET
-    # ==========================================
 
     map $http_upgrade $connection_upgrade {
         default upgrade;
         '' close;
     }
 
-    # ==========================================
-    # GENERAL
-    # ==========================================
-
     client_max_body_size 11m;
-
     sendfile on;
     tcp_nopush on;
 
-    # ==========================================
-    # HTTP -> HTTPS
-    # ==========================================
-
+    # HTTP -> HTTPS (external host ports come from .env)
     server {
         listen 80;
         server_name _;
-
-        return 308 https://$host$request_uri;
+        return 308 https://$host:${HTTPS_PORT}$request_uri;
     }
 
-    # ==========================================
-    # HTTPS SERVER - MAIN APPLICATION
-    # ==========================================
-
+    # Main application HTTPS
     server {
         listen 443 ssl;
         server_name _;
-
         ssl_certificate /etc/nginx/certs/fullchain.pem;
         ssl_certificate_key /etc/nginx/certs/privkey.pem;
-
         ssl_protocols TLSv1.2 TLSv1.3;
-
-        # SECURITY HEADERS
 
         add_header X-Content-Type-Options nosniff always;
         add_header Referrer-Policy no-referrer always;
 
-        access_log /dev/stdout app_access;
-
-        # ======================================
-        # BACKEND API
-        # ======================================
-
         location ^~ /api/ {
             limit_req zone=auth_login burst=5 nodelay;
             limit_req_status 429;
-
             proxy_pass http://backend:3000/;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
-
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
-
             proxy_connect_timeout 10s;
             proxy_read_timeout 75s;
             proxy_send_timeout 75s;
         }
 
-        # ======================================
-        # DIRECT AUTH ROUTES
-        # ======================================
-
         location ^~ /auth/ {
             limit_req zone=auth_login burst=5 nodelay;
             limit_req_status 429;
-
             proxy_pass http://backend:3000;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-
-        # ======================================
-        # GITHUB INTEGRATION
-        # ======================================
 
         location ^~ /github/ {
             proxy_pass http://backend:3000;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-
-        # ======================================
-        # BACKEND HEALTH
-        # ======================================
 
         location = /health {
             proxy_pass http://backend:3000/health;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # ======================================
-        # SOCKET.IO / WEBSOCKETS
-        # ======================================
-
         location ^~ /socket.io/ {
             proxy_pass http://backend:3000;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
-
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
-
             proxy_read_timeout 75s;
             proxy_send_timeout 75s;
-
             proxy_buffering off;
         }
-
-        # ======================================
-        # GRAFANA
-        # ======================================
 
         location = /grafana {
             return 308 /grafana/;
@@ -188,95 +115,58 @@ http {
 
         location ^~ /grafana/ {
             resolver 127.0.0.11 valid=10s ipv6=off;
-
             set $grafana_upstream grafana:3000;
-
             proxy_pass http://$grafana_upstream$request_uri;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
-
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
-
             proxy_read_timeout 75s;
         }
 
-        # ======================================
-        # GATUS REDIRECT
-        # ======================================
-
+        # Gatus works at / on a separate HTTPS port, not under a /status subpath.
         location = /status {
-            return 302 https://$host:8443/;
+            return 302 https://$host:${GATUS_PORT}/;
         }
-
         location = /status/ {
-            return 302 https://$host:8443/;
+            return 302 https://$host:${GATUS_PORT}/;
         }
-
-        # ======================================
-        # REACT FRONTEND
-        # ======================================
 
         location / {
             proxy_pass http://frontend:80;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
-
             proxy_connect_timeout 10s;
             proxy_read_timeout 75s;
         }
     }
 
-    # ==========================================
-    # GATUS HTTPS SERVER
-    # ==========================================
-
+    # Gatus HTTPS
     server {
         listen 8443 ssl;
         server_name _;
-
-        # TLS CERTIFICATES
-
         ssl_certificate /etc/nginx/certs/fullchain.pem;
         ssl_certificate_key /etc/nginx/certs/privkey.pem;
-
         ssl_protocols TLSv1.2 TLSv1.3;
-
-        # SECURITY HEADERS
 
         add_header X-Content-Type-Options nosniff always;
         add_header Referrer-Policy no-referrer always;
 
-        access_log /dev/stdout app_access;
-
-        # ======================================
-        # GATUS REVERSE PROXY
-        # ======================================
-
         location / {
             resolver 127.0.0.11 valid=10s ipv6=off;
-
             set $gatus_upstream status-page:8080;
-
             proxy_pass http://$gatus_upstream$request_uri;
-
             proxy_http_version 1.1;
-
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto https;
-
             proxy_connect_timeout 3s;
             proxy_read_timeout 15s;
         }
