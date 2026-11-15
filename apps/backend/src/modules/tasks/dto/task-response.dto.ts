@@ -18,6 +18,7 @@ export class TaskResponseDto {
   blockedReason!: string | null;
   blockedAt!: Date | null;
   dueAt!: Date | null;
+  dueDate!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
   completedAt!: Date | null;

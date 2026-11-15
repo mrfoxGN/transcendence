@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
 } from 'class-validator';
 
 import { TaskPriority } from '../../../database/enums/database.enums';
@@ -28,4 +29,9 @@ export class CreateTaskDto {
   @IsOptional()
   @IsDateString()
   dueAt?: string;
+
+  @IsOptional()
+  @Matches(/^[1-9]\d{3}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  dueDate?: string | null;
 }

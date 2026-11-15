@@ -60,6 +60,18 @@ export class TasksService {
       throw new BadRequestException('Task title is required');
     }
 
+    if (dto.dueDate !== undefined && dto.dueAt !== undefined) {
+    throw new BadRequestException(
+      'Provide either dueDate or dueAt, not both',
+    );
+    }
+
+    const dueAt = dto.dueAt
+    ? new Date(dto.dueAt)
+    : dto.dueDate
+      ? new Date(`${dto.dueDate}T23:59:59.999Z`)
+      : null;
+
     await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const now = new Date();
@@ -77,7 +89,7 @@ export class TasksService {
       isBlocked: false,
       blockedReason: null,
       blockedAt: null,
-      dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+      dueAt,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -177,6 +189,7 @@ export class TasksService {
       dto.acceptanceCriteria === undefined &&
       dto.priority === undefined &&
       dto.dueAt === undefined &&
+      dto.dueDate === undefined &&
       dto.position === undefined
     ) {
       throw new BadRequestException('No changes provided');
@@ -217,7 +230,13 @@ export class TasksService {
     }
 
     if (dto.dueAt !== undefined) {
-      changes.dueAt = dto.dueAt === null ? null : new Date(dto.dueAt);
+      changes.dueAt = dto.dueAt === null
+        ? null
+        : new Date(dto.dueAt);
+    } else if (dto.dueDate !== undefined) {
+      changes.dueAt = dto.dueDate === null
+        ? null
+        : new Date(`${dto.dueDate}T23:59:59.999Z`);
     }
 
     if (dto.position !== undefined) {

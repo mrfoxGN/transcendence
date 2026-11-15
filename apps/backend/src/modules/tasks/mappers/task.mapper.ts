@@ -18,6 +18,7 @@ export class TaskMapper {
       blockedReason: task.blockedReason,
       blockedAt: task.blockedAt,
       dueAt: task.dueAt,
+      dueDate: task.dueAt ? task.dueAt.toISOString().slice(0, 10) : null,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
       completedAt: task.completedAt,
