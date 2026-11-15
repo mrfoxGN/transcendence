@@ -1,13 +1,26 @@
 # ============================================================
-# Environment / secrets
+# 1. ENVIRONMENT VARIABLES / SECRETS
 # ============================================================
+
 .env
 .env.*
 !.env.example
 
 # ============================================================
-# Node / NestJS
+# 2. SSL CERTIFICATES / PRIVATE KEYS
 # ============================================================
+
+/nginx/certs/
+
+*.key
+*.pem
+*.p12
+*.pfx
+
+# ============================================================
+# 3. NODE.JS / NESTJS / REACT
+# ============================================================
+
 node_modules/
 dist/
 build/
@@ -15,8 +28,9 @@ coverage/
 .nyc_output/
 
 # ============================================================
-# Logs
+# 4. LOGS
 # ============================================================
+
 *.log
 logs/
 npm-debug.log*
@@ -25,53 +39,69 @@ yarn-error.log*
 pnpm-debug.log*
 
 # ============================================================
-# Runtime / uploaded files
+# 5. DATABASE BACKUPS
 # ============================================================
+
+/backups/
+
+mysql_*.sql
+backup_*.sql
+*.sql.gz
+*.dump
+
+# ============================================================
+# 6. RUNTIME DATA / UPLOADED FILES
+# ============================================================
+
 data/
 uploads/
 tmp/
 temp/
 
-# ============================================================
-# OS files
-# ============================================================
-.DS_Store
-Thumbs.db
+/apps/backend/storage/
+/storage/
+
+/monitoring/status/data/
 
 # ============================================================
-# Editors / IDE
+# 7. DOCKER LOCAL CONFIGURATION
 # ============================================================
+
+docker-compose.override.yml
+compose.override.yaml
+
+# Temporary configuration backups
+*.backup
+*.bak
+*.old
+
+# ============================================================
+# 8. EDITORS / IDE
+# ============================================================
+
 .idea/
 .vscode/
+
 *.swp
 *.swo
 *~
 
 # ============================================================
-# Test / cache files
+# 9. OPERATING SYSTEM
 # ============================================================
+
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# 10. TEST / CACHE FILES
+# ============================================================
+
 .cache/
 .eslintcache
 
 # ============================================================
-# Docker local overrides
+# 11. TYPESCRIPT
 # ============================================================
-docker-compose.override.yml
 
-# ============================================================
-# TypeScript
-# ============================================================
 *.tsbuildinfo
-
-# Backend file storage
-/apps/backend/storage/
-
-.env.github-oauth
-
-compose.override.yaml
-
-# Local TLS certificates and private keys
-/nginx/certs/
-
-# Local database and uploaded-file backups
-/backups/

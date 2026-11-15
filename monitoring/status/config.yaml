@@ -1,0 +1,24 @@
+web:
+  port: 8080
+
+endpoints:
+  - name: Backend
+    group: DevUP
+    url: "http://backend:3000/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Frontend
+    group: DevUP
+    url: "http://frontend:80/"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: MySQL
+    group: DevUP
+    url: "tcp://mysql:3306"
+    interval: 30s
+    conditions:
+      - "[CONNECTED] == true"
