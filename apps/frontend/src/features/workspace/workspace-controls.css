@@ -21,8 +21,15 @@
 .wu-inbox ul { margin: 0; padding: 0; list-style: none; }
 .wu-inbox li { display: flex; align-items: start; justify-content: space-between; gap: 8px; padding: 10px; border-bottom: 1px solid var(--wu-line); overflow-wrap: anywhere; }
 .wu-inbox li[data-unread='true'] { border-inline-start: 3px solid var(--wu-blue); }
+.wu-inbox-actions, .wu-inbox-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.wu-inbox-preferences { margin: 8px 0 12px; padding: 8px 12px; border: 1px solid var(--wu-line); border-radius: 8px; }
+.wu-inbox-filters select { min-width: 0; max-width: 100%; }
 .wu-inbox time { color: var(--wu-muted); font-size: 12px; }
+.wu-inbox-trigger { position: relative; }
+.wu-inbox-trigger > span { position: absolute; inset: 0 0 auto auto; min-width: 15px; padding: 1px 3px; border-radius: 10px; color: var(--wu-on-blue); background: var(--wu-blue); font-size: 10px; }
+.workspace-picker-notifications { --wu-line: var(--color-gray-light-2); --wu-ink: var(--color-ink); --wu-surface: var(--color-white); --wu-muted: var(--color-gray); --wu-blue: #245bc9; --wu-on-blue: #fff; }
 .wu-document-list { list-style: none; padding: 0; margin: 0; }
+.wu-document-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--wu-muted); font-size: 14px; }
 .wu-document-list > li { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--wu-line); }
 .wu-document-list > li[data-current='true'] { background: var(--wu-blue-soft); }
 .wu-document-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 10px; border: 0; background: transparent; text-align: start; cursor: pointer; }
@@ -42,6 +49,10 @@
 }
 @keyframes wu-drawer-enter { from { transform: translateX(100%); } }
 @keyframes wu-skeleton-pulse { to { opacity: .55; } }
-@media (max-width: 680px) {
-  .wu-desktop-file-inspector { display: none; }
+.wu-modal:has(.wu-task-create-fields) { max-height: calc(100dvh - 28px); overflow: auto; }
+.wu-task-create-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.wu-task-create-fields > label { min-width: 0; }
+.wu-task-create-fields > label:first-child { grid-column: 1 / -1; }
+@media (max-width: 375px) {
+  .wu-task-create-fields { grid-template-columns: minmax(0, 1fr); }
 }

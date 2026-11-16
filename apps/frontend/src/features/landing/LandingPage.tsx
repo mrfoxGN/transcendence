@@ -1,4 +1,5 @@
 import { sessionKey } from '../WorkspacePicker';
+import { authRoute, requestedWorkspace } from '../auth-routing';
 import { AnimatedHeading } from './AnimatedHeading';
 import { useEffect, useState, type FormEvent, type PointerEvent } from 'react';
 import { ArrowUp, Check, Eye, EyeOff, X } from 'lucide-react';
@@ -8,6 +9,7 @@ import { LandingDetails } from './LandingDetails';
 import { LogoCarousel } from './LogoCarousel';
 import { ContainerScroll, ScrollTextReveal } from './LandingMotion';
 import { MagicButton } from './MagicButton';
+import { LegalLinks } from './LegalLinks';
 import './hero.css';
 import './auth.css';
 
@@ -123,6 +125,7 @@ export function LandingPage() {
           </div>
           <div className="footer-bottom">
             <span>&copy; DevUP</span>
+            <LegalLinks />
             <a href="#top">Back to top <ArrowUp size={15} aria-hidden="true" /></a>
           </div>
         </div>
@@ -135,7 +138,7 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
   const [complete, setComplete] = useState(false);
-  const [registeredSession, setRegisteredSession] = useState(false);
+  const destination = requestedWorkspace();
   const [showPassword, setShowPassword] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -163,7 +166,8 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
 
       if (!signingUp) {
         sessionStorage.setItem(sessionKey, result.accessToken);
-        window.location.replace('/workspaces');
+        const onboarding = new URLSearchParams(location.search).get('onboarding') === '1';
+        window.location.replace(onboarding ? authRoute('/onboarding', destination) : destination);
         return;
       }
       try {
@@ -175,7 +179,8 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
         const credentials = await login.json().catch(() => null);
         if (login.ok && typeof credentials?.accessToken === 'string' && credentials.accessToken) {
           sessionStorage.setItem(sessionKey, credentials.accessToken);
-          setRegisteredSession(true);
+          window.location.replace(authRoute('/onboarding', destination));
+          return;
         }
       } catch {
         // Account creation succeeded. The user can continue with manual sign-in.
@@ -213,12 +218,12 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
           {complete ? (
             <div className="auth-success" role="status">
               <p><Check size={18} aria-hidden="true" /> Your DevUP account is ready.</p>
-              <a className="button button--primary" href={registeredSession ? "/workspaces" : "/login"}>{registeredSession ? "Open workspace" : "Sign in"}</a>
+              <a className="button button--primary" href={authRoute('/login', destination) + '&onboarding=1'}>Sign in</a>
             </div>
           ) : (
             <form className="auth-form" onSubmit={submit}>
               {signingUp && <label htmlFor="auth-username">Username
-                <input id="auth-username" name="username" autoComplete="username" minLength={3} maxLength={30} required />
+                <input id="auth-username" name="username" placeholder="e.g. nourdev" autoComplete="username" minLength={3} maxLength={30} required />
               </label>}
               <label htmlFor="auth-email">Email
                 <input id="auth-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />
@@ -237,6 +242,7 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
                 {signingUp && <small id="auth-password-hint">Use at least 8 characters.</small>}
               </div>
               {message && <p className="auth-error" role="alert">{message}</p>}
+              {!signingUp && <a href={authRoute('/forgot-password', destination)}>Forgot your password?</a>}
               <button className="button button--primary auth-submit" type="submit" disabled={pending}>
                 {signingUp ? (pending ? 'Creating account…' : 'Create an account') : (pending ? 'Signing in…' : 'Sign in')}
               </button>
@@ -245,7 +251,7 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
         </div>
         {!complete && (
           <p className="auth-switch">{signingUp ? 'Already have an account?' : 'New to DevUP?'}{' '}
-            <a href={signingUp ? '/login' : '/register'}>{signingUp ? 'Sign in' : 'Create an account'}</a>
+            <a href={authRoute(signingUp ? '/login' : '/register', destination)}>{signingUp ? 'Sign in' : 'Create an account'}</a>
           </p>
         )}
       </section>

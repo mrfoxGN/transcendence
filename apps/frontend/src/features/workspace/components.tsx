@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode } from 'react';
-import { MoreHorizontal, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { activityItems } from './previewData';
 import { type Task } from './types';
 
@@ -34,19 +34,19 @@ export function FilterChips({ items, active, onChange }: { items: string[]; acti
 }
 
 export function EmptyState({ icon, title, detail, action, onAction }: { icon: ReactNode; title: string; detail: string; action: string; onAction: () => void }) {
-  return <div className="wu-empty"><IconTile tone="violet">{icon}</IconTile><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}><Plus size={16} />{action}</button></div>;
+  return <div className="wu-empty"><div aria-hidden="true">{icon}</div><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}><Plus size={16} />{action}</button></div>;
 }
 
 export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task: Task) => void }) {
-  return <div className="wu-table-wrap"><table className="wu-table"><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due date</th><th><span className="wu-visually-hidden">Actions</span></th></tr></thead><tbody>
-    {items.map(task => <tr key={task.id} onClick={() => onSelect(task)} tabIndex={0} onKeyDown={event => { if (event.key === 'Enter') onSelect(task); }}>
-      <td><span className="wu-task-id">{task.id}</span><strong>{task.title}</strong></td>
-      <td><Pill tone={task.status === 'Done' ? 'mint' : task.status === 'Review' ? 'pink' : task.status === 'In progress' ? 'violet' : task.status === 'Ready' ? 'blue' : 'neutral'}>{task.status}</Pill></td>
-      <td><span className={`wu-priority wu-priority--${task.priority.toLowerCase()}`}><i />{task.priority}</span></td>
-      <td><span className="wu-person"><Avatar initials={task.initials} tone={task.initials === 'SK' ? 'violet' : task.initials === 'MR' ? 'pink' : task.initials === 'OI' ? 'mint' : 'blue'} small />{task.person}</span></td>
-      <td className="wu-muted">{task.due}</td><td><button className="wu-icon-button" aria-label={`More options for ${task.id}`} type="button" onClick={event => { event.stopPropagation(); onSelect(task); }}><MoreHorizontal size={17} /></button></td>
+  return <table className="wu-table wu-list-table" role="table" aria-label="Backlog tasks"><thead role="rowgroup"><tr role="row"><th scope="col">Task</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Assignee</th><th scope="col">Due date</th></tr></thead><tbody role="rowgroup">
+    {items.map(task => <tr role="row" className="wu-task-list-row" key={task.id} onClick={() => onSelect(task)}>
+      <td role="cell"><button className="wu-list-item-name" type="button" onClick={event => { event.stopPropagation(); onSelect(task); }}>{task.title}</button></td>
+      <td role="cell" data-label="Status"><Pill tone={task.status === 'Done' ? 'mint' : task.status === 'Review' ? 'pink' : task.status === 'In progress' ? 'violet' : task.status === 'Ready' ? 'blue' : 'neutral'}>{task.status}</Pill></td>
+      <td role="cell" data-label="Priority"><span className={`wu-priority wu-priority--${task.priority.toLowerCase()}`}><i />{task.priority}</span></td>
+      <td role="cell" data-label="Assignee"><span className="wu-person">{task.assigneeId && <Avatar initials={task.initials} preview={false} small />}{task.person}</span></td>
+      <td role="cell" data-label="Due date" className="wu-muted">{task.due}</td>
     </tr>)}
-  </tbody></table></div>;
+  </tbody></table>;
 }
 
 export function ActivityList({ items = activityItems, compact = false }: { items?: typeof activityItems; compact?: boolean }) {

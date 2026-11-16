@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class ListNotesDto {
   @IsOptional()
@@ -14,4 +14,17 @@ export class ListNotesDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
+  @IsOptional()
+  @IsIn(['updated', 'name'])
+  sort?: 'updated' | 'name';
+
+  @IsOptional()
+  @IsIn(['1'])
+  lookahead?: '1';
 }

@@ -25,6 +25,8 @@ function mockMethods<T>(value: T): { [K in keyof T]: jest.Mock } {
   return value as { [K in keyof T]: jest.Mock };
 }
 
+const activitySink = () => ({ create: jest.fn().mockResolvedValue({}) }) as never;
+
 describe('WorkspacesService', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
   const workspaceId = '4eb53fcb-011b-4f42-b4c3-6f5d5fd62b64';
@@ -319,9 +321,7 @@ describe('WorkspacesService update', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest
-        .fn()
-        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     const dataSource = {
@@ -335,11 +335,10 @@ describe('WorkspacesService update', () => {
       description: 'Updated description',
     });
 
-    expect(workspace.name).toBe('Updated Name');
-    expect(workspace.description).toBe('Updated description');
-    expect(workspace.updatedAt).toBeInstanceOf(Date);
+    expect(response.name).toBe('Updated Name');
+    expect(response.description).toBe('Updated description');
 
-    expect(repository.save).toHaveBeenCalledWith(workspace);
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
 
     expect(response.name).toBe('Updated Name');
     expect(response.description).toBe('Updated description');
@@ -363,7 +362,7 @@ describe('WorkspacesService update', () => {
   it('returns 404 when updating a missing workspace', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -376,13 +375,13 @@ describe('WorkspacesService update', () => {
       service.update(workspaceId, ownerId, { name: 'Updated Name' }),
     ).rejects.toThrow(NotFoundException);
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('returns 403 when a non-owner tries to update', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(makeWorkspace()),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -395,7 +394,7 @@ describe('WorkspacesService update', () => {
       service.update(workspaceId, otherUserId, { name: 'Unauthorized Name' }),
     ).rejects.toThrow(ForbiddenException);
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 });
 
@@ -422,29 +421,25 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest
-        .fn()
-        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     const dataSource = {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = new WorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
 
     const response = await service.archive(workspaceId, ownerId);
 
-    expect(workspace.archivedAt).toBeInstanceOf(Date);
-    expect(workspace.updatedAt).toBeInstanceOf(Date);
-    expect(repository.save).toHaveBeenCalledWith(workspace);
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
     expect(response.archivedAt).toBeInstanceOf(Date);
   });
 
   it('returns 404 when archiving a missing workspace', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -457,13 +452,13 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       NotFoundException,
     );
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('returns 403 when a non-owner tries to archive', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(makeWorkspace()),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -476,7 +471,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       ForbiddenException,
     );
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('allows the owner to unarchive a workspace', async () => {
@@ -485,28 +480,25 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest
-        .fn()
-        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     const dataSource = {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = new WorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
 
     const response = await service.unarchive(workspaceId, ownerId);
 
-    expect(workspace.archivedAt).toBeNull();
-    expect(repository.save).toHaveBeenCalledWith(workspace);
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
     expect(response.archivedAt).toBeNull();
   });
 
   it('returns 404 when unarchiving a missing workspace', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -526,7 +518,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -539,7 +531,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       ForbiddenException,
     );
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('soft deletes a workspace without removing the row', async () => {
@@ -547,9 +539,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const repository = {
       findOne: jest.fn().mockResolvedValue(workspace),
-      save: jest
-        .fn()
-        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     const dataSource = {
@@ -560,15 +550,13 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     await service.softDelete(workspaceId, ownerId);
 
-    expect(workspace.deletedAt).toBeInstanceOf(Date);
-    expect(workspace.updatedAt).toBeInstanceOf(Date);
-    expect(repository.save).toHaveBeenCalledWith(workspace);
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
   });
 
   it('returns 404 when deleting a missing workspace', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -581,13 +569,13 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       NotFoundException,
     );
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('returns 403 when a non-owner tries to delete', async () => {
     const repository = {
       findOne: jest.fn().mockResolvedValue(makeWorkspace()),
-      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const dataSource = {
@@ -600,7 +588,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       ForbiddenException,
     );
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 });
 
@@ -774,6 +762,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -783,7 +775,13 @@ describe('WorkspacesService removeMember', () => {
           return membershipRepository;
         }
 
-        throw new Error('Unexpected repository');
+        const deleteQuery = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return { createQueryBuilder: jest.fn().mockReturnValue(deleteQuery) };
       }),
     } as unknown as DataSource;
 
@@ -814,7 +812,7 @@ describe('WorkspacesService removeMember', () => {
     expect(activitiesService.create).toHaveBeenCalledWith({
       workspaceId,
       actorUserId: ownerId,
-      actionType: 'MEMBER_REMOVED',
+      actionType: 'AUDIT_MEMBER_REMOVED',
       resourceType: 'workspace_membership',
       resourceId: membership.id,
       metadata: {
@@ -841,6 +839,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -850,7 +852,13 @@ describe('WorkspacesService removeMember', () => {
           return membershipRepository;
         }
 
-        throw new Error('Unexpected repository');
+        const deleteQuery = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return { createQueryBuilder: jest.fn().mockReturnValue(deleteQuery) };
       }),
     } as unknown as DataSource;
 
@@ -893,6 +901,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -909,6 +921,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -925,6 +941,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -946,6 +966,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -955,7 +979,13 @@ describe('WorkspacesService removeMember', () => {
           return membershipRepository;
         }
 
-        throw new Error('Unexpected repository');
+        const deleteQuery = {
+          delete: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          execute: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return { createQueryBuilder: jest.fn().mockReturnValue(deleteQuery) };
       }),
     } as unknown as DataSource;
 
@@ -1039,6 +1069,7 @@ describe('WorkspacesService createInvitation', () => {
       dataSource,
       usersService,
       notificationsService,
+      activitySink(),
     );
 
     const response = await service.createInvitation(workspaceId, ownerId, {
@@ -1149,6 +1180,7 @@ describe('WorkspacesService createInvitation', () => {
       dataSource,
       usersService,
       notificationsService,
+      activitySink(),
     );
 
     jest
@@ -2151,7 +2183,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = new WorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
 
     const response = await service.cancelInvitation(
       workspaceId,
@@ -2350,7 +2382,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = new WorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
 
     const result = await service.updateKanbanSettings(workspaceId, ownerId, {
       activeWipLimit: 5,

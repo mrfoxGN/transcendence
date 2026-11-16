@@ -63,7 +63,7 @@ export class GitHubService {
     githubRepositoryId: string,
   ): Promise<ConnectedRepositoryResponseDto> {
     // Verify Transcendence workspace ownership.
-    await this.workspacesService.assertOwner(workspaceId, userId);
+    await this.workspacesService.assertOwner(workspaceId, userId, true);
 
     // Verify the temporary OAuth session belongs to
     // this workspace and Transcendence user.
@@ -162,11 +162,7 @@ export class GitHubService {
   async getWorkspaceRepository(
     workspaceId: string,
     userId: string,
-  ): Promise<
-    ConnectedRepositoryResponseDto & {
-      lastSyncedAt: Date | null;
-    }
-  > {
+  ): Promise<(ConnectedRepositoryResponseDto & { lastSyncedAt: Date | null }) | null> {
     // Only workspace members can view the connection.
     await this.workspacesService.findOneForUser(workspaceId, userId);
 
@@ -178,11 +174,7 @@ export class GitHubService {
       },
     });
 
-    if (!repository) {
-      throw new NotFoundException(
-        'No GitHub repository connected to this workspace',
-      );
-    }
+    if (!repository) return null;
 
     return {
       id: repository.id,

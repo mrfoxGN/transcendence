@@ -7,5 +7,6 @@ export class NotificationResponseDto {
   relatedResourceId!: string | null;
   payload!: unknown;
   createdAt!: Date;
+  invitationStatus?: string;
   readAt!: Date | null;
 }

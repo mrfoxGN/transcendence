@@ -17,9 +17,11 @@ describe('SocialService sendMessage notifications', () => {
 
   let conversationsRepository: {
     findOneBy: jest.Mock;
+    update: jest.Mock;
   };
 
   let messagesRepository: {
+    createQueryBuilder: jest.Mock;
     manager: {
       transaction: jest.Mock;
     };
@@ -31,6 +33,7 @@ describe('SocialService sendMessage notifications', () => {
 
   let directChatGateway: {
     emitMessageCreated: jest.Mock;
+    emitReadUpdated: jest.Mock;
   };
 
   let notificationsService: {
@@ -40,9 +43,11 @@ describe('SocialService sendMessage notifications', () => {
   beforeEach(() => {
     conversationsRepository = {
       findOneBy: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     messagesRepository = {
+      createQueryBuilder: jest.fn(),
       manager: {
         transaction: jest.fn(),
       },
@@ -54,6 +59,7 @@ describe('SocialService sendMessage notifications', () => {
 
     directChatGateway = {
       emitMessageCreated: jest.fn(),
+      emitReadUpdated: jest.fn(),
     };
 
     notificationsService = {
@@ -69,6 +75,31 @@ describe('SocialService sendMessage notifications', () => {
     );
 
     jest.clearAllMocks();
+  });
+
+  it('counts unread messages across all authorized direct conversations', async () => {
+    const query = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(123),
+    };
+    messagesRepository.createQueryBuilder.mockReturnValue(query);
+    await expect(service.unreadCount(senderId)).resolves.toBe(123);
+    expect(query.where).toHaveBeenCalledWith(
+      '(conversation.userAId = :userId OR conversation.userBId = :userId)',
+      { userId: senderId },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith('message.deletedAt IS NULL');
+  });
+
+  it('notifies the reader’s other sessions after marking a direct conversation read', async () => {
+    conversationsRepository.findOneBy.mockResolvedValue({
+      id: conversationId, userAId: senderId, userBId: recipientId,
+    });
+    await service.markRead(senderId, conversationId);
+    expect(conversationsRepository.update).toHaveBeenCalled();
+    expect(directChatGateway.emitReadUpdated).toHaveBeenCalledWith(senderId);
   });
 
   function mockSuccessfulTransaction() {

@@ -37,6 +37,7 @@ temp/
 # ============================================================
 .DS_Store
 Thumbs.db
+*Zone.Identifier*
 
 # ============================================================
 # Editors / IDE
@@ -69,3 +70,4 @@ docker-compose.override.yml
 .env.github-oauth
 
 compose.override.yaml
+/devup-local-cert.pem

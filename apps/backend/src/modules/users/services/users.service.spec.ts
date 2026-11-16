@@ -63,9 +63,7 @@ describe('UsersService', () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),
       existsBy: jest.fn().mockResolvedValue(false),
-      save: jest
-        .fn()
-        .mockImplementation((user: unknown) => Promise.resolve(user)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     const service = new UsersService(repository as unknown as Repository<User>);
 
@@ -78,6 +76,10 @@ describe('UsersService', () => {
     expect(response.username).toBe('newname');
     expect(response.email).toBe('new@example.com');
     expect(response.avatarUrl).toBeNull();
+    expect(response.emailVerified).toBe(false);
+    expect(repository.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      verifiedEmail: null, emailVerifyDigest: null, passwordResetDigest: null,
+    }));
     expect(response).not.toHaveProperty('passwordHash');
   });
 
@@ -85,7 +87,7 @@ describe('UsersService', () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),
       existsBy: jest.fn().mockResolvedValue(true),
-      save: jest.fn(),
+      update: jest.fn(),
     };
     const service = new UsersService(repository as unknown as Repository<User>);
 
@@ -93,14 +95,14 @@ describe('UsersService', () => {
       service.updateProfile(makeUser().id, { username: 'taken' }),
     ).rejects.toThrow(ConflictException);
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('rejects an existing email', async () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),
       existsBy: jest.fn().mockResolvedValue(true),
-      save: jest.fn(),
+      update: jest.fn(),
     };
     const service = new UsersService(repository as unknown as Repository<User>);
 
@@ -108,14 +110,14 @@ describe('UsersService', () => {
       service.updateProfile(makeUser().id, { email: 'taken@example.com' }),
     ).rejects.toThrow(ConflictException);
 
-    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it('returns a conflict if MySQL rejects an update duplicate', async () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),
       existsBy: jest.fn().mockResolvedValue(false),
-      save: jest.fn().mockRejectedValue(
+      update: jest.fn().mockRejectedValue(
         new QueryFailedError('UPDATE', [], {
           code: 'ER_DUP_ENTRY',
         }),

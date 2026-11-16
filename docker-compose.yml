@@ -1,17 +1,16 @@
 services:
   mysql:
     image: mysql:8.4
-    container_name: mysql
     restart: unless-stopped
 
     environment:
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-transcendence}
+      MYSQL_USER: ${DB_USER:-transcendence}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-devup_local_db}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-devup_local_root}
 
     ports:
-      - "3306:3306"
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
 
     volumes:
       - mysql_data:/var/lib/mysql
@@ -35,10 +34,17 @@ services:
       context: ./apps/backend
       dockerfile: Dockerfile.dev
 
-    container_name: migrate
 
     env_file:
-      - .env
+      - path: .env
+        required: false
+
+    environment: &database-environment
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-transcendence}
+      DB_USER: ${DB_USER:-transcendence}
+      DB_PASSWORD: ${DB_PASSWORD:-devup_local_db}
 
     command: npm run migration:run
 
@@ -57,14 +63,19 @@ services:
       context: ./apps/backend
       dockerfile: Dockerfile.dev
 
-    container_name: backend
     restart: unless-stopped
 
     env_file:
-      - .env
+      - path: .env
+        required: false
 
-    ports:
-      - "${APP_PORT}:3000"
+    environment:
+      <<: *database-environment
+      APP_PORT: "3000"
+      JWT_SECRET: ${JWT_SECRET:-devup-local-compose-only-change-before-deploying}
+      AUTH_PUBLIC_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+      GITHUB_OAUTH_FRONTEND_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+      GITHUB_OAUTH_CALLBACK_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}/api/github/callback
 
     volumes:
       - ./apps/backend:/app
@@ -76,6 +87,28 @@ services:
       migrate:
         condition: service_completed_successfully
 
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exitCode = 1 }).catch(() => { process.exitCode = 1 })"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build: ./apps/frontend
+    restart: unless-stopped
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+    volumes:
+      - frontend_tls:/etc/nginx/tls
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+      - "127.0.0.1:${HTTPS_PORT:-443}:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   mysql_data:
   backend_node_modules:
+  frontend_tls:

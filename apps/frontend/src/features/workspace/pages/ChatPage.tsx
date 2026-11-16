@@ -1,25 +1,29 @@
-import { useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { ArrowLeft, ArrowUp, ChevronRight, FileText, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Paperclip, Phone, Search, SquarePen, ThumbsUp, Users, Video, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { Paperclip, Reply, ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Video, X } from 'lucide-react';
+import { workspaceIcons } from '../workspace-icons';
 import { Avatar, IconTile, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
-import { people } from '../previewData';
-import type { ChatAttachment, ChatMessage, ChatThread } from '../chatPreview';
-import type { PageKey } from '../types';
-import { fileSize, type WorkspaceFile } from '../workspace-api';
+import type { Member } from '../workspace-tasks';
+import type { ServerMessage, useWorkspaceChat } from '../workspace-chat';
 import './chat.css';
 
+type Draft = { text: string; requestId?: string; reply?: { id: string; preview: string } };
+
 type ChatPageProps = {
+  workspaceId: string;
+  chat: ReturnType<typeof useWorkspaceChat>;
+  selected: string;
+  setSelected: (id: string) => void;
+  profileId: string;
   profileName: string;
-  threads: ChatThread[];
-  setThreads: Dispatch<SetStateAction<ChatThread[]>>;
-  files?: WorkspaceFile[];
-  navigate: (page: PageKey) => void;
+  roster: Member[];
+  workspaceArchived?: boolean;
 };
 
 const clock = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 const calendar = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
-const filters = ['All', 'Unread', 'Mentions'] as const;
-const sections = ['Details', 'Members', 'Files', 'Links'] as const;
+const filters = ['All', 'Unread'] as const;
+const sections = ['Details', 'Members', 'Links'] as const;
 
 function dayLabel(date: Date) {
   const today = new Date();
@@ -29,51 +33,106 @@ function dayLabel(date: Date) {
 }
 
 function Portrait({ name, small }: { name: string; small?: boolean }) {
-  const person = people.find(item => item.name === name);
   const initials = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-  return <Avatar initials={person?.initials ?? initials} tone={person?.color ?? 'mint'} small={small} preview={!!person} />;
+  return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
 }
 
-function AttachmentCard({ file, onClick, action = 'Go to Files' }: { file: ChatAttachment; onClick: () => void; action?: string }) {
-  return <button type="button" className="wu-chat-file" onClick={onClick} aria-label={action + ': ' + file.name}>
-    <IconTile><FileText size={16} /></IconTile>
-    <span><strong>{file.name}</strong><small>{file.detail}</small></span>
-    <ChevronRight size={15} />
-  </button>;
-}
-
-export function ChatPage({ profileName, threads, setThreads, files, navigate }: ChatPageProps) {
-  const [selected, setSelected] = useState('team');
+export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
+  const [sending, setSending] = useState(false);
+  const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
+  const [conversationError, setConversationError] = useState('');
+  const view = useRef<{ thread: string; atLatest: boolean; anchor?: { id: string; offset: number } } | undefined>(undefined);
+  const [showJump, setShowJump] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchedTerm, setSearchedTerm] = useState('');
+  const [results, setResults] = useState<ServerMessage[]>([]);
+  const [searchPage, setSearchPage] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [hasMoreResults, setHasMoreResults] = useState(false);
+  const searchRequest = useRef<AbortController | undefined>(undefined);
+  const [attachments, setAttachments] = useState<Record<string, File | undefined>>({});
+  const [attachmentError, setAttachmentError] = useState('');
+  const [copiedAttachment, setCopiedAttachment] = useState('');
+  const fileInput = useRef<HTMLInputElement>(null);
+  useEffect(() => () => searchRequest.current?.abort(), [selected]);
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const [section, setSection] = useState<(typeof sections)[number]>('Details');
-  const [drafts, setDrafts] = useState<Record<string, { text: string; attachment?: ChatAttachment }>>({});
-  const [drawer, setDrawer] = useState<'details' | 'files' | 'new'>();
+  const draftKey = `devup:chat-drafts:${profileId}:${workspaceId}`;
+  const [drafts, setDrafts] = useState<Record<string, Draft>>(() => {
+    try { return JSON.parse(sessionStorage.getItem(draftKey) ?? '{}') ?? {}; }
+    catch { return {}; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(draftKey, JSON.stringify(drafts)); }
+    catch { /* Drafts remain available while this view is open. */ }
+  }, [draftKey, drafts]);
+  const [drawer, setDrawer] = useState<'details' | 'new'>();
   const [showList, setShowList] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const [callNotice, setCallNotice] = useState<'Voice' | 'Video'>();
   const messageList = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
-  const thread = threads.find(item => item.id === selected) ?? threads[0];
+  const teammateName = (id: string | null) => roster.find(member => member.userId === id)?.username
+    ?? chat.conversations.find(item => item.otherUserId === id)?.otherUsername ?? 'DevUP member';
+  const threads = [{ id: 'team', title: 'DevUP Team', member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
+    ...chat.conversations.map(item => ({ ...item, title: teammateName(item.otherUserId), member: teammateName(item.otherUserId) }))].map(item => ({
+      ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
+      messages: (chat.messages[item.id] ?? []).map(message => ({
+        id: message.id, text: message.content, sentAt: message.createdAt,
+        reply: message.reply, attachmentName: message.attachmentName,
+        own: message.senderId === profileId, author: teammateName(message.senderId),
+      })),
+    }));
+  const thread = threads.find(item => item.id === selected) ?? { id: selected, title: 'Direct message', member: 'DevUP member', unread: 0, messages: [] };
+  const readOnly = workspaceArchived && thread.id === 'team';
   const draft = drafts[thread.id] ?? { text: '' };
-  const owner = { name: profileName, role: 'You' };
-  const teammates = people.filter(person => person.initials !== 'AM' && person.status === 'Active' && person.name !== profileName);
-  const members = [owner, ...teammates.filter(person => !thread.member || person.name === thread.member)];
-  const attachments = [...new Map(thread.messages.flatMap(message => message.attachment ? [[message.attachment.id, message.attachment] as const] : [])).values()];
+  const sendError = sendErrors[thread.id];
+  const file = attachments[thread.id];
+  const canSend = !!(draft.text.trim() || file);
+  const teammates = roster.filter(member => member.userId !== profileId);
+  const direct = chat.conversations.find(item => item.id === thread.id);
+  const members = [{ id: profileId, name: profileName, role: 'You' },
+    ...teammates.filter(person => !thread.member || person.userId === direct?.otherUserId)
+      .map(person => ({ id: person.userId, name: person.username, role: person.isOwner ? 'Workspace owner' : 'Member' }))];
   const links = [...new Set(thread.messages.flatMap(message => message.text.match(/https?:\/\/[^\s<>"']+/g) ?? []))];
   const unreadCount = threads.filter(item => item.unread > 0).length;
-  const mentionCount = threads.filter(item => item.messages.some(message => message.mention)).length;
   const search = query.trim().toLowerCase();
   const visibleThreads = threads.filter(item =>
     (filter !== 'Unread' || item.unread > 0) &&
-    (filter !== 'Mentions' || item.messages.some(message => message.mention)) &&
     (!search || item.title.toLowerCase().includes(search) || item.messages.some(message => message.text.toLowerCase().includes(search)))
   );
 
-  useEffect(() => {
+  function recordPosition() {
     const list = messageList.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [thread.id, thread.messages.length]);
+    if (!list) return;
+    const top = list.getBoundingClientRect().top;
+    const atLatest = list.scrollHeight - list.clientHeight - list.scrollTop < 40;
+    const firstVisible = atLatest ? undefined : Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .find(row => row.getBoundingClientRect().bottom > top);
+    view.current = {
+      thread: thread.id, atLatest,
+      anchor: firstVisible?.dataset.messageId ? {
+        id: firstVisible.dataset.messageId, offset: firstVisible.getBoundingClientRect().top - top,
+      } : undefined,
+    };
+    setShowJump(!atLatest);
+  }
+
+  useLayoutEffect(() => {
+    const list = messageList.current;
+    if (!list) return;
+    const previous = view.current;
+    if (!previous || previous.thread !== thread.id || previous.atLatest) {
+      list.scrollTop = list.scrollHeight;
+    } else if (previous.anchor) {
+      const row = list.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(previous.anchor.id)}"]`);
+      if (row) list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top - previous.anchor.offset;
+    }
+    recordPosition();
+  });
 
   useEffect(() => {
     const input = composer.current;
@@ -82,44 +141,115 @@ export function ChatPage({ profileName, threads, setThreads, files, navigate }: 
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
   }, [draft.text, thread.id]);
 
+  async function searchHistory(page = 1) {
+    const term = page === 1 ? searchTerm.trim() : searchedTerm;
+    if (!term) return;
+    searchRequest.current?.abort();
+    const controller = new AbortController();
+    searchRequest.current = controller;
+    setSearching(true);
+    setSearchError('');
+    if (page === 1) {
+      setResults([]);
+      setSearchPage(0);
+      setHasMoreResults(false);
+      setSearchedTerm(term);
+    }
+    try {
+      const matches = await chat.search(thread.id, term, page, controller.signal);
+      if (controller.signal.aborted) return;
+      setResults(current => page === 1 ? matches : [...new Map([...current, ...matches].map(item => [item.id, item])).values()]);
+      setSearchPage(page);
+      setHasMoreResults(matches.length === 25);
+    } catch {
+      if (!controller.signal.aborted) setSearchError('Could not search this conversation. Try again.');
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
+    }
+  }
+
+  async function download(messageId: string, name: string) {
+    setAttachmentError('');
+    try {
+      const blob = await chat.downloadAttachment(thread.id, messageId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setAttachmentError('Could not download this attachment.');
+    }
+  }
+
+  async function copyAttachmentLink(messageId: string) {
+    const url = new URL(location.href);
+    url.searchParams.set('page', 'chat');
+    url.searchParams.set('attachment', messageId);
+    url.hash = thread.id === 'team' ? '' : 'dm-' + thread.id;
+    try { await navigator.clipboard.writeText(url.href); setCopiedAttachment(messageId); }
+    catch { setAttachmentError('Could not copy the attachment link.'); }
+  }
+
   function selectThread(id: string) {
+    searchRequest.current?.abort();
+    setSearching(false);
+    setSearchOpen(false);
+    setResults([]);
+    setSearchTerm('');
+    setSearchedTerm('');
+    setSearchPage(0);
+    setHasMoreResults(false);
+    setSearchError('');
+    setAttachmentError('');
     setSelected(id);
     setCallNotice(undefined);
     setSection('Details');
     setShowList(false);
-    setThreads(current => current.map(item => item.id === id && item.unread ? { ...item, unread: 0 } : item));
+    const url = new URL(location.href);
+    url.searchParams.delete('attachment');
+    url.hash = id === 'team' ? '' : 'dm-' + id;
+    history.replaceState(history.state, '', url);
   }
 
-  function startConversation(name: string) {
-    const existing = threads.find(item => item.member === name);
-    const id = existing?.id ?? 'direct-' + name;
-    if (!existing) {
-      setThreads(current => [...current, { id, title: name, member: name, unread: 0, messages: [] }]);
+  async function startConversation(userId: string) {
+    if (sending) return;
+    setSending(true);
+    setConversationError('');
+    try {
+      const id = await chat.openConversation(userId);
       setFilter('All');
       setQuery('');
+      selectThread(id);
+      setDrawer(undefined);
+    } catch (error) {
+      setConversationError(error instanceof Error ? error.message : 'Could not open the conversation.');
+    } finally {
+      setSending(false);
     }
-    selectThread(id);
-    setDrawer(undefined);
   }
 
-  function updateMessages(update: (messages: ChatMessage[]) => ChatMessage[]) {
-    setThreads(current => current.map(item => item.id === thread.id ? { ...item, messages: update(item.messages) } : item));
-  }
-
-  function submitMessage(event: FormEvent<HTMLFormElement>) {
+  async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.text.trim();
-    if (!body && !draft.attachment) return;
-    const sentAt = new Date().toISOString();
-    updateMessages(messages => [...messages, {
-      id: `sent-${messages.length}`, author: profileName, own: true, sentAt,
-      text: body, attachment: draft.attachment,
-    }]);
-    setDrafts(current => ({ ...current, [thread.id]: { text: '' } }));
-    composer.current?.focus();
+    if (!canSend || sending) return;
+    setSending(true);
+    setSendErrors(current => ({ ...current, [thread.id]: '' }));
+    try {
+      const requestId = draft.requestId ?? crypto.randomUUID();
+      setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId } }));
+      await chat.send(thread.id, body, requestId, draft.reply?.id, file);
+      setAttachments(current => ({ ...current, [thread.id]: undefined }));
+      setDrafts(current => current[thread.id]?.requestId === requestId ? { ...current, [thread.id]: { text: '' } } : current);
+      composer.current?.focus();
+    } catch (error) {
+      setSendErrors(current => ({ ...current, [thread.id]: error instanceof Error ? error.message : 'Could not send the message.' }));
+    } finally {
+      setSending(false);
+    }
   }
 
-  const openFiles = () => navigate('files');
   const details = <>
     <div className="wu-chat-tabs" role="group" aria-label="Conversation details">
       {sections.map(item => <button key={item} type="button" aria-pressed={section === item} onClick={() => setSection(item)}>{item}</button>)}
@@ -130,12 +260,8 @@ export function ChatPage({ profileName, threads, setThreads, files, navigate }: 
     {(section === 'Details' || section === 'Members') && <section>
       <h3>Members ({members.length})</h3>
       <ul className="wu-chat-members">
-        {members.map(member => <li key={member.name}><Portrait name={member.name} small /><span><strong>{member.name}</strong><small>{member.role}</small></span></li>)}
+        {members.map(member => <li key={member.id}><Portrait name={member.name} small /><span><strong>{member.name}</strong><small>{member.role}</small></span></li>)}
       </ul>
-    </section>}
-    {(section === 'Details' || section === 'Files') && <section>
-      <div className="wu-chat-section-head"><h3>Shared files ({attachments.length})</h3>{section === 'Details' && attachments.length > 3 && <button type="button" className="wu-text-button" onClick={() => setSection('Files')}>View all</button>}</div>
-      {attachments.length ? attachments.slice(0, section === 'Details' ? 3 : undefined).map(file => <AttachmentCard key={file.id} file={file} onClick={openFiles} />) : <p>No files shared yet.</p>}
     </section>}
     {section === 'Links' && <section><h3>Shared links</h3>
       {links.length ? <ul className="wu-chat-links">{links.map(link => <li key={link}><a href={link} target="_blank" rel="noreferrer">{link}</a></li>)}</ul> : <p>No links shared yet.</p>}
@@ -151,15 +277,15 @@ export function ChatPage({ profileName, threads, setThreads, files, navigate }: 
         </div>
         <div className="wu-chat-tabs" role="group" aria-label="Filter conversations">
           {filters.map(item => <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}>
-            {item}{item === 'Unread' && !!unreadCount && <span>{unreadCount}</span>}{item === 'Mentions' && !!mentionCount && <span>{mentionCount}</span>}
+            {item}{item === 'Unread' && !!unreadCount && <span>{unreadCount}</span>}
           </button>)}
         </div>
         <div className="wu-chat-conversations" aria-label="Conversations" tabIndex={0}>
           {visibleThreads.map(item => {
             const latest = item.messages.at(-1);
             return <button type="button" key={item.id} className="wu-conversation" aria-current={item.id === thread.id ? 'true' : undefined} onClick={() => selectThread(item.id)}>
-              {item.member ? <Portrait name={item.member} /> : <IconTile><Users size={18} /></IconTile>}
-              <span className="wu-conversation-copy"><strong>{item.title}</strong><small>{latest ? (latest.own ? 'You: ' : !item.member ? latest.author.split(' ')[0] + ': ' : '') + (latest.text || latest.attachment?.name || '') : 'No messages yet'}</small></span>
+              {item.member ? <Portrait name={item.member} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
+              <span className="wu-conversation-copy"><strong>{item.title}</strong><small>{latest ? (latest.own ? 'You: ' : !item.member ? latest.author.split(' ')[0] + ': ' : '') + latest.text : item.lastMessageAt ? 'Open conversation' : 'No messages yet'}</small></span>
               <span className="wu-conversation-meta">{latest && <time dateTime={latest.sentAt}>{clock.format(new Date(latest.sentAt))}</time>}{!!item.unread && <span className="wu-chat-unread" aria-label={item.unread + ' unread'}>{item.unread}</span>}</span>
             </button>;
           })}
@@ -173,7 +299,7 @@ export function ChatPage({ profileName, threads, setThreads, files, navigate }: 
       <Panel className="wu-chat-thread">
         <header className="wu-chat-thread-head">
           <button type="button" className="wu-icon-button wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></button>
-          {thread.member ? <Portrait name={thread.member} /> : <IconTile><Users size={18} /></IconTile>}
+          {thread.member ? <Portrait name={thread.member} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
           <div className="wu-chat-heading"><h2>{thread.title}</h2><p>{thread.member ? 'Direct message' : members.length + ' members · General discussion'}</p></div>
           <button type="button" className="wu-icon-button" aria-label="Voice call" title="Voice call" onClick={() => setCallNotice('Voice')}><Phone size={18} /></button>
           <button type="button" className="wu-icon-button" aria-label="Video call" title="Video call" onClick={() => setCallNotice('Video')}><Video size={19} /></button>
@@ -187,51 +313,103 @@ export function ChatPage({ profileName, threads, setThreads, files, navigate }: 
         {callNotice && <div className="wu-chat-call-notice"><span role="status">{callNotice} calling is unavailable in this workspace.</span>
           <button type="button" className="wu-icon-button" aria-label="Dismiss calling notice" onClick={() => setCallNotice(undefined)}><X size={16} /></button>
         </div>}
-        <div ref={messageList} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
-          {!thread.messages.length && <p className="wu-chat-empty">Start the conversation with {thread.title}.</p>}
+        {attachmentError && <p role="alert">{attachmentError}</p>}
+        {new URLSearchParams(location.search).get('attachment') && <button type="button" className="wu-text-button"
+          onClick={() => void download(new URLSearchParams(location.search).get('attachment')!, 'Attachment')}>Download linked attachment</button>}
+        <div className="wu-chat-tools"><button className="wu-text-button" type="button" aria-expanded={searchOpen}
+          onClick={() => setSearchOpen(value => !value)}><Search size={15} /> Search messages</button></div>
+        {searchOpen && <section className="wu-chat-search-results" aria-label="Search conversation">
+          <form onSubmit={event => { event.preventDefault(); void searchHistory(); }}>
+            <input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" value={searchTerm} maxLength={200}
+              onChange={event => setSearchTerm(event.target.value)} />
+            <button className="wu-text-button" type="submit" disabled={searching || !searchTerm.trim()}>Search</button>
+          </form>
+          {searching && <p role="status">Searching…</p>}
+          {searchError && <p role="alert">{searchError}</p>}
+          {!searching && searchPage > 0 && !results.length && <p>No matching messages.</p>}
+          {results.map(message => <article key={message.id}>
+            <strong>{message.senderId === profileId ? 'You' : teammateName(message.senderId)}</strong>{' '}
+            <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
+            {message.reply && <blockquote>{message.reply.preview}</blockquote>}
+            {message.content && <p>{message.content}</p>}
+            {message.attachmentName && <button className="wu-text-button" type="button"
+              onClick={() => void download(message.id, message.attachmentName!)}>{message.attachmentName}</button>}
+            {!readOnly && <button className="wu-text-button" type="button" disabled={sending}
+              onClick={() => { setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview: message.content || message.attachmentName || 'Attachment' } } })); composer.current?.focus(); }}>Reply</button>}
+          </article>)}
+          {hasMoreResults && <button className="wu-text-button" type="button" disabled={searching} onClick={() => void searchHistory(searchPage + 1)}>More results</button>}
+        </section>}
+        {chat.connection !== 'connected' && <div className="wu-chat-connection">
+          <span role="status">{chat.connection === 'connecting' ? 'Connecting to chat…' : 'Reconnecting to chat…'}</span>
+          {chat.connection === 'reconnecting' && <button className="wu-text-button" type="button" onClick={chat.reconnect}>Retry connection</button>}
+        </div>}
+        <div ref={messageList} onScroll={recordPosition} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
+          {chat.error && <p role="alert">{chat.error} <button className="wu-text-button" type="button" onClick={chat.retry}>Try again</button></p>}
+          {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading || chat.loadingOlder} onClick={() => void chat.loadOlder()}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</button>}
+          {chat.loading && <p role="status">Loading messages…</p>}
+          {!chat.loading && !chat.error && !thread.messages.length && <p className="wu-chat-empty">{readOnly ? 'No messages in this conversation.' : 'Start the conversation with ' + thread.title + '.'}</p>}
           {thread.messages.map((message, index) => {
             const date = new Date(message.sentAt);
             const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
-            return <div key={message.id}>
+            return <div key={message.id} data-message-id={message.id}>
               {newDay && <div className="wu-chat-date"><span>{dayLabel(date)}</span></div>}
               <article className={`wu-message${message.own ? ' is-own' : ''}`}>
                 <Portrait name={message.own ? profileName : message.author} small />
                 <div className="wu-message-content">
                   <div className="wu-message-meta"><strong>{message.own ? 'You' : message.author}</strong><time dateTime={message.sentAt}>{clock.format(date)}</time></div>
                   <div className="wu-message-bubble">
+                    {message.reply && <blockquote className="wu-chat-quote"><strong>{message.reply.unavailable ? 'Original message' : message.reply.senderId === profileId ? 'You' : teammateName(message.reply.senderId)}</strong><p>{message.reply.preview}</p></blockquote>}
                     {message.text && <p>{message.text}</p>}
-                    {message.attachment && <AttachmentCard file={message.attachment} onClick={openFiles} />}
+                    {message.attachmentName && <div className="wu-chat-attachment"><button className="wu-text-button" type="button" onClick={() => void download(message.id, message.attachmentName!)}><Paperclip size={15} /> {message.attachmentName}</button><button className="wu-text-button" type="button" onClick={() => void copyAttachmentLink(message.id)}>{copiedAttachment === message.id ? 'Link copied' : 'Copy link'}</button></div>}
                   </div>
-                  {!message.own && <button type="button" className="wu-chat-reaction" aria-label="Like message" aria-pressed={!!message.liked}
-                    onClick={() => updateMessages(messages => messages.map(item => item.id === message.id ? { ...item, liked: !item.liked } : item))}>
-                    <ThumbsUp size={12} />{(message.likes ?? 0) + Number(!!message.liked) || null}
-                  </button>}
+                  {!readOnly && <button className="wu-text-button wu-chat-reply" type="button" disabled={sending} onClick={() => {
+                    setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview: message.text || message.attachmentName || 'Attachment' } } }));
+                    composer.current?.focus();
+                  }}><Reply size={14} /> Reply</button>}
                 </div>
               </article>
             </div>;
           })}
         </div>
-        <form className="wu-message-form" onSubmit={submitMessage}>
-          {draft.attachment && <div className="wu-chat-draft-file"><FileText size={15} /><span>{draft.attachment.name}</span><button type="button" className="wu-icon-button" aria-label="Remove attachment" onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={15} /></button></div>}
+        {showJump && <button className="wu-text-button wu-chat-jump" type="button" onClick={() => {
+          if (messageList.current) messageList.current.scrollTop = messageList.current.scrollHeight;
+          recordPosition();
+        }}>Jump to latest</button>}
+        {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
+          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !canSend}>Retry send</button></p>}
+          {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview}</span><button className="wu-icon-button" type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></button></div>}
+          {file && <div className="wu-chat-draft-chip"><span>{file.name}</span><button className="wu-icon-button" type="button" aria-label="Remove attachment" disabled={sending} onClick={() => {
+            setAttachments(current => ({ ...current, [thread.id]: undefined }));
+            setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined } }));
+          }}><X size={16} /></button></div>}
           <div className="wu-chat-composer">
-            <button type="button" className="wu-icon-button" aria-label="Attach a workspace file" title="Attach a workspace file" onClick={() => setDrawer('files')}><Paperclip size={19} /></button>
-            <textarea ref={composer} rows={1} aria-label="Message" placeholder={`Message ${thread.title}…`} value={draft.text}
-              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { ...draft, text: event.target.value } }))}
+            <input ref={fileInput} type="file" hidden onChange={event => {
+              const attachment = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (!attachment) return;
+              if (!attachment.size || attachment.size > 5 * 1024 * 1024) { setAttachmentError('Choose a file between 1 byte and 5 MB.'); return; }
+              setAttachmentError('');
+              setAttachments(current => ({ ...current, [thread.id]: attachment }));
+              setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined } }));
+            }} />
+            <button className="wu-icon-button" type="button" aria-label="Attach file" disabled={sending} onClick={() => fileInput.current?.click()}><Paperclip size={19} /></button>
+            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team or mention @username…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
+              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value, reply: draft.reply } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={!draft.text.trim() && !draft.attachment}><ArrowUp size={20} /></button>
+            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></button>
           </div>
-        </form>
+        </form>}
       </Panel>
       <section className="wu-panel wu-chat-details" id="chat-details" aria-label="Conversation details">{details}</section>
     </div>
-    {drawer && <Drawer title={drawer === 'details' ? 'Conversation details' : drawer === 'files' ? 'Attach a workspace file' : 'New message'} onClose={() => setDrawer(undefined)}>
+    {drawer && <Drawer title={drawer === 'details' ? 'Conversation details' : 'New message'} onClose={() => setDrawer(undefined)}>
       {drawer === 'details' && <div className="wu-chat-details-body">{details}</div>}
-      {drawer === 'new' && <div className="wu-chat-picker">{teammates.map(person => <button key={person.name} className="wu-conversation" type="button" onClick={() => startConversation(person.name)}><Portrait name={person.name} /><span className="wu-conversation-copy"><strong>{person.name}</strong><small>{person.role}</small></span><ChevronRight size={16} /></button>)}</div>}
-      {drawer === 'files' && <div className="wu-chat-picker">
-        {files?.length ? files.map(file => <AttachmentCard key={file.id} file={{ id: file.id, name: file.displayName, detail: fileSize(file.sizeBytes) }} action="Attach" onClick={() => {
-          setDrafts(current => ({ ...current, [thread.id]: { ...draft, attachment: { id: file.id, name: file.displayName, detail: fileSize(file.sizeBytes) } } }));
-          setDrawer(undefined);
-        }} />) : <p className="wu-chat-empty">No workspace files available to attach.</p>}
+      {drawer === 'new' && <div className="wu-chat-picker">
+        {conversationError && <p role="alert">{conversationError}</p>}
+        {!teammates.length && <p className="wu-chat-empty">No other workspace members yet.</p>}
+        {teammates.map(person => <button key={person.userId} className="wu-conversation" type="button" disabled={sending} onClick={() => void startConversation(person.userId)}>
+          <Portrait name={person.username} /><span className="wu-conversation-copy"><strong>{person.username}</strong></span><ChevronRight size={16} />
+        </button>)}
       </div>}
     </Drawer>}
   </>;

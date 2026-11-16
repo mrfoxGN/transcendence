@@ -1,28 +1,45 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
-  DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, pointerWithin,
+  DndContext, DragOverlay, KeyboardSensor, MeasuringStrategy, PointerSensor, closestCenter, pointerWithin,
   useDraggable, useDroppable, useSensor, useSensors,
   type CollisionDetection, type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
-import { CalendarDays, GripVertical, Plus } from 'lucide-react';
+import { ArrowRightLeft, CalendarDays, GripVertical, Keyboard, Plus } from 'lucide-react';
 import { Avatar, FilterChips, Pill } from '../components';
 import { ActionMenu, Drawer } from '../WorkspaceControls';
-import { taskStatuses } from '../previewData';
+import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import type { PageHeading, Task, AddTaskButton } from '../types';
+import { canTransition, statusLabels, taskBoardColumn, type BoardColumnConfig } from '../workspace-tasks';
 import './board.css';
 
-const columnTones = ['neutral', 'blue', 'violet', 'pink', 'mint'];
+type Placement = 'before' | 'after' | 'end';
+type ColumnMove = { fromColumnId: string; toColumnId: string };
 
-const findColumn: CollisionDetection = args => args.pointerCoordinates ? pointerWithin(args) : closestCenter(args);
+const findDropTarget: CollisionDetection = args => {
+  const available = args.droppableContainers.filter(target =>
+    target.data.current?.anchorTaskId !== args.active.id);
+  const columns = available.filter(target => !target.data.current?.anchorTaskId);
+  if (!args.pointerCoordinates) return closestCenter({ ...args, droppableContainers: columns });
+  const cardTargets = available.filter(target => target.data.current?.anchorTaskId);
+  const cardHits = pointerWithin({ ...args, droppableContainers: cardTargets });
+  const columnHits = pointerWithin({ ...args, droppableContainers: columns });
+  // Nested card targets must belong to the column under the pointer.
+  const columnId = columnHits[0]?.id;
+  const insertion = cardHits.find(hit => cardTargets.find(target => target.id === hit.id)?.data.current?.columnId === columnId);
+  if (insertion) return [insertion];
+  const draggedCard = args.droppableContainers.filter(target => target.data.current?.anchorTaskId === args.active.id);
+  return pointerWithin({ ...args, droppableContainers: draggedCard }).length ? [] : columnHits;
+};
 
-const keyboardColumnCoordinates = (columns: string[]): KeyboardCoordinateGetter => (event, { context, currentCoordinates }) => {
+const keyboardColumnCoordinates = (columns: BoardColumnConfig[]): KeyboardCoordinateGetter => (event, { context, currentCoordinates }) => {
   const step = event.code === 'ArrowRight' ? 1 : event.code === 'ArrowLeft' ? -1 : 0;
   if (!step || !context.collisionRect) return;
   event.preventDefault();
-  const currentColumn = context.over?.id ?? context.active?.data.current?.status;
-  const index = columns.findIndex(status => status === currentColumn);
+  const currentColumn = context.over?.id ?? context.active?.data.current?.columnId;
+  const targets = columns.map(column => column.id);
+  const index = targets.findIndex(status => status === currentColumn);
   if (index < 0) return;
-  const target = context.droppableRects.get(columns[index + step]);
+  const target = context.droppableRects.get(targets[index + step]);
   if (!target) return;
   const { collisionRect } = context;
   return {
@@ -37,85 +54,159 @@ type BoardPageProps = {
   filter: string;
   setFilter: (filter: string) => void;
   filteredTasks: Task[];
+  columns: BoardColumnConfig[];
   allTasks: Task[];
-  columns: string[];
-  onAddColumn: (name: string) => string | undefined;
-  onRemoveColumn: (status: string, destination: string) => string | undefined;
+  canManage: boolean;
+  savingColumns: boolean;
+  error: string;
+  saveColumns: (columns: BoardColumnConfig[], move?: ColumnMove) => Promise<boolean>;
   activeCount: number;
-  onMoveTask: (id: string, status: string) => void;
+  activeWipLimit: number;
+  onMoveTask: (id: string, column: BoardColumnConfig, placement: Placement, anchorTaskId?: string) => Promise<boolean>;
+  movingTask: boolean;
   setSelectedTask: (task: Task) => void;
-  onAddTask: (status: string) => void;
+  onAddTask: (column: BoardColumnConfig) => void;
   addTaskButton: AddTaskButton;
+  readOnly?: boolean;
 };
 
 function TaskCardContent({ task }: { task: Task }) {
   return <>
-    <span className="wu-task-id">{task.id}</span>
     <strong>{task.title}</strong>
+    {task.taskKey && <small className="wu-muted">{task.taskKey}</small>}
     <span className="wu-board-card-tags">
-      <Pill>{task.type}</Pill>
-      <Pill tone={task.priority === 'High' ? 'orange' : 'neutral'}>{task.priority} priority</Pill>
+      {task.priority !== 'None' && <Pill tone={task.priority === 'High' ? 'orange' : 'neutral'}>{task.priority} priority</Pill>}
       {task.isBlocked && <Pill tone="red">Blocked</Pill>}
     </span>
-    {task.description && <span className="wu-board-card-description">{task.description}</span>}
     <span className="wu-task-card-foot">
-      <span><Avatar initials={task.initials} small />{task.person}</span>
-      {task.due && <span><CalendarDays size={14} aria-hidden="true" />{task.due}</span>}
+      <span>{task.assigneeId && <Avatar initials={task.initials} small preview={false} />}{task.person}</span>
+      {task.dueDate && <span><CalendarDays size={14} aria-hidden="true" />{task.due}</span>}
     </span>
   </>;
 }
 
-function DraggableTask({ task, onOpen }: { task: Task; onOpen: () => void }) {
+function CardDropTarget({ taskId, columnId, placement }: {
+  taskId: string; columnId: string; placement: 'before' | 'after';
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: placement + ':' + taskId,
+    data: { columnId, placement, anchorTaskId: taskId },
+  });
+  return <span ref={setNodeRef} className={`wu-card-drop wu-card-drop--${placement}`} data-active={isOver} aria-hidden="true" />;
+}
+
+function DraggableTask({ task, onOpen, onMove, columnId, readOnly }: {
+  task: Task; onOpen: () => void; onMove: () => void; columnId: string; readOnly: boolean;
+}) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({
-    id: task.id, data: { status: task.status },
+    id: task.id, data: { status: task.status, columnId }, disabled: readOnly,
   });
   return (
     <div ref={setNodeRef} className="wu-board-card-slot" data-dragging={isDragging}>
       <button className="wu-task-card" type="button" onPointerDown={(event) => listeners?.onPointerDown?.(event)} onClick={onOpen}><TaskCardContent task={task} /></button>
-      <button ref={setActivatorNodeRef} type="button" className="wu-board-grip"
+      {!readOnly && <><button ref={setActivatorNodeRef} type="button" className="wu-board-grip"
         {...attributes} {...listeners} aria-label={'Move ' + task.title}>
         <GripVertical size={17} aria-hidden="true" />
       </button>
+      <button className="wu-board-move" type="button" aria-label={'Move to a position for ' + task.title} title="Move to" onClick={onMove}>
+        <ArrowRightLeft size={16} aria-hidden="true" />
+      </button>
+      <CardDropTarget taskId={task.id} columnId={columnId} placement="before" />
+      <CardDropTarget taskId={task.id} columnId={columnId} placement="after" /></>}
     </div>
   );
 }
 
-function BoardColumn({ status, tone, tasks, count, onOpenTask, onAddTask, onRemove }: {
-  status: string; tone: string; tasks: Task[]; count: string | number;
+function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, rename, actions, limitEditor, readOnly }: {
+  column: BoardColumnConfig; tasks: Task[]; count: number;
   onOpenTask: (task: Task) => void; onAddTask: () => void;
-  onRemove?: () => void;
+  onMoveTask: (task: Task) => void;
+  rename?: (label: string) => Promise<boolean>;
+  actions: { label: string; run: () => void; disabled?: boolean }[];
+  limitEditor?: ReactNode;
+  readOnly: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const [editing, setEditing] = useState(false);
+  const { setNodeRef, isOver } = useDroppable({ id: column.id, data: { columnId: column.id } });
   const id = useId();
-  const headingId = status === 'Review' ? 'board-review' : id;
+  const headingId = column.status === 'REVIEW' && column.id === 'REVIEW' ? 'board-review' : id;
   return (
-    <section ref={setNodeRef} className={'wu-board-column wu-board-column--' + tone} aria-labelledby={headingId} data-drop-target={isOver}>
+    <section ref={setNodeRef} className="wu-board-column" aria-label={column.label} data-drop-target={isOver}>
       <div className="wu-column-head">
-        <h2 id={headingId} tabIndex={status === 'Review' ? -1 : undefined}><i />{status}</h2>
-        <Pill>{count}</Pill>
-        {onRemove && <ActionMenu label={status + ' column actions'} actions={[{ label: 'Remove column', run: onRemove }]} />}
+        {editing && rename ? <div className="wu-board-rename">
+          <label className="wu-visually-hidden" htmlFor={id + '-label'}>Rename {column.label}</label>
+          <input id={id + '-label'} name="label" defaultValue={column.label} placeholder="e.g. Ready for review" maxLength={40} required autoFocus
+            onFocus={event => event.currentTarget.select()} onBlur={event => {
+              if (event.currentTarget.value.trim() === column.label) setEditing(false);
+              else saveTextOnBlur(event, column.label, async label => { if (await rename(label)) setEditing(false); });
+            }} onKeyDown={event => { if (event.key === 'Escape') setEditing(false); else finishInputEdit(event); }} />
+        </div> : <h2 id={headingId} tabIndex={rename ? 0 : -1}
+          title={rename ? 'Double-click or press Enter to rename' : undefined}
+          onDoubleClick={() => { if (rename) setEditing(true); }}
+          onKeyDown={event => { if (rename && event.key === 'Enter') setEditing(true); }}>{column.label}</h2>}
+        <Pill>{column.limit ? count + ' / ' + column.limit : count}</Pill>
+        {!!actions.length && <ActionMenu label={'Options for ' + column.label} actions={[
+          ...(rename ? [{ label: 'Rename', run: () => setEditing(true) }] : []),
+          ...actions,
+        ]} />}
       </div>
-      <div className="wu-board-cards" tabIndex={tasks.length ? 0 : undefined} role="group" aria-label={status + ' tasks'}>
-        {tasks.map(task => <DraggableTask key={task.id} task={task} onOpen={() => onOpenTask(task)} />)}
+      {column.label !== statusLabels[column.status] && <p className="wu-board-workflow">Workflow status · {statusLabels[column.status]}</p>}
+      {limitEditor}
+      <div className="wu-board-cards" tabIndex={tasks.length ? 0 : undefined} role="group" aria-label={column.label + ' tasks'}>
+        {tasks.map(task => <DraggableTask key={task.id} task={task} columnId={column.id} readOnly={readOnly}
+          onOpen={() => onOpenTask(task)} onMove={() => onMoveTask(task)} />)}
       </div>
-      <button className="wu-add-card" type="button" onClick={onAddTask}><Plus size={14} /> Add task</button>
+      {!readOnly && <button className="wu-add-card" type="button" aria-label={'Add task to ' + column.label} title={'Add task to ' + column.label} onClick={onAddTask}><Plus size={17} aria-hidden="true" /></button>}
     </section>
   );
 }
 
 export function BoardPage({
-  pageHeading, facets, filter, setFilter, filteredTasks, allTasks, columns, onAddColumn, onRemoveColumn,
-  activeCount, onMoveTask, setSelectedTask, onAddTask, addTaskButton,
+  pageHeading, facets, filter, setFilter, filteredTasks, columns, allTasks, canManage, savingColumns, saveColumns, error,
+  activeCount, activeWipLimit, onMoveTask, movingTask, setSelectedTask, onAddTask, addTaskButton, readOnly = false,
 }: BoardPageProps) {
   const [draggedTask, setDraggedTask] = useState<Task>();
-  const [columnEditor, setColumnEditor] = useState<{ status?: string }>();
-  const [columnError, setColumnError] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [limiting, setLimiting] = useState<string>();
+  const [deleting, setDeleting] = useState<BoardColumnConfig>();
+  const [deleteDestination, setDeleteDestination] = useState('');
+  const [moveTask, setMoveTask] = useState<Task>();
+  const [moveDestination, setMoveDestination] = useState('');
+  const [movePosition, setMovePosition] = useState('end');
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const tasksInColumn = (column: BoardColumnConfig) => allTasks
+    .filter(task => taskBoardColumn(task, columns)?.id === column.id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const activeStatus = (status: string) => status === 'In progress' || status === 'Review';
+  function bulkMoveUnavailable(task: Task, column: BoardColumnConfig, count: number) {
+    if (taskBoardColumn(task, columns)?.id === column.id) return '';
+    const to = statusLabels[column.status];
+    if (task.status !== to && !canTransition(task.status, to)) return 'Workflow move unavailable';
+    if (column.limit && tasksInColumn(column).length + count > column.limit) return 'Column is full';
+    if (!activeStatus(task.status) && activeStatus(to) && activeCount + count > activeWipLimit) return 'Active work limit reached';
+    return '';
+  }
+
+  const deletedTasks = deleting ? tasksInColumn(deleting) : [];
+  const moveColumn = columns.find(column => column.id === moveDestination);
+  const eligibleDeleteColumns = columns.filter(column => column.id !== deleting?.id && deletedTasks.length > 0 &&
+    !bulkMoveUnavailable(deletedTasks[0], column, deletedTasks.length));
+  const selectedDeleteColumn = eligibleDeleteColumns.find(column => column.id === deleteDestination);
+  const visibleIds = new Set(filteredTasks.map(task => task.id));
+
+  const updateColumn = (id: string, patch: Partial<BoardColumnConfig>) => saveColumns(columns.map(column => column.id === id ? { ...column, ...patch } : column));
+
+  function reorder(index: number, direction: -1 | 1) {
+    const next = [...columns];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    void saveColumns(next);
+  }
   const viewport = useRef<HTMLElement>(null);
   const grid = useRef<HTMLDivElement>(null);
-  const revealNewColumn = useRef(false);
   const [scroll, setScroll] = useState({ position: 0, max: 0 });
-  const removing = columnEditor?.status;
-  const affected = removing ? allTasks.filter(task => task.status === removing).length : 0;
 
   useEffect(() => {
     const element = viewport.current;
@@ -130,29 +221,6 @@ export function BoardPage({
     return () => { observer.disconnect(); element.removeEventListener('scroll', sync); };
   }, []);
 
-  useEffect(() => {
-    if (!revealNewColumn.current || !viewport.current) return;
-    revealNewColumn.current = false;
-    viewport.current.scrollLeft = viewport.current.scrollWidth;
-  }, [columns]);
-
-  function editColumn(status?: string) {
-    setColumnError('');
-    setColumnEditor({ status });
-  }
-
-  function saveColumn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const error = removing
-      ? onRemoveColumn(removing, String(data.get('destination') ?? ''))
-      : onAddColumn(String(data.get('name') ?? '').trim());
-    if (error) setColumnError(error);
-    else {
-      revealNewColumn.current = !removing;
-      setColumnEditor(undefined);
-    }
-  }
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: keyboardColumnCoordinates(columns) }),
@@ -168,30 +236,71 @@ export function BoardPage({
 
   return <>
     {pageHeading(addTaskButton('Add task'))}
-    {facets}
-    <div className="wu-filter-row wu-board-toolbar">
-      <FilterChips items={['All tasks', 'My tasks', 'Due this week', 'Blocked']} active={filter} onChange={setFilter} />
-      <button className="wu-button wu-button--secondary" type="button" onClick={() => editColumn()}><Plus size={15} /> Add column</button>
+    <div className="wu-task-toolbar">
+      <FilterChips items={['All tasks', 'My tasks', 'Next 7 days', 'Blocked']} active={filter} onChange={setFilter} />
+      {facets}
+      {canManage && <button className="wu-button wu-button--secondary" type="button" aria-expanded={adding} onClick={() => setAdding(value => !value)}><Plus size={16} />Add column</button>}
+      <button className="wu-icon-button" type="button" aria-label="Board keyboard shortcuts" title="Board keyboard shortcuts" aria-expanded={showShortcuts} onClick={() => setShowShortcuts(value => !value)}><Keyboard size={18} /></button>
+      <div className="wu-task-toolbar-counts"><span>{filteredTasks.length} tasks</span><span>Active work {activeCount} / {activeWipLimit}</span></div>
     </div>
-    <DndContext sensors={sensors} collisionDetection={findColumn}
+    {showShortcuts && <p className="wu-board-help">Use <strong>Move to</strong> on a card to choose a column and position. You can also focus the drag handle, press <kbd>Space</kbd>, use <kbd>←</kbd> or <kbd>→</kbd> to choose a column, and press <kbd>Space</kbd> to place the card at the bottom.</p>}
+    {error && <p className="wu-board-error" role="alert">{error}</p>}
+    {adding && <form className="wu-board-inline-form" onSubmit={async event => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      const label = String(data.get('label')).trim();
+      const status = String(data.get('status')) as BoardColumnConfig['status'];
+      const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+      if (label && await saveColumns([...columns, { id, label, status }])) setAdding(false);
+    }}>
+      <label className="wu-field-label">Column name<input name="label" placeholder="e.g. Ready for review" maxLength={40} required autoFocus /></label>
+      <label className="wu-field-label">Workflow status<select name="status">{Object.entries(statusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></label>
+      <button className="wu-button wu-button--primary" disabled={savingColumns}>Add column</button>
+      <button className="wu-button wu-button--secondary" type="button" onClick={() => setAdding(false)}>Cancel</button>
+    </form>}
+    <DndContext sensors={sensors} collisionDetection={findDropTarget} measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       accessibility={{
         screenReaderInstructions: { draggable: 'Press Space to pick up a task, Left or Right to choose a column, Space to drop, or Escape to cancel.' },
       }}
       onDragStart={({ active }) => setDraggedTask(filteredTasks.find(task => task.id === active.id))}
       onDragCancel={() => setDraggedTask(undefined)}
-      onDragEnd={({ active, over }) => {
+      onDragEnd={({ active, over, activatorEvent }) => {
         setDraggedTask(undefined);
-        if (over && typeof over.id === 'string' && columns.includes(over.id)) onMoveTask(String(active.id), over.id);
+        if (readOnly) return;
+        const target = over?.data.current;
+        const column = columns.find(item => item.id === target?.columnId);
+        if (activatorEvent instanceof KeyboardEvent && column?.id === active.data.current?.columnId) return;
+        if (column && target) void onMoveTask(String(active.id), column, target.placement ?? 'end', target.anchorTaskId);
       }}
     >
       <section ref={viewport} className="wu-board-section" aria-label="Kanban board" tabIndex={0}>
         <div ref={grid} className="wu-board-grid">
-          {columns.map(status => {
-            const tasks = filteredTasks.filter(task => task.status === status);
-            return <BoardColumn key={status} status={status} tone={columnTones[taskStatuses.indexOf(status)] ?? 'neutral'} tasks={tasks}
-              count={status === 'In progress' ? activeCount + ' / 3' : tasks.length}
-              onOpenTask={setSelectedTask} onAddTask={() => onAddTask(status)}
-              onRemove={columns.length > 1 ? () => editColumn(status) : undefined} />;
+          {columns.map((column, index) => {
+            const columnTasks = tasksInColumn(column);
+            return <BoardColumn key={column.id} column={column} tasks={columnTasks.filter(task => visibleIds.has(task.id))} count={columnTasks.length} readOnly={readOnly}
+              onOpenTask={setSelectedTask} onAddTask={() => onAddTask(column)}
+              onMoveTask={task => {
+                setMoveTask(task);
+                setMoveDestination(taskBoardColumn(task, columns)?.id ?? '');
+                setMovePosition('end');
+              }}
+              rename={canManage ? label => updateColumn(column.id, { label }) : undefined}
+              actions={canManage ? [
+                { label: 'Set column limit', run: () => setLimiting(column.id), disabled: savingColumns },
+                { label: 'Move column left', run: () => reorder(index, -1), disabled: savingColumns || index === 0 },
+                { label: 'Move column right', run: () => reorder(index, 1), disabled: savingColumns || index === columns.length - 1 },
+                { label: 'Delete column', run: () => { setDeleting(column); setDeleteDestination(''); }, disabled: savingColumns || columns.length < 2 },
+              ] : []}
+              limitEditor={limiting === column.id && <div className="wu-board-limit">
+                <label className="wu-field-label">Task limit<input name="limit" type="number" min="1" step="1" defaultValue={column.limit ?? ''} placeholder="No limit" autoFocus
+                  onBlur={event => {
+                    const previous = String(column.limit ?? '');
+                    if (event.currentTarget.validity.valid && event.currentTarget.value === previous) setLimiting(undefined);
+                    else saveTextOnBlur(event, previous, async limit => {
+                      if (await updateColumn(column.id, { limit: limit ? Number(limit) : null })) setLimiting(undefined);
+                    });
+                  }} onKeyDown={event => { if (event.key === 'Escape') setLimiting(undefined); else finishInputEdit(event); }} /></label>
+              </div>} />;
           })}
         </div>
       </section>
@@ -201,23 +310,53 @@ export function BoardPage({
     </DndContext>
     {scroll.max > 0 && <input className="wu-board-slider" type="range" aria-label="Scroll Kanban columns horizontally"
       min={0} max={scroll.max} value={scroll.position} onChange={event => { if (viewport.current) viewport.current.scrollLeft = Number(event.target.value); }} />}
-    {columnEditor && <Drawer title={removing ? 'Remove ' + removing : 'Add column'} confirmation={!!removing} onClose={() => setColumnEditor(undefined)}>
-      <form className="wu-column-form" onSubmit={saveColumn}>
-        {!removing && <label className="wu-field-label">Column name<input name="name" maxLength={40} required autoFocus /></label>}
-        {!!removing && (affected ? <label className="wu-field-label">
-          Move {affected} {affected === 1 ? 'task' : 'tasks'} to
-          <select name="destination" defaultValue="" required autoFocus>
+    {moveTask && <Drawer title={'Move ' + moveTask.title} confirmation closeDisabled={movingTask} onClose={() => setMoveTask(undefined)}>
+      <form className="wu-column-form" onSubmit={async event => {
+        event.preventDefault();
+        if (!moveColumn) return;
+        const [placement, anchor] = movePosition.split(':');
+        if (await onMoveTask(moveTask.id, moveColumn, placement as Placement, anchor)) setMoveTask(undefined);
+      }}>
+        <label className="wu-field-label">Destination column
+          <select value={moveDestination} disabled={movingTask} onChange={event => { setMoveDestination(event.currentTarget.value); setMovePosition('end'); }}>
             <option value="" disabled>Choose a column</option>
-            {columns.filter(status => status !== removing).map(status => <option key={status}>{status}</option>)}
+            {columns.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}
           </select>
-        </label> : <p>This column is empty.</p>)}
-        {columnError && <p role="alert">{columnError}</p>}
+        </label>
+        <label className="wu-field-label">Position
+          <select value={movePosition} disabled={!moveColumn || movingTask} onChange={event => setMovePosition(event.currentTarget.value)}>
+            <option value="end">Bottom of column</option>
+            {moveColumn && tasksInColumn(moveColumn).filter(task => task.id !== moveTask.id)
+              .map(task => <option key={task.id} value={'before:' + task.id}>Before {task.title}</option>)}
+          </select>
+        </label>
+        {error && <p role="alert">{error}</p>}
         <div className="wu-modal-actions">
-          <button className="wu-button wu-button--secondary" type="button" autoFocus={!!removing && !affected}
-            onClick={event => event.currentTarget.closest('dialog')?.close()}>Cancel</button>
-          <button className="wu-button wu-button--primary" type="submit">{removing ? 'Remove column' : 'Add column'}</button>
+          <button className="wu-button wu-button--secondary" type="button" disabled={movingTask} onClick={() => setMoveTask(undefined)}>Cancel</button>
+          <button className="wu-button wu-button--primary" type="submit" disabled={movingTask || !moveColumn}>Move task</button>
         </div>
       </form>
+    </Drawer>}
+    {deleting && <Drawer title={'Delete ' + deleting.label + '?'} confirmation closeDisabled={savingColumns} onClose={() => setDeleting(undefined)}>
+      {deletedTasks.length ? <>
+        <p>Move {deletedTasks.length} {deletedTasks.length === 1 ? 'task' : 'tasks'} before deleting this column.</p>
+        {eligibleDeleteColumns.length > 0 ? <label className="wu-field-label">Destination column
+          <select value={deleteDestination} disabled={savingColumns} onChange={event => setDeleteDestination(event.currentTarget.value)}>
+            <option value="">Choose a column</option>
+            {eligibleDeleteColumns.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}
+          </select>
+        </label> : <p>No available column can accept all of these tasks.</p>}
+        {selectedDeleteColumn && <p>The tasks will be added to the bottom of {selectedDeleteColumn.label} with the {statusLabels[selectedDeleteColumn.status]} workflow status.</p>}
+      </> : <p>This removes the column from the workspace board.</p>}
+      {error && <p role="alert">{error}</p>}
+      <div className="wu-modal-actions">
+        <button className="wu-button wu-button--secondary" type="button" disabled={savingColumns} autoFocus onClick={() => setDeleting(undefined)}>Cancel</button>
+        <button className="wu-button wu-button--primary" type="button" disabled={savingColumns || (deletedTasks.length > 0 && !selectedDeleteColumn)}
+          onClick={async () => {
+            const move = selectedDeleteColumn && { fromColumnId: deleting.id, toColumnId: selectedDeleteColumn.id };
+            if (await saveColumns(columns.filter(column => column.id !== deleting.id), move)) setDeleting(undefined);
+          }}>{deletedTasks.length ? 'Move tasks and delete column' : 'Delete column'}</button>
+      </div>
     </Drawer>}
   </>;
 }

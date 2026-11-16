@@ -73,7 +73,7 @@ describe('NotesController', () => {
   });
 
   it('passes update data and the authenticated user to the service', async () => {
-    const dto = { title: 'Updated notes' };
+    const dto = { title: 'Updated notes', revision: 1 };
     const response = { id: noteId, title: dto.title };
     update.mockResolvedValue(response);
 

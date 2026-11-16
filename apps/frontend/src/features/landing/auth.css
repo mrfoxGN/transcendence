@@ -106,10 +106,6 @@ html:has(.auth-page)::-webkit-scrollbar {
   width: 100%;
   min-height: 44px;
   padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fbfcff;
-  color: var(--ink);
   font: inherit;
   font-weight: 500;
 }

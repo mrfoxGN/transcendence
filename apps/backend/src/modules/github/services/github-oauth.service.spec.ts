@@ -92,6 +92,7 @@ describe('GitHubOAuthService', () => {
     expect(workspacesService.assertOwner).toHaveBeenCalledWith(
       workspaceId,
       userId,
+      true,
     );
 
     expect(url.origin).toBe('https://github.com');

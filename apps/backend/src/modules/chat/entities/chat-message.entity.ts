@@ -13,6 +13,15 @@ import { Workspace } from '../../workspaces/entities/workspace.entity';
 @Entity('chat_messages')
 @Index('idx_chat_messages_workspace_created_at', ['workspaceId', 'createdAt'])
 export class ChatMessage {
+  @Column({ name: 'reply_to_id', type: 'char', length: 36, nullable: true })
+  replyToId?: string | null;
+
+  @Column({ name: 'attachment_name', type: 'varchar', length: 255, nullable: true })
+  attachmentName?: string | null;
+
+  @Column({ name: 'attachment_data', type: 'mediumblob', nullable: true, select: false })
+  attachmentData?: Buffer | null;
+
   @PrimaryColumn({
     type: 'char',
     length: 36,

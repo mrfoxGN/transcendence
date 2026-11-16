@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -22,9 +23,10 @@ import type { Request, Response } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ListWorkspaceFilesDto } from '../dto/list-workspace-files.dto';
+import { RenameWorkspaceFileDto } from '../dto/rename-workspace-file.dto';
 import { UploadWorkspaceFileDto } from '../dto/upload-workspace-file.dto';
 import { WorkspaceFileResponseDto } from '../dto/workspace-file-response.dto';
-import { FilesService } from '../services/files.service';
+import { FilesService, workspaceFileLimit } from '../services/files.service';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -43,7 +45,7 @@ export class FilesController {
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: workspaceFileLimit + 1,
       },
     }),
   )
@@ -111,17 +113,14 @@ export class FilesController {
       request.user.id,
     );
 
+    response.attachment(file.originalName.replace(/[\x00-\x1f\x7f]/g, '_'));
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader(
       'Content-Type',
       file.mimeType ?? 'application/octet-stream',
     );
 
     response.setHeader('Content-Length', file.sizeBytes);
-
-    response.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${file.originalName.replace(/["\\]/g, '_')}"`,
-    );
 
     return new StreamableFile(createReadStream(file.absolutePath));
   }
@@ -138,5 +137,15 @@ export class FilesController {
     request: AuthenticatedRequest,
   ): Promise<WorkspaceFileResponseDto> {
     return this.filesService.findOne(workspaceId, fileId, request.user.id);
+  }
+
+  @Patch(':fileId')
+  rename(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('fileId', ParseUUIDPipe) fileId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: RenameWorkspaceFileDto,
+  ) {
+    return this.filesService.rename(workspaceId, fileId, request.user.id, dto.displayName);
   }
 }

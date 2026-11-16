@@ -1,4 +1,5 @@
 import { UsersModule } from '../users/users.module';
+import { ActivitiesModule } from '../activities/activities.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -21,6 +22,7 @@ import { GitHubSyncService } from './services/github-sync.service';
   imports: [
     WorkspacesModule,
     UsersModule,
+    ActivitiesModule,
     TypeOrmModule.forFeature([
       GitHubAccount,
       GitHubInstallation,

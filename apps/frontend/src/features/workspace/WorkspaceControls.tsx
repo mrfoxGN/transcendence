@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { MoreHorizontal, X } from 'lucide-react';
 import { Avatar } from './components';
+import { documentPageSize } from './workspace-api';
 import './workspace-controls.css';
+import './workspace-list.css';
 
 export function LoadingPanel({ label }: { label: string }) {
   return <div className="wu-loading-panel" role="status">
@@ -12,11 +14,24 @@ export function LoadingPanel({ label }: { label: string }) {
   </div>;
 }
 
-export function Drawer({ title, children, onClose, confirmation = false }: {
+export function DocumentPagination({ page, count, onPage, disabled = false }: {
+  page: number; count?: number; onPage: (page: number) => void; disabled?: boolean;
+}) {
+  const hasNext = (count ?? 0) > documentPageSize;
+  if (page === 1 && !hasNext) return null;
+  return <nav className="wu-document-pagination" aria-label="Document pages">
+    <button className="wu-button wu-button--secondary" type="button" disabled={disabled || page === 1} onClick={() => onPage(page - 1)}>Previous</button>
+    <span aria-live="polite">Page {page}</span>
+    <button className="wu-button wu-button--secondary" type="button" disabled={disabled || !hasNext} onClick={() => onPage(page + 1)}>Next</button>
+  </nav>;
+}
+
+export function Drawer({ title, children, onClose, confirmation = false, closeDisabled = false }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   confirmation?: boolean;
+  closeDisabled?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -27,11 +42,12 @@ export function Drawer({ title, children, onClose, confirmation = false }: {
   return (
     <dialog ref={ref} className={confirmation ? 'wu-modal wu-native-confirmation' : 'wu-drawer wu-native-drawer'}
       role={confirmation ? 'alertdialog' : undefined} aria-labelledby={id}
-      onClose={onClose} onClick={event => { if (event.target === event.currentTarget) ref.current?.close(); }}>
+      onClose={onClose} onCancel={event => { if (closeDisabled) event.preventDefault(); }}
+      onClick={event => { if (!closeDisabled && event.target === event.currentTarget) ref.current?.close(); }}>
       <div className={confirmation ? undefined : 'wu-drawer-body'}>
         <div className={confirmation ? 'wu-modal-head' : 'wu-drawer-head'}>
           <h2 id={id}>{title}</h2>
-          <button type="button" className="wu-icon-button" aria-label={confirmation ? 'Close dialog' : 'Close details'} onClick={() => ref.current?.close()}><X size={18} /></button>
+          <button type="button" className="wu-icon-button" aria-label={confirmation ? 'Close dialog' : 'Close details'} disabled={closeDisabled} onClick={() => ref.current?.close()}><X size={18} /></button>
         </div>
         {children}
       </div>
@@ -39,7 +55,7 @@ export function Drawer({ title, children, onClose, confirmation = false }: {
   );
 }
 
-export function ActionMenu({ label, actions }: { label: string; actions: { label: string; run: () => void }[] }) {
+export function ActionMenu({ label, actions }: { label: string; actions: { label: string; run: () => void; disabled?: boolean }[] }) {
   const id = useId();
   const menu = useRef<HTMLDivElement>(null);
   return <>
@@ -52,7 +68,7 @@ export function ActionMenu({ label, actions }: { label: string; actions: { label
         }
       }}><MoreHorizontal size={17} /></button>
     <div ref={menu} popover="auto" id={id} className="wu-action-menu" role="group" aria-label={label}>
-      {actions.map(action => <button type="button" key={action.label} onClick={() => {
+      {actions.map(action => <button type="button" key={action.label} disabled={action.disabled} onClick={() => {
         menu.current?.hidePopover();
         action.run();
       }}>{action.label}</button>)}

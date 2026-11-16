@@ -107,6 +107,7 @@ describe('GitHubService - Repository Connection', () => {
     expect(workspacesService.assertOwner).toHaveBeenCalledWith(
       workspaceId,
       userId,
+      true,
     );
   });
 

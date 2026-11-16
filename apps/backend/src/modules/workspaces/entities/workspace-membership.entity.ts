@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
+import type { SaveBacklogViewDto } from '../dto/save-backlog-view.dto';
 import { Workspace } from './workspace.entity';
 
 @Entity('workspace_memberships')
@@ -55,4 +56,13 @@ export class WorkspaceMembership {
     precision: 6,
   })
   joinedAt!: Date;
+
+  @Column({ name: 'chat_read_at', type: 'datetime', precision: 6, nullable: true })
+  chatReadAt!: Date | null;
+
+  @Column({ name: 'chat_read_message_id', type: 'char', length: 36, nullable: true })
+  chatReadMessageId!: string | null;
+
+  @Column({ name: 'backlog_views', type: 'json', nullable: true })
+  backlogViews!: SaveBacklogViewDto[] | null;
 }

@@ -4,6 +4,11 @@ import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 
 @Entity('users')
 export class User {
+  @Column({ type: 'enum', enum: ['system', 'light', 'dark'], default: 'system' })
+  theme?: 'system' | 'light' | 'dark';
+
+  @Column({ name: 'notification_badge', type: 'boolean', default: true })
+  notificationBadge?: boolean;
   @PrimaryColumn({
     type: 'char',
     length: 36,
@@ -24,6 +29,21 @@ export class User {
   })
   email!: string;
 
+  @Column({ name: 'verified_email', type: 'varchar', length: 320, nullable: true })
+  verifiedEmail?: string | null;
+
+  @Column({ name: 'email_verify_digest', type: 'char', length: 64, nullable: true })
+  emailVerifyDigest?: string | null;
+
+  @Column({ name: 'email_verify_expires_at', type: 'datetime', precision: 6, nullable: true })
+  emailVerifyExpiresAt?: Date | null;
+
+  @Column({ name: 'password_reset_digest', type: 'char', length: 64, nullable: true })
+  passwordResetDigest?: string | null;
+
+  @Column({ name: 'password_reset_expires_at', type: 'datetime', precision: 6, nullable: true })
+  passwordResetExpiresAt?: Date | null;
+
   @Column({
     name: 'password_hash',
     type: 'varchar',
@@ -33,8 +53,7 @@ export class User {
 
   @Column({
     name: 'avatar_url',
-    type: 'varchar',
-    length: 500,
+    type: 'text',
     nullable: true,
   })
   avatarUrl!: string | null;

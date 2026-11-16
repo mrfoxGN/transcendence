@@ -45,7 +45,7 @@ export class GitHubOAuthService {
     workspaceId: string,
     userId: string,
   ): Promise<{ authorizationUrl: string }> {
-    await this.workspacesService.assertOwner(workspaceId, userId);
+    await this.workspacesService.assertOwner(workspaceId, userId, true);
 
     if (this.pendingStates.size >= 1000) {
       throw new HttpException(

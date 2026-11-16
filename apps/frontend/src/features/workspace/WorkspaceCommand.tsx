@@ -78,10 +78,10 @@ export function WorkspaceCommand({ pages, tasks, disabled, onNavigate, onOpenTas
             </Command.Group>
             <Command.Group heading="Tasks">
               {tasks.map(task => (
-                <Command.Item key={task.id} value={task.id} keywords={[task.title, task.person, task.status]} onSelect={() => select(() => onOpenTask(task))}>
+                <Command.Item key={task.id} value={task.id} keywords={[task.title, task.person, task.status, task.taskKey ?? '']} onSelect={() => select(() => onOpenTask(task))}>
                   <ListTodo size={17} aria-hidden="true" />
                   <span>{task.title}</span>
-                  <small>{task.id}</small>
+                  <small>{task.taskKey ?? task.id}</small>
                 </Command.Item>
               ))}
             </Command.Group>

@@ -26,6 +26,7 @@ import {
 } from '../../../database/enums/database.enums';
 import type { UsersService } from '../../users/services/users.service';
 import type { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { WorkspaceKanbanSetting } from '../../workspaces/entities/workspace-kanban-setting.entity';
 import { Task } from '../entities/task.entity';
 import { TaskAssignment } from '../entities/task-assignment.entity';
 import { TaskComment } from '../entities/task-comment.entity';
@@ -75,6 +76,7 @@ function makeRepository() {
     create: jest.fn((value: object) => ({ ...value })),
     save: jest.fn((value: object) => Promise.resolve(value)),
     update: jest.fn().mockResolvedValue({ affected: 1 }),
+    insert: jest.fn().mockResolvedValue({}),
     delete: jest.fn().mockResolvedValue({ affected: 1 }),
     createQueryBuilder: jest.fn(),
   };
@@ -91,6 +93,7 @@ describe('TasksService', () => {
   let history: ReturnType<typeof makeRepository>;
   let workspaces: {
     findOneForUser: jest.Mock;
+    lockAssignmentMemberships: jest.Mock;
     getKanbanSettings: jest.Mock;
   };
   let users: { findById: jest.Mock };
@@ -127,6 +130,7 @@ describe('TasksService', () => {
 
     workspaces = {
       findOneForUser: jest.fn().mockResolvedValue({ id: workspaceId }),
+      lockAssignmentMemberships: jest.fn().mockResolvedValue(undefined),
       getKanbanSettings: jest.fn().mockResolvedValue({ activeWipLimit: 3 }),
     };
     users = {
@@ -150,8 +154,10 @@ describe('TasksService', () => {
       [TaskComment, comments],
       [TaskDependency, dependencies],
       [TaskStatusHistory, history],
+      [WorkspaceKanbanSetting, makeRepository()],
     ]);
     const manager = {
+      query: jest.fn().mockResolvedValue([]),
       getRepository: jest.fn(
         (entity: abstract new (...args: never[]) => object) => {
           const repository = repositories.get(entity);
@@ -356,6 +362,16 @@ describe('TasksService', () => {
       expect(changes).toEqual({
         title: 'Updated',
         dueAt: new Date(dueAt),
+        dueDate: '2026-12-01',
+        updatedAt: expect.any(Date) as unknown,
+      });
+    });
+
+    it('stores a calendar deadline independently of the legacy timestamp', async () => {
+      await service.update(taskId, userId, { dueDate: '2026-03-23' });
+      expect(tasks.update).toHaveBeenCalledWith(expect.anything() as unknown, {
+        dueDate: '2026-03-23',
+        dueAt: new Date('2026-03-23T00:00:00Z'),
         updatedAt: expect.any(Date) as unknown,
       });
     });
@@ -372,6 +388,7 @@ describe('TasksService', () => {
         acceptanceCriteria: null,
         priority: null,
         dueAt: null,
+        dueDate: null,
         updatedAt: expect.any(Date) as unknown,
       });
     });
@@ -495,6 +512,32 @@ describe('TasksService', () => {
   });
 
   describe('status transitions', () => {
+    it('moves a completed card into a full column before an existing card', async () => {
+      task.status = TaskStatus.DONE;
+      task.completedAt = new Date();
+      const anchor = makeTask({ id: otherTaskId, status: TaskStatus.IN_PROGRESS });
+      const settings = dataSource.getRepository(WorkspaceKanbanSetting) as ReturnType<typeof makeRepository>;
+      settings.findOne.mockResolvedValue({
+        activeWipLimit: 1,
+        boardColumns: [{ id: 'active', label: 'Active', status: TaskStatus.IN_PROGRESS, limit: 1 }],
+      });
+      query.getMany.mockResolvedValue([task, anchor]);
+
+      const moved = await service.transition(taskId, userId, {
+        toStatus: TaskStatus.IN_PROGRESS,
+        boardColumnId: 'active',
+        placement: 'before',
+        anchorTaskId: anchor.id,
+      });
+
+      expect(moved).toMatchObject({
+        status: TaskStatus.IN_PROGRESS, boardColumnId: 'active', completedAt: null, position: 0,
+      });
+      expect(transactionTasks.update).toHaveBeenCalledWith({ id: anchor.id }, { position: 1 });
+      expect(transactionTasks.count).not.toHaveBeenCalled();
+      expect(history.save).toHaveBeenCalled();
+    });
+
     const allowed: Array<[TaskStatus, TaskStatus]> = [
       [TaskStatus.BACKLOG, TaskStatus.READY],
       [TaskStatus.BACKLOG, TaskStatus.CANCELLED],
@@ -648,6 +691,26 @@ describe('TasksService', () => {
   });
 
   describe('assignment', () => {
+    it('creates and assigns a task in the same transaction', async () => {
+      transactionTasks.save.mockImplementation(value => Promise.resolve({ ...value, taskNumber: 42 }));
+      const result = await service.create(workspaceId, userId, {
+        title: 'Assigned task', assigneeId: otherUserId, priority: TaskPriority.HIGH, dueDate: '2026-12-01',
+      });
+      expect(result).toMatchObject({ taskKey: 'TASK-42', priority: TaskPriority.HIGH, dueDate: '2026-12-01' });
+      expect(assignments.insert).toHaveBeenCalledWith(expect.objectContaining({ taskId: result.id, userId: otherUserId, assignedById: userId }));
+      expect(tasks.save).not.toHaveBeenCalled();
+    });
+
+    it('reassigns the existing row and treats repeating the same update as successful', async () => {
+      const existing = { id: 'assignment-id', taskId, userId, assignedById: userId, assignedAt: date };
+      assignments.findOne.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, userId: otherUserId });
+      const reassigned = await service.assign(taskId, userId, { userId: otherUserId }, true);
+      await service.assign(taskId, userId, { userId: otherUserId }, true);
+      expect(reassigned).toMatchObject({ id: existing.id, userId: otherUserId });
+      expect(assignments.save).toHaveBeenCalledTimes(1);
+      expect(assignments.delete).not.toHaveBeenCalled();
+    });
+
     it('assigns an active workspace member and records who assigned them', async () => {
       const result = await service.assign(taskId, userId, {
         userId: otherUserId,

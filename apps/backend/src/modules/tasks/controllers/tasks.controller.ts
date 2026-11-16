@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -16,7 +17,7 @@ import type { Request } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
-import { AssignTaskDto } from '../dto/assign-task.dto';
+import { AssignTaskDto, SetTaskAssigneeDto } from '../dto/assign-task.dto';
 import { CreateTaskCommentDto } from '../dto/create-task-comment.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { TaskAssignmentResponseDto } from '../dto/task-assignment-response.dto';
@@ -92,6 +93,21 @@ export class TasksController {
     return this.tasksService.remove(taskId, request.user.id);
   }
 
+  @Get('tasks/:id/watch')
+  getWatch(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.tasksService.getWatch(id, request.user.id);
+  }
+
+  @Put('tasks/:id/watch')
+  watch(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.tasksService.setWatch(id, request.user.id, true);
+  }
+
+  @Delete('tasks/:id/watch')
+  unwatch(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.tasksService.setWatch(id, request.user.id, false);
+  }
+
   @Get('tasks/:id/assignment')
   getAssignment(
     @Param('id', ParseUUIDPipe) taskId: string,
@@ -116,6 +132,19 @@ export class TasksController {
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
     return this.tasksService.unassign(taskId, request.user.id);
+  }
+
+  @Put('tasks/:id/assignment')
+  async setAssignee(
+    @Param('id', ParseUUIDPipe) taskId: string,
+    @Body() dto: SetTaskAssigneeDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TaskAssignmentResponseDto | null> {
+    if (dto.userId === null) {
+      await this.tasksService.unassign(taskId, request.user.id, true);
+      return null;
+    }
+    return this.tasksService.assign(taskId, request.user.id, { userId: dto.userId }, true);
   }
 
   @Post('tasks/:id/comments')

@@ -6,11 +6,12 @@ import {
   ParseUUIDPipe,
   Post,
   Req,
+  Res,
   UseGuards,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
@@ -35,18 +36,17 @@ export class WorkspaceGitHubController {
   ) {}
 
   @Get('repository')
-  getWorkspaceRepository(
+  async getWorkspaceRepository(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Req() request: AuthenticatedRequest,
-  ): Promise<
-    ConnectedRepositoryResponseDto & {
-      lastSyncedAt: Date | null;
-    }
-  > {
-    return this.githubService.getWorkspaceRepository(
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const repository = await this.githubService.getWorkspaceRepository(
       workspaceId,
       request.user.id,
     );
+    if (!repository) response.status(204);
+    return repository;
   }
 
   @Post('repository')

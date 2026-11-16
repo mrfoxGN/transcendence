@@ -6,6 +6,13 @@
 .wu-settings-form { max-width: 650px; display: grid; gap: 14px; }
 .wu-readonly-field { display: grid; gap: 4px; padding-top: 1px; font-size: 14px; }
 .wu-readonly-field span { color: var(--wu-muted); }
+.wu-settings-navigation { display: grid; gap: 10px; }
+.wu-settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.wu-settings-check { display: flex; align-items: flex-start; gap: 9px; }
+.wu-settings-check input { accent-color: var(--wu-blue); margin-top: 4px; }
+.wu-settings-form > .wu-button, .wu-settings-form > .wu-text-button { justify-self: start; }
+.wu-drawer .avatar-custom-options { background: var(--wu-surface-soft); color: var(--wu-ink); }
+.wu-drawer .avatar-upload { border-color: var(--wu-blue); color: var(--wu-blue); }
 
 @media (max-width: 680px) {
   .wu-settings-panel { padding: 14px; }

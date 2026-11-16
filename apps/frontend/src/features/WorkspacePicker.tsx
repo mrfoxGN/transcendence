@@ -1,10 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Folder, Plus } from 'lucide-react';
 import './workspace-picker.css';
+import { NotificationInbox } from './workspace/NotificationInbox';
+import { accountRequest, authRoute } from './auth-routing';
+import { canSearchWorkspaces, recentWorkspaceIds } from './workspace/workspace-history';
 
 export const sessionKey = 'devup.access-token';
 
-type Profile = { username: string };
+type Profile = { id: string; username: string; emailVerified?: boolean; notificationBadge?: boolean };
 export type Workspace = { id: string; name: string; description: string | null; archivedAt: string | null };
 
 export class SessionExpired extends Error {}
@@ -24,9 +27,24 @@ async function request<T>(path: string, token: string, method = 'GET', body?: ob
   return response.json();
 }
 
-export function signOut() {
+export function signOut(restoreDestination = false) {
   sessionStorage.removeItem(sessionKey);
-  window.location.replace('/login');
+  window.location.replace(restoreDestination ? authRoute('/login', location.pathname + location.search + location.hash) : '/login');
+}
+
+export function switchAccount(destination = '/workspaces') {
+  sessionStorage.removeItem(sessionKey);
+  location.assign(authRoute('/login', destination));
+}
+
+function WorkspaceList({ items }: { items: Workspace[] }) {
+  return <ul className="workspace-picker-list">{items.map(item => <li key={item.id}>
+    <a href={'/workspaces/' + encodeURIComponent(item.id)}>
+      <Folder size={20} aria-hidden="true" />
+      <span><strong>{item.name}</strong>{(item.archivedAt || item.description) && <small>{item.archivedAt ? 'Archived' : item.description}</small>}</span>
+      <ArrowRight size={18} aria-hidden="true" />
+    </a>
+  </li>)}</ul>;
 }
 
 export async function listActiveWorkspaces(token: string) {
@@ -42,21 +60,26 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
   const [pending, setPending] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [emailPending, setEmailPending] = useState(false);
+  const [emailFeedback, setEmailFeedback] = useState<{ message: string; error: boolean }>();
+  const [joining, setJoining] = useState(false);
+  const [search, setSearch] = useState('');
+  const inboxButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!token) {
-      signOut();
+      signOut(true);
       return;
     }
     let active = true;
     Promise.all([
       request<Profile>('auth/profile', token),
-      listActiveWorkspaces(token),
+      request<Workspace[]>('workspaces', token),
     ]).then(([profile, workspaces]) => {
       if (active) setData({ profile, workspaces });
     }).catch(error => {
       if (!active) return;
-      if (error instanceof SessionExpired) signOut();
+      if (error instanceof SessionExpired) signOut(true);
       else setLoadingError('Could not load your workspaces. Try again.');
     });
     return () => { active = false; };
@@ -78,7 +101,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
       const workspace = await request<Workspace>('workspaces', token, 'POST', { name, ...(description && { description }) });
       window.location.assign('/workspaces/' + encodeURIComponent(workspace.id));
     } catch (error) {
-      if (error instanceof SessionExpired) signOut();
+      if (error instanceof SessionExpired) signOut(true);
       else setFormError(error instanceof Error ? error.message : 'Could not create your workspace.');
       setPending(false);
     }
@@ -96,12 +119,24 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
 
   if (!token) return null;
   const workspace = data?.workspaces.find(item => item.id === workspaceId);
+  const allWorkspaces = data?.workspaces ?? [];
+  const showSearch = canSearchWorkspaces(allWorkspaces.length);
+  const query = showSearch ? search.trim().toLowerCase() : '';
+  const matches = allWorkspaces.filter(item => item.name.toLowerCase().includes(query));
+  const activeWorkspaces = matches.filter(item => !item.archivedAt);
+  const archivedWorkspaces = matches.filter(item => item.archivedAt);
+  const recent = !query && data ? recentWorkspaceIds(data.profile.id)
+    .flatMap(id => activeWorkspaces.filter(item => item.id === id)) : [];
 
   return (
     <main className="auth-page workspace-picker">
       <header className="auth-header">
         <a href="/" className="brand" aria-label="DevUP home"><img src="/devup.svg" alt="" width="34" height="34" />DevUP</a>
-        <button className="button button--secondary" type="button" onClick={() => void logout().catch(() => {})} disabled={leaving}>Log out</button>
+        <div className="workspace-picker-actions workspace-picker-notifications">
+          <NotificationInbox token={token} workspaceId={allWorkspaces.find(item => !item.archivedAt)?.id} triggerRef={inboxButton} showBadge={data?.profile.notificationBadge} />
+          <button className="button button--secondary" type="button" onClick={() => switchAccount()}>Switch account</button>
+          <button className="button button--secondary" type="button" onClick={() => void logout().catch(() => {})} disabled={leaving}>Log out</button>
+        </div>
       </header>
       <section className="auth-shell workspace-picker-shell" aria-labelledby="workspace-picker-title">
         <h1 id="workspace-picker-title">{workspace ? workspace.name : 'Your workspaces'}</h1>
@@ -116,21 +151,36 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
           ) : (
             <>
               <p>Welcome, {data.profile.username}.</p>
-              {data.workspaces.length > 0 ? (
-                <ul className="workspace-picker-list">
-                  {data.workspaces.map(item => (
-                    <li key={item.id}><a href={'/workspaces/' + encodeURIComponent(item.id)}>
-                      <Folder size={20} aria-hidden="true" />
-                      <span><strong>{item.name}</strong>{item.description && <small>{item.description}</small>}</span>
-                      <ArrowRight size={18} aria-hidden="true" />
-                    </a></li>
-                  ))}
-                </ul>
-              ) : <p>You don’t have a workspace yet. Create one to start organizing your team’s work.</p>}
+              {data.profile.emailVerified === false && <div>
+                <button type="button" className="button button--secondary" disabled={emailPending} onClick={async () => {
+                  setEmailPending(true);
+                  try {
+                    await accountRequest('email-verification/request', undefined, token);
+                    setEmailFeedback({ message: 'Check your email for a verification link.', error: false });
+                  } catch (error) {
+                    setEmailFeedback({ message: error instanceof Error ? error.message : 'Could not send email.', error: true });
+                  } finally { setEmailPending(false); }
+                }}>{emailPending ? 'Sending…' : 'Send verification email'}</button>
+                {emailFeedback && <p role={emailFeedback.error ? 'alert' : 'status'}>{emailFeedback.message}</p>}
+              </div>}
+              {showSearch && <label className="workspace-picker-search">Search workspaces
+                <input type="search" placeholder="Search by workspace name" value={search} onChange={event => setSearch(event.target.value)} />
+              </label>}
+              {!!recent.length && <section aria-label="Recently opened workspaces">
+                <h2>Recently opened</h2><WorkspaceList items={recent} />
+              </section>}
+              {!!recent.length && !!activeWorkspaces.length && <h2>All active workspaces</h2>}
+              {!!activeWorkspaces.length && <WorkspaceList items={activeWorkspaces} />}
+              {!matches.length && query && <p role="status">No workspaces match your search.</p>}
+              {!allWorkspaces.length && <p>Create a workspace for your team or join one by accepting an invitation.</p>}
+              {!!archivedWorkspaces.length && <details open={query ? true : undefined}>
+                <summary>Archived workspaces ({archivedWorkspaces.length})</summary>
+                <WorkspaceList items={archivedWorkspaces} />
+              </details>}
               {creating ? (
                 <form className="workspace-picker-form" onSubmit={createWorkspace}>
-                  <label>Workspace name<input name="name" required maxLength={120} /></label>
-                  <label>Description (optional)<textarea name="description" rows={3} /></label>
+                  <label>Workspace name<input name="name" placeholder="e.g. Platform engineering" required maxLength={120} /></label>
+                  <label>Description (optional)<textarea name="description" placeholder="What will your team use this workspace for?" rows={3} /></label>
                   {formError && <p role="alert">{formError}</p>}
                   <div className="workspace-picker-actions">
                     <button className="button button--primary" disabled={pending}>{pending ? 'Creating…' : 'Create workspace'}</button>
@@ -138,10 +188,17 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                   </div>
                 </form>
               ) : (
-                <button className="button button--primary" type="button" onClick={() => setCreating(true)}>
+                <div className="workspace-picker-actions">
+                <button className="button button--primary" type="button" onClick={() => { setJoining(false); setCreating(true); }}>
                   <Plus size={18} aria-hidden="true" /> {data.workspaces.length ? 'Create workspace' : 'Create your first workspace'}
                 </button>
+                <button className="button button--secondary" type="button" onClick={() => {
+                  setJoining(true);
+                  inboxButton.current?.click();
+                }}>Join a workspace</button>
+                </div>
               )}
+              {joining && <p role="status">Ask a workspace owner for an invitation, then open the link they send. You can also accept an in-app invitation from Notifications.</p>}
             </>
           )}
         </div>
