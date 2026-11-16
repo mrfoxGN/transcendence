@@ -243,7 +243,7 @@ async getBoard(
 
     return TaskMapper.toResponse(task);
   }
-
+// doneeee
   async update(
     taskId: string,
     userId: string,
@@ -273,7 +273,15 @@ async getBoard(
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    if (workspace.archivedAt)
+        throw new ConflictException('This workspace is archived. Restore it before making changes.');
+
+    if (dto.dueDate !== undefined && dto.dueAt !== undefined) {
+      throw new BadRequestException(
+        'Provide either dueDate or dueAt, not both',
+      );
+    }
 
     const changes: Partial<Task> = {
       updatedAt: new Date(),
@@ -328,6 +336,7 @@ async getBoard(
 
     return TaskMapper.toResponse(updatedTask);
   }
+
   async transition(
     taskId: string,
     userId: string,
@@ -341,10 +350,16 @@ async getBoard(
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(
+    const workspace = await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
     );
+    
+    if (workspace.archivedAt) {
+      throw new ConflictException(
+        'This workspace is archived. Restore it before making changes.',
+      );
+    }
 
     const settings =
       dto.toStatus === TaskStatus.IN_PROGRESS
@@ -453,7 +468,7 @@ async getBoard(
 
     return result.response;
   }
-
+//  doneeeeeeeeeee
   async remove(taskId: string, userId: string): Promise<void> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
@@ -463,7 +478,16 @@ async getBoard(
       throw new NotFoundException('Task not found');
     }
 
-    await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(
+      task.workspaceId,
+      userId,
+    );
+    
+    if (workspace.archivedAt) {
+      throw new ConflictException(
+        'This workspace is archived. Restore it before making changes.',
+      );
+    }
 
     const now = new Date();
 
@@ -477,6 +501,23 @@ async getBoard(
 
     if (!result.affected) {
       throw new NotFoundException('Task not found');
+    }
+    try {
+      await this.activitiesService.create({
+        workspaceId: task.workspaceId,
+        actorUserId: userId,
+        actionType: 'TASK_DELETED',
+        resourceType: 'task',
+        resourceId: taskId,
+        metadata: {
+          title: task.title,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create TASK_DELETED activity for task ${taskId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 
