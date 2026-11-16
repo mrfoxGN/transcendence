@@ -72,8 +72,10 @@ export class TasksService {
       ? new Date(`${dto.dueDate}T23:59:59.999Z`)
       : null;
 
-    await this.workspacesService.findOneForUser(workspaceId, userId);
-
+    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+    if (workspace?.archivedAt)
+        throw new ConflictException('This workspace is archived. Restore it before making changes.');
+    
     const assigneeId = dto.assigneeId;
     if (assigneeId) {
       const assignee = await this.usersService.findById(assigneeId);
@@ -170,7 +172,10 @@ export class TasksService {
     return TaskMapper.toResponse(savedTask);
   }
 
-  async getBoard(
+
+
+// added the assignee 
+async getBoard(
     workspaceId: string,
     userId: string,
   ): Promise<TaskBoardResponseDto> {
@@ -191,6 +196,13 @@ export class TasksService {
       },
     });
 
+    const assignments = tasks.length
+      ? await this.dataSource.getRepository(TaskAssignment).find({
+          where: { taskId: In(tasks.map((task) => task.id)) },
+          select: { taskId: true, userId: true },
+        })
+      : [];
+
     const activeCount = tasks.filter(
       (task) =>
         task.status === TaskStatus.IN_PROGRESS ||
@@ -208,10 +220,16 @@ export class TasksService {
       workspaceId,
       activeWipLimit: settings.activeWipLimit,
       activeCount,
+      assigneesByTaskId: Object.fromEntries(
+        assignments.map((assignment) => [
+          assignment.taskId,
+          assignment.userId,
+        ]),
+      ),
       columns,
     };
   }
-
+// done no need to add the writtable flag
   async findById(taskId: string, userId: string): Promise<TaskResponseDto> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },

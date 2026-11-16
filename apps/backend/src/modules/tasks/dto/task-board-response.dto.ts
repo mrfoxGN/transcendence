@@ -11,4 +11,5 @@ export class TaskBoardResponseDto {
   activeWipLimit!: number;
   activeCount!: number;
   columns!: TaskBoardColumnDto[];
+  assigneesByTaskId!: Record<string, string>;
 }
