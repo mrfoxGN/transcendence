@@ -338,7 +338,7 @@ describe('WorkspacesService update', () => {
     expect(response.name).toBe('Updated Name');
     expect(response.description).toBe('Updated description');
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
 
     expect(response.name).toBe('Updated Name');
     expect(response.description).toBe('Updated description');
@@ -432,7 +432,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const response = await service.archive(workspaceId, ownerId);
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
     expect(response.archivedAt).toBeInstanceOf(Date);
   });
 
@@ -491,7 +491,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const response = await service.unarchive(workspaceId, ownerId);
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
     expect(response.archivedAt).toBeNull();
   });
 
@@ -550,7 +550,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     await service.softDelete(workspaceId, ownerId);
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
   });
 
   it('returns 404 when deleting a missing workspace', async () => {
@@ -762,7 +762,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -836,7 +839,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -895,7 +901,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -912,7 +921,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -929,7 +941,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -951,7 +966,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;

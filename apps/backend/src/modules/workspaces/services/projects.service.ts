@@ -33,7 +33,7 @@ export class ProjectsService {
         WHERE p.workspace_id = ? ORDER BY p.created_at DESC, p.id`, [workspaceId]);
       if (!rows.length) return [];
 
-      const projects = new Map(rows.map(row => [row.id, { ...row, milestones: [], tasks: [], progress: { done: 0, total: 0 } } as Project]));
+      const projects = new Map<string, Project>(rows.map(row => [row.id, { ...row, milestones: [], tasks: [], progress: { done: 0, total: 0 } }]));
       const milestones = new Map<string, Milestone>();
       const milestoneRows = await manager.query<MilestoneRow[]>(`
         SELECT m.id, m.project_id AS projectId, m.name, DATE_FORMAT(m.target_date, '%Y-%m-%d') AS targetDate

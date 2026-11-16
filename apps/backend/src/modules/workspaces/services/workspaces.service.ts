@@ -9,7 +9,8 @@ import {
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DataSource, IsNull, type EntityManager } from 'typeorm';
 
-import { InvitationStatus } from '../../../database/enums/database.enums';
+import {
+  TaskStatus, InvitationStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService, activityEntry, recordActivity } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
@@ -520,7 +521,7 @@ export class WorkspacesService {
       });
       return { invitation: await repository.save(invitation), workspaceName: workspace.name };
     });
-    const invitePath = '/join-workspace#' + new URLSearchParams({ workspace: workspaceId, invitation: invitation.id, token });
+    const invitePath = '/join-workspace#' + new URLSearchParams({ workspace: workspaceId, invitation: invitation.id, token }).toString();
     await this.auditHistory(workspaceId, actorId, invitationId ? 'AUDIT_INVITATION_RESENT' : 'AUDIT_INVITATION_CREATED', 'workspace_invitation', invitation.id);
     const sent = await this.sendInvitationEmail(invitation.invitedEmail!, workspaceName, invitePath);
     return { ...WorkspaceInvitationMapper.toResponse(invitation), invitePath, delivery: sent ? 'sent' as const : 'link' as const };
@@ -903,8 +904,8 @@ export class WorkspacesService {
             task.position = staying.length + index;
             task.updatedAt = now;
             if (fromStatus !== task.status) {
-              if (task.status === 'DONE') task.completedAt = now;
-              if (task.status === 'CANCELLED') task.cancelledAt = now;
+              if (task.status === TaskStatus.DONE) task.completedAt = now;
+              if (task.status === TaskStatus.CANCELLED) task.cancelledAt = now;
               await manager.insert(TaskStatusHistory, {
                 id: randomUUID(), taskId: task.id, fromStatus, toStatus: task.status,
                 changedById: userId, changedAt: now, note: null,
