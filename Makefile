@@ -5,7 +5,7 @@ COMPOSE := docker compose -f docker-compose.prod.yml
 
 .PHONY: help all check up build build-backend build-frontend \
         update update-frontend restart stop down clean fclean \
-        status logs health backup
+        status logs health backup restore
 
 # ==========================================
 # HELP
@@ -24,6 +24,7 @@ help:
 		'make logs             Follow Backend, Frontend and Nginx logs' \
 		'make health           Check HTTPS health' \
 		'make backup           Backup database/files' \
+		'make restore BACKUP=backups/<date>   Restore a selected backup' \
 		'make stop             Stop production containers' \
 		'make down             Remove containers; preserve volumes/images'
 
@@ -139,6 +140,10 @@ logs:
 
 backup:
 	bash scripts/backup.sh
+
+restore:
+	@test -n "$(BACKUP)" || { echo "Usage: make restore BACKUP=backups/<date>" >&2; exit 2; }
+	bash scripts/restore.sh "$(BACKUP)"
 
 # ==========================================
 # STOP

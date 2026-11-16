@@ -8,3 +8,17 @@ groups:
           severity: warning
         annotations:
           summary: "CPU usage is above 80%"
+      - alert: HighMemoryUsage
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM usage is above 85%"
+      - alert: HighDiskUsage
+        expr: 100 * (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Root disk usage is above 85%"

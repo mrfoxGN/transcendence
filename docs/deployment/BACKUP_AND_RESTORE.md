@@ -1,199 +1,121 @@
-# Local backup and restore
+# Backup and restore (current Compose setup)
 
-Run these scripts from a machine with Docker access. They use the production
-Compose configuration and the existing `.env`, without editing backend source.
+Run these commands from the repository root. This guide describes the current
+`backup` service in `docker-compose.prod.yml`, `scripts/backup.sh`, and
+`scripts/restore.sh`. It replaces the older host-cron and isolated-restore
+instructions recorded in dated progress reports.
 
-There are now only two scripts for backup and restore:
+## What is saved
 
-| Command | Purpose |
-| --- | --- |
-| `./scripts/backup.sh` | Manual backup, overlap protection and seven-backup retention |
-| `./scripts/backup.sh --scheduled` | The same backup with timestamped scheduler logs |
-| `./scripts/backup.sh --install-cron` | Install/update the daily 03:00 cron entry |
-| `./scripts/restore-test.sh BACKUP_DIRECTORY transcendence-restore-NAME` | Restore into a new isolated stack |
+The `backup` container uses the `mysql:8.4` image to run `mysqldump` against the
+MySQL service. It also reads the `backend_storage` volume at `/storage` in
+read-only mode. Each completed snapshot is a directory under the host's
+`backups/` directory containing:
 
-The separate scheduler, retention and cron-installer scripts were merged into
-`backup.sh`. The schedule, log paths, archive format and restore procedure stay
-the same. Python 3 is still used internally for checksum validation, retention
-and preserving other cron entries.
+- `mysql.sql.gz`: a compressed SQL dump of the application database, including
+  its tables and TypeORM migration history.
+- `storage.tar.gz`: a compressed archive of uploaded files from `/app/storage`.
 
-## Automated daily backup
+The container sees the host's `./backups` directory as `/backups`. That is why
+`make backup` prints `/backups/...`, while the corresponding host path is
+`backups/...`. This directory is ignored by Git and stays on the local disk
+when containers or named volumes are removed. It is **not** included in a
+Docker volume and is not an off-machine copy. Protect it because it contains
+user data.
 
-The user's system crontab runs `scripts/backup.sh --scheduled` every day at 03:00.
-The verified system timezone is `Africa/Casablanca`. Scheduled mode sets an
-explicit command path, invokes the backup, and records success or failure.
-Backup, logging, retention and cron installation are all implemented in
-`scripts/backup.sh`; restore stays in `scripts/restore-test.sh`.
-The host and Docker must be running at that time; ordinary cron does not catch
-up a run missed while the machine was off.
+The backup does not include `.env`, TLS keys, Docker images, Grafana settings,
+or Prometheus history. Keep the required configuration and images separately.
 
-Install or update only the project's managed cron entry:
+## When the automatic backup runs
 
-```bash
-./scripts/backup.sh --install-cron
-crontab -l
-```
+`make up` starts the `backup` service after `migrate` completes. The service
+creates one backup when it starts, then sleeps until the next 03:00 in its
+configured timezone (`BACKUP_TZ`, default `Africa/Casablanca`). It repeats
+once per day while the host, Docker and service remain running. If a backup
+fails, it retries after five minutes. `restart: unless-stopped` restarts the
+service after an unexpected stop or Docker restart; its startup backup then
+runs again. If the machine is off at 03:00, there is no backup at that time;
+the next service start creates one.
 
-The installer preserves unrelated cron entries and does not add duplicates.
-It does not enable the cron daemon or change the host timezone. On a new host,
-verify both, and ensure the cron user can access Docker without an interactive
-password prompt. Required commands include Bash, cron, flock, Python 3, Docker
-Compose, gzip, tar and sha256sum.
-
-Read the scheduled execution log:
+Check that the service is running and read its output with:
 
 ```bash
-tail -n 100 backups/scheduled-backup.log
+docker compose -f docker-compose.prod.yml ps backup
+docker compose -f docker-compose.prod.yml logs --tail=50 backup
 ```
 
-Each run logs `SUCCESS`, `FAILED`, or `SKIPPED` with a timestamp. `SKIPPED`
-means another backup already holds the lock. This prevents manual and scheduled
-backups from running together. The scheduler keeps one previous log when the
-current log exceeds 1 MiB. Early wrapper errors go to `backups/cron-bootstrap.log`.
-Failures are logged; external alert notifications are not configured.
+The current script does **not** implement automatic retention, backup-failure
+notifications, or a lock between a manual and scheduled backup. Avoid running
+`make backup` during deployment or another backup. It verifies archive
+readability with `gzip -t` and `tar -tzf`; it does not create SHA256SUMS.
+Review local disk space and remove old snapshots deliberately after deciding
+what recovery points to keep.
 
-The backup still briefly stops the backend. Choose a low-traffic maintenance
-window; scheduling does not remove this interruption.
+The previous host `crontab` entry pointing to the old checkout is not part of
+this setup. If it still exists, remove only that project's managed cron block
+with `crontab -e` to avoid duplicate jobs. A fresh clone needs no host cron
+configuration for this Compose backup service.
 
-To disable the daily job, use `crontab -e` and remove only the block between
-`# BEGIN transcendence automatic backup` and `# END transcendence automatic backup`.
-
-## Create a backup
+## Create and verify a backup manually
 
 ```bash
-./scripts/backup.sh
+make backup
+bash scripts/restore.sh --check backups/YYYY-MM-DD_HH-MM-SS_UTC
 ```
 
-The script briefly stops the production backend to pause application writes,
-dumps MySQL, archives uploaded files, and starts the backend again. Requests
-can fail during this maintenance window. Do not run concurrent backup, deployment
-or database-writing maintenance commands during the snapshot.
+Replace the example directory with the timestamp printed by `make backup`,
+but use the host path `backups/...` rather than `/backups/...`. The `--check`
+command checks both archives without changing MySQL or uploaded files. It does
+not prove that the application can use the restored data; perform a restore
+exercise as well.
 
-Each successful backup has its own directory under `backups/` containing:
+`mysqldump --single-transaction` takes a consistent database snapshot for
+transactional tables. File archiving happens separately while Backend can
+still write. Therefore a database record and a concurrently changed uploaded
+file are not guaranteed to represent the exact same instant. Schedule backups
+at a quiet time and test important uploads during recovery exercises.
 
-- `database.sql.gz`: the application database, including migration history.
-- `files.tar.gz`: the contents of `/app/storage`.
-- `backend-image.txt` and `mysql-image.txt`: image IDs used by the source stack.
-- `SHA256SUMS`: integrity checks for the four files above.
+## Restore a selected snapshot into the current stack
 
-The script prints the backup directory. A directory without a valid
-`SHA256SUMS` is incomplete and must not be used for recovery. Files and
-directories are created with restrictive permissions, and `backups/` is ignored
-by Git. These archives contain private application data; store separate,
-protected copies outside the active machine as well.
-
-After each completed backup, the same script keeps the newest seven
-checksum-valid backups and deletes older completed backups. This applies to
-manual runs as well as scheduled runs. It only considers timestamp-named
-directories generated by this backup process. Incomplete or invalid backups are
-left for manual inspection and do not displace valid backups. If a backup fails
-before completion, retention is not run.
-
-The backup covers application data, not MySQL system accounts. The restore
-environment creates its database user from `.env`. Keep environment secrets and
-TLS keys separately protected. Preserve the GitHub token encryption key if
-encrypted repository tokens must remain usable after recovery.
-
-## Restore into a new isolated stack
-
-Use a completed backup directory and a new project name:
+The stack must already be running with a healthy MySQL service, a Backend
+container, and its storage volume. Select the intended snapshot explicitly:
 
 ```bash
-./scripts/restore-test.sh backups/YOUR_BACKUP_DIRECTORY transcendence-restore-manual
+make restore BACKUP=backups/YYYY-MM-DD_HH-MM-SS_UTC
 ```
 
-Replace `YOUR_BACKUP_DIRECTORY` with the directory printed by the backup script.
-Only restore trusted backups created by this process.
+The script first checks the two archives. It then asks you to type `RESTORE`.
+After confirmation it stops Backend, imports SQL into the configured MySQL
+database, extracts uploaded files into the Backend storage volume, and starts
+Backend again if it was running before. It does not restore Docker images,
+`.env`, or TLS certificates. A failed import leaves Backend stopped so it does
+not serve partially restored data.
 
-The restore script:
+This operation changes the **current** database. SQL import can replace tables
+and discard writes made after the selected snapshot. Storage extraction
+replaces files with matching names but does **not** delete extra files that
+were created after the snapshot. Preserve current data before an incident
+restore and verify records, login, uploads and application health afterward.
+The script does not check image/schema compatibility, so use a compatible
+Backend image and review migration changes before restoring an older snapshot.
 
-1. Verifies archive checksums and checks that local image tags match the backup.
-2. Refuses project names outside the `transcendence-restore-` prefix.
-3. Refuses existing containers or data volumes for that project.
-4. Creates a new MySQL instance with its own volume and imports the SQL dump.
-5. Restores uploaded files into a new storage volume.
-6. Starts migrations and the backend, checks database access and migration state.
+## Local data-loss exercise performed on 2026-11-16
 
-The original production database and storage are not overwritten. Nginx is not
-started for the restored stack, so the test stack does not publish host ports.
-Current `.env` credentials are used for the new database. Use the matching
-backend and MySQL images recorded in the backup; image IDs alone are not an
-image archive, so retain the actual images or registry references separately.
+1. Created an application user and confirmed the account was present.
+2. Ran `make backup`; it produced `backups/2026-11-16_11-00-14_UTC`.
+3. Ran `bash scripts/restore.sh --check` on that snapshot; both archives passed.
+4. Stopped the stack using `docker compose -f docker-compose.prod.yml down`.
+5. Removed only `transcendence-prod_mysql_data` and
+   `transcendence-prod_backend_storage`. Grafana and Prometheus volumes stayed.
+6. Ran `make up`, observed the user was absent, then restored the selected
+   snapshot with `scripts/restore.sh`. The user reported that restore worked.
 
-Inspect the restored stack:
+The exercise confirmed recovery of the user record in this local setup.
+Restoration of a real uploaded file and an actual 03:00 scheduled run were not
+observed in this exercise. The `make restore` target was added afterward and
+verified by a dry run; it calls the same script used for the successful restore.
 
-```bash
-docker compose -f docker-compose.prod.yml -p transcendence-restore-manual ps -a
-docker compose -f docker-compose.prod.yml -p transcendence-restore-manual logs --tail=100 backend migrate
-```
-
-Verify application records and uploaded-file contents before considering a
-recovery successful. If restore fails partway through, its isolated resources
-remain available for inspection; the script will not overwrite them on retry.
-
-After verification, remove only that temporary stack and its test volumes:
-
-```bash
-docker compose -f docker-compose.prod.yml -p transcendence-restore-manual down --volumes
-```
-
-Check the project name carefully: this cleanup intentionally deletes the
-restored test data. The scripts do not promote a restored stack over the running
-production deployment automatically.
-
-## Current scope
-
-The local restore test passed: a temporary database row and uploaded-file marker
-were backed up, removed from the source, and recovered intact in a separate
-Compose project. Database access and migration state were checked. The temporary
-project, volumes and fixtures were removed, and a clean source backup was taken.
-The script also rejects the production project name as a restore target.
-
-The scheduler was also tested through a temporary real cron entry. The cron
-daemon ran the backup successfully, the new archive checksums were verified,
-and the temporary entry was removed while retaining the daily 03:00 entry.
-Retention was tested using disposable fixtures, and overlap locking was tested
-without starting a second Docker operation.
-
-Daily scheduled execution, overlap prevention and seven-backup retention are
-implemented. See [Disaster recovery](DISASTER_RECOVERY.md) for incident procedures
-and the populated-file data-loss drill. Off-machine copies remain pending: the
-chosen USB/external drive is not currently available. Production cutover is
-documented but has not been rehearsed.
-Keeping a volume or creating an archive is not a substitute for testing restore.
-
-
-### Recreate the monitoring account after full recovery
-
-Application database dumps do not include MySQL system accounts. On a fresh
-production MySQL volume, restore application data as planned, preserve the
-private `.env`, then run `python3 scripts/setup-mysql-monitoring.py` to create
-the dedicated monitoring account from `MYSQL_EXPORTER_PASSWORD`. Start/recreate
-`mysqld-exporter` and verify `mysql_up = 1`. Do not run the production-account
-setup against an isolated restore-test project: it explicitly targets production.
-The existing isolated application restore test does not require this exporter.
-
-
-## Versioned Backend images
-
-`restore-test.sh` resolves the Backend image from Compose, including a shell or
-`.env` `BACKEND_IMAGE` selection, and compares its full image ID to the backup.
-The same selected image is used for migration and Backend. For example:
-
-```bash
-BACKEND_IMAGE=transcendence-backend:release-20261107-014b112ae18a ./scripts/restore-test.sh backups/YOUR_BACKUP_DIRECTORY transcendence-restore-manual
-```
-
-The image must match that specific backup. Mismatches are rejected before any
-new containers are created. Restoring a snapshot is distinct from application
-rollback; see [Release and rollback](RELEASE_AND_ROLLBACK.md).
-
-
-### Additional local copy
-
-On 2026-11-08 the user chose local storage instead of USB. The completed snapshot
-`20261107T114102Z-peIeih` was copied to `backups/local-recovery/20261107T114102Z-peIeih`.
-Source and destination hashes match; the directory/files are 700/600 and ignored
-by Git. This separate copy is outside timestamp-directory retention, on the same
-disk. It is not a new snapshot, automatically refreshed copy or off-machine backup.
-No Production service was stopped. See DISASTER_RECOVERY.md for scope and limits.
+Do not repeat the destructive volume-removal steps on valuable data just to
+check a backup. The backup directory survives `docker compose down` and
+removal of the two named data volumes, but will be lost if this local disk or
+project directory is lost. See [Disaster recovery](DISASTER_RECOVERY.md).

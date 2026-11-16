@@ -44,6 +44,26 @@ services:
       mysql:
         condition: service_healthy
 
+  backup:
+    image: mysql:8.4
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/scripts/backup.sh"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      MYSQL_PWD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TZ: ${BACKUP_TZ:-Africa/Casablanca}
+    volumes:
+      - backend_storage:/storage:ro
+      - ./backups:/backups
+      - ./scripts/backup.sh:/scripts/backup.sh:ro
+    networks:
+      - database
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   backend:
     image: ${BACKEND_IMAGE:-transcendence-backend:prod}
     build:

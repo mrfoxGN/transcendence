@@ -1,44 +1,54 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="${COMPOSE_FILE_PATH:-docker-compose.prod.yml}"
-[[ "$COMPOSE_FILE" = /* ]] || COMPOSE_FILE="$PROJECT_ROOT/$COMPOSE_FILE"
-[[ -f "$COMPOSE_FILE" ]] || { echo "Missing Compose file: $COMPOSE_FILE" >&2; exit 1; }
-COMPOSE=(docker compose -f "$COMPOSE_FILE")
+# On the host, `make backup` asks the running backup container for a one-off copy.
+if [[ "${BASH_SOURCE[0]}" != /scripts/backup.sh ]]; then
+  root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+  exec docker compose -f "$root/docker-compose.prod.yml" exec -T backup \
+    /bin/bash /scripts/backup.sh --once
+fi
 
-umask 077
-BACKUP_ROOT="$PROJECT_ROOT/backups"
-mkdir -p -- "$BACKUP_ROOT"
-chmod 700 -- "$BACKUP_ROOT"
-STAMP="$(date -u +%Y-%m-%d_%H-%M-%S_UTC)"
-DEST="$BACKUP_ROOT/$STAMP"
-[[ ! -e "$DEST" ]] || { echo "Backup already exists: $DEST" >&2; exit 1; }
-TMP="$(mktemp -d "$BACKUP_ROOT/.partial-${STAMP}-XXXXXX")"
-trap 'if [[ -d "$TMP" ]]; then rm -rf -- "$TMP"; fi' EXIT
+backup_once() {
+  [[ -d /backups && -d /storage ]] || { echo 'Backup mounts missing' >&2; return 1; }
+  umask 077
+  owner="$(stat -c '%u:%g' /scripts/backup.sh)"
+  chown "$owner" /backups
+  chmod 700 /backups
 
-BACKEND_ID="$("${COMPOSE[@]}" ps -q backend)"
-[[ -n "$BACKEND_ID" ]] || { echo "Backend container not running/found" >&2; exit 1; }
-STORAGE_VOL="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app/storage"}}{{.Name}}{{end}}{{end}}' "$BACKEND_ID")"
-[[ -n "$STORAGE_VOL" ]] || { echo "No named volume at /app/storage" >&2; exit 1; }
-docker volume inspect "$STORAGE_VOL" >/dev/null
+  stamp="$(date -u +%Y-%m-%d_%H-%M-%S_UTC)"
+  dest="/backups/$stamp"
+  [[ ! -e "$dest" ]] || { echo "Backup already exists: $dest" >&2; return 1; }
+  temp="$(mktemp -d "/backups/.partial-${stamp}-XXXXXX")"
+  trap 'rm -rf -- "$temp"' EXIT
 
-# Database: consistent transactional dump for InnoDB; compressed on the host.
-"${COMPOSE[@]}" exec -T mysql sh -c \
-  'MYSQL_PWD="${MYSQL_PASSWORD:?MYSQL_PASSWORD missing}" exec mysqldump \
-   -u"${MYSQL_USER:?MYSQL_USER missing}" --single-transaction --quick \
-   --no-tablespaces --routines --triggers --events "${MYSQL_DATABASE:?MYSQL_DATABASE missing}"' \
-  | gzip -c > "$TMP/mysql.sql.gz"
+  mysqldump --protocol=TCP -h "$DB_HOST" -u "$DB_USER" \
+    --single-transaction --quick --no-tablespaces \
+    --routines --triggers --events "$DB_NAME" | gzip -c > "$temp/mysql.sql.gz"
+  tar -czf "$temp/storage.tar.gz" -C /storage .
+  gzip -t "$temp/mysql.sql.gz"
+  tar -tzf "$temp/storage.tar.gz" >/dev/null
+  chmod 600 "$temp/mysql.sql.gz" "$temp/storage.tar.gz"
+  chown -R "$owner" "$temp"
+  mv -T -- "$temp" "$dest"
+  printf 'Backup OK: %s\n' "$dest"
+}
 
-# Uploaded files: read-only mount of the backend's named volume.
-docker run --rm --network none \
-  --mount "type=volume,source=${STORAGE_VOL},target=/data,readonly" \
-  alpine:3.22 tar -czf - -C /data . > "$TMP/storage.tar.gz"
-
-# Check that both archives can be read before publishing the backup.
-gzip -t "$TMP/mysql.sql.gz"
-tar -tzf "$TMP/storage.tar.gz" >/dev/null
-chmod 600 "$TMP/mysql.sql.gz" "$TMP/storage.tar.gz"
-mv -T -- "$TMP" "$DEST"
-printf 'Backup OK: %s\n' "$DEST"
-ls -lh -- "$DEST/mysql.sql.gz" "$DEST/storage.tar.gz"
+if [[ "${1:-}" == --once ]]; then
+  backup_once
+elif [[ $# -eq 0 ]]; then
+  while true; do
+    if /bin/bash /scripts/backup.sh --once; then
+      next="$(date -d 'tomorrow 03:00:00' +%s)"
+      delay=$((next - $(date +%s)))
+      (( delay > 0 )) || delay=60
+      printf 'Next backup: %s\n' "$(date -d "@$next" '+%Y-%m-%d %H:%M:%S %Z')"
+      sleep "$delay"
+    else
+      echo 'Backup failed; retrying in 5 minutes.' >&2
+      sleep 300
+    fi
+  done
+else
+  echo 'Usage: backup.sh [--once]' >&2
+  exit 2
+fi

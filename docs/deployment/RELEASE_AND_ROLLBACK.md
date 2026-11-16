@@ -33,10 +33,9 @@ Preserve old images; do not prune them while they are rollback candidates.
 1. Choose a new unique tag, for example a release version or clean Git commit.
 2. Confirm the tag does not already exist, then build it once using the existing
    Dockerfile. Use the same image for migration and application execution.
-3. Record its image ID and validate the release against an isolated restored
-   database before touching Production. `scripts/restore-test.sh` deliberately
-   requires the backup's exact old image: restore with that image first, then
-   migrate/test the candidate in the isolated stack.
+3. Record its image ID and validate the release against a separate test
+   environment before touching Production. The current `scripts/restore.sh`
+   restores in place; it does not create an isolated validation stack.
 4. Ask the backend owner whether the previous application remains compatible
    with the database after the candidate migrations. Test that compatibility.
    Without evidence, do not treat image-only rollback as safe.
@@ -58,9 +57,11 @@ These are operator steps, not an automatic deployment script. Stop if any step
 fails. Do not copy a placeholder as an actual release value.
 
 1. Record the currently running Backend image ID and retain its release tag.
-2. Take a fresh paired database/files backup with the **current** image selected.
-   `scripts/backup.sh` briefly stops and restarts Backend. Save the completed
-   backup path; verify its checksums. Do not run it with a future image selected.
+2. Take a fresh database/files backup with the **current** image selected using
+   `make backup`. Save the printed backup path and verify both archives with
+   `bash scripts/restore.sh --check backups/YOUR_TIMESTAMP`. Avoid overlapping
+   the backup with deployment; Backend remains online during the snapshot, so
+   file and database contents can change between archive steps.
 3. Set `BACKEND_IMAGE` to the tested candidate. Validate Compose, confirm MySQL
    is healthy, and stop Backend before running migrations so application writes
    do not overlap a schema change. This starts the maintenance interruption.
