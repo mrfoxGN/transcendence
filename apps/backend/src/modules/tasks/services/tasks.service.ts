@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository, EntityManager } from 'typeorm';
 
 import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService } from '../../activities/services/activities.service';
@@ -74,6 +74,20 @@ export class TasksService {
 
     await this.workspacesService.findOneForUser(workspaceId, userId);
 
+    const assigneeId = dto.assigneeId;
+    if (assigneeId) {
+      const assignee = await this.usersService.findById(assigneeId);
+    
+      if (assignee.status !== UserStatus.ACTIVE) {
+        throw new BadRequestException('Assignee must be active');
+      }
+    
+      await this.workspacesService.findOneForUser(
+        workspaceId,
+        assigneeId,
+      );
+    }
+
     const now = new Date();
 
     const task = this.tasksRepository.create({
@@ -97,7 +111,20 @@ export class TasksService {
       deletedAt: null,
     });
 
-    const savedTask = await this.tasksRepository.save(task);
+    const savedTask = assigneeId
+    ? await this.dataSource.transaction(async (manager) => {
+        const saved = await manager.getRepository(Task).save(task);
+
+        await this.createAssignment(
+          manager,
+          saved.id,
+          userId,
+          assigneeId,
+        );
+
+        return saved;
+      })
+    : await this.tasksRepository.save(task);
 
     try {
       await this.activitiesService.create({
@@ -117,6 +144,27 @@ export class TasksService {
         `Could not create TASK_CREATED activity for task ${savedTask.id}`,
         error instanceof Error ? error.stack : String(error),
       );
+    }
+
+    if (assigneeId) {
+      try {
+        await this.activitiesService.create({
+          workspaceId,
+          actorUserId: userId,
+          actionType: 'TASK_ASSIGNED',
+          resourceType: 'task',
+          resourceId: savedTask.id,
+          metadata: {
+            title: savedTask.title,
+            assigneeId,
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Could not create TASK_ASSIGNED activity for task ${savedTask.id}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
     }
 
     return TaskMapper.toResponse(savedTask);
@@ -450,7 +498,7 @@ export class TasksService {
       throw error;
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
         where: { id: taskId, deletedAt: IsNull() },
         lock: { mode: 'pessimistic_write' },
@@ -470,18 +518,54 @@ export class TasksService {
         throw new ConflictException('Task already assigned');
       }
 
-      const assignment = assignmentsRepository.create({
-        id: randomUUID(),
+      const savedAssignment = await this.createAssignment(
+        manager,
         taskId,
-        userId: dto.userId,
-        assignedById: actorId,
-        assignedAt: new Date(),
-      });
-
-      const savedAssignment = await assignmentsRepository.save(assignment);
+        actorId,
+        dto.userId,
+      );
 
       return TaskAssignmentMapper.toResponse(savedAssignment);
     });
+    try {
+      await this.activitiesService.create({
+        workspaceId: existingTask.workspaceId,
+        actorUserId: actorId,
+        actionType: 'TASK_ASSIGNED',
+        resourceType: 'task',
+        resourceId: taskId,
+        metadata: {
+          title: existingTask.title,
+          assigneeId: dto.userId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create TASK_ASSIGNED activity for task ${taskId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+    
+    return result;
+  }
+
+  private async createAssignment(
+    manager: EntityManager,
+    taskId: string,
+    actorId: string,
+    assigneeId: string,
+  ): Promise<TaskAssignment> {
+    const assignmentsRepository = manager.getRepository(TaskAssignment);
+
+    const assignment = assignmentsRepository.create({
+      id: randomUUID(),
+      taskId,
+      userId: assigneeId,
+      assignedById: actorId,
+      assignedAt: new Date(),
+    });
+
+    return assignmentsRepository.save(assignment);
   }
 
   async addDependency(

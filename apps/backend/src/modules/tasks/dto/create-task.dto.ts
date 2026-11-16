@@ -5,6 +5,7 @@ import {
   IsString,
   Length,
   Matches,
+  IsUUID,
 } from 'class-validator';
 
 import { TaskPriority } from '../../../database/enums/database.enums';
@@ -34,4 +35,8 @@ export class CreateTaskDto {
   @Matches(/^[1-9]\d{3}-\d{2}-\d{2}$/)
   @IsDateString({ strict: true })
   dueDate?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  assigneeId?: string;
 }
