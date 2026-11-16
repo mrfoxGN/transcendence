@@ -215,6 +215,7 @@ export function AuthPreview({ mode }: { mode: 'login' | 'register' }) {
           ? 'Bring your tasks, conversations, and code into one workspace.'
           : 'Enter your email and password.'}</p>}
         <div className="auth-panel">
+          {!signingUp && new URLSearchParams(location.search).get('passwordChanged') === '1' && <p role="status">Your password has been changed. Sign in again.</p>}
           {complete ? (
             <div className="auth-success" role="status">
               <p><Check size={18} aria-hidden="true" /> Your DevUP account is ready.</p>

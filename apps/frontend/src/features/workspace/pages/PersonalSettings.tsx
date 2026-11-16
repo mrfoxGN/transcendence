@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
+import { EmailVerificationForm } from '../../AccountPages';
+import { sessionKey } from '../../WorkspacePicker';
 import { AvatarPicker, type AvatarSelection } from '../../AvatarPicker';
 import { accountRequest, authRoute } from '../../auth-routing';
 import { finishInputEdit, saveTextOnBlur } from '../autosave';
@@ -55,6 +57,19 @@ export function PersonalSettings({ tab, profile, token, onProfile, onTheme }: {
     }, 'Changes saved.');
   }
 
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || working.current) return;
+    const fields = new FormData(event.currentTarget);
+    const newPassword = String(fields.get('newPassword') ?? '');
+    if (newPassword !== fields.get('confirmPassword')) { setError('The passwords must match.'); return; }
+    await run(async () => {
+      await accountRequest('password', { currentPassword: String(fields.get('currentPassword') ?? ''), newPassword }, token, 'PATCH');
+      sessionStorage.removeItem(sessionKey);
+      location.replace(authRoute('/login', location.pathname + location.search + location.hash) + '&passwordChanged=1');
+    }, 'Password changed. Sign in again.');
+  }
+
   return <>
     {!avatarOpen && error && <p role="alert">{error}</p>}
     {(busy || notice) && !avatarOpen && <p role="status">{busy ? 'Working…' : notice}</p>}
@@ -72,9 +87,16 @@ export function PersonalSettings({ tab, profile, token, onProfile, onTheme }: {
       {tab === 'Security' && <>
         <h2>Account security</h2>
         <div className="wu-readonly-field"><span>Email address</span><strong>{profile.email}</strong></div>
-        {profile.emailVerified === false && <button className="wu-button wu-button--secondary" type="button" disabled={busy || !token}
-          onClick={() => void run(() => accountRequest('email-verification/request', undefined, token ?? undefined), 'Check your email for a verification link.')}>Send verification email</button>}
+        {profile.emailVerified === false && token && <EmailVerificationForm token={token} onVerified={() => onProfile({ ...profile, emailVerified: true })} />}
         {profile.emailVerified && <p className="wu-muted">Email verified</p>}
+        <form className="auth-form" onSubmit={changePassword}>
+          <h3>Change password</h3>
+          <label className="wu-field-label">Current password<input name="currentPassword" type="password" autoComplete="current-password" required disabled={busy} /></label>
+          <label className="wu-field-label">New password<input name="newPassword" type="password" autoComplete="new-password" minLength={8} required disabled={busy} /></label>
+          <label className="wu-field-label">Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} required disabled={busy} /></label>
+          <p className="wu-muted">Changing your password signs you out of all sessions.</p>
+          <button className="wu-button" type="submit" disabled={busy || !token}>Change password</button>
+        </form>
         <a className="wu-text-button" href={authRoute('/forgot-password', location.pathname + location.search + location.hash)}>Reset password</a>
       </>}
       {tab === 'Appearance' && <>

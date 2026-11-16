@@ -156,12 +156,13 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                   setEmailPending(true);
                   try {
                     await accountRequest('email-verification/request', undefined, token);
-                    setEmailFeedback({ message: 'Check your email for a verification link.', error: false });
+                    setEmailFeedback({ message: 'Check your email for a six-digit verification code.', error: false });
                   } catch (error) {
                     setEmailFeedback({ message: error instanceof Error ? error.message : 'Could not send email.', error: true });
                   } finally { setEmailPending(false); }
                 }}>{emailPending ? 'Sending…' : 'Send verification email'}</button>
                 {emailFeedback && <p role={emailFeedback.error ? 'alert' : 'status'}>{emailFeedback.message}</p>}
+                <a className="button button--secondary" href={authRoute('/verify-email', '/workspaces')}>Enter verification code</a>
               </div>}
               {showSearch && <label className="workspace-picker-search">Search workspaces
                 <input type="search" placeholder="Search by workspace name" value={search} onChange={event => setSearch(event.target.value)} />
