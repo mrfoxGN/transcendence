@@ -79,36 +79,4 @@ export class NotesController {
   ): Promise<void> {
     return this.notesService.remove(workspaceId, noteId, request.user.id);
   }
-
-  @Get(':noteId/revisions')
-  listRevisions(
-    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-    @Param('noteId', ParseUUIDPipe) noteId: string,
-    @Req() request: AuthenticatedRequest,
-    @Query() query: ListNotesDto,
-  ) {
-    return this.notesService.listRevisions(workspaceId, noteId, request.user.id, query);
-  }
-
-  @Post(':noteId/revisions/:revision/restore')
-  @HttpCode(200)
-  restoreRevision(
-    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-    @Param('noteId', ParseUUIDPipe) noteId: string,
-    @Param('revision', ParseIntPipe) revision: number,
-    @Req() request: AuthenticatedRequest,
-    @Body() dto: NoteRevisionDto,
-  ) {
-    return this.notesService.restoreRevision(workspaceId, noteId, request.user.id, revision, dto.revision);
-  }
-
-  @Get(':noteId/revisions/:revision')
-  findRevision(
-    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-    @Param('noteId', ParseUUIDPipe) noteId: string,
-    @Param('revision', ParseIntPipe) revision: number,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.notesService.findRevision(workspaceId, noteId, request.user.id, revision);
-  }
 }
