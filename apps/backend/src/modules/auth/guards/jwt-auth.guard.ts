@@ -48,7 +48,10 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    let authUser: Awaited<ReturnType<UsersService['findForAuth']>>;
+    let authUser: {
+      user: UserResponseDto;
+      tokenVersion: number;
+    };
 
     try {
       authUser = await this.usersService.findForAuth(payload.sub);
