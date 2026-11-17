@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -249,8 +250,9 @@ export class SocialService {
 
     const result = await this.messagesRepository.manager.transaction(
       async (manager) => {
-        const conversation = await manager.findOneBy(DirectConversation, {
-          id: conversationId,
+        const conversation = await manager.findOne(DirectConversation, {
+          where: { id: conversationId },
+          lock: { mode: 'pessimistic_write' },
         });
 
         if (
@@ -259,6 +261,32 @@ export class SocialService {
             conversation.userBId !== senderId)
         ) {
           throw new NotFoundException('Conversation not found');
+        }
+
+        if (dto.requestId) {
+          const previous = await manager.findOne(DirectMessage, {
+          where: { id: dto.requestId },
+          relations: { replyTo: true },
+        });
+
+          if (previous) {
+            if (
+              previous.conversationId !== conversationId ||
+              previous.senderId !== senderId ||
+              previous.deletedAt !== null ||
+              previous.content !== content ||
+              previous.replyToId !== (dto.replyToId ?? null)
+            ) {
+              throw new ConflictException('Message request ID is already in use');
+            }
+          
+            return {
+              replay: true as const,
+              userAId: conversation.userAId,
+              userBId: conversation.userBId,
+              message: this.toMessageResponse(previous),
+            };
+          }
         }
         
         let replyTo: DirectMessage | null = null;
@@ -280,7 +308,7 @@ export class SocialService {
         const now = new Date();
 
         const message = manager.create(DirectMessage, {
-          id: randomUUID(),
+          id: dto.requestId ?? randomUUID(),
           conversationId,
           senderId,
           content,
@@ -290,7 +318,8 @@ export class SocialService {
           deletedAt: null,
         });
 
-        const saved = await manager.save(DirectMessage, message);
+        await manager.insert(DirectMessage, message);
+        message.replyTo = replyTo;
 
         await manager.update(
           DirectConversation,
@@ -299,27 +328,16 @@ export class SocialService {
         );
 
         return {
+          replay: false as const,
           userAId: conversation.userAId,
           userBId: conversation.userBId,
-          message: {
-            id: saved.id,
-            conversationId: saved.conversationId,
-            senderId: saved.senderId,
-            content: saved.content,
-            createdAt: saved.createdAt,
-            ...(replyTo ? {
-                  reply: {
-                    id: replyTo.id,
-                    senderId: replyTo.senderId,
-                    preview: replyTo.content.slice(0, 100),
-                    unavailable: false,
-                  },
-                }
-              : {}),
-          },
+          message: this.toMessageResponse(message),
         };
       },
     );
+    if (result.replay) {
+      return result.message;
+    }
 
     try {
       this.directChatGateway.emitMessageCreated(
@@ -356,7 +374,6 @@ export class SocialService {
         error instanceof Error ? error.stack : String(error),
       );
     }
-
     return result.message;
   }
 
@@ -400,26 +417,9 @@ export class SocialService {
       take: limit,
     });
 
-    return messages.reverse().map((message) => ({
-      id: message.id,
-      conversationId: message.conversationId,
-      senderId: message.senderId,
-      content: message.content,
-      createdAt: message.createdAt,
-      ...(message.replyToId ? {
-            reply: {
-              id: message.replyToId,
-              senderId:
-                message.replyTo && !message.replyTo.deletedAt
-                  ? message.replyTo.senderId : null,
-              preview:
-                message.replyTo && !message.replyTo.deletedAt
-                  ? message.replyTo.content.slice(0, 100) : '',
-              unavailable:
-                !message.replyTo || message.replyTo.deletedAt !== null,
-            },
-          } : {}),
-    }));
+    return messages.reverse().map((message) =>
+      this.toMessageResponse(message),
+    );
   }
 
   private toConversationResponse(
@@ -431,6 +431,34 @@ export class SocialService {
       otherUserId,
       lastMessageAt: conversation.lastMessageAt,
       createdAt: conversation.createdAt,
+    };
+  }
+
+  private toMessageResponse(
+    message: DirectMessage,
+  ): DirectMessageResponseDto {
+    const replyTo = message.replyTo;
+
+    return {
+      id: message.id,
+      conversationId: message.conversationId,
+      senderId: message.senderId,
+      content: message.content,
+      createdAt: message.createdAt,
+      ...(message.replyToId
+        ? {
+            reply: {
+              id: message.replyToId,
+              senderId:
+                replyTo && !replyTo.deletedAt ? replyTo.senderId : null,
+              preview:
+                replyTo && !replyTo.deletedAt
+                  ? replyTo.content.slice(0, 100)
+                  : '',
+              unavailable: !replyTo || replyTo.deletedAt !== null,
+            },
+          }
+        : {}),
     };
   }
 }

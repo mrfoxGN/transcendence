@@ -8,4 +8,8 @@ export class SendDirectMessageDto {
   @IsOptional()
   @IsUUID('4')
   replyToId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  requestId?: string;
 }
