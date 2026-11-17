@@ -49,12 +49,16 @@ export class GitHubController {
     @Query('state') state?: string,
     @Res({ passthrough: true }) response?: Response,
   ) {
-    const result = await this.githubOAuthService.complete(code ?? '', state ?? '');
+    const result = await this.githubOAuthService.complete(
+      code ?? '',
+      state ?? '',
+    );
     const frontend = process.env.GITHUB_OAUTH_FRONTEND_URL;
     if (!frontend || !response) return result;
     const destination = new URL('/workspaces/' + result.workspaceId, frontend);
     destination.searchParams.set('page', 'github');
-    destination.hash = 'github-setup=' + encodeURIComponent(result.setupSessionId);
+    destination.hash =
+      'github-setup=' + encodeURIComponent(result.setupSessionId);
     response.status(303).setHeader('Location', destination.toString());
     return;
   }

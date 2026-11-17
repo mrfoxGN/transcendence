@@ -31,6 +31,7 @@ export function useWorkspaceData<T>(path: string, token: string | null) {
   const [data, setData] = useState<T>();
   const [loadedPath, setLoadedPath] = useState<string>();
   const [failedPath, setFailedPath] = useState<string>();
+  const [errorMessage, setErrorMessage] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -42,20 +43,26 @@ export function useWorkspaceData<T>(path: string, token: string | null) {
         setData(results);
         setLoadedPath(path);
         setFailedPath(undefined);
+        setErrorMessage(undefined);
       })
-      .catch(() => { if (!controller.signal.aborted) setFailedPath(path); });
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          setFailedPath(path);
+          setErrorMessage(error instanceof Error ? error.message : String(error));
+        }
+      });
     return () => controller.abort();
   }, [path, token, attempt]);
   function retry() {
     setFailedPath(undefined);
     setAttempt(current => current + 1);
   }
-  return { data: loadedPath === path ? data : undefined, setData, error: failedPath === path, retry };
+  return { data: loadedPath === path ? data : undefined, setData, error: failedPath === path, errorMessage, retry };
 }
 
 export function useWorkspaceCollection<T>(path: string, token: string | null) {
-  const { data, setData, error, retry } = useWorkspaceData<T[]>(path, token);
-  return { items: data, setItems: setData, error, retry };
+  const { data, setData, error, errorMessage, retry } = useWorkspaceData<T[]>(path, token);
+  return { items: data, setItems: setData, error, errorMessage, retry };
 }
 
 export const documentPageSize = 20;

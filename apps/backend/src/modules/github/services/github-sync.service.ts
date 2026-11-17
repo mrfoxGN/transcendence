@@ -8,7 +8,10 @@ import { randomUUID } from 'node:crypto';
 import { DataSource, IsNull } from 'typeorm';
 
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
-import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
+import {
+  ActivitiesService,
+  recordActivity,
+} from '../../activities/services/activities.service';
 import { Repository as ConnectedRepository } from '../entities/repository.entity';
 import { RepositoryCommit } from '../entities/repository-commit.entity';
 import { GitHubApiService } from './github-api.service';
@@ -39,7 +42,9 @@ export class GitHubSyncService {
     userId: string,
   ): Promise<GitHubSyncResult> {
     // Every caller must be an authorized workspace member.
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
+    assertWorkspaceWritable(
+      await this.workspacesService.findOneForUser(workspaceId, userId),
+    );
 
     // Reuse an ongoing synchronization for this workspace.
     const existingSync = this.inFlightSyncs.get(workspaceId);
@@ -48,20 +53,37 @@ export class GitHubSyncService {
       return existingSync;
     }
 
-    const syncPromise = this.performSync(workspaceId).then(async result => {
-      await recordActivity(this.activities, {
-        workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_COMPLETED', resourceType: 'github', resourceId: result.repositoryId,
-        metadata: { title: result.fullName, storedCommits: result.storedCommits },
-      });
-      return result;
-    }, async error => {
-      if (!(error instanceof NotFoundException && error.message === 'No GitHub repository connected to this workspace')) {
+    const syncPromise = this.performSync(workspaceId).then(
+      async (result) => {
         await recordActivity(this.activities, {
-          workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_FAILED', resourceType: 'github', resourceId: workspaceId,
+          workspaceId,
+          actorUserId: userId,
+          actionType: 'GITHUB_SYNC_COMPLETED',
+          resourceType: 'github',
+          resourceId: result.repositoryId,
+          metadata: {
+            title: result.fullName,
+            storedCommits: result.storedCommits,
+          },
         });
-      }
-      throw error;
-    });
+        return result;
+      },
+      async (error) => {
+        if (!(
+          error instanceof NotFoundException &&
+          error.message === 'No GitHub repository connected to this workspace'
+        )) {
+          await recordActivity(this.activities, {
+            workspaceId,
+            actorUserId: userId,
+            actionType: 'GITHUB_SYNC_FAILED',
+            resourceType: 'github',
+            resourceId: workspaceId,
+          });
+        }
+        throw error;
+      },
+    );
     this.inFlightSyncs.set(workspaceId, syncPromise);
 
     try {
@@ -119,11 +141,32 @@ export class GitHubSyncService {
       throw new ConflictException('GitHub repository identity has changed');
     }
 
-    // 4. Fetch recent commits.
-    const commits = await this.githubApiService.listRecentCommits(
+    // 4. Fetch recent history and seven-day commit statistics.
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    since.setUTCDate(since.getUTCDate() - 6);
+
+    const recentCommits = await this.githubApiService.listRecentCommits(
       remote.ownerLogin,
       remote.name,
       accessToken,
+    );
+
+    const weeklyCommits = await this.githubApiService.listRecentCommits(
+      remote.ownerLogin,
+      remote.name,
+      accessToken,
+      since,
+    );
+
+    // Deduplicate commits by SHA before persistence.
+    const commits = Array.from(
+      new Map(
+        [...recentCommits, ...weeklyCommits].map((commit) => [
+          commit.sha,
+          commit,
+        ]),
+      ).values(),
     );
 
     const now = new Date();

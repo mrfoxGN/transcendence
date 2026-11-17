@@ -137,4 +137,179 @@ describe('GitHubApiService', () => {
       service.getPublicRepository('octocat', 'Hello-World'),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
+
+  describe('Commit pagination', () => {
+    const endpoint = 'https://api.github.com/repos/octocat/Hello-World/commits';
+
+    const since = new Date('2026-11-10T00:00:00Z');
+
+    const makeCommit = (letter: string) => ({
+      sha: letter.repeat(40),
+      html_url:
+        'https://github.com/octocat/Hello-World/commit/' + letter.repeat(40),
+      commit: {
+        message: 'Test commit',
+        author: {
+          name: 'Developer',
+          date: '2026-11-15T12:00:00Z',
+        },
+        committer: {
+          name: 'Developer',
+          date: '2026-11-15T12:00:00Z',
+        },
+      },
+      author: { id: 123 },
+    });
+
+    const first = makeCommit('a');
+    const second = makeCommit('b');
+
+    const nextPage = endpoint + '?per_page=100&page=2';
+
+    it('preserves the original 30-commit behavior', async () => {
+      const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify([first]), {
+          status: 200,
+          headers: {
+            link: '<' + nextPage + '>; rel="next"',
+          },
+        }),
+      );
+
+      const result = await service.listRecentCommits(
+        'octocat',
+        'Hello-World',
+        'test-token',
+      );
+
+      expect(result).toHaveLength(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        endpoint + '?per_page=30&page=1',
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+
+    it('retrieves multiple pages and removes duplicate commits', async () => {
+      const fetchMock = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify([first]), {
+            status: 200,
+            headers: {
+              link: '<' + nextPage + '>; rel="next"',
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify([first, second]), {
+            status: 200,
+          }),
+        );
+
+      const result = await service.listRecentCommits(
+        'octocat',
+        'Hello-World',
+        'test-token',
+        since,
+      );
+
+      expect(result.map((commit) => commit.sha)).toEqual([
+        first.sha,
+        second.sha,
+      ]);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        endpoint +
+          '?per_page=100&page=1&since=' +
+          encodeURIComponent(since.toISOString()),
+        expect.objectContaining({ method: 'GET' }),
+      );
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        nextPage,
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+
+    it('rejects unsafe external pagination URLs', async () => {
+      const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify([first]), {
+          status: 200,
+          headers: {
+            link: '<https://example.com/commits>; rel="next"',
+          },
+        }),
+      );
+
+      await expect(
+        service.listRecentCommits(
+          'octocat',
+          'Hello-World',
+          'test-token',
+          since,
+        ),
+      ).rejects.toBeInstanceOf(BadGatewayException);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects partial results when a subsequent page fails', async () => {
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify([first]), {
+            status: 200,
+            headers: {
+              link: '<' + nextPage + '>; rel="next"',
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response('{}', { status: 500 }));
+
+      await expect(
+        service.listRecentCommits(
+          'octocat',
+          'Hello-World',
+          'test-token',
+          since,
+        ),
+      ).rejects.toBeInstanceOf(BadGatewayException);
+    });
+
+    it('handles empty repositories', async () => {
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 409 }));
+
+      await expect(
+        service.listRecentCommits(
+          'octocat',
+          'Hello-World',
+          'test-token',
+          since,
+        ),
+      ).resolves.toEqual([]);
+    });
+
+    it('rejects invalid commit responses', async () => {
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 200 }));
+
+      await expect(
+        service.listRecentCommits(
+          'octocat',
+          'Hello-World',
+          'test-token',
+          since,
+        ),
+      ).rejects.toBeInstanceOf(BadGatewayException);
+    });
+  });
 });

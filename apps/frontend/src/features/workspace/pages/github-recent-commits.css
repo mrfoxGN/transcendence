@@ -1,0 +1,186 @@
+/* Repository insights layout */
+
+.wu-github-insights {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.wu-github-insights--single {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+}
+
+.wu-github-insights > .wu-github-network {
+  width: 100%;
+  margin: 0;
+}
+
+/* Recent commits timeline */
+
+.wu-github-recent {
+  min-width: 0;
+  min-height: 360px;
+  padding: 22px;
+  border: 1px solid var(--wu-line);
+  border-radius: 12px;
+  background: var(--wu-surface);
+}
+
+.wu-github-recent__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.wu-github-recent__heading h2 {
+  margin: 0;
+  color: var(--wu-ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.wu-github-recent__timeline {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wu-github-recent__timeline::before {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 5px;
+  width: 1px;
+  background: color-mix(
+    in srgb,
+    var(--wu-blue) 40%,
+    var(--wu-line)
+  );
+  content: '';
+}
+
+.wu-github-recent__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.wu-github-recent__marker {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--wu-blue);
+  box-shadow: 0 0 0 3px var(--wu-surface);
+}
+
+.wu-github-recent__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--wu-blue-soft);
+  color: var(--wu-blue);
+}
+
+.wu-github-recent__item--merge .wu-github-recent__icon {
+  background: #302341;
+  color: #c6a0f6;
+}
+
+.wu-github-recent__item--feature .wu-github-recent__icon {
+  background: #173529;
+  color: #69d597;
+}
+
+.wu-github-recent__item--refactor .wu-github-recent__icon {
+  background: #3a311d;
+  color: #e7be61;
+}
+
+.wu-github-recent__content {
+  min-width: 0;
+  padding: 5px 0 13px;
+  border-bottom: 1px solid var(--wu-line);
+}
+
+.wu-github-recent__item:last-child .wu-github-recent__content {
+  border-bottom: none;
+}
+
+.wu-github-recent__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.wu-github-recent__details {
+  flex: 1;
+  min-width: 0;
+}
+
+.wu-github-recent__details a,
+.wu-github-recent__details strong {
+  display: block;
+  color: var(--wu-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.wu-github-recent__details a:hover {
+  color: var(--wu-blue);
+}
+
+.wu-github-recent__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+.wu-github-recent__badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--wu-line);
+  border-radius: 999px;
+  color: var(--wu-muted);
+  font-size: 11px;
+}
+
+.wu-github-recent__empty {
+  padding: 30px 0;
+  color: var(--wu-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 1250px) {
+  .wu-github-insights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wu-github-insights > .wu-github-top-contributors {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 980px) {
+  .wu-github-insights {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

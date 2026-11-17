@@ -1,20 +1,46 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
-import { FilterChips, Panel } from '../components';
-import { jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
+import { Panel } from '../components';
+import { GithubTabs, type GithubTabName } from './GithubTabs';
+import { jsonRequest, useWorkspaceCollection, useWorkspaceData, workspaceRequest, WorkspaceRequestError } from '../workspace-api';
 import type { PageHeading } from '../types';
+import { GithubHeader } from './GithubHeader';
+import { GithubDevelopmentNetwork } from './GithubDevelopmentNetwork';
+import { GithubRecentCommits } from './GithubRecentCommits';
+import { GithubTopContributors } from './GithubTopContributors';
+import { GithubRepositoryIdentity } from './GithubRepositoryIdentity';
+import { GithubCommitActivity, type GithubCommitStats } from './GithubCommitActivity';
+import { GithubBranches } from './GithubBranches';
+import { GithubCommits } from './GithubCommits';
+import { GithubContributors } from './GithubContributors';
+import { GithubCollaborators } from './GithubCollaborators';
 import './github.css';
 
 type Repository = { fullName: string; defaultBranch: string; repositoryUrl: string; lastSyncedAt: string | null; githubRepositoryId: string };
-type Branch = { name: string; sha: string; protected: boolean };
-type Commit = { id: string; sha: string; message: string; authorName: string | null; committedAt: string; githubUrl: string | null };
+
+type Branch = { name: string; sha: string; protected: boolean; lastCommittedAt?: string | null };
+type Collaborator = {
+  login: string;
+  avatarUrl: string;
+  profileUrl: string;
+  role: string;
+  isOwner: boolean;
+};
+type Contributor = {
+  login: string;
+  avatarUrl: string;
+  profileUrl: string;
+  contributions: number;
+  isOwner: boolean;
+};
+type Commit = { id: string; sha: string; message: string; authorGithubUserId: string | null; authorName: string | null; committedAt: string; githubUrl: string | null };
 type CommitPage = { items: Commit[]; total: number; page: number; limit: number };
 
 export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
   pageHeading: PageHeading; path: string; workspaceId: string; token: string | null; owner: boolean;
 }) {
-  const [tab, setTab] = useState('Repository');
+  const [tab, setTab] = useState<GithubTabName>('Repository');
   const [repository, setRepository] = useState<Repository | null>();
   const [setupId, setSetupId] = useState(() => new URLSearchParams(location.hash.slice(1)).get('github-setup') ?? '');
   const [choices, setChoices] = useState<Repository[]>();
@@ -24,7 +50,24 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const dailyStats = useWorkspaceData<GithubCommitStats>(
+    path + '/statistics/commits',
+    repository ? token : null
+  );
+
   const branches = useWorkspaceCollection<Branch>(path + '/branches', repository && tab === 'Branches' ? token : null);
+
+  const contributors = useWorkspaceCollection<Contributor>(
+    path + '/contributors',
+    repository && (tab === 'Repository' || tab === 'Contributors')
+      ? token
+      : null
+  );
+
+  const collaborators = useWorkspaceCollection<Collaborator>(
+    path + '/collaborators',
+    repository && owner && (tab === 'Repository' || tab === 'Collaborators') ? token : null
+  );
 
   useEffect(() => {
     if (!setupId) return;
@@ -65,17 +108,24 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
   }, [token, setupId, workspaceId]);
 
   useEffect(() => {
-    if (!token || !repository || tab !== 'Commits') return;
+    if (
+      !token ||
+      !repository ||
+      (tab !== 'Commits' && tab !== 'Repository')
+    ) return;
     const controller = new AbortController();
-    void workspaceRequest(path + '/commits?page=' + page, token, { signal: controller.signal })
+    void workspaceRequest(path + '/commits?page=' + (tab === 'Repository' ? 1 : page), token, { signal: controller.signal })
       .then(response => response.json())
       .then(result => { if (!controller.signal.aborted) setCommitPage(result); })
       .catch(error => { if (!controller.signal.aborted) setError(error.message); });
     return () => controller.abort();
   }, [token, path, page, repository, tab, attempt]);
 
-  async function action(kind: 'authorize' | 'connect' | 'sync', repositoryId?: string) {
+  async function action(kind: 'authorize' | 'connect' | 'sync' | 'disconnect', repositoryId?: string) {
     if (!token || busy || !owner) return;
+    if (kind === 'disconnect' && !window.confirm(
+      `Disconnect ${repository?.fullName ?? 'this repository'}? This will not delete it from GitHub.`
+    )) return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -88,9 +138,17 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
         setSetupId('');
         setChoices(undefined);
         setNotice('Repository connected.');
+      } else if (kind === 'disconnect') {
+        await workspaceRequest(path + '/repository', token, { method: 'DELETE' });
+        setRepository(null);
+        setCommitPage(undefined);
+        setPage(1);
+        setTab('Repository');
+        setNotice('Repository disconnected. You can connect another repository.');
       } else {
         await workspaceRequest(path + '/sync', token, { method: 'POST' });
         setNotice('Repository synced.');
+        dailyStats.retry();
         if (tab === 'Branches') branches.retry();
       }
       setAttempt(value => value + 1);
@@ -107,7 +165,7 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
   }
 
   return <>
-    {pageHeading(repository && owner && <button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={() => void action('sync')}><RefreshCw size={15} />{busy ? 'Syncing…' : 'Sync commits'}</button>)}
+    {!repository && pageHeading()}
     {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Refresh</button></p>}
     {notice && <p role="status">{notice}</p>}
     {setupId ? <Panel className="wu-content-panel">
@@ -120,21 +178,191 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
       : !repository ? <Panel className="wu-content-panel"><h2>No repository connected</h2><p>Connect a public GitHub repository to browse branches and commits.</p>
         {owner && <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={() => void action('authorize')}><workspaceIcons.github size={16} />Connect GitHub</button>}</Panel>
       : <>
-        <FilterChips items={['Repository', 'Branches', 'Commits']} active={tab} onChange={setTab} />
+        <GithubHeader
+          repositoryUrl={repository.repositoryUrl}
+          owner={owner}
+          busy={busy}
+          onSync={() => void action('sync')}
+          onDisconnect={() => void action('disconnect')}
+        />
+        <GithubTabs active={tab} owner={owner} onChange={setTab} />
         <Panel className="wu-content-panel">
-          {tab === 'Repository' && <><h2><a href={repository.repositoryUrl} target="_blank" rel="noreferrer">{repository.fullName}</a></h2>
-            <p>Default branch: {repository.defaultBranch}</p><p>{repository.lastSyncedAt ? 'Last synced ' + new Date(repository.lastSyncedAt).toLocaleString() : 'No commits synced yet.'}</p></>}
-          {tab === 'Branches' && <><h2>Branches</h2>{branches.error ? <p role="alert">Could not load branches. <button type="button" onClick={branches.retry}>Try again</button></p>
-            : !branches.items ? <p role="status">Loading branches…</p> : !branches.items.length ? <p>No branches found.</p>
-            : <ul>{branches.items.map(branch => <li key={branch.name}>{branch.name}{branch.protected ? ' · Protected' : ''}</li>)}</ul>}</>}
-          {tab === 'Commits' && <><h2>Commits</h2>{!commitPage ? <p role="status">Loading commits…</p> : !commitPage.items.length ? <p>No commits synced yet.</p>
-            : <ul>{commitPage.items.map(commit => <li key={commit.id}>
-              {commit.githubUrl ? <a href={commit.githubUrl} target="_blank" rel="noreferrer">{commit.message}</a> : commit.message}
-              <p className="wu-muted">{commit.sha.slice(0, 7)} · {commit.authorName ?? 'Unknown author'} · {new Date(commit.committedAt).toLocaleDateString()}</p>
-            </li>)}</ul>}
-            <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" disabled={page <= 1 || commitPage?.page !== page} onClick={() => setPage(page - 1)}>Previous</button>
-              <button className="wu-button wu-button--secondary" disabled={!commitPage || commitPage.page !== page || page * commitPage.limit >= commitPage.total} onClick={() => setPage(page + 1)}>Next</button></div></>}
+          {tab === 'Repository' && (
+            <div className="wu-github-overview">
+              <GithubRepositoryIdentity
+                fullName={repository.fullName}
+                repositoryUrl={repository.repositoryUrl}
+                defaultBranch={repository.defaultBranch}
+                lastSyncedAt={repository.lastSyncedAt}
+              />
+
+              <GithubCommitActivity
+                stats={dailyStats.data}
+                error={
+                  dailyStats.error
+                    ? dailyStats.errorMessage
+                    : undefined
+                }
+                onRetry={dailyStats.retry}
+              />
+            </div>
+          )}
+
+          {tab === 'Branches' && (
+            branches.error ? (
+              <p role="alert">
+                Could not load branches.
+                <button
+                  type="button"
+                  onClick={branches.retry}
+                >
+                  Try again
+                </button>
+              </p>
+            ) : !branches.items ? (
+              <p role="status">Loading branches…</p>
+            ) : !branches.items.length ? (
+              <p>No branches found.</p>
+            ) : (
+              <GithubBranches
+                branches={branches.items}
+                defaultBranch={repository.defaultBranch}
+                repositoryUrl={repository.repositoryUrl}
+              />
+            )
+          )}
+
+          {tab === 'Contributors' && (
+            contributors.error ? (
+              <p role="alert">
+                Could not load contributors: {contributors.errorMessage}
+                <button
+                  type="button"
+                  onClick={contributors.retry}
+                >
+                  Try again
+                </button>
+              </p>
+            ) : !contributors.items ? (
+              <p role="status">Loading contributors…</p>
+            ) : (
+              <GithubContributors
+                contributors={contributors.items}
+              />
+            )
+          )}
+
+          {tab === 'Collaborators' && owner && (
+            collaborators.error ? (
+              <p role="alert">
+                Could not load collaborators: {collaborators.errorMessage}
+                <button
+                  type="button"
+                  onClick={collaborators.retry}
+                >
+                  Try again
+                </button>
+              </p>
+            ) : !collaborators.items ? (
+              <p role="status">Loading collaborators…</p>
+            ) : (
+              <GithubCollaborators
+                collaborators={collaborators.items}
+              />
+            )
+          )}
+
+          {tab === 'Commits' && (
+            <>
+              {!commitPage || commitPage.page !== page ? (
+                <p role="status">Loading commits…</p>
+              ) : (
+                <GithubCommits
+                  commits={commitPage.items}
+                  defaultBranch={repository.defaultBranch}
+                />
+              )}
+
+              <nav
+                className="wu-gcommits-pagination"
+                aria-label="Commit pagination"
+              >
+                <button
+                  type="button"
+                  className="wu-button wu-button--secondary"
+                  disabled={
+                    page <= 1 ||
+                    commitPage?.page !== page
+                  }
+                  onClick={() => setPage(value => value - 1)}
+                >
+                  Previous
+                </button>
+
+                <span>Page {page}</span>
+
+                <button
+                  type="button"
+                  className="wu-button wu-button--secondary"
+                  disabled={
+                    !commitPage ||
+                    commitPage.page !== page ||
+                    page * commitPage.limit >= commitPage.total
+                  }
+                  onClick={() => setPage(value => value + 1)}
+                >
+                  Next
+                </button>
+              </nav>
+            </>
+          )}
         </Panel>
+
+        {tab === 'Repository' && (
+          <div
+            className={
+              owner
+                ? 'wu-github-insights'
+                : 'wu-github-insights wu-github-insights--single'
+            }
+          >
+            {owner && (
+              <GithubDevelopmentNetwork
+            collaborators={collaborators.items}
+            error={
+              collaborators.error
+                ? collaborators.errorMessage
+                : undefined
+            }
+            onRetry={collaborators.retry}
+            onViewAll={() => setTab('Collaborators')}
+          />
+            )}
+
+            <GithubRecentCommits
+              commits={
+                commitPage?.page === 1
+                  ? commitPage.items
+                  : undefined
+              }
+              onViewAll={() => {
+                setPage(1);
+                setTab('Commits');
+              }}
+            />
+
+            <GithubTopContributors
+              contributors={contributors.items}
+              error={
+                contributors.error
+                  ? contributors.errorMessage
+                  : undefined
+              }
+              onRetry={contributors.retry}
+              onViewAll={() => setTab('Contributors')}
+            />
+          </div>
+        )}
       </>}
   </>;
 }
