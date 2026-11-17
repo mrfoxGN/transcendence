@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -17,7 +18,11 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { ConnectRepositoryDto } from '../dto/connect-repository.dto';
 import { ConnectedRepositoryResponseDto } from '../dto/connected-repository-response.dto';
-import type { PublicGitHubBranch } from '../services/github-api.service';
+import type {
+  PublicGitHubBranch,
+  PublicGitHubContributor,
+  PublicGitHubCollaborator,
+} from '../services/github-api.service';
 import { GitHubService } from '../services/github.service';
 import { GitHubSyncService } from '../services/github-sync.service';
 import type { GitHubSyncResult } from '../services/github-sync.service';
@@ -63,12 +68,34 @@ export class WorkspaceGitHubController {
     );
   }
 
+  @Delete('repository')
+  disconnectRepository(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.githubService.disconnectRepository(
+      workspaceId,
+      request.user.id,
+    );
+  }
+
   @Post('sync')
   syncRepository(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<GitHubSyncResult> {
     return this.githubSyncService.syncRepository(workspaceId, request.user.id);
+  }
+
+  @Get('statistics/commits')
+  getDailyCommitStatistics(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.githubService.getDailyCommitStatistics(
+      workspaceId,
+      request.user.id,
+    );
   }
 
   @Get('commits')
@@ -83,6 +110,28 @@ export class WorkspaceGitHubController {
       request.user.id,
       page === undefined ? 1 : Number(page),
       limit === undefined ? 20 : Number(limit),
+    );
+  }
+
+  @Get('collaborators')
+  listCollaborators(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<PublicGitHubCollaborator[]> {
+    return this.githubService.listWorkspaceCollaborators(
+      workspaceId,
+      request.user.id,
+    );
+  }
+
+  @Get('contributors')
+  listContributors(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<PublicGitHubContributor[]> {
+    return this.githubService.listWorkspaceContributors(
+      workspaceId,
+      request.user.id,
     );
   }
 

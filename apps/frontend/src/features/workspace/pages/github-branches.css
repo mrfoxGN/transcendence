@@ -1,0 +1,427 @@
+/* DevUP — GitHub Branches Table */
+
+.wu-gbranches {
+  --gb-blue: #72a6ff;
+  --gb-green: #55d6a0;
+
+  width: 100%;
+  min-width: 0;
+  color: var(--wu-ink);
+}
+
+/* Header */
+
+.wu-gbranches__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  padding: 15px 5px 27px;
+}
+
+.wu-gbranches__heading {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+}
+
+.wu-gbranches__heading-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: rgb(114 166 255 / 12%);
+  color: var(--gb-blue);
+}
+
+.wu-gbranches__heading h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+}
+
+.wu-gbranches__heading p {
+  margin: 7px 0 0;
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+/* Filters */
+
+.wu-gbranches__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.wu-gbranches__filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--wu-line);
+  border-radius: 9px;
+  background: rgb(114 166 255 / 4%);
+  color: var(--wu-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wu-gbranches__filter strong {
+  color: var(--wu-ink);
+  font-size: 13px;
+}
+
+.wu-gbranches__filter svg {
+  color: var(--gb-blue);
+}
+
+.wu-gbranches__filter:nth-child(2) svg {
+  color: var(--gb-green);
+}
+
+.wu-gbranches__filter:hover,
+.wu-gbranches__filter.is-active {
+  border-color: rgb(114 166 255 / 45%);
+  background: rgb(114 166 255 / 11%);
+  color: var(--wu-ink);
+}
+
+/* Table */
+
+.wu-gbranches__table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--wu-line);
+  border-radius: 12px;
+}
+
+.wu-gbranches__table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.wu-gbranches__table thead {
+  background: rgb(114 166 255 / 4%);
+}
+
+.wu-gbranches__table th {
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--wu-line);
+  color: var(--wu-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wu-gbranches__table td {
+  padding: 14px 17px;
+  border-bottom: 1px solid var(--wu-line);
+  color: var(--wu-ink);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.wu-gbranches__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.wu-gbranches__table tbody tr {
+  background: transparent;
+}
+
+.wu-gbranches__table tbody tr:hover {
+  background: rgb(114 166 255 / 5%);
+}
+
+/* Highlight default branch */
+
+.wu-gbranches__table
+tr.wu-gbranches__row--default {
+  background: rgb(65 126 242 / 11%);
+}
+
+.wu-gbranches__table
+tr.wu-gbranches__row--default td {
+  border-top: 1px solid rgb(114 166 255 / 35%);
+  border-bottom: 1px solid rgb(114 166 255 / 35%);
+}
+
+/* Branch identity */
+
+.wu-gbranches__branch {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.wu-gbranches__branch > svg {
+  flex: 0 0 auto;
+  color: var(--gb-blue);
+}
+
+.wu-gbranches__branch strong {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wu-gbranches__default {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 15px;
+  background: #347beb;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Commit SHA */
+
+.wu-gbranches__sha {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--wu-line);
+  border-radius: 8px;
+  background: rgb(114 166 255 / 7%);
+  color: var(--wu-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.wu-gbranches__sha code {
+  font-size: 12px;
+}
+
+.wu-gbranches__sha svg {
+  color: var(--gb-blue);
+}
+
+.wu-gbranches__sha:hover {
+  border-color: rgb(114 166 255 / 45%);
+}
+
+/* Date */
+
+.wu-gbranches__date {
+  color: var(--wu-ink);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wu-gbranches__date-muted {
+  color: var(--wu-muted);
+}
+
+/* Protection */
+
+.wu-gbranches__protected {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gb-green);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wu-gbranches__unprotected {
+  color: var(--wu-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* GitHub link */
+
+.wu-gbranches__external {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border-radius: 7px;
+  color: var(--wu-muted);
+}
+
+.wu-gbranches__external:hover {
+  background: rgb(114 166 255 / 10%);
+  color: var(--gb-blue);
+}
+
+/* Footer */
+
+.wu-gbranches__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 22px 5px 10px;
+}
+
+.wu-gbranches__footer > span {
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+.wu-gbranches__pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.wu-gbranches__pagination button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--wu-line);
+  border-radius: 8px;
+  background: var(--wu-surface);
+  color: var(--wu-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.wu-gbranches__pagination button.is-active {
+  border-color: var(--gb-blue);
+  background: #347beb;
+  color: white;
+}
+
+.wu-gbranches__pagination button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+/* Empty state */
+
+.wu-gbranches__empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 55px 20px;
+  color: var(--wu-muted);
+  text-align: center;
+}
+
+.wu-gbranches__empty svg {
+  color: var(--gb-green);
+}
+
+.wu-gbranches__empty strong {
+  color: var(--wu-ink);
+  font-size: 14px;
+}
+
+.wu-gbranches__empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.wu-gbranches__empty button {
+  margin-top: 8px;
+  padding: 9px 13px;
+  border: 1px solid rgb(114 166 255 / 35%);
+  border-radius: 8px;
+  background: rgb(114 166 255 / 10%);
+  color: var(--gb-blue);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Notes and feedback */
+
+.wu-gbranches__note {
+  margin: 15px 5px 0;
+  color: var(--wu-muted);
+  font-size: 11px;
+}
+
+.wu-gbranches__error {
+  color: var(--wu-red, #ff8585);
+  font-size: 12px;
+}
+
+.wu-gbranches__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* Keyboard focus */
+
+.wu-gbranches button:focus-visible,
+.wu-gbranches a:focus-visible {
+  outline: 2px solid var(--gb-blue);
+  outline-offset: 3px;
+}
+
+/* Responsive */
+
+@media (max-width: 760px) {
+  .wu-gbranches__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wu-gbranches__table {
+    min-width: 760px;
+  }
+
+  .wu-gbranches__footer {
+    align-items: flex-start;
+  }
+}
+
+/* Branch GitHub navigation */
+
+.wu-gbranches__view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 125px;
+  padding: 9px 13px;
+  border: 1px solid rgb(114 166 255 / 30%);
+  border-radius: 8px;
+  background: rgb(114 166 255 / 7%);
+  color: var(--wu-ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.wu-gbranches__view svg {
+  color: var(--gb-blue);
+}
+
+.wu-gbranches__view:hover {
+  border-color: rgb(114 166 255 / 60%);
+  background: rgb(114 166 255 / 13%);
+}
+
+.wu-gbranches__view:focus-visible {
+  outline: 2px solid var(--gb-blue);
+  outline-offset: 3px;
+}

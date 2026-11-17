@@ -159,9 +159,14 @@ describe('GitHubSyncService', () => {
     expect(result.fetchedCommits).toBe(1);
     expect(result.storedCommits).toBe(1);
     expect(result.lastSyncedAt).toBeInstanceOf(Date);
-    expect(activities.create).toHaveBeenCalledWith(expect.objectContaining({
-      workspaceId, actorUserId: userId, actionType: 'GITHUB_SYNC_COMPLETED', resourceId: repositoryId,
-    }));
+    expect(activities.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'GITHUB_SYNC_COMPLETED',
+        resourceId: repositoryId,
+      }),
+    );
   });
 
   it('verifies workspace membership', async () => {
@@ -221,7 +226,7 @@ describe('GitHubSyncService', () => {
   });
 
   it('handles repositories without commits', async () => {
-    githubApiService.listRecentCommits.mockResolvedValueOnce([]);
+    githubApiService.listRecentCommits.mockResolvedValue([]);
     manager.count.mockResolvedValueOnce(0);
 
     const result = await sync();
@@ -320,7 +325,7 @@ describe('GitHubSyncService', () => {
     expect(firstResult).toEqual(secondResult);
     expect(workspacesService.findOneForUser).toHaveBeenCalledTimes(2);
     expect(githubApiService.getPublicRepository).toHaveBeenCalledTimes(1);
-    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(1);
+    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(2);
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
   });
 
@@ -377,7 +382,7 @@ describe('GitHubSyncService', () => {
 
     await authorizedRequest;
 
-    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(1);
+    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(2);
   });
 
   it('uses decrypted OAuth credentials for GitHub requests', async () => {
@@ -411,5 +416,32 @@ describe('GitHubSyncService', () => {
 
     expect(githubTokenCryptoService.decrypt).not.toHaveBeenCalled();
     expect(githubApiService.getPublicRepository).not.toHaveBeenCalled();
+  });
+
+  it('merges recent and weekly commits without duplicates', async () => {
+    const weeklyCommit = {
+      ...commit,
+      sha: 'b'.repeat(40),
+    };
+
+    githubApiService.listRecentCommits
+      .mockResolvedValueOnce([commit])
+      .mockResolvedValueOnce([commit, weeklyCommit]);
+
+    const result = await sync();
+
+    expect(result.fetchedCommits).toBe(2);
+    expect(githubApiService.listRecentCommits).toHaveBeenCalledTimes(2);
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not persist partial data if weekly synchronization fails', async () => {
+    githubApiService.listRecentCommits
+      .mockResolvedValueOnce([commit])
+      .mockRejectedValueOnce(new Error('Weekly synchronization failed'));
+
+    await expect(sync()).rejects.toThrow('Weekly synchronization failed');
+
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 });

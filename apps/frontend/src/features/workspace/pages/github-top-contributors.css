@@ -1,0 +1,124 @@
+/* Top Contributors */
+
+.wu-github-top-contributors {
+  min-width: 0;
+  min-height: 360px;
+  padding: 22px;
+  border: 1px solid var(--wu-line);
+  border-radius: 12px;
+  background: var(--wu-surface);
+}
+
+.wu-github-top-contributors__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.wu-github-top-contributors__heading h2 {
+  margin: 0;
+  color: var(--wu-ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.wu-github-top-contributors__heading p {
+  margin: 6px 0 0;
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+.wu-github-top-contributors__list {
+  display: grid;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wu-github-top-contributors__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wu-github-top-contributors__item img {
+  display: block;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.wu-github-top-contributors__details {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wu-github-top-contributors__name {
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--wu-ink);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wu-github-top-contributors__name:hover {
+  color: var(--wu-blue);
+}
+
+.wu-github-top-contributors__commits {
+  color: var(--wu-muted);
+  font-size: 11px;
+}
+
+.wu-github-top-contributors__track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--wu-surface-soft);
+}
+
+.wu-github-top-contributors__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--wu-blue);
+  transition: width 250ms ease;
+}
+
+.wu-github-top-contributors__percentage {
+  min-width: 38px;
+  color: var(--wu-ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.wu-github-top-contributors__note {
+  margin: 26px 0 0;
+  color: var(--wu-muted);
+  font-size: 11px;
+}
+
+.wu-github-top-contributors__state {
+  color: var(--wu-muted);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wu-github-top-contributors__track span {
+    transition: none;
+  }
+}
