@@ -17,9 +17,9 @@ export function requestedWorkspace() {
   return safeWorkspaceDestination(new URLSearchParams(location.search).get('next'));
 }
 
-export async function accountRequest(path: string, body?: object, token?: string) {
+export async function accountRequest(path: string, body?: object, token?: string, method: 'POST' | 'PATCH' = 'POST') {
   const response = await fetch('/api/auth/' + path, {
-    method: 'POST',
+    method,
     headers: {
       ...(body && { 'Content-Type': 'application/json' }),
       ...(token && { Authorization: 'Bearer ' + token }),
