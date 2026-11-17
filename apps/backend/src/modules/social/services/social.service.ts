@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { IsNull, QueryFailedError, Repository, In, Not, IsNull } from 'typeorm';
+import { IsNull, QueryFailedError, Repository, In, Not } from 'typeorm';
 
 import { UserStatus } from '../../../database/enums/database.enums';
 import { NotificationsService } from '../../notifications/services/notifications.service';
@@ -193,6 +193,47 @@ export class SocialService {
       );
     }
     this.directChatGateway.emitReadUpdated(userId);
+  }
+
+  async unreadCount(userId: string): Promise<number> {
+    const conversations = await this.conversationsRepository.find({
+      where: [
+        { userAId: userId },
+        { userBId: userId },
+      ],
+    });
+
+    if (conversations.length === 0) {
+      return 0;
+    }
+
+    const messages = await this.messagesRepository.find({
+      where: {
+        conversationId: In(conversations.map((conversation) => conversation.id)),
+        senderId: Not(userId),
+        deletedAt: IsNull(),
+      },
+      select: {
+        conversationId: true,
+        createdAt: true,
+      },
+    });
+
+    let count = 0;
+
+    for (const conversation of conversations) {
+      const lastReadAt =
+        conversation.userAId === userId
+          ? conversation.userALastReadAt
+          : conversation.userBLastReadAt;
+
+      count += messages.filter(
+        (message) =>
+          message.conversationId === conversation.id &&
+          (lastReadAt === null || message.createdAt > lastReadAt),
+      ).length;
+    }
+    return count;
   }
 
   async sendMessage(

@@ -79,4 +79,13 @@ export class SocialController {
   ): Promise<void> {
     return this.socialService.markRead(request.user.id, conversationId);
   }
+
+  @Get('unread-count')
+  async unreadCount(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<{ count: number }> {
+    return {
+      count: await this.socialService.unreadCount(request.user.id),
+    };
+  }
 }

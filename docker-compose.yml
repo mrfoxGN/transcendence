@@ -64,7 +64,7 @@ services:
       - .env
 
     ports:
-      - "${APP_PORT}:3000"
+      - "${APP_PORT:-3000}:3000"
 
     volumes:
       - ./apps/backend:/app
