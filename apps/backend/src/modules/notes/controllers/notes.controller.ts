@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
-  ParseIntPipe,
   Post,
   Query,
   Req,
@@ -22,7 +21,7 @@ import { CreateNoteDto } from '../dto/create-note.dto';
 import { ListNotesDto } from '../dto/list-notes.dto';
 import { NoteResponseDto } from '../dto/note-response.dto';
 import { NotesService } from '../services/notes.service';
-import { NoteRevisionDto, UpdateNoteDto } from '../dto/update-note.dto';
+import { UpdateNoteDto } from '../dto/update-note.dto';
 
 type AuthenticatedRequest = Request & {
   user: UserResponseDto;
