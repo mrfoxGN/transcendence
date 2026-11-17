@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { IsNull, QueryFailedError, Repository } from 'typeorm';
+import { IsNull, QueryFailedError, Repository, In, Not, IsNull } from 'typeorm';
 
 import { UserStatus } from '../../../database/enums/database.enums';
 import { NotificationsService } from '../../notifications/services/notifications.service';
@@ -108,6 +108,10 @@ export class SocialService {
 
     const conversations = await this.conversationsRepository.find({
       where: [{ userAId: userId }, { userBId: userId }],
+      relations: {
+        userA: true,
+        userB: true,
+      },
       order: {
         lastMessageAt: 'DESC',
         createdAt: 'DESC',
@@ -117,14 +121,49 @@ export class SocialService {
       take: limit,
     });
 
-    return conversations.map((conversation) =>
-      this.toConversationResponse(
-        conversation,
-        conversation.userAId === userId
-          ? conversation.userBId
-          : conversation.userAId,
-      ),
-    );
+    if (conversations.length === 0) {
+      return [];
+    }
+
+    const messages = await this.messagesRepository.find({
+      where: {
+        conversationId: In(conversations.map((conversation) => conversation.id)),
+        senderId: Not(userId),
+        deletedAt: IsNull(),
+      },
+      select: {
+        conversationId: true,
+        createdAt: true,
+      },
+    });
+
+    return conversations.map((conversation) => {
+      const isUserA = conversation.userAId === userId;
+
+      const otherUserId = isUserA
+        ? conversation.userBId
+        : conversation.userAId;
+
+      const otherUser = isUserA
+        ? conversation.userB
+        : conversation.userA;
+
+      const lastReadAt = isUserA
+        ? conversation.userALastReadAt
+        : conversation.userBLastReadAt;
+
+      const unreadCount = messages.filter(
+        (message) =>
+          message.conversationId === conversation.id &&
+          (lastReadAt === null || message.createdAt > lastReadAt),
+      ).length;
+
+      return {
+        ...this.toConversationResponse(conversation, otherUserId),
+        otherUsername: otherUser.username,
+        unreadCount,
+      };
+    });
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {
@@ -146,13 +185,14 @@ export class SocialService {
         { id: conversationId },
         { userALastReadAt: now, updatedAt: now },
       );
-      return;
     }
-
-    await this.conversationsRepository.update(
-      { id: conversationId },
-      { userBLastReadAt: now, updatedAt: now },
-    );
+    else{
+      await this.conversationsRepository.update(
+        { id: conversationId },
+        { userBLastReadAt: now, updatedAt: now },
+      );
+    }
+    this.directChatGateway.emitReadUpdated(userId);
   }
 
   async sendMessage(
@@ -179,6 +219,22 @@ export class SocialService {
         ) {
           throw new NotFoundException('Conversation not found');
         }
+        
+        let replyTo: DirectMessage | null = null;
+
+        if (dto.replyToId) {
+          replyTo = await manager.findOne(DirectMessage, {
+            where: {
+              id: dto.replyToId,
+              conversationId,
+              deletedAt: IsNull(),
+            },
+          });
+        
+          if (!replyTo) {
+            throw new BadRequestException('Invalid reply message');
+          }
+        }
 
         const now = new Date();
 
@@ -187,6 +243,7 @@ export class SocialService {
           conversationId,
           senderId,
           content,
+          replyToId: replyTo?.id ?? null,
           createdAt: now,
           editedAt: null,
           deletedAt: null,
@@ -209,6 +266,15 @@ export class SocialService {
             senderId: saved.senderId,
             content: saved.content,
             createdAt: saved.createdAt,
+            ...(replyTo ? {
+                  reply: {
+                    id: replyTo.id,
+                    senderId: replyTo.senderId,
+                    preview: replyTo.content.slice(0, 100),
+                    unavailable: false,
+                  },
+                }
+              : {}),
           },
         };
       },
