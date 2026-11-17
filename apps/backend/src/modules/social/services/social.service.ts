@@ -389,6 +389,9 @@ export class SocialService {
         conversationId,
         deletedAt: IsNull(),
       },
+      relations: {
+        replyTo: true,
+      },
       order: {
         createdAt: 'DESC',
         id: 'DESC',
@@ -403,6 +406,19 @@ export class SocialService {
       senderId: message.senderId,
       content: message.content,
       createdAt: message.createdAt,
+      ...(message.replyToId ? {
+            reply: {
+              id: message.replyToId,
+              senderId:
+                message.replyTo && !message.replyTo.deletedAt
+                  ? message.replyTo.senderId : null,
+              preview:
+                message.replyTo && !message.replyTo.deletedAt
+                  ? message.replyTo.content.slice(0, 100) : '',
+              unavailable:
+                !message.replyTo || message.replyTo.deletedAt !== null,
+            },
+          } : {}),
     }));
   }
 
