@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateWorkspaceInvitationDto {
   @IsOptional()
@@ -8,4 +8,10 @@ export class CreateWorkspaceInvitationDto {
   @IsOptional()
   @IsEmail()
   invitedEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  invitedUsername?: string;
 }

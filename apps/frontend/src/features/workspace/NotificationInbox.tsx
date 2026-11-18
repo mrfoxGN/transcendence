@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type Ref } from 'react';
-import { Bell, Settings2 } from 'lucide-react';
+import { Bell, Settings2, Users, Check, X, CheckCircle2 } from 'lucide-react';
 import { jsonRequest, workspaceRequest } from './workspace-api';
 
 const preferenceLabels = { assignments: 'Task assignments', mentions: 'Mentions', comments: 'Comments on watched tasks', status: 'Task status changes' };
@@ -12,6 +12,30 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
   token: string | null; workspaceId?: string; triggerRef?: Ref<HTMLButtonElement>; showBadge?: boolean;
 }) {
   const id = useId();
+  const [panelPosition, setPanelPosition] = useState({
+    left: 12,
+    top: 68,
+  });
+
+  function positionPanel(trigger: HTMLElement) {
+    const rect = trigger.getBoundingClientRect();
+
+    const width = Math.min(430, window.innerWidth - 24);
+
+    const left = Math.max(
+      12,
+      Math.min(
+        rect.right - width,
+        window.innerWidth - width - 12,
+      ),
+    );
+
+    setPanelPosition({
+      left,
+      top: rect.bottom + 10,
+    });
+  }
+
   const [updates, setUpdates] = useState<Update[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +45,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
   const [more, setMore] = useState(false);
   const [category, setCategory] = useState('');
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [preferences, setPreferences] = useState<Preferences>();
   const [preferenceBusy, setPreferenceBusy] = useState(false);
   const [preferenceError, setPreferenceError] = useState('');
@@ -133,21 +158,40 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
   }
 
   const visible = updates.filter(update => !unreadOnly || !update.readAt);
+  const displayedNotifications = showAllNotifications
+    ? visible
+    : visible.slice(0, 2);
   const today = new Date().toDateString();
   const previousDay = new Date();
   previousDay.setDate(previousDay.getDate() - 1);
   const yesterday = previousDay.toDateString();
   const groups = [
-    { label: 'Today', items: visible.filter(update => new Date(update.createdAt).toDateString() === today) },
-    { label: 'Yesterday', items: visible.filter(update => new Date(update.createdAt).toDateString() === yesterday) },
-    { label: 'Earlier', items: visible.filter(update => ![today, yesterday].includes(new Date(update.createdAt).toDateString())) },
+    { label: 'Today', items: displayedNotifications.filter(update => new Date(update.createdAt).toDateString() === today) },
+    { label: 'Yesterday', items: displayedNotifications.filter(update => new Date(update.createdAt).toDateString() === yesterday) },
+    { label: 'Earlier', items: displayedNotifications.filter(update => ![today, yesterday].includes(new Date(update.createdAt).toDateString())) },
   ];
   return <>
     <button ref={triggerRef} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={showBadge && count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
-      onClick={() => { if (!document.getElementById(id)?.matches(':popover-open')) void refresh(); }}><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
-    <section id={id} popover="auto" className="wu-inbox" aria-label="Notifications" aria-busy={busy}>
+      onClick={event => {
+        positionPanel(event.currentTarget);
+        if (!document.getElementById(id)?.matches(':popover-open')) {
+          void refresh();
+        }
+      }}><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
+    <section id={id} popover="auto" className="wu-inbox"
+      aria-label="Notifications"
+      aria-busy={busy}
+      style={{
+        left: panelPosition.left,
+        top: panelPosition.top,
+        right: 'auto',
+        bottom: 'auto',
+      }}>
       <div className="wu-panel-heading">
-        <h2>Notifications</h2>
+        <div className="wu-inbox-title">
+          <h2>Notifications</h2>
+          <p>Stay updated on your workspaces</p>
+        </div>
         <div className="wu-inbox-actions">
           <button className="wu-text-button" type="button" disabled={busy || !count} onClick={() => void refresh('all')}>Mark all as read</button>
           <button className="wu-icon-button" type="button" aria-label="Notification preferences" aria-expanded={showPreferences}
@@ -162,7 +206,8 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
           <input type="checkbox" checked={preferences[key]} onChange={event => void savePreference(key, event.currentTarget.checked)} /> {preferenceLabels[key]}
         </label>)}
       </fieldset>}
-      <div className="wu-inbox-filters">
+      {showPreferences && (
+<div className="wu-inbox-filters">
       <select aria-label="Notification category" value={category} disabled={busy} onChange={event => {
         const value = event.currentTarget.value;
         setCategory(value);
@@ -175,29 +220,158 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
       </select>
       <label className="wu-check-row"><input type="checkbox" checked={unreadOnly} disabled={busy} onChange={event => { const value = event.target.checked; setUnreadOnly(value); void refresh(undefined, 1, value); }} /> Unread only</label>
       </div>
+)}
       {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => void refresh()}>Refresh</button></p>}
       {busy && !updates.length && <p role="status">Loading notifications…</p>}
       {!busy && !error && !visible.length && <p className="wu-muted">{unreadOnly ? 'You’re all caught up.' : 'No notifications yet.'}</p>}
-      {groups.map(group => group.items.length > 0 && <section key={group.label}>
-        <h3>{group.label}</h3>
-        <ul>{group.items.map(update => <li key={update.id} data-unread={!update.readAt}>
-          <div>{update.message}<br /><time dateTime={update.createdAt}>{new Date(update.createdAt).toLocaleString()}</time></div>
-          <div>
-            {relatedLink(update) && <a className="wu-text-button" href={relatedLink(update)} onClick={event => {
-              if (update.readAt || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              event.preventDefault();
-              const href = event.currentTarget.href;
-              void request('/' + update.id + '/read', 'PATCH').finally(() => location.assign(href)).catch(() => {});
-            }}>Open</a>}
-            {update.type === 'WORKSPACE_INVITATION' && (update.invitationStatus !== 'PENDING' ? <p>{invitationLabels[update.invitationStatus ?? 'UNAVAILABLE']}</p> : <>
-              <button className="wu-text-button" type="button" disabled={busy} onClick={() => void respond(update, 'accept')}>Accept</button>
-              <button className="wu-text-button" type="button" disabled={busy} onClick={() => void respond(update, 'reject')}>Decline</button>
-            </>)}
-          {!update.readAt && <button className="wu-text-button" type="button" disabled={busy} onClick={() => void refresh(update.id)}>Mark as read</button>}
-          </div>
-        </li>)}</ul>
-      </section>)}
-      {more && <button className="wu-text-button" type="button" disabled={busy} onClick={() => void refresh(undefined, page + 1)}>Load more</button>}
+      {groups.map(group => group.items.length > 0 && (
+        <section key={group.label} className="wu-notification-group">
+          <h3>{group.label}</h3>
+
+          <ul className="wu-notification-list">
+            {group.items.map(update => {
+              const isInvitation = update.type === 'WORKSPACE_INVITATION';
+              const isPending = isInvitation && update.invitationStatus === 'PENDING';
+              const isAccepted = isInvitation && update.invitationStatus === 'ACCEPTED';
+              const link = relatedLink(update);
+
+              return (
+                <li
+                  key={update.id}
+                  className="wu-notification-card"
+                  data-unread={!update.readAt}
+                >
+                  <div className="wu-notification-content">
+                    <span
+                      className={
+                        'wu-notification-icon' +
+                        (isAccepted ? ' wu-notification-icon--success' : '')
+                      }
+                    >
+                      {isAccepted ? (
+                        <CheckCircle2 size={20} aria-hidden="true" />
+                      ) : (
+                        <Users size={20} aria-hidden="true" />
+                      )}
+                    </span>
+
+                    <div className="wu-notification-copy">
+                      <p>
+                        {isInvitation && update.invitationStatus === 'ACCEPTED'
+                          ? update.message.replace(
+                              /^You were invited to/,
+                              'You accepted the invitation to',
+                            )
+                          : isInvitation && update.invitationStatus === 'REJECTED'
+                            ? update.message.replace(
+                                /^You were invited to/,
+                                'You declined the invitation to',
+                              )
+                            : update.message}
+                      </p>
+                      <time dateTime={update.createdAt}>
+                        {new Date(update.createdAt).toLocaleString()}
+                      </time>
+
+                      {isInvitation && !isPending &&
+                        !['ACCEPTED', 'REJECTED'].includes(update.invitationStatus ?? '') && (
+                          <p className="wu-notification-status">
+                            {invitationLabels[update.invitationStatus ?? 'UNAVAILABLE']}
+                          </p>
+                        )}
+                    </div>
+
+                    {!update.readAt && (
+                      <span
+                        className="wu-notification-unread-dot"
+                        aria-label="Unread"
+                      />
+                    )}
+                  </div>
+
+                  <div className="wu-notification-actions">
+                    {isPending && (
+                      <>
+                        <button
+                          className="wu-notification-action wu-notification-action--accept"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void respond(update, 'accept')}
+                        >
+                          <Check size={15} aria-hidden="true" />
+                          Accept
+                        </button>
+
+                        <button
+                          className="wu-notification-action"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void respond(update, 'reject')}
+                        >
+                          <X size={15} aria-hidden="true" />
+                          Decline
+                        </button>
+                      </>
+                    )}
+
+                    {link && !(isInvitation && !isPending) && (
+                      <a
+                        className="wu-notification-action"
+                        href={link}
+                        onClick={event => {
+                          if (
+                            update.readAt ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          ) return;
+
+                          event.preventDefault();
+                          const href = event.currentTarget.href;
+
+                          void request('/' + update.id + '/read', 'PATCH')
+                            .finally(() => location.assign(href))
+                            .catch(() => {});
+                        }}
+                      >
+                        Open
+                      </a>
+                    )}
+
+                    {!update.readAt && (
+                      <button
+                        className="wu-text-button wu-notification-secondary"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void refresh(update.id)}
+                      >
+                        Mark as read
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+      <div className="wu-inbox-footer">
+        <button
+          type="button"
+          className="wu-inbox-view-all"
+          onClick={() => setShowAllNotifications(value => !value)}
+        >
+          {showAllNotifications
+            ? 'Show fewer notifications'
+            : 'View all notifications'}
+          <span aria-hidden="true">
+            {showAllNotifications ? '↑' : '→'}
+          </span>
+        </button>
+      </div>
+
+      {showAllNotifications && more && <button className="wu-text-button" type="button" disabled={busy} onClick={() => void refresh(undefined, page + 1)}>Load more</button>}
     </section>
   </>;
 }

@@ -370,25 +370,29 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (archived || submittingModal.current || taskSaving || !token) return;
-    const invitedEmail = String(new FormData(event.currentTarget).get('email')).trim();
+    const identifier = String(new FormData(event.currentTarget).get('identifier')).trim();
+    if (!identifier) return;
+    const invitationPayload = identifier.includes('@')
+      ? { invitedEmail: identifier }
+      : { invitedUsername: identifier };
     submittingModal.current = true;
     setTaskSaving(true);
     setTaskError('');
     try {
-      const response = await workspaceRequest(workspacePath + '/invitations', token, jsonRequest('POST', { invitedEmail }));
+      const response = await workspaceRequest(workspacePath + '/invitations', token, jsonRequest('POST', invitationPayload));
       setInviteDelivery(await response.json() as TeamInvitation);
       invitations.retry();
       setModal(null);
     } catch (error) {
       switch (error instanceof WorkspaceRequestError ? error.message : '') {
         case 'Pending invitation already exists':
-          setTaskError('This person already has an invitation. Use Resend invitation in the Team list.');
+          setTaskError('This user already has a pending invitation. You can revoke it from the Team page if needed.');
           break;
         case 'User is already a workspace member':
           setTaskError('This person is already a workspace member. You can find them in the Team list.');
           break;
         default:
-          setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not send the invitation. Try again.');
+          setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not create the invitation. Try again.');
       }
     } finally {
       submittingModal.current = false;
@@ -702,11 +706,11 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <button className="wu-button wu-button--primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Creating…' : 'Create task'}</button>
       </div>
     </form> : <form onSubmit={submitInvite}>
-      <label className="wu-field-label">Email address
-        <input autoFocus name="email" type="email" placeholder="name@company.com" required readOnly={taskSaving}
+      <label className="wu-field-label">Username or email address
+        <input autoFocus name="identifier" type="text" placeholder="Enter username or email" required readOnly={taskSaving}
           aria-describedby="invite-email-help" />
       </label>
-      <p id="invite-email-help" className="wu-muted">They can sign in or create an account with this email. The invitation expires in seven days.</p>
+      <p id="invite-email-help" className="wu-muted">Enter the email of an existing DevUP user. They'll receive an in-app invitation and can accept or decline.</p>
       {taskError && <p role="alert">{taskError}</p>}
       <div className="wu-modal-actions">
         <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>
