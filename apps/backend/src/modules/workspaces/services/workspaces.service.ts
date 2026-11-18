@@ -13,6 +13,7 @@ import {
   TaskStatus, InvitationStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService, activityEntry, recordActivity } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
+import { Notification } from '../../notifications/entities/notification.entity';
 import { UsersService } from '../../users/services/users.service';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssignment } from '../../tasks/entities/task-assignment.entity';
@@ -376,9 +377,6 @@ export class WorkspacesService {
     currentUserId: string,
     dto: CreateWorkspaceInvitationDto,
   ): Promise<WorkspaceInvitationResponseDto> {
-    if (dto.invitedEmail && !dto.invitedUserId) {
-      return this.issueEmailInvitation(workspaceId, currentUserId, dto.invitedEmail.trim().toLowerCase());
-    }
     const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
@@ -397,11 +395,42 @@ export class WorkspacesService {
     }
 
     assertWorkspaceWritable(workspace);
-    if (!dto.invitedUserId || dto.invitedEmail) {
-      throw new BadRequestException('Provide one user ID or email address');
+
+    const provided = [
+      dto.invitedUserId,
+      dto.invitedEmail,
+      dto.invitedUsername,
+    ].filter(value => value !== undefined && value !== null);
+
+    if (provided.length !== 1) {
+      throw new BadRequestException(
+        'Provide exactly one user ID, email address, or username',
+      );
+    }
+
+    if (dto.invitedEmail || dto.invitedUsername) {
+      const user = dto.invitedEmail
+        ? await this.usersService.findByEmail(
+            dto.invitedEmail.trim().toLowerCase(),
+          )
+        : await this.usersService.findByUsername(
+            dto.invitedUsername!.trim(),
+          );
+
+      if (!user) {
+        throw new NotFoundException('No registered DevUP user found');
+      }
+
+      return this.createInvitation(workspaceId, currentUserId, {
+        invitedUserId: user.id,
+      });
     }
 
     const invitedUserId = dto.invitedUserId;
+
+    if (!invitedUserId) {
+      throw new BadRequestException('A valid user ID is required');
+    }
 
     if (invitedUserId === currentUserId) {
       throw new BadRequestException('Workspace owner cannot invite themselves');
@@ -451,26 +480,24 @@ export class WorkspacesService {
       createdAt: new Date(),
     });
 
-    const savedInvitation = await invitationRepository.save(invitation);
+    const savedInvitation = await this.dataSource.transaction(async manager => {
+      const saved = await manager.save(WorkspaceInvitation, invitation);
 
-    try {
-      await this.notificationsService.createForUser({
+      await manager.save(Notification, {
+        id: randomUUID(),
         userId: invitedUserId,
         workspaceId,
         type: 'WORKSPACE_INVITATION',
         message: `You were invited to ${workspace.name}`,
         relatedResourceType: 'workspace_invitation',
-        relatedResourceId: savedInvitation.id,
-        payload: {
-          invitedById: currentUserId,
-        },
+        relatedResourceId: saved.id,
+        payload: { invitedById: currentUserId },
+        createdAt: new Date(),
+        readAt: null,
       });
-    } catch (error) {
-      this.logger.error(
-        `Failed to create workspace invitation notification for user ${invitedUserId}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-    }
+
+      return saved;
+    });
 
     await this.auditHistory(workspaceId, currentUserId, 'AUDIT_INVITATION_CREATED', 'workspace_invitation', savedInvitation.id);
     return WorkspaceInvitationMapper.toResponse(savedInvitation);

@@ -87,14 +87,14 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
     </Panel>
     {owner && <Panel className="wu-content-panel">
       <h2>Invitations</h2>
-      {!archived && delivery?.delivery === 'link' && delivery.invitePath && <div>
-        <p role="status">Email delivery is unavailable. Share this link with {delivery.invitedEmail}.</p>
-        <label className="wu-field-label">Invitation link
-          <input readOnly value={new URL(delivery.invitePath, location.origin).href} onFocus={event => event.currentTarget.select()} />
-        </label>
-        <button className="wu-text-button" type="button" onClick={() => onDelivery()}>Dismiss</button>
-      </div>}
-      {delivery?.delivery === 'sent' && <p role="status">Invitation email sent to {delivery.invitedEmail}.</p>}
+      {!archived && delivery && (
+        <div role="status" className="wu-invitation-success">
+          <p>Invitation created successfully. The registered DevUP user can accept or decline it from their notifications.</p>
+          <button className="wu-text-button" type="button" onClick={() => onDelivery()}>
+            Dismiss
+          </button>
+        </div>
+      )}
       {!confirmation && error && <p role="alert">{error}</p>}
       {invitations.error ? <p role="alert">Could not load invitations. <button type="button" className="wu-text-button" onClick={invitations.retry}>Try again</button></p>
         : !invitations.items ? <LoadingPanel label="Loading invitations" />
@@ -103,11 +103,7 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
           <span>{invitation.invitedEmail ?? 'DevUP user'} · {statuses[invitation.status]}
             {invitation.status === 'PENDING' && invitation.expiresAt && ' · Expires ' + new Date(invitation.expiresAt).toLocaleDateString()}</span>
           {(invitation.status === 'PENDING' || invitation.status === 'EXPIRED') && <ActionMenu label={'Invitation actions for ' + (invitation.invitedEmail ?? 'DevUP user')} actions={[
-            ...(!archived && invitation.invitedEmail ? [{ label: 'Resend invitation', run: () => void runAction(async () => {
-              const result = await workspaceRequest(path + '/invitations/' + invitation.id + '/resend', token, { method: 'POST' });
-              onDelivery(await result.json());
-              invitations.retry();
-            }) }] : []),
+
             { label: 'Revoke invitation', run: () => confirm('Revoke this invitation?', 'Revoke invitation', 'The recipient will need a new invitation to join.', async () => {
               await workspaceRequest(path + '/invitations/' + invitation.id + '/cancel', token, { method: 'PATCH' });
               if (delivery?.id === invitation.id) onDelivery();
