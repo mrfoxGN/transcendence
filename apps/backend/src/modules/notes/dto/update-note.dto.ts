@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Length, ValidateIf } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length, ValidateIf } from 'class-validator';
 
 export class UpdateNoteDto {
   @ValidateIf((dto: UpdateNoteDto) => dto.title !== undefined)
@@ -9,4 +9,8 @@ export class UpdateNoteDto {
   @IsOptional()
   @IsString()
   content?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  pinned?: boolean;
 }

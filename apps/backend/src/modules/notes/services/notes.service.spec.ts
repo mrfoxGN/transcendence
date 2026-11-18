@@ -128,6 +128,7 @@ describe('NotesService', () => {
         deletedAt: expect.anything() as unknown,
       },
       order: {
+        pinnedAt: 'DESC',
         updatedAt: 'DESC',
         createdAt: 'DESC',
         id: 'DESC',
@@ -223,6 +224,36 @@ describe('NotesService', () => {
       expect.objectContaining({ content: null }),
     );
     expect(result.content).toBeNull();
+  });
+
+  it('pins and unpins a note', async () => {
+    repository.findOne
+      .mockResolvedValueOnce(makeNote({ pinnedAt: null }))
+      .mockResolvedValueOnce(makeNote({ pinnedAt: date }));
+
+    const pinned = await service.update(workspaceId, noteId, creatorId, {
+      pinned: true,
+    });
+
+    expect(repository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: noteId, workspaceId }),
+      expect.objectContaining({ pinnedAt: expect.any(Date) as unknown }),
+    );
+    expect(pinned.pinnedAt).toEqual(date);
+
+    repository.findOne
+      .mockResolvedValueOnce(makeNote({ pinnedAt: date }))
+      .mockResolvedValueOnce(makeNote({ pinnedAt: null }));
+
+    const unpinned = await service.update(workspaceId, noteId, creatorId, {
+      pinned: false,
+    });
+
+    expect(repository.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: noteId, workspaceId }),
+      expect.objectContaining({ pinnedAt: null }),
+    );
+    expect(unpinned.pinnedAt).toBeNull();
   });
 
   it('returns 404 if the note disappears during update', async () => {

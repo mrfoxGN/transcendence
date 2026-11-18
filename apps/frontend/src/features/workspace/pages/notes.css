@@ -38,7 +38,7 @@
 .wu-note-actions, .wu-note-toolbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .wu-note-toolbar { justify-content: flex-end; }
 .wu-note-body { min-height: 150px; padding-block: 22px; margin-top: 16px; border-top: 1px solid var(--wu-line); }
-.wu-note-body p, .wu-note-snapshot { max-width: 70ch; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.65; }
+.wu-note-body p { max-width: 70ch; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.65; }
 .wu-note-form, .wu-note-linked { display: grid; gap: 12px; }
 .wu-note-form p { margin: 0; }
 .wu-note-linked h3 { margin: 0; font-size: 15px; }
@@ -49,11 +49,6 @@
 }
 .wu-task-link svg { flex: none; color: var(--wu-blue); }
 .wu-note-reader-empty { display: grid; justify-items: center; align-content: center; min-height: 310px; text-align: center; }
-.wu-note-conflict, .wu-note-revision-preview { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--wu-line); border-radius: 8px; background: var(--wu-surface-soft); }
-.wu-note-conflict h3, .wu-note-revision-preview h3 { margin: 0; }
-.wu-note-conflict > button, .wu-note-revision-preview > button { justify-self: start; }
-.wu-note-revision-preview { margin-top: 14px; }
-.wu-note-snapshot { max-height: 260px; overflow: auto; }
 @media (max-width: 780px) {
   .wu-notes-layout { grid-template-columns: minmax(0, 1fr); }
   .wu-notes-items { max-height: 245px; overflow: auto; }
