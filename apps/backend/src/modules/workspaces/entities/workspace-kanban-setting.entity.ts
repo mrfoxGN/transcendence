@@ -58,7 +58,7 @@ export class WorkspaceKanbanSetting {
   definitionOfDone!: unknown;
 
   @Column({ name: 'board_columns', type: 'json', nullable: true })
-  boardColumns?: import('../dto/update-workspace-kanban-settings.dto').BoardColumnDto[] | null;
+  boardColumns?: unknown | null;
 
   @Column({
     name: 'created_at',
