@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
-import { jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace-api';
-import { statusLabels, taskBoardColumn, taskPriorities, type BoardColumnConfig, type Member } from './workspace-tasks';
+import { jsonRequest, useWorkspaceCollection, workspaceRequest, WorkspaceRequestError, type WorkspaceFile } from './workspace-api';
+import { canTransition, statusLabels, taskBoardColumn, taskPriorities, type BoardColumnConfig, type Member } from './workspace-tasks';
 import type { Task } from './types';
 import { finishInputEdit, saveTextOnBlur } from './autosave';
 
@@ -48,7 +48,6 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       setWatchBusy(false);
     }
   }
-  const commentRequest = useRef<{ content: string; id: string } | undefined>(undefined);
   const comments = useWorkspaceCollection<Comment>(path + '/comments', token);
   const dependencies = useWorkspaceCollection<Dependency>(path + '/dependencies', token);
   const [busy, setBusy] = useState(false);
@@ -105,6 +104,62 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     return request;
   }
 
+  function updateAssignee(userId: string) {
+    if (!token || readOnly) return Promise.resolve(false);
+    setAssigneeDraft(userId);
+    const targetUserId = userId || null;
+    const currentAssigneeId = task.assigneeId ?? null;
+    if (targetUserId === currentAssigneeId) return Promise.resolve(true);
+
+    const editKey = 'assignee';
+    const edit = { suffix: '/assignment', method: 'ASSIGN', body: { userId: targetUserId } };
+    latestEdits.current[editKey] = edit;
+    pending.current += 1;
+    setBusy(true);
+
+    const request = queue.current.then(async () => {
+      setError('');
+      setNotice('');
+      try {
+        if (currentAssigneeId) {
+          try {
+            await workspaceRequest(path + '/assignment', token, { method: 'DELETE' });
+          } catch (delError) {
+            if (!(delError instanceof WorkspaceRequestError && delError.status === 404)) {
+              throw delError;
+            }
+          }
+        }
+        if (targetUserId) {
+          await workspaceRequest(path + '/assignment', token, jsonRequest('POST', { userId: targetUserId }));
+        }
+        onChange();
+        if (latestEdits.current[editKey] === edit) {
+          setFailedEdits(current => {
+            if (!current[editKey]) return current;
+            const next = { ...current };
+            delete next[editKey];
+            return next;
+          });
+        }
+        setNotice('Saved.');
+        return true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Try again.';
+        if (latestEdits.current[editKey] === edit) {
+          setFailedEdits(current => ({ ...current, [editKey]: { edit, message } }));
+        }
+        return false;
+      } finally {
+        pending.current -= 1;
+        if (!pending.current) setBusy(false);
+      }
+    });
+
+    queue.current = request.then(() => undefined);
+    return request;
+  }
+
   const save = (key: string, value: string | null) => void mutate('', 'PATCH', { [key]: value }, key);
 
   function saveFieldOnBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>, key: string, saved: string, nullable = false) {
@@ -115,7 +170,13 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
 
   function retryEdits() {
     for (const [key, { edit }] of Object.entries(failedEdits)) {
-      if (latestEdits.current[key] === edit) void mutate(edit.suffix, edit.method, edit.body, key);
+      if (latestEdits.current[key] === edit) {
+        if (key === 'assignee') {
+          void updateAssignee(String(edit.body?.userId ?? ''));
+        } else {
+          void mutate(edit.suffix, edit.method, edit.body, key);
+        }
+      }
     }
   }
 
@@ -134,7 +195,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   }
 
   const currentColumn = taskBoardColumn(task, boardColumns);
-  const destinations = boardColumns.filter(column => column.id !== currentColumn?.id);
+  const destinations = boardColumns.filter(column => column.id !== currentColumn?.id && canTransition(task.status, statusLabels[column.status]));
   const hasFailedEdits = Object.keys(failedEdits).length > 0;
 
   return <Drawer title={task.title} onClose={onClose}>
@@ -194,7 +255,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <h3>Move task</h3>
         <label className="wu-field-label">Destination<select name="column" value="" disabled={busy} onChange={event => {
           const column = destinations.find(item => item.id === event.currentTarget.value);
-          if (column) void mutate('/transition', 'POST', { toStatus: column.status, boardColumnId: column.id, placement: 'end' });
+          if (column) void mutate('/transition', 'POST', { toStatus: column.status });
         }}>
           <option value="" disabled>Choose a column</option>
           {destinations.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}
@@ -205,9 +266,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       {readOnly ? <p>{members.find(member => member.userId === task.assigneeId)?.username ?? (task.assigneeId ? 'Former member' : 'Unassigned')}</p> :
       <label className="wu-field-label">Choose a member
         <select name="member" value={assigneeDraft ?? task.assigneeId ?? ''} disabled={busy} onChange={event => {
-          const userId = event.currentTarget.value;
-          setAssigneeDraft(userId);
-          void mutate('/assignment', 'PUT', { userId: userId || null }, 'assignee');
+          void updateAssignee(event.currentTarget.value);
         }}>
           <option value="">Unassigned</option>
           {task.assigneeId && !members.some(member => member.userId === task.assigneeId) &&
@@ -270,13 +329,11 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         const form = event.currentTarget;
         const content = String(new FormData(form).get('content')).trim();
         if (!content || pending.current) return;
-        if (commentRequest.current?.content !== content) commentRequest.current = { content, id: crypto.randomUUID() };
-        if (await mutate('/comments', 'POST', { content, requestId: commentRequest.current.id })) {
-          commentRequest.current = undefined;
+        if (await mutate('/comments', 'POST', { content })) {
           form.reset();
         }
       }}>
-        <label className="wu-field-label">Add a comment<textarea name="content" rows={2} placeholder="Share an update or mention @username" required /></label>
+        <label className="wu-field-label">Add a comment<textarea name="content" rows={2} placeholder="Share an update" required /></label>
         <button className="wu-button wu-button--secondary" disabled={busy}>Post comment</button>
       </form>}
     </section>

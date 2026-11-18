@@ -2,7 +2,7 @@ import { useEffect, useId, useState, type Ref } from 'react';
 import { Bell, Settings2, Users, Check, X, CheckCircle2 } from 'lucide-react';
 import { jsonRequest, workspaceRequest } from './workspace-api';
 
-const preferenceLabels = { assignments: 'Task assignments', mentions: 'Mentions', comments: 'Comments on watched tasks', status: 'Task status changes' };
+const preferenceLabels = { assignments: 'Task assignments', comments: 'Comments on watched tasks', status: 'Task status changes' };
 const invitationLabels: Record<string, string> = { ACCEPTED: 'Invitation accepted', REJECTED: 'Invitation declined', CANCELLED: 'Invitation withdrawn', EXPIRED: 'Invitation expired', UNAVAILABLE: 'Invitation unavailable' };
 type Preferences = Record<keyof typeof preferenceLabels, boolean>;
 type Update = { id: string; message: string; createdAt: string; readAt: string | null; type: string; workspaceId: string | null; relatedResourceType: string | null; relatedResourceId: string | null; invitationStatus?: string };

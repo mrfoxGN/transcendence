@@ -17,7 +17,7 @@ import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFace
 import { homeFilters } from './workspace/previewData';
 import { useWorkspaceChat } from './workspace/workspace-chat';
 import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
-import { loadBoard, taskPriorities, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
+import { loadBoard, statusCodes, taskPriorities, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
 import { addCalendarDays, calendarDate, isDueInNextSevenDays, nextSevenDaysLabel } from './workspace/workspace-calendar';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
@@ -98,9 +98,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [taskSaving, setTaskSaving] = useState(false);
   const submittingModal = useRef(false);
   const [taskError, setTaskError] = useState('');
-  const [targetColumn, setTargetColumn] = useState<BoardColumnConfig>();
   const [columnError, setColumnError] = useState('');
-  const [savingColumns, setSavingColumns] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [filter, setFilter] = useState('All tasks');
   const [facets, setFacets] = useState(emptyFacets);
@@ -268,11 +266,9 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setTaskSaving(true);
     setTaskError('');
     try {
-      const column = targetColumn ?? boardColumns.find(item => item.status === 'BACKLOG') ?? boardColumns[0];
       await workspaceRequest(workspacePath + '/tasks', token, jsonRequest('POST', {
         title,
-        description: String(form.get('description') ?? ''),
-        boardColumnId: column?.id,
+        description: form.get('description') ? String(form.get('description')) : undefined,
         assigneeId: form.get('assigneeId') || undefined,
         priority: form.get('priority') || undefined,
         dueDate: form.get('dueDate') || undefined,
@@ -280,7 +276,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       setBoardAttempt(value => value + 1);
       recentActivity.retry();
       setModal(null);
-      setToast(column ? 'Task added to ' + column.label + '.' : 'Task added to the backlog.');
+      setToast('Task added to the backlog.');
     } catch (error) {
       setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not create the task. Try again.');
     } finally {
@@ -295,11 +291,46 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setTaskSaving(true);
     setColumnError('');
     try {
-      await workspaceRequest('tasks/' + id + '/transition', token, jsonRequest('POST', {
-        toStatus: column.status, boardColumnId: column.id, placement, anchorTaskId,
-      }));
-      setToast(`Moved “${task.title}” to ${column.label}.`);
-      recentActivity.retry();
+      const currentStatusCode = statusCodes[task.status];
+      const targetStatusCode = column.status;
+      if (currentStatusCode === targetStatusCode) {
+        const columnTasks = tasks.filter(item => item.id !== id && statusCodes[item.status] === targetStatusCode)
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        let targetPosition: number;
+        if (placement === 'before' && anchorTaskId) {
+          const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+          targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) : 0;
+        } else if (placement === 'after' && anchorTaskId) {
+          const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+          targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) + 1 : 0;
+        } else {
+          targetPosition = columnTasks.length ? (columnTasks[columnTasks.length - 1].position ?? 0) + 1 : 0;
+        }
+        if (targetPosition !== task.position) {
+          await workspaceRequest('tasks/' + id, token, jsonRequest('PATCH', { position: targetPosition }));
+        }
+      } else {
+        await workspaceRequest('tasks/' + id + '/transition', token, jsonRequest('POST', {
+          toStatus: column.status,
+        }));
+        if (placement || anchorTaskId) {
+          const columnTasks = tasks.filter(item => item.id !== id && statusCodes[item.status] === targetStatusCode)
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+          let targetPosition: number;
+          if (placement === 'before' && anchorTaskId) {
+            const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+            targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) : 0;
+          } else if (placement === 'after' && anchorTaskId) {
+            const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+            targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) + 1 : 0;
+          } else {
+            targetPosition = columnTasks.length ? (columnTasks[columnTasks.length - 1].position ?? 0) + 1 : 0;
+          }
+          await workspaceRequest('tasks/' + id, token, jsonRequest('PATCH', { position: targetPosition })).catch(() => {});
+        }
+        setToast(`Moved “${task.title}” to ${column.label}.`);
+        recentActivity.retry();
+      }
       return true;
     } catch (error) {
       setColumnError(`Could not move “${task.title}” to ${column.label}. ${error instanceof Error ? error.message : 'Try again.'}`);
@@ -310,29 +341,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  function openTaskForm(column?: BoardColumnConfig) {
+  function openTaskForm() {
     if (archived) return;
     setTaskError('');
-    setTargetColumn(column);
     setModal('task');
-  }
-
-  async function saveBoardColumns(next: BoardColumnConfig[], moveColumnTasks?: { fromColumnId: string; toColumnId: string }) {
-    if (archived || !token || savingColumns || workspace?.ownerId !== profileId) return false;
-    setSavingColumns(true);
-    setColumnError('');
-    try {
-      await workspaceRequest(workspacePath + '/kanban-settings', token, jsonRequest('PATCH', { boardColumns: next, moveColumnTasks }));
-      if (!moveColumnTasks) setBoard(current => current ? { ...current, boardColumns: next } : current);
-      else recentActivity.retry();
-      setBoardAttempt(value => value + 1);
-      return true;
-    } catch (error) {
-      setColumnError(error instanceof Error ? error.message : 'Could not save the board.');
-      return false;
-    } finally {
-      setSavingColumns(false);
-    }
   }
 
   async function logout() {
@@ -529,7 +541,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           activeCount={board?.activeCount ?? 0}
           activeWipLimit={board?.activeWipLimit ?? 0}
           columns={boardColumns} allTasks={tasks}
-          canManage={!archived && workspace.ownerId === profileId} savingColumns={savingColumns} saveColumns={saveBoardColumns} error={columnError}
+          error={columnError}
           onMoveTask={moveBoardTask}
           movingTask={taskSaving}
           setSelectedTask={setSelectedTask}
