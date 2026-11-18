@@ -11,7 +11,6 @@ export class TaskBoardResponseDto {
   reportingTimeZone!: string;
   activeWipLimit!: number;
   activeCount!: number;
-  assigneesByTaskId!: Record<string, string>;
-  boardColumns?: import('../../workspaces/dto/update-workspace-kanban-settings.dto').BoardColumnDto[];
   columns!: TaskBoardColumnDto[];
+  assigneesByTaskId!: Record<string, string>;
 }

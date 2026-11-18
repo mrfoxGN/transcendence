@@ -4,14 +4,13 @@ import { Task } from '../tasks/entities/task.entity';
 
 export const notificationCategories = {
   assignments: ['TASK_ASSIGNED'],
-  mentions: ['TASK_MENTION', 'CHAT_MENTION', 'DIRECT_MENTION'],
   comments: ['WATCHED_TASK_COMMENT'],
   status: ['WATCHED_TASK_STATUS'],
   invitations: ['WORKSPACE_INVITATION', 'WORKSPACE_INVITATION_ACCEPTED', 'FRIEND_REQUEST', 'FRIEND_REQUEST_ACCEPTED'],
   messages: ['DIRECT_MESSAGE'],
 } as const;
 
-export const configurableCategories = ['assignments', 'mentions', 'comments', 'status'] as const;
+export const configurableCategories = ['assignments', 'comments', 'status'] as const;
 type Category = typeof configurableCategories[number];
 
 interface Delivery {
@@ -36,6 +35,7 @@ export async function deliverWorkspaceNotifications(manager: EntityManager, even
     [event.workspaceId, candidates],
   );
   const recipients = new Set(eligible.map(row => row.id));
+ 
   for (const row of eligible) {
     if (row.disabled === event.candidates.get(row.id)) recipients.delete(row.id);
   }
@@ -43,9 +43,7 @@ export async function deliverWorkspaceNotifications(manager: EntityManager, even
     const category = event.candidates.get(userId)!;
     const key = createHash('sha256').update(JSON.stringify([event.eventId, userId])).digest('hex');
     const id = `${key.slice(0, 8)}-${key.slice(8, 12)}-4${key.slice(13, 16)}-8${key.slice(17, 20)}-${key.slice(20, 32)}`;
-    const type = category === 'mentions' && event.resourceType === 'workspace_chat'
-      ? 'CHAT_MENTION'
-      : notificationCategories[category][0];
+    const type = notificationCategories[category][0];
     await manager.query(
       `INSERT INTO notifications
        (id, user_id, workspace_id, type, message, related_resource_type, related_resource_id, created_at)
@@ -56,25 +54,8 @@ export async function deliverWorkspaceNotifications(manager: EntityManager, even
   }
 }
 
-export function mentionedNames(content: string) {
-  return [...content.matchAll(/(?:^|\s)@(?:"([^"\r\n]{1,50})"|([\p{L}\p{N}_-]{1,50})(?![\p{L}\p{N}_-]))/gu)]
-    .map(match => match[1] ?? match[2]);
-}
-
-export async function mentionRecipients(manager: EntityManager, workspaceId: string, content: string): Promise<string[]> {
-  const names = mentionedNames(content);
-  if (!names.length) return [];
-  const rows: { id: string }[] = await manager.query(
-    `SELECT user.id FROM users user
-     JOIN workspace_memberships member ON member.user_id = user.id
-     WHERE member.workspace_id = ? AND user.username IN (?)`,
-    [workspaceId, names],
-  );
-  return rows.map(row => row.id);
-}
-
 export async function notifyTask(manager: EntityManager, task: Task, actorId: string, eventId: string,
-  category: 'assignments' | 'comments' | 'status', options: { assigneeId?: string; content?: string } = {},
+  category: 'assignments' | 'comments' | 'status', options: { assigneeId?: string } = {},
 ) {
   const recipients = new Map<string, Category>();
   if (category === 'assignments') {
@@ -90,14 +71,10 @@ export async function notifyTask(manager: EntityManager, task: Task, actorId: st
       );
       for (const { userId } of assignments) recipients.set(userId, category);
     }
-    if (options.content) {
-      for (const id of await mentionRecipients(manager, task.workspaceId, options.content)) recipients.set(id, 'mentions');
-    }
   }
   const messages: Record<Category, string> = {
     assignments: `You were assigned to ${task.title}`,
     comments: `New comment on ${task.title}`,
-    mentions: `You were mentioned in a comment on ${task.title}`,
     status: `Status changed on ${task.title}`,
   };
   await deliverWorkspaceNotifications(manager, {
@@ -105,3 +82,4 @@ export async function notifyTask(manager: EntityManager, task: Task, actorId: st
     resourceId: task.id, candidates: recipients, message: category => messages[category],
   });
 }
+
