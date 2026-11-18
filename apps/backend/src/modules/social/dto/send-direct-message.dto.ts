@@ -1,11 +1,12 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsUUID, IsOptional, IsString } from 'class-validator';
 
 export class SendDirectMessageDto {
   @IsString()
+  @IsNotEmpty()
   content!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4')
   replyToId?: string;
 
   @IsOptional()

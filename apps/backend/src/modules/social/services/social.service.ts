@@ -1,19 +1,15 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { IsNull, QueryFailedError, Repository } from 'typeorm';
+import { IsNull, QueryFailedError, Repository, In, Not } from 'typeorm';
 
-import type { Response } from 'express';
-import { attachmentFields, downloadChatAttachment, messageContext, searchMessages, validateReply } from '../../chat/message-collaboration';
-import { listByMessageCursor } from '../../chat/message-cursor';
 import { UserStatus } from '../../../database/enums/database.enums';
-import { mentionedNames } from '../../notifications/notification-events';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { UsersService } from '../../users/services/users.service';
 import { DirectConversationResponseDto } from '../dto/direct-conversation-response.dto';
@@ -113,11 +109,9 @@ export class SocialService {
 
     const conversations = await this.conversationsRepository.find({
       where: [{ userAId: userId }, { userBId: userId }],
-      relations: { userA: true, userB: true },
-      select: {
-        id: true, userAId: true, userBId: true, lastMessageAt: true, createdAt: true,
-        userA: { id: true, username: true },
-        userB: { id: true, username: true },
+      relations: {
+        userA: true,
+        userB: true,
       },
       order: {
         lastMessageAt: 'DESC',
@@ -128,39 +122,49 @@ export class SocialService {
       take: limit,
     });
 
-    if (!conversations.length) return [];
-    const lastRead = 'CASE WHEN conversation.userAId = :userId THEN conversation.userALastReadAt ELSE conversation.userBLastReadAt END';
-    const counts = await this.messagesRepository.createQueryBuilder('message')
-      .innerJoin(DirectConversation, 'conversation', 'conversation.id = message.conversationId')
-      .select('message.conversationId', 'conversationId')
-      .addSelect('COUNT(*)', 'unreadCount')
-      .where('message.conversationId IN (:...ids)', { ids: conversations.map(conversation => conversation.id) })
-      .andWhere('message.senderId != :userId', { userId })
-      .andWhere('message.deletedAt IS NULL')
-      .andWhere(`((${lastRead}) IS NULL OR message.createdAt > (${lastRead}))`)
-      .groupBy('message.conversationId')
-      .getRawMany<{ conversationId: string; unreadCount: string }>();
-    const unread = new Map(counts.map(count => [count.conversationId, Number(count.unreadCount)]));
-    return conversations.map(conversation => {
-      const other = conversation.userAId === userId ? conversation.userB : conversation.userA;
-      const otherUserId = conversation.userAId === userId ? conversation.userBId : conversation.userAId;
+    if (conversations.length === 0) {
+      return [];
+    }
+
+    const messages = await this.messagesRepository.find({
+      where: {
+        conversationId: In(conversations.map((conversation) => conversation.id)),
+        senderId: Not(userId),
+        deletedAt: IsNull(),
+      },
+      select: {
+        conversationId: true,
+        createdAt: true,
+      },
+    });
+
+    return conversations.map((conversation) => {
+      const isUserA = conversation.userAId === userId;
+
+      const otherUserId = isUserA
+        ? conversation.userBId
+        : conversation.userAId;
+
+      const otherUser = isUserA
+        ? conversation.userB
+        : conversation.userA;
+
+      const lastReadAt = isUserA
+        ? conversation.userALastReadAt
+        : conversation.userBLastReadAt;
+
+      const unreadCount = messages.filter(
+        (message) =>
+          message.conversationId === conversation.id &&
+          (lastReadAt === null || message.createdAt > lastReadAt),
+      ).length;
+
       return {
         ...this.toConversationResponse(conversation, otherUserId),
-        otherUsername: other?.username,
-        unreadCount: unread.get(conversation.id) ?? 0,
+        otherUsername: otherUser.username,
+        unreadCount,
       };
     });
-  }
-
-  async unreadCount(userId: string): Promise<number> {
-    const lastRead = 'CASE WHEN conversation.userAId = :userId THEN conversation.userALastReadAt ELSE conversation.userBLastReadAt END';
-    return this.messagesRepository.createQueryBuilder('message')
-      .innerJoin(DirectConversation, 'conversation', 'conversation.id = message.conversationId')
-      .where('(conversation.userAId = :userId OR conversation.userBId = :userId)', { userId })
-      .andWhere('message.senderId != :userId')
-      .andWhere('message.deletedAt IS NULL')
-      .andWhere(`((${lastRead}) IS NULL OR message.createdAt > (${lastRead}))`)
-      .getCount();
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {
@@ -182,7 +186,8 @@ export class SocialService {
         { id: conversationId },
         { userALastReadAt: now, updatedAt: now },
       );
-    } else {
+    }
+    else{
       await this.conversationsRepository.update(
         { id: conversationId },
         { userBLastReadAt: now, updatedAt: now },
@@ -191,24 +196,63 @@ export class SocialService {
     this.directChatGateway.emitReadUpdated(userId);
   }
 
+  async unreadCount(userId: string): Promise<number> {
+    const conversations = await this.conversationsRepository.find({
+      where: [
+        { userAId: userId },
+        { userBId: userId },
+      ],
+    });
+
+    if (conversations.length === 0) {
+      return 0;
+    }
+
+    const messages = await this.messagesRepository.find({
+      where: {
+        conversationId: In(conversations.map((conversation) => conversation.id)),
+        senderId: Not(userId),
+        deletedAt: IsNull(),
+      },
+      select: {
+        conversationId: true,
+        createdAt: true,
+      },
+    });
+
+    let count = 0;
+
+    for (const conversation of conversations) {
+      const lastReadAt =
+        conversation.userAId === userId
+          ? conversation.userALastReadAt
+          : conversation.userBLastReadAt;
+
+      count += messages.filter(
+        (message) =>
+          message.conversationId === conversation.id &&
+          (lastReadAt === null || message.createdAt > lastReadAt),
+      ).length;
+    }
+    return count;
+  }
+
   async sendMessage(
     senderId: string,
     conversationId: string,
     dto: SendDirectMessageDto,
-    file?: Express.Multer.File,
   ): Promise<DirectMessageResponseDto> {
-    if (typeof dto?.content !== 'string' || (!dto.content.trim() && !file)) {
+    if (typeof dto?.content !== 'string' || !dto.content.trim()) {
       throw new BadRequestException('Message content is required');
     }
 
     const content = dto.content.trim();
-    const attachment = attachmentFields(file);
 
     const result = await this.messagesRepository.manager.transaction(
       async (manager) => {
-        if (dto.requestId) await manager.query('SELECT id FROM direct_conversations WHERE id = ? FOR UPDATE', [conversationId]);
-        const conversation = await manager.findOneBy(DirectConversation, {
-          id: conversationId,
+        const conversation = await manager.findOne(DirectConversation, {
+          where: { id: conversationId },
+          lock: { mode: 'pessimistic_write' },
         });
 
         if (
@@ -220,15 +264,47 @@ export class SocialService {
         }
 
         if (dto.requestId) {
-          const previous = await manager.findOneBy(DirectMessage, { id: dto.requestId });
+          const previous = await manager.findOne(DirectMessage, {
+          where: { id: dto.requestId },
+          relations: { replyTo: true },
+        });
+
           if (previous) {
-            if (previous.conversationId !== conversationId || previous.senderId !== senderId || previous.deletedAt) {
+            if (
+              previous.conversationId !== conversationId ||
+              previous.senderId !== senderId ||
+              previous.deletedAt !== null ||
+              previous.content !== content ||
+              previous.replyToId !== (dto.replyToId ?? null)
+            ) {
               throw new ConflictException('Message request ID is already in use');
             }
-            return { message: previous, replay: true as const };
+          
+            return {
+              replay: true as const,
+              userAId: conversation.userAId,
+              userBId: conversation.userBId,
+              message: this.toMessageResponse(previous),
+            };
           }
         }
-        if (dto.replyToId) await validateReply(manager.getRepository(DirectMessage), { conversationId }, dto.replyToId);
+        
+        let replyTo: DirectMessage | null = null;
+
+        if (dto.replyToId) {
+          replyTo = await manager.findOne(DirectMessage, {
+            where: {
+              id: dto.replyToId,
+              conversationId,
+              deletedAt: IsNull(),
+            },
+          });
+        
+          if (!replyTo) {
+            throw new BadRequestException('Invalid reply message');
+          }
+        }
+
         const now = new Date();
 
         const message = manager.create(DirectMessage, {
@@ -236,15 +312,14 @@ export class SocialService {
           conversationId,
           senderId,
           content,
-          ...(dto.replyToId ? { replyToId: dto.replyToId } : {}),
-          ...attachment,
+          replyToId: replyTo?.id ?? null,
           createdAt: now,
           editedAt: null,
           deletedAt: null,
         });
 
-        if (dto.requestId) await manager.insert(DirectMessage, message);
-        const saved = dto.requestId ? message : await manager.save(DirectMessage, message);
+        await manager.insert(DirectMessage, message);
+        message.replyTo = replyTo;
 
         await manager.update(
           DirectConversation,
@@ -256,21 +331,19 @@ export class SocialService {
           replay: false as const,
           userAId: conversation.userAId,
           userBId: conversation.userBId,
-          message: saved,
+          message: this.toMessageResponse(message),
         };
       },
     );
-
-    const { id, senderId: authorId, content: body, createdAt } = result.message;
-    const context = await messageContext(this.messagesRepository, { conversationId }, [result.message]);
-    const response = { id, conversationId, senderId: authorId, content: body, createdAt, ...context(result.message) };
-    if (result.replay) return response;
+    if (result.replay) {
+      return result.message;
+    }
 
     try {
       this.directChatGateway.emitMessageCreated(
         result.userAId,
         result.userBId,
-        response,
+        result.message,
       );
     } catch (error) {
       this.logger.error(
@@ -283,15 +356,11 @@ export class SocialService {
       result.userAId === senderId ? result.userBId : result.userAId;
 
     try {
-      const names = mentionedNames(content);
-      const recipient = names.length ? await this.usersService.findById(recipientId) : undefined;
-      const mentioned = recipient && names.some(name => name.toLowerCase() === recipient.username.toLowerCase());
-      const mentionEnabled = mentioned && (await this.notificationsService.getPreferences(recipientId)).mentions;
       await this.notificationsService.createForUser({
         userId: recipientId,
         workspaceId: null,
-        type: mentionEnabled ? 'DIRECT_MENTION' : 'DIRECT_MESSAGE',
-        message: mentionEnabled ? 'You were mentioned in a direct message' : 'You received a new direct message',
+        type: 'DIRECT_MESSAGE',
+        message: 'You received a new direct message',
         relatedResourceType: 'direct_conversation',
         relatedResourceId: conversationId,
         payload: {
@@ -305,16 +374,7 @@ export class SocialService {
         error instanceof Error ? error.stack : String(error),
       );
     }
-
-    return response;
-  }
-
-  async downloadAttachment(conversationId: string, userId: string, messageId: string, response: Response) {
-    const conversation = await this.conversationsRepository.findOneBy({ id: conversationId });
-    if (!conversation || (conversation.userAId !== userId && conversation.userBId !== userId)) {
-      throw new NotFoundException('Conversation not found');
-    }
-    return downloadChatAttachment(this.messagesRepository, 'conversation_id', conversationId, messageId, response);
+    return result.message;
   }
 
   async listMessages(
@@ -341,14 +401,13 @@ export class SocialService {
       throw new BadRequestException('Invalid page');
     }
 
-    const messages = query.q?.trim()
-      ? await searchMessages(this.messagesRepository, 'conversation_id', conversationId, query.q.trim(), skip, limit)
-      : query.before || query.after
-        ? await listByMessageCursor(this.messagesRepository, 'conversation_id', conversationId, query, limit)
-        : await this.messagesRepository.find({
+    const messages = await this.messagesRepository.find({
       where: {
         conversationId,
         deletedAt: IsNull(),
+      },
+      relations: {
+        replyTo: true,
       },
       order: {
         createdAt: 'DESC',
@@ -358,16 +417,9 @@ export class SocialService {
       take: limit,
     });
 
-    if (!query.after && !query.q?.trim()) messages.reverse();
-    const context = await messageContext(this.messagesRepository, { conversationId }, messages);
-    return messages.map((message) => ({
-      ...context(message),
-      id: message.id,
-      conversationId: message.conversationId,
-      senderId: message.senderId,
-      content: message.content,
-      createdAt: message.createdAt,
-    }));
+    return messages.reverse().map((message) =>
+      this.toMessageResponse(message),
+    );
   }
 
   private toConversationResponse(
@@ -379,6 +431,34 @@ export class SocialService {
       otherUserId,
       lastMessageAt: conversation.lastMessageAt,
       createdAt: conversation.createdAt,
+    };
+  }
+
+  private toMessageResponse(
+    message: DirectMessage,
+  ): DirectMessageResponseDto {
+    const replyTo = message.replyTo;
+
+    return {
+      id: message.id,
+      conversationId: message.conversationId,
+      senderId: message.senderId,
+      content: message.content,
+      createdAt: message.createdAt,
+      ...(message.replyToId
+        ? {
+            reply: {
+              id: message.replyToId,
+              senderId:
+                replyTo && !replyTo.deletedAt ? replyTo.senderId : null,
+              preview:
+                replyTo && !replyTo.deletedAt
+                  ? replyTo.content.slice(0, 100)
+                  : '',
+              unavailable: !replyTo || replyTo.deletedAt !== null,
+            },
+          }
+        : {}),
     };
   }
 }

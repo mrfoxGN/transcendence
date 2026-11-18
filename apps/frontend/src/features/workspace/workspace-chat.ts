@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { jsonRequest, workspaceRequest } from './workspace-api';
 
 type Conversation = { id: string; otherUserId: string; lastMessageAt: string | null; otherUsername?: string; unreadCount?: number };
-export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string; attachmentName?: string; reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean } };
+export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string; reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean } };
 const pageSize = 30;
 
 export function useWorkspaceChat(workspaceId: string, token: string | null, selected: string | null, profileId: string) {
@@ -12,9 +12,9 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   const [workspaceUnread, setWorkspaceUnread] = useState(0);
   const [directUnread, setDirectUnread] = useState(0);
   const [unreadAttempt, setUnreadAttempt] = useState(0);
-  const [olderCursor, setOlderCursor] = useState<Record<string, string | undefined>>({});
+  const [pages, setPages] = useState<Record<string, number>>({});
+  const [hasOlder, setHasOlder] = useState<Record<string, boolean>>({});
   const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting'>('connecting');
-  const historyFrontier = useRef<Record<string, string | undefined>>({});
   const olderRequest = useRef<AbortController | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,10 +43,14 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     setUnreadAttempt(value => value + 1);
   }
 
-  function markRead(id: string, messageId: string) {
+  function markRead(id: string, messageId?: string) {
     if (activeThread.current !== id || document.visibilityState !== 'visible') return;
-    const readPath = path(id) + '/' + encodeURIComponent(messageId) + '/read';
-    void workspaceRequest(id === 'team' ? readPath : 'direct-conversations/' + id + '/read', token, { method: 'PATCH' })
+    const isDirect = id !== 'team';
+    if (isDirect) {
+      setConversations(current => current.map(item => item.id === id ? { ...item, unreadCount: 0 } : item));
+    }
+    const readPath = isDirect ? 'direct-conversations/' + id + '/read' : path('team') + '/' + encodeURIComponent(messageId ?? '') + '/read';
+    void workspaceRequest(readPath, token, { method: 'PATCH' })
       .finally(refreshUnread)
       .catch(() => {});
   }
@@ -79,26 +83,21 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     setLoading(true);
     setError('');
     async function catchUp(id: string) {
-      let cursor = historyFrontier.current[id];
-      const isInitial = !cursor;
-      do {
-        const suffix = cursor ? '&after=' + encodeURIComponent(cursor) : '';
-        const items: ServerMessage[] = await (await workspaceRequest(path(id) + '?limit=' + pageSize + suffix, token, {
-          signal: controller.signal,
-        })).json();
-        if (controller.signal.aborted) return;
-        merge(id, items);
-        if (isInitial) {
-          setOlderCursor(current => ({ ...current, [id]: items.length === pageSize ? items[0].id : undefined }));
-        }
-        const latest = items.at(-1);
-        if (latest) {
-          cursor = latest.id;
-          historyFrontier.current[id] = cursor;
-        }
-        if (isInitial || items.length < pageSize) break;
-      } while (!controller.signal.aborted);
-      if (cursor) markRead(id, cursor);
+      const items: ServerMessage[] = await (await workspaceRequest(
+        path(id) + '?page=1&limit=' + pageSize,
+        token,
+        { signal: controller.signal },
+      )).json();
+      if (controller.signal.aborted) return;
+      merge(id, items);
+      setPages(current => ({ ...current, [id]: 1 }));
+      setHasOlder(current => ({ ...current, [id]: items.length === pageSize }));
+      const latest = items.at(-1);
+      if (id === 'team') {
+        if (latest) markRead(id, latest.id);
+      } else {
+        markRead(id);
+      }
     }
     void catchUp(selected)
       .catch(() => { if (!controller.signal.aborted) setError('Could not load messages.'); })
@@ -115,6 +114,19 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     socketRef.current = socket;
     function incoming(id: string, message: ServerMessage) {
       if (activeThread.current) merge(id, [message]);
+      if (id !== 'team') {
+        setConversations(current => {
+          const target = current.find(item => item.id === id);
+          if (!target) return current;
+          const isViewing = activeThread.current === id && document.visibilityState === 'visible';
+          const updated = {
+            ...target,
+            lastMessageAt: message.createdAt,
+            unreadCount: isViewing ? 0 : (target.unreadCount ?? 0) + 1,
+          };
+          return [updated, ...current.filter(item => item.id !== id)];
+        });
+      }
       if (message.senderId !== profileId && activeThread.current === id && document.visibilityState === 'visible') {
         markRead(id, message.id);
       } else refreshUnread();
@@ -183,23 +195,35 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     else socket.emit('workspace-chat.leave', workspaceId);
   }, [chatOpen, workspaceId]);
 
-  async function openConversation(userId: string) {
+  async function openConversation(userId: string, username?: string) {
     const result: Conversation = await (await workspaceRequest('direct-conversations/' + userId, token, { method: 'POST' })).json();
-    setConversations(current => [{ ...current.find(item => item.id === result.id), ...result }, ...current.filter(item => item.id !== result.id)]);
+    setConversations(current => {
+      const existing = current.find(item => item.id === result.id);
+      const enriched: Conversation = {
+        ...existing,
+        ...result,
+        otherUsername: existing?.otherUsername ?? username ?? result.otherUsername,
+      };
+      return [enriched, ...current.filter(item => item.id !== result.id)];
+    });
     return result.id;
   }
 
-  async function send(id: string, content: string, requestId: string, replyToId?: string, file?: File) {
-    const fields = { content, requestId, ...(replyToId ? { replyToId } : {}) };
-    let options = jsonRequest('POST', fields);
-    if (file) {
-      const form = new FormData();
-      for (const [key, value] of Object.entries(fields)) form.set(key, value);
-      form.set('file', file);
-      options = { method: 'POST', body: form };
-    }
+  async function send(id: string, content: string, requestId?: string, replyToId?: string) {
+    const payload: { content: string; requestId?: string; replyToId?: string } = { content: content.trim() };
+    if (requestId) payload.requestId = requestId;
+    if (replyToId) payload.replyToId = replyToId;
+    const options = jsonRequest('POST', payload);
     const message: ServerMessage = await (await workspaceRequest(path(id), token, options)).json();
     merge(id, [message]);
+    if (id !== 'team') {
+      setConversations(current => {
+        const target = current.find(item => item.id === id);
+        if (!target) return current;
+        const updated = { ...target, lastMessageAt: message.createdAt };
+        return [updated, ...current.filter(item => item.id !== id)];
+      });
+    }
   }
 
   useEffect(() => {
@@ -208,20 +232,22 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   }, [selected, token, workspaceId]);
 
   async function loadOlder() {
-    if (!selected) return;
-    const cursor = olderCursor[selected];
-    if (!cursor || loading || olderRequest.current) return;
+    if (!selected || !hasOlder[selected] || loading || olderRequest.current) return;
+    const nextPage = (pages[selected] ?? 1) + 1;
     const controller = new AbortController();
     olderRequest.current = controller;
     setLoadingOlder(true);
     setError('');
     try {
       const items: ServerMessage[] = await (await workspaceRequest(
-        path(selected) + '?limit=' + pageSize + '&before=' + encodeURIComponent(cursor), token, { signal: controller.signal },
+        path(selected) + '?page=' + nextPage + '&limit=' + pageSize,
+        token,
+        { signal: controller.signal },
       )).json();
       if (controller.signal.aborted) return;
       merge(selected, items);
-      setOlderCursor(current => ({ ...current, [selected]: items.length === pageSize ? items[0].id : undefined }));
+      setPages(current => ({ ...current, [selected]: nextPage }));
+      setHasOlder(current => ({ ...current, [selected]: items.length === pageSize }));
     } catch {
       if (!controller.signal.aborted) setError('Could not load older messages.');
     } finally {
@@ -232,15 +258,35 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     }
   }
 
-  return { conversations, messages,
-    search: async (id: string, query: string, page: number, signal: AbortSignal): Promise<ServerMessage[]> =>
-      (await workspaceRequest(path(id) + '?limit=25&page=' + page + '&q=' + encodeURIComponent(query), token, { signal })).json(),
-    downloadAttachment: async (threadId: string, messageId: string) =>
-      (await workspaceRequest(path(threadId) + '/' + messageId + '/attachment', token)).blob(), workspaceUnread, unreadTotal: workspaceUnread + directUnread, loading, loadingOlder, error, connection, hasOlder: !!(selected && olderCursor[selected]), openConversation, send, loadOlder,
+  return {
+    conversations,
+    messages,
+    search: async (id: string, query: string, page: number, _signal: AbortSignal): Promise<ServerMessage[]> => {
+      const lower = query.trim().toLowerCase();
+      const threadMessages = messages[id] ?? [];
+      const filtered = threadMessages.filter(m => m.content && m.content.toLowerCase().includes(lower));
+      const limit = 25;
+      const start = (page - 1) * limit;
+      return filtered.slice(start, start + limit);
+    },
+    downloadAttachment: async () => {
+      throw new Error('Attachments are not supported in conversations.');
+    },
+    workspaceUnread,
+    unreadTotal: workspaceUnread + directUnread,
+    loading,
+    loadingOlder,
+    error,
+    connection,
+    hasOlder: !!(selected && hasOlder[selected]),
+    openConversation,
+    send,
+    loadOlder,
     retry: () => { setError(''); setAttempt(value => value + 1); },
     reconnect: () => {
       const socket = socketRef.current;
       if (socket && socketReady.current) joinAndSync(socket);
       else socket?.connect();
-    } };
+    },
+  };
 }

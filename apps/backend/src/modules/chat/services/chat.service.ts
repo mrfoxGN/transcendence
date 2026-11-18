@@ -1,19 +1,16 @@
 import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
 
-import { deliverWorkspaceNotifications, mentionRecipients } from '../../notifications/notification-events';
-import type { Response } from 'express';
-import { attachmentFields, downloadChatAttachment, messageContext, searchMessages, validateReply } from '../message-collaboration';
-import { listByMessageCursor } from '../message-cursor';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ChatMessageResponseDto } from '../dto/chat-message-response.dto';
 import { ListChatMessagesDto } from '../dto/list-chat-messages.dto';
 import { SendChatMessageDto } from '../dto/send-chat-message.dto';
 import { ChatMessage } from '../entities/chat-message.entity';
 import { WorkspaceChatGateway } from '../gateways/workspace-chat.gateway';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Injectable()
 export class ChatService {
@@ -56,7 +53,8 @@ export class ChatService {
     if (result.affectedRows > 0) this.workspaceChatGateway.emitReadUpdated(userId, workspaceId);
   }
 
-  async listMessages(
+  
+async listMessages(
     workspaceId: string,
     userId: string,
     query: ListChatMessagesDto,
@@ -71,14 +69,13 @@ export class ChatService {
       throw new BadRequestException('Invalid page');
     }
 
-    const messages = query.q?.trim()
-      ? await searchMessages(this.chatMessagesRepository, 'workspace_id', workspaceId, query.q.trim(), skip, limit)
-      : query.before || query.after
-        ? await listByMessageCursor(this.chatMessagesRepository, 'workspace_id', workspaceId, query, limit)
-        : await this.chatMessagesRepository.find({
+    const messages = await this.chatMessagesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
+      },
+      relations: {
+        replyTo: true,
       },
       order: {
         createdAt: 'DESC',
@@ -88,95 +85,144 @@ export class ChatService {
       take: limit,
     });
 
-    if (!query.after && !query.q?.trim()) messages.reverse();
-    const context = await messageContext(this.chatMessagesRepository, { workspaceId }, messages);
-    return messages.map((message) => ({
-      ...context(message),
+    return messages.reverse().map((message) =>
+      this.toMessageResponse(message),
+    );
+  }
+  
+  async sendMessage(
+    workspaceId: string,
+    senderId: string,
+    dto: SendChatMessageDto,
+  ): Promise<ChatMessageResponseDto> {
+    if (typeof dto?.content !== 'string' || !dto.content.trim()) {
+      throw new BadRequestException('Message content is required');
+    }
+
+    const content = dto.content.trim();
+
+    const result = await this.chatMessagesRepository.manager.transaction(
+      async (manager) => {
+        const workspace = await manager.findOne(Workspace, {
+          where: { id: workspaceId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!workspace) {
+          throw new NotFoundException('Workspace not found');
+        }
+
+        await this.workspacesService.findOneForUser(
+          workspaceId,
+          senderId,
+        );
+        assertWorkspaceWritable(workspace);
+
+        if (dto.requestId) {
+          const previous = await manager.findOne(ChatMessage, {
+            where: { id: dto.requestId },
+            relations: { replyTo: true },
+          });
+
+          if (previous) {
+            if (
+              previous.workspaceId !== workspaceId ||
+              previous.senderId !== senderId ||
+              previous.deletedAt !== null ||
+              previous.content !== content ||
+              previous.replyToId !== (dto.replyToId ?? null)
+            ) {
+              throw new ConflictException(
+                'Message request ID is already in use',
+              );
+            }
+
+            return {
+              replay: true,
+              message: this.toMessageResponse(previous),
+            };
+          }
+        }
+
+        let replyTo: ChatMessage | null = null;
+
+        if (dto.replyToId) {
+          replyTo = await manager.findOne(ChatMessage, {
+            where: {
+              id: dto.replyToId,
+              workspaceId,
+              deletedAt: IsNull(),
+            },
+          });
+
+          if (!replyTo) {
+            throw new BadRequestException('Invalid reply message');
+          }
+        }
+
+        const message = manager.create(ChatMessage, {
+          id: dto.requestId ?? randomUUID(),
+          workspaceId,
+          senderId,
+          content,
+          replyToId: replyTo?.id ?? null,
+          createdAt: new Date(),
+          editedAt: null,
+          deletedAt: null,
+        });
+
+        await manager.insert(ChatMessage, message);
+
+        message.replyTo = replyTo;
+
+        return {
+          replay: false,
+          message: this.toMessageResponse(message),
+        };
+      },
+    );
+
+    if (!result.replay) {
+      this.workspaceChatGateway.emitMessageCreated(
+        workspaceId,
+        result.message,
+      );
+    }
+
+    return result.message;
+  }
+
+
+
+  private toMessageResponse(
+    message: ChatMessage,
+  ): ChatMessageResponseDto {
+    const replyTo = message.replyTo;
+
+    return {
       id: message.id,
       workspaceId: message.workspaceId,
       senderId: message.senderId,
       content: message.content,
       createdAt: message.createdAt,
-    }));
-  }
-
-  async downloadAttachment(workspaceId: string, userId: string, messageId: string, response: Response) {
-    await this.workspacesService.findOneForUser(workspaceId, userId);
-    return downloadChatAttachment(this.chatMessagesRepository, 'workspace_id', workspaceId, messageId, response);
-  }
-
-  async sendMessage(
-    workspaceId: string,
-    senderId: string,
-    dto: SendChatMessageDto,
-    file?: Express.Multer.File,
-  ): Promise<ChatMessageResponseDto> {
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, senderId));
-
-    const content = dto.content.trim();
-    const attachment = attachmentFields(file);
-
-    if (!content && !file) {
-      throw new BadRequestException('Message content is required');
-    }
-
-    const message = this.chatMessagesRepository.create({
-      id: dto.requestId ?? randomUUID(),
-      workspaceId,
-      senderId,
-      content,
-      ...(dto.replyToId ? { replyToId: dto.replyToId } : {}),
-      ...attachment,
-      createdAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
-
-    let replay = false;
-    const saved = dto.requestId || dto.replyToId || file || /(?:^|\s)@/u.test(content)
-      ? await this.chatMessagesRepository.manager.transaction(async manager => {
-        const repository = manager.getRepository(ChatMessage);
-        if (dto.requestId) {
-          await manager.query('SELECT id FROM workspaces WHERE id = ? FOR UPDATE', [workspaceId]);
-          const previous = await repository.findOneBy({ id: dto.requestId });
-          if (previous) {
-            if (previous.workspaceId !== workspaceId || previous.senderId !== senderId || previous.deletedAt) {
-              throw new ConflictException('Message request ID is already in use');
-            }
-            replay = true;
-            return previous;
+      ...(message.replyToId
+        ? {
+            reply: {
+              id: message.replyToId,
+              senderId:
+                replyTo && !replyTo.deletedAt
+                  ? replyTo.senderId
+                  : null,
+              preview:
+                replyTo && !replyTo.deletedAt
+                  ? replyTo.content.slice(0, 100)
+                  : '',
+              unavailable:
+                !replyTo || replyTo.deletedAt !== null,
+            },
           }
-        }
-        await validateReply(repository, { workspaceId }, dto.replyToId);
-        message.createdAt = new Date();
-        await repository.insert(message);
-        const savedMessage = message;
-        const recipients = await mentionRecipients(manager, workspaceId, content);
-        await deliverWorkspaceNotifications(manager, {
-          eventId: `chat:${savedMessage.id}`,
-          actorId: senderId,
-          workspaceId,
-          resourceType: 'workspace_chat',
-          resourceId: workspaceId,
-          candidates: new Map(recipients.map(id => [id, 'mentions'])),
-          message: () => 'You were mentioned in team chat',
-        });
-        return savedMessage;
-      })
-      : await this.chatMessagesRepository.save(message);
-
-    const context = await messageContext(this.chatMessagesRepository, { workspaceId }, [saved]);
-    const response: ChatMessageResponseDto = {
-      ...context(saved),
-      id: saved.id,
-      workspaceId: saved.workspaceId,
-      senderId: saved.senderId,
-      content: saved.content,
-      createdAt: saved.createdAt,
+        : {}),
     };
-
-    if (!replay) this.workspaceChatGateway.emitMessageCreated(workspaceId, response);
-
-    return response;
   }
 }
+

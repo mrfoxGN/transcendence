@@ -5,5 +5,4 @@ export class ChatMessageResponseDto {
   content!: string;
   createdAt!: Date;
   reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean };
-  attachmentName?: string;
 }
