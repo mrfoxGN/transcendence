@@ -56,3 +56,341 @@
 @media (max-width: 375px) {
   .wu-task-create-fields { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ========================================
+   DevUP — Modern Notification Inbox
+   ======================================== */
+
+.wu-inbox {
+  width: min(430px, calc(100vw - 24px));
+  max-height: min(620px, 80dvh);
+  padding: 20px;
+  border: 1px solid var(--wu-line, #dce4f1);
+  border-radius: 18px;
+  background: var(--wu-surface, #fff);
+  color: var(--wu-ink, #111c37);
+  box-shadow: 0 20px 55px rgba(13, 27, 55, .18);
+  scrollbar-width: thin;
+}
+
+/* Header */
+.wu-inbox .wu-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.wu-inbox .wu-panel-heading h2 {
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+
+/* Notification cards */
+.wu-inbox .wu-notification-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wu-inbox .wu-notification-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--wu-line, #dce4f1);
+  border-radius: 14px;
+  background: var(--wu-surface, #fff);
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.wu-inbox .wu-notification-card[data-unread='true'] {
+  border-inline-start: 1px solid var(--wu-line, #dce4f1);
+  border-color: color-mix(in srgb, var(--wu-blue, #245bc9) 25%, var(--wu-line, #dce4f1));
+  background: color-mix(in srgb, var(--wu-blue, #245bc9) 5%, var(--wu-surface, #fff));
+}
+
+.wu-inbox .wu-notification-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wu-inbox .wu-notification-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #6941d3;
+  background: #f0eaff;
+}
+
+.wu-inbox .wu-notification-icon--success {
+  color: #148557;
+  background: #e8fcf3;
+}
+
+.wu-inbox .wu-notification-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.wu-inbox .wu-notification-copy p {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.wu-inbox .wu-notification-copy time {
+  color: var(--wu-muted, #52617b);
+  font-size: 11px;
+}
+
+/* Invitation action buttons */
+.wu-inbox .wu-notification-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 52px;
+}
+
+.wu-inbox .wu-notification-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--wu-line, #dce4f1);
+  border-radius: 9px;
+  background: var(--wu-surface, #fff);
+  color: var(--wu-ink, #111c37);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.wu-inbox .wu-notification-action--accept {
+  border-color: #245bc9;
+  background: #245bc9;
+  color: #fff;
+}
+
+.wu-inbox .wu-notification-action--accept:hover:not(:disabled) {
+  background: #194ba9;
+}
+
+.wu-inbox .wu-notification-action:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.wu-inbox .wu-notification-secondary {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+/* Section labels */
+.wu-inbox h3 {
+  margin: 20px 0 10px;
+  color: var(--wu-muted, #52617b);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 480px) {
+  .wu-inbox {
+    inset: 60px 12px auto 12px;
+    width: auto;
+    padding: 15px;
+  }
+
+  .wu-inbox .wu-notification-card {
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wu-inbox .wu-notification-card {
+    transition: none;
+  }
+}
+
+/* Final notification card refinements */
+.wu-inbox .wu-notification-list > .wu-notification-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid var(--wu-line, #dce4f1);
+}
+
+.wu-inbox .wu-notification-unread-dot {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: #6941d3;
+}
+
+.wu-inbox .wu-notification-status {
+  margin-top: 6px;
+  color: var(--wu-muted, #52617b);
+  font-size: 12px;
+}
+
+.wu-inbox .wu-notification-actions > .wu-text-button {
+  margin-left: auto;
+}
+
+.wu-inbox .wu-notification-action:hover:not(:disabled) {
+  border-color: #a8bdf1;
+}
+
+.wu-inbox .wu-notification-action--accept:hover:not(:disabled) {
+  border-color: #194ba9;
+  color: #fff;
+}
+
+
+/* DevUP notifications — simplified dropdown */
+
+.wu-inbox {
+  width: min(430px, calc(100vw - 24px));
+  padding: 20px;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, .16);
+}
+
+.wu-inbox .wu-panel-heading {
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--wu-line, #dce4f1);
+}
+
+.wu-inbox .wu-inbox-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.wu-inbox .wu-inbox-title h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+
+.wu-inbox .wu-inbox-title p {
+  margin: 5px 0 0;
+  color: var(--wu-muted, #52617b);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.wu-inbox .wu-inbox-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.wu-inbox .wu-inbox-actions .wu-text-button {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.wu-inbox .wu-notification-list {
+  gap: 10px;
+}
+
+.wu-inbox .wu-notification-list > .wu-notification-card {
+  padding: 14px;
+  border-radius: 13px;
+}
+
+.wu-inbox .wu-notification-card[data-unread='true'] {
+  background: color-mix(
+    in srgb,
+    var(--wu-blue, #245bc9) 6%,
+    var(--wu-surface, #fff)
+  );
+}
+
+.wu-inbox .wu-notification-actions {
+  padding-left: 52px;
+  gap: 8px;
+}
+
+.wu-inbox .wu-notification-action {
+  min-height: 34px;
+  border-radius: 9px;
+  font-weight: 650;
+}
+
+.wu-inbox .wu-notification-action--accept {
+  background: #245bc9;
+  color: #fff;
+}
+
+.wu-inbox .wu-notification-copy p {
+  line-height: 1.5;
+}
+
+.wu-inbox .wu-inbox-footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--wu-line, #dce4f1);
+  text-align: center;
+}
+
+.wu-inbox .wu-inbox-view-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--wu-blue, #245bc9);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wu-inbox .wu-inbox-view-all:hover {
+  background: color-mix(
+    in srgb,
+    var(--wu-blue, #245bc9) 8%,
+    var(--wu-surface, #fff)
+  );
+}
+
+.wu-inbox .wu-inbox-view-all span {
+  font-size: 18px;
+}
+
+@media (max-width: 480px) {
+  .wu-inbox {
+    padding: 14px;
+  }
+
+  .wu-inbox .wu-panel-heading {
+    gap: 8px;
+  }
+}

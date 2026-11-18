@@ -56,6 +56,14 @@ export class Note {
   content!: string | null;
 
   @Column({
+    name: 'pinned_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
+  pinnedAt!: Date | null;
+
+  @Column({
     name: 'created_at',
     type: 'datetime',
     precision: 6,

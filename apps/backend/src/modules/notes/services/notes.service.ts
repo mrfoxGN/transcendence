@@ -45,6 +45,7 @@ export class NotesService {
       creatorId: userId,
       title,
       content: dto.content ?? null,
+      pinnedAt: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -71,6 +72,7 @@ export class NotesService {
         deletedAt: IsNull(),
       },
       order: {
+        pinnedAt: 'DESC',
         updatedAt: 'DESC',
         createdAt: 'DESC',
         id: 'DESC',
@@ -110,7 +112,11 @@ export class NotesService {
     userId: string,
     dto: UpdateNoteDto,
   ): Promise<NoteResponseDto> {
-    if (dto.title === undefined && dto.content === undefined) {
+    if (
+      dto.title === undefined &&
+      dto.content === undefined &&
+      dto.pinned === undefined
+    ) {
       throw new BadRequestException('No changes provided');
     }
 
@@ -131,9 +137,7 @@ export class NotesService {
       throw new ForbiddenException();
     }
 
-    const changes: Partial<Note> = {
-      updatedAt: new Date(),
-    };
+    const changes: Partial<Note> = {};
 
     if (dto.title !== undefined) {
       const title = dto.title.trim();
@@ -143,10 +147,16 @@ export class NotesService {
       }
 
       changes.title = title;
+      changes.updatedAt = new Date();
     }
 
     if (dto.content !== undefined) {
       changes.content = dto.content;
+      changes.updatedAt = new Date();
+    }
+
+    if (dto.pinned !== undefined) {
+      changes.pinnedAt = dto.pinned ? (note.pinnedAt ?? new Date()) : null;
     }
 
     const result = await this.notesRepository.update(

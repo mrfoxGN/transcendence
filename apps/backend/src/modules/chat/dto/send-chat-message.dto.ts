@@ -1,7 +1,9 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 
 export class SendChatMessageDto {
   @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/, { message: 'Message content cannot be blank' })
   content!: string;
 
   @IsOptional()
