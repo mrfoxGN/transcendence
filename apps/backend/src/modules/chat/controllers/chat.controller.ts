@@ -1,5 +1,5 @@
+
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,14 +11,9 @@ import {
   Query,
   Req,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
-  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { chatAttachmentLimit } from '../message-collaboration';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
@@ -42,7 +37,12 @@ export class ChatController {
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<{ count: number }> {
-    return { count: await this.chatService.unreadCount(workspaceId, request.user.id) };
+    return {
+      count: await this.chatService.unreadCount(
+        workspaceId,
+        request.user.id,
+      ),
+    };
   }
 
   @Patch(':messageId/read')
@@ -52,7 +52,11 @@ export class ChatController {
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
-    return this.chatService.markRead(workspaceId, request.user.id, messageId);
+    return this.chatService.markRead(
+      workspaceId,
+      request.user.id,
+      messageId,
+    );
   }
 
   @Get()
@@ -61,28 +65,23 @@ export class ChatController {
     @Query() query: ListChatMessagesDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<ChatMessageResponseDto[]> {
-    return this.chatService.listMessages(workspaceId, request.user.id, query);
-  }
-
-  @Get(':messageId/attachment')
-  downloadAttachment(
-    @Param('workspaceId', ParseUUIDPipe) threadId: string,
-    @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Req() request: AuthenticatedRequest,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    return this.chatService.downloadAttachment(threadId, request.user.id, messageId, response);
+    return this.chatService.listMessages(
+      workspaceId,
+      request.user.id,
+      query,
+    );
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: chatAttachmentLimit, files: 1 } }))
   sendMessage(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: SendChatMessageDto,
     @Req() request: AuthenticatedRequest,
-    @UploadedFile() file?: Express.Multer.File,
   ): Promise<ChatMessageResponseDto> {
-    if (!file && !dto.content.trim()) throw new BadRequestException('Message content is required');
-    return file ? this.chatService.sendMessage(workspaceId, request.user.id, dto, file) : this.chatService.sendMessage(workspaceId, request.user.id, dto);
+    return this.chatService.sendMessage(
+      workspaceId,
+      request.user.id,
+      dto,
+    );
   }
 }

@@ -3,19 +3,6 @@ import { IsInt, IsOptional, IsString, IsUUID, MaxLength, Max, Min } from 'class-
 
 export class ListChatMessagesDto {
   @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  q?: string;
-
-  @IsOptional()
-  @IsUUID()
-  before?: string;
-
-  @IsOptional()
-  @IsUUID()
-  after?: string;
-
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
