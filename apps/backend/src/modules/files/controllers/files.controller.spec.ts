@@ -44,6 +44,7 @@ describe('FilesController', () => {
     upload: jest.fn(),
     findAll: jest.fn(),
     findOne: jest.fn(),
+    rename: jest.fn(),
     remove: jest.fn(),
     getDownloadInfo: jest.fn(),
   };
@@ -193,6 +194,42 @@ describe('FilesController', () => {
       fileId,
       userId,
     );
+  });
+
+  it('renames a file', async () => {
+    const updatedFile = {
+      ...fileResponse,
+      displayName: 'New file name.pdf',
+    };
+    filesService.rename.mockResolvedValue(updatedFile);
+
+    const response = await request(httpServer())
+      .patch(`/workspaces/${workspaceId}/files/${fileId}`)
+      .send({ displayName: 'New file name.pdf' })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: fileId,
+      displayName: 'New file name.pdf',
+    });
+
+    expect(filesService.rename).toHaveBeenCalledWith(
+      workspaceId,
+      fileId,
+      userId,
+      expect.objectContaining({
+        displayName: 'New file name.pdf',
+      }),
+    );
+  });
+
+  it('rejects renaming with invalid characters or empty string', async () => {
+    await request(httpServer())
+      .patch(`/workspaces/${workspaceId}/files/${fileId}`)
+      .send({ displayName: 'bad/filename' })
+      .expect(400);
+
+    expect(filesService.rename).not.toHaveBeenCalled();
   });
 
   it('deletes a file with 204', async () => {

@@ -1,8 +1,11 @@
-import { IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
 
 export class RenameWorkspaceFileDto {
   @IsString()
+  @IsNotEmpty()
   @Length(1, 255)
-  @Matches(/^[^\x00-\x1f\x7f/\\]+$/, { message: 'Enter a filename without slashes or control characters.' })
+  @Matches(/^[^\x00-\x1f\x7f/\\]+$/, {
+    message: 'Enter a filename without slashes or control characters.',
+  })
   displayName!: string;
 }

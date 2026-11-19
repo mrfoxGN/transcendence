@@ -1,34 +1,26 @@
-import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
-  PayloadTooLargeException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { access, mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { IsNull, Raw, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 
-import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
+import { ActivitiesService } from '../../activities/services/activities.service';
 import { TasksService } from '../../tasks/services/tasks.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import { ListWorkspaceFilesDto } from '../dto/list-workspace-files.dto';
+import { RenameWorkspaceFileDto } from '../dto/rename-workspace-file.dto';
 import { UploadWorkspaceFileDto } from '../dto/upload-workspace-file.dto';
 import { WorkspaceFileResponseDto } from '../dto/workspace-file-response.dto';
 import { WorkspaceFile } from '../entities/workspace-file.entity';
-
-export const workspaceFileLimit = 10 * 1024 * 1024;
-
-const fileKindFilters = {
-  image: (column: string) => `${column} LIKE 'image/%'`,
-  text: (column: string) => `${column} LIKE 'text/%'`,
-  document: (column: string) => `(${column} IN ('application/pdf','application/msword','application/rtf') OR ${column} LIKE 'application/vnd.ms-%' OR ${column} LIKE 'application/vnd.openxmlformats-officedocument.%' OR ${column} LIKE 'application/vnd.oasis.opendocument.%')`,
-};
 
 @Injectable()
 export class FilesService {
@@ -57,12 +49,12 @@ export class FilesService {
     file: Express.Multer.File | undefined,
     dto: UploadWorkspaceFileDto,
   ): Promise<WorkspaceFileResponseDto> {
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
+    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+    assertWorkspaceWritable(workspace);
 
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    if (file.size > workspaceFileLimit) throw new PayloadTooLargeException('Choose a file no larger than 10 MiB.');
 
     if (dto.taskId) {
       const task = await this.tasksService.findById(dto.taskId, userId);
@@ -144,31 +136,17 @@ export class FilesService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const search = query.search?.trim().replace(/[!%_]/g, character => '!' + character);
     const files = await this.workspaceFilesRepository.find({
       where: {
         workspaceId,
         deletedAt: IsNull(),
-        ...(query.uploaderId && { uploaderId: query.uploaderId }),
-        ...(query.kind && { mimeType: Raw(column => {
-          if (query.kind === 'other') return `(${column} IS NULL OR NOT (${Object.values(fileKindFilters).map(filter => filter(column)).join(' OR ')}))`;
-          return fileKindFilters[query.kind!](column);
-        }) }),
-        ...(search && {
-          displayName: Raw(
-            (column) => `${column} LIKE :search ESCAPE '!'`,
-            { search: '%' + search + '%' },
-          ),
-        }),
       },
       order: {
-        ...(query.sort === 'name' && { displayName: 'ASC' as const }),
-        ...(query.sort === 'size' && { sizeBytes: 'DESC' as const }),
         createdAt: 'DESC',
         id: 'DESC',
       },
       skip,
-      take: limit + (query.lookahead === '1' ? 1 : 0),
+      take: limit,
     });
 
     return files.map((file) => this.toResponse(file));
@@ -196,22 +174,68 @@ export class FilesService {
     return this.toResponse(file);
   }
 
-  async rename(workspaceId: string, fileId: string, userId: string, name: string) {
-    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+  async rename(
+    workspaceId: string,
+    fileId: string,
+    userId: string,
+    dtoOrName: RenameWorkspaceFileDto | string,
+  ): Promise<WorkspaceFileResponseDto> {
+    const workspace = await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
     assertWorkspaceWritable(workspace);
-    const where = { id: fileId, workspaceId, deletedAt: IsNull() };
-    const file = await this.workspaceFilesRepository.findOne({ where });
-    if (!file) throw new NotFoundException('File not found');
-    if (file.uploaderId !== userId && workspace.ownerId !== userId) throw new ForbiddenException('Only the uploader or workspace owner can rename this file');
-    const displayName = name.trim();
-    if (!displayName) throw new BadRequestException('Enter a filename.');
-    const result = await this.workspaceFilesRepository.update(where, { displayName });
-    if (!result.affected) throw new NotFoundException('File not found');
-    if (displayName !== file.displayName) await recordActivity(this.activitiesService, {
-      workspaceId, actorUserId: userId, actionType: 'FILE_RENAMED', resourceType: 'workspace_file', resourceId: fileId,
-      metadata: { displayName },
+
+    const rawName =
+      typeof dtoOrName === 'string' ? dtoOrName : dtoOrName.displayName;
+    const displayName = rawName?.trim();
+
+    if (!displayName) {
+      throw new BadRequestException('Enter a filename.');
+    }
+
+    const file = await this.workspaceFilesRepository.findOne({
+      where: {
+        id: fileId,
+        workspaceId,
+        deletedAt: IsNull(),
+      },
     });
-    return this.toResponse({ ...file, displayName });
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (file.uploaderId !== userId && workspace.ownerId !== userId) {
+      throw new ForbiddenException(
+        'Only the uploader or workspace owner can rename this file',
+      );
+    }
+
+    file.displayName = displayName;
+    const savedFile = await this.workspaceFilesRepository.save(file);
+
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: userId,
+        actionType: 'FILE_RENAMED',
+        resourceType: 'workspace_file',
+        resourceId: savedFile.id,
+        metadata: {
+          displayName: savedFile.displayName,
+          originalName: savedFile.originalName,
+          taskId: savedFile.taskId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create FILE_RENAMED activity for file ${savedFile.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+
+    return this.toResponse(savedFile);
   }
 
   async remove(
