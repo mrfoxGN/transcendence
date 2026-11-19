@@ -1191,7 +1191,7 @@ export class TasksService {
     }
 
     if (from === TaskStatus.IN_PROGRESS) {
-      return to === TaskStatus.REVIEW || to === TaskStatus.CANCELLED;
+      return to === TaskStatus.REVIEW || to === TaskStatus.CANCELLED || to === TaskStatus.READY;
     }
 
     if (from === TaskStatus.REVIEW) {

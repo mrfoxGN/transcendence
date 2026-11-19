@@ -1,19 +1,6 @@
 import { TaskStatus } from '../../database/enums/database.enums';
 import type { Task } from '../tasks/entities/task.entity';
 
-const transitions: Record<TaskStatus, readonly TaskStatus[]> = {
-  BACKLOG: [TaskStatus.READY, TaskStatus.CANCELLED],
-  READY: [TaskStatus.BACKLOG, TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
-  IN_PROGRESS: [TaskStatus.REVIEW, TaskStatus.CANCELLED],
-  REVIEW: [TaskStatus.IN_PROGRESS, TaskStatus.DONE, TaskStatus.CANCELLED],
-  DONE: [TaskStatus.REVIEW],
-  CANCELLED: [],
-};
-
-export function canTransitionTask(from: TaskStatus, to: TaskStatus) {
-  return transitions[from]?.includes(to) ?? false;
-}
-
 export function isActiveTaskStatus(status: TaskStatus) {
   return status === TaskStatus.IN_PROGRESS || status === TaskStatus.REVIEW;
 }

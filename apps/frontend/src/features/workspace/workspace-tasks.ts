@@ -68,7 +68,7 @@ export function taskBoardColumn(task: Task, columns: BoardColumnConfig[] = fixed
 const transitions: Record<string, string[]> = {
   'To do': ['Ready', 'Cancelled'],
   Ready: ['To do', 'In progress', 'Cancelled'],
-  'In progress': ['Review', 'Cancelled'],
+  'In progress': ['Ready', 'Review', 'Cancelled'],
   Review: ['In progress', 'Done', 'Cancelled'],
   Done: ['Review'],
 };
