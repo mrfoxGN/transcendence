@@ -527,11 +527,15 @@ describe('TasksService', () => {
     });
 
     const allowed: Array<[TaskStatus, TaskStatus]> = [
-      [TaskStatus.BACKLOG, TaskStatus.READY],
+      [TaskStatus.BACKLOG, TaskStatus.TODO],
       [TaskStatus.BACKLOG, TaskStatus.CANCELLED],
-      [TaskStatus.READY, TaskStatus.BACKLOG],
+      [TaskStatus.TODO, TaskStatus.BACKLOG],
+      [TaskStatus.TODO, TaskStatus.READY],
+      [TaskStatus.TODO, TaskStatus.CANCELLED],
+      [TaskStatus.READY, TaskStatus.TODO],
       [TaskStatus.READY, TaskStatus.IN_PROGRESS],
       [TaskStatus.READY, TaskStatus.CANCELLED],
+      [TaskStatus.IN_PROGRESS, TaskStatus.READY],
       [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW],
       [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
       [TaskStatus.REVIEW, TaskStatus.IN_PROGRESS],
@@ -610,7 +614,7 @@ describe('TasksService', () => {
     );
 
     it('still transitions the task when activity creation fails', async () => {
-      task.status = TaskStatus.BACKLOG;
+      task.status = TaskStatus.TODO;
 
       activities.create.mockRejectedValue(new Error('Activity unavailable'));
 
@@ -670,6 +674,7 @@ describe('TasksService', () => {
     });
 
     it('propagates a history insert failure out of the transaction callback', async () => {
+      task.status = TaskStatus.TODO;
       const error = new Error('History insert failed');
       history.save.mockRejectedValue(error);
       await expect(
