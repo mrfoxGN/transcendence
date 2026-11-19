@@ -122,6 +122,22 @@ describe('AuthService', () => {
   });
 
   describe('two-factor authentication', () => {
+    const originalKey = process.env.RESEND_API_KEY;
+    const originalFrom = process.env.RESEND_FROM_EMAIL;
+
+    beforeEach(() => {
+      process.env.RESEND_API_KEY = 'test-key';
+      process.env.RESEND_FROM_EMAIL = 'test@example.com';
+    });
+
+    afterEach(() => {
+      if (originalKey === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = originalKey;
+
+      if (originalFrom === undefined) delete process.env.RESEND_FROM_EMAIL;
+      else process.env.RESEND_FROM_EMAIL = originalFrom;
+    });
+
     it('requires 2FA when user has 2FA enabled', async () => {
       users.findByEmail.mockResolvedValue({
         id,
