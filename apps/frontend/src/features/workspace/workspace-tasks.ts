@@ -3,7 +3,8 @@ import { calendarDate, formatCalendarDate } from './workspace-calendar';
 import type { Task } from './types';
 
 export const statusLabels = {
-  BACKLOG: 'To do',
+  BACKLOG: 'Backlog',
+  TODO: 'To do',
   READY: 'Ready',
   IN_PROGRESS: 'In progress',
   REVIEW: 'Review',
@@ -17,7 +18,19 @@ export const statusCodes = Object.fromEntries(
   Object.entries(statusLabels).map(([code, label]) => [label, code]),
 ) as Record<string, Status>;
 
-export const fixedBoardColumns: BoardColumnConfig[] = (Object.keys(statusLabels) as Status[]).map(status => ({
+export const fixedBoardColumns: BoardColumnConfig[] = (
+  Object.keys(statusLabels) as Status[]
+)
+  .filter(status => status !== 'BACKLOG')
+  .map(status => ({
+    id: status,
+    label: statusLabels[status],
+    status,
+  }));
+
+export const allTaskColumns: BoardColumnConfig[] = (
+  Object.keys(statusLabels) as Status[]
+).map(status => ({
   id: status,
   label: statusLabels[status],
   status,
@@ -53,6 +66,7 @@ type ApiBoard = {
 
 export type BoardData = {
   tasks: Task[];
+  backlogTasks: Task[];
   columns: string[];
   boardColumns: BoardColumnConfig[];
   activeCount: number;
@@ -60,17 +74,22 @@ export type BoardData = {
   reportingTimeZone: string;
 };
 
-export function taskBoardColumn(task: Task, columns: BoardColumnConfig[] = fixedBoardColumns) {
+export function taskBoardColumn(
+  task: Task,
+  columns: BoardColumnConfig[] = fixedBoardColumns,
+) {
   const status = statusCodes[task.status];
-  return columns.find(column => column.status === status) ?? columns[0];
+  return columns.find(column => column.status === status);
 }
 
 const transitions: Record<string, string[]> = {
-  'To do': ['Ready', 'Cancelled'],
+  Backlog: ['To do', 'Cancelled'],
+  'To do': ['Backlog', 'Ready', 'Cancelled'],
   Ready: ['To do', 'In progress', 'Cancelled'],
   'In progress': ['Ready', 'Review', 'Cancelled'],
   Review: ['In progress', 'Done', 'Cancelled'],
   Done: ['Review'],
+  Cancelled: [],
 };
 
 export const canTransition = (from: string, to: string) => transitions[from]?.includes(to) ?? false;
@@ -78,7 +97,7 @@ export const canTransition = (from: string, to: string) => transitions[from]?.in
 export async function loadBoard(path: string, token: string, signal: AbortSignal): Promise<BoardData> {
   const board: ApiBoard = await (await workspaceRequest(path + '/board', token, { signal })).json();
   const reportingTimeZone = board.reportingTimeZone ?? 'Africa/Casablanca';
-  const tasks: Task[] = board.columns.flatMap(column => column.tasks).map((item): Task => {
+  const mapItemToTask = (item: ApiTask): Task => {
     const assigneeId = board.assigneesByTaskId?.[item.id];
     const dueDate = item.dueAt
       ? calendarDate(new Date(item.dueAt), reportingTimeZone)
@@ -102,9 +121,18 @@ export async function loadBoard(path: string, token: string, signal: AbortSignal
       person: 'Unassigned',
       initials: '',
     };
-  });
+  };
+  const tasks: Task[] = board.columns
+  .flatMap(column => column.tasks)
+  .filter(item => item.status !== 'BACKLOG')
+  .map(mapItemToTask);
+  const backlogTasks: Task[] = board.columns
+  .flatMap(column => column.tasks)
+  .filter(item => item.status === 'BACKLOG')
+  .map(mapItemToTask);
   return {
     tasks,
+    backlogTasks,
     columns: fixedBoardColumns.map(column => column.label),
     boardColumns: fixedBoardColumns,
     activeCount: board.activeCount,

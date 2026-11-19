@@ -119,9 +119,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     const member = members.items?.find(person => person.userId === task.assigneeId);
     return member ? { ...task, person: member.username, initials: member.username.slice(0, 2).toUpperCase() } : task;
   }), [board, members.items]);
+  const backlogTasks = useMemo(() => (board?.backlogTasks ?? []).map(task => {
+    const member = members.items?.find(person => person.userId === task.assigneeId);
+    return member ? { ...task, person: member.username, initials: member.username.slice(0, 2).toUpperCase() } : task;
+  }), [board, members.items]);
+  const allTasks = useMemo(() => [...tasks, ...backlogTasks], [tasks, backlogTasks]);
   const columns = board?.columns ?? [];
   const boardColumns = board?.boardColumns ?? [];
-  const selectedTask = tasks.find(task => task.id === selectedTaskId || (selectedTaskId && task.taskKey === selectedTaskId.toUpperCase()));
+  const selectedTask = allTasks.find(task => task.id === selectedTaskId || (selectedTaskId && task.taskKey === selectedTaskId.toUpperCase()));
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Last 30 days');
 
   useEffect(() => {
@@ -286,7 +291,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }
 
   async function moveBoardTask(id: string, column: BoardColumnConfig, placement: 'before' | 'after' | 'end', anchorTaskId?: string) {
-    const task = tasks.find(item => item.id === id);
+    const task = allTasks.find(item => item.id === id);
     if (archived || !task || taskSaving || !token) return false;
     setTaskSaving(true);
     setColumnError('');
@@ -448,7 +453,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function openActivityResource(event: ActivityEvent) {
     if (event.resourceType === 'task') {
-      const task = tasks.find(item => item.id === event.resourceId);
+      const task = allTasks.find(item => item.id === event.resourceId);
       if (task) { setSelectedTask(task); return true; }
       if (event.resourceId && event.resourceState === 'available') {
         openTaskById(event.resourceId);
@@ -520,7 +525,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           storageKey={'devup:backlog:' + workspaceId + ':' + profileId}
           viewsPath={workspacePath + '/backlog-views'}
           token={token}
-          tasks={tasks}
+          tasks={backlogTasks}
           profileId={profileId}
           today={today}
           nextSevenDaysEnd={nextSevenDaysEnd}
@@ -541,6 +546,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           activeCount={board?.activeCount ?? 0}
           activeWipLimit={board?.activeWipLimit ?? 0}
           columns={boardColumns} allTasks={tasks}
+          backlogTasks={backlogTasks}
           error={columnError}
           onMoveTask={moveBoardTask}
           movingTask={taskSaving}
@@ -651,7 +657,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     <div className="wu-main">
       <header className="wu-topbar">
         <a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a>
-        <WorkspaceCommand pages={navigation} tasks={tasks}
+        <WorkspaceCommand pages={navigation} tasks={allTasks}
           disabled={!!(!workspace || (!archived && modal) || selectedTask)} onNavigate={navigate} onOpenTask={setSelectedTask} />
         <div className="wu-top-actions">
           <NotificationInbox token={token} workspaceId={workspaceId} showBadge={profile.notificationBadge} />
@@ -690,7 +696,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         {renderPage()}
       </main>
     </div>
-    {workspace && selectedTask && <TaskDetails key={selectedTask.id + (archived ? '-archived' : '')} task={selectedTask} tasks={tasks} members={members.items ?? []}
+    {workspace && selectedTask && <TaskDetails key={selectedTask.id + (archived ? '-archived' : '')} task={selectedTask} tasks={allTasks} members={members.items ?? []}
       readOnly={archived}
       projectSection={<TaskProjectField taskId={selectedTask.id} projects={projects.items} error={projects.error} retry={projects.retry}
         path={projectsPath} token={token} readOnly={archived} openProject={id => navigate('projects', 'project-' + id)} />}

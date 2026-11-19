@@ -54,6 +54,7 @@ type BoardPageProps = {
   filteredTasks: Task[];
   columns: BoardColumnConfig[];
   allTasks: Task[];
+  backlogTasks?: Task[];
   error: string;
   activeCount: number;
   activeWipLimit: number;
@@ -112,10 +113,11 @@ function DraggableTask({ task, onOpen, onMove, columnId, readOnly }: {
   );
 }
 
-function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, readOnly }: {
+function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, onSelectFromBacklog, readOnly }: {
   column: BoardColumnConfig; tasks: Task[]; count: number;
   onOpenTask: (task: Task) => void; onAddTask: () => void;
   onMoveTask: (task: Task) => void;
+  onSelectFromBacklog?: () => void;
   readOnly: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id, data: { columnId: column.id } });
@@ -131,8 +133,8 @@ function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, 
         {tasks.map(task => <DraggableTask key={task.id} task={task} columnId={column.id} readOnly={readOnly}
           onOpen={() => onOpenTask(task)} onMove={() => onMoveTask(task)} />)}
       </div>
-      {!readOnly && column.status === 'BACKLOG' && (
-        <button className="wu-add-card" type="button" aria-label="Add task to backlog" title="Add task to backlog" onClick={onAddTask}>
+      {!readOnly && column.status === 'TODO' && onSelectFromBacklog && (
+        <button className="wu-add-card" type="button" aria-label="Add task from backlog" title="Add task from backlog" onClick={onSelectFromBacklog}>
           <Plus size={17} aria-hidden="true" />
         </button>
       )}
@@ -141,7 +143,7 @@ function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, 
 }
 
 export function BoardPage({
-  pageHeading, facets, filter, setFilter, filteredTasks, columns, allTasks, error,
+  pageHeading, facets, filter, setFilter, filteredTasks, columns, allTasks, backlogTasks = [], error,
   activeCount, activeWipLimit, onMoveTask, movingTask, setSelectedTask, onAddTask, addTaskButton, readOnly = false,
 }: BoardPageProps) {
   const [draggedTask, setDraggedTask] = useState<Task>();
@@ -149,6 +151,8 @@ export function BoardPage({
   const [moveDestination, setMoveDestination] = useState('');
   const [movePosition, setMovePosition] = useState('end');
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [pickingFromBacklog, setPickingFromBacklog] = useState(false);
+  const [selectedBacklogTaskId, setSelectedBacklogTaskId] = useState('');
 
   const tasksInColumn = (column: BoardColumnConfig) => allTasks
     .filter(task => statusCodes[task.status] === column.status)
@@ -218,6 +222,10 @@ export function BoardPage({
             const columnTasks = tasksInColumn(column);
             return <BoardColumn key={column.id} column={column} tasks={columnTasks.filter(task => visibleIds.has(task.id))} count={columnTasks.length} readOnly={readOnly}
               onOpenTask={setSelectedTask} onAddTask={onAddTask}
+              onSelectFromBacklog={() => {
+                setSelectedBacklogTaskId(backlogTasks[0]?.id ?? '');
+                setPickingFromBacklog(true);
+              }}
               onMoveTask={() => {
                 setMoveTask(allTasks.find(task => task.id === columnTasks[0]?.id));
                 setMoveDestination(column.id);
@@ -258,6 +266,73 @@ export function BoardPage({
           <button className="wu-button wu-button--primary" type="submit" disabled={movingTask || !moveColumn}>Move task</button>
         </div>
       </form>
+    </Drawer>}
+    {pickingFromBacklog && <Drawer title="Add task from backlog" confirmation closeDisabled={movingTask} onClose={() => { setPickingFromBacklog(false); setSelectedBacklogTaskId(''); }}>
+      {!backlogTasks.length ? (
+        <div className="wu-column-form">
+          <p className="wu-muted">No tasks in the backlog.</p>
+          <div className="wu-modal-actions">
+            <button className="wu-button wu-button--secondary" type="button" onClick={() => setPickingFromBacklog(false)}>Close</button>
+          </div>
+        </div>
+      ) : (
+        <form className="wu-column-form" onSubmit={async event => {
+          event.preventDefault();
+          if (!selectedBacklogTaskId) return;
+          const todoColumn = columns.find(column => column.status === 'TODO');
+          if (!todoColumn) return;
+          if (await onMoveTask(selectedBacklogTaskId, todoColumn, 'end')) {
+            setPickingFromBacklog(false);
+            setSelectedBacklogTaskId('');
+          }
+        }}>
+          <label className="wu-field-label">Backlog task
+            <select value={selectedBacklogTaskId} disabled={movingTask} onChange={event => setSelectedBacklogTaskId(event.currentTarget.value)} required>
+              <option value="" disabled>Choose a task</option>
+              {backlogTasks.map(task => (
+                <option key={task.id} value={task.id}>
+                  {task.taskKey ? `${task.taskKey}: ` : ''}{task.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="wu-board-cards" style={{ maxHeight: '240px', overflowY: 'auto' }} role="listbox" aria-label="Backlog tasks list">
+            {backlogTasks.map(task => {
+              const isSelected = selectedBacklogTaskId === task.id;
+              return (
+                <div
+                  key={task.id}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={0}
+                  style={{
+                    cursor: 'pointer',
+                    marginBottom: '8px',
+                    borderRadius: '10px',
+                    border: isSelected ? '2px solid var(--wu-blue)' : '1px solid var(--wu-line)',
+                    background: isSelected ? 'var(--wu-surface-soft)' : 'var(--wu-surface)',
+                    padding: '10px',
+                  }}
+                  onClick={() => setSelectedBacklogTaskId(task.id)}
+                  onKeyDown={event => {
+                    if (event.key === ' ' || event.key === 'Enter') {
+                      event.preventDefault();
+                      setSelectedBacklogTaskId(task.id);
+                    }
+                  }}
+                >
+                  <TaskCardContent task={task} />
+                </div>
+              );
+            })}
+          </div>
+          {error && <p role="alert">{error}</p>}
+          <div className="wu-modal-actions">
+            <button className="wu-button wu-button--secondary" type="button" disabled={movingTask} onClick={() => { setPickingFromBacklog(false); setSelectedBacklogTaskId(''); }}>Cancel</button>
+            <button className="wu-button wu-button--primary" type="submit" disabled={movingTask || !selectedBacklogTaskId}>Move to To do</button>
+          </div>
+        </form>
+      )}
     </Drawer>}
   </>;
 }

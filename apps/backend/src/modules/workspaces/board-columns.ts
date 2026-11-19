@@ -11,14 +11,22 @@ export function compareBoardTasks(a: Task, b: Task) {
 
 export function defaultBoardColumns() {
   const labels: Record<TaskStatus, string> = {
-    BACKLOG: 'To do',
+    BACKLOG: 'Backlog',
+    TODO: 'To do',
     READY: 'Ready',
     IN_PROGRESS: 'In progress',
     REVIEW: 'Review',
     DONE: 'Done',
     CANCELLED: 'Cancelled',
   };
-  return Object.values(TaskStatus).map(status => ({ id: status, label: labels[status], status }));
+
+  return Object.values(TaskStatus)
+    .filter(status => status !== TaskStatus.BACKLOG)
+    .map(status => ({
+      id: status,
+      label: labels[status],
+      status,
+    }));
 }
 
 export function taskColumn(columns: { status: TaskStatus }[], status: TaskStatus) {

@@ -5,10 +5,10 @@ import { EmptyState, Panel, TaskTable } from '../components';
 import { TaskFacets, emptyFacets, matchesTaskFacets, type Facets } from '../TaskFacets';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
 import { isOpenTask } from '../workspace-calendar';
+import { statusCodes } from '../workspace-tasks';
 import type { PageHeading, Task, AddTaskButton } from '../types';
 
 type BacklogView = {
-  scope: 'backlog' | 'all' | 'review';
   sort: 'manual' | 'priority' | 'due';
   mine: boolean;
   blocked: boolean;
@@ -16,12 +16,11 @@ type BacklogView = {
   facets: Facets;
 };
 type SavedView = { name: string; view: BacklogView };
-const defaultView: BacklogView = { scope: 'backlog', sort: 'manual', mine: false, blocked: false, search: '', facets: emptyFacets };
+const defaultView: BacklogView = { sort: 'manual', mine: false, blocked: false, search: '', facets: emptyFacets };
 const presets: SavedView[] = [
   { name: 'All backlog tasks', view: defaultView },
-  { name: 'My work', view: { ...defaultView, scope: 'all', mine: true } },
-  { name: 'Needs review', view: { ...defaultView, scope: 'review' } },
-  { name: 'Blocked', view: { ...defaultView, scope: 'all', blocked: true } },
+  { name: 'My work', view: { ...defaultView, mine: true } },
+  { name: 'Blocked', view: { ...defaultView, blocked: true } },
 ];
 const priorityOrder: Record<string, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -73,7 +72,7 @@ export function BacklogPage({
 
   const query = view.search.trim().toLowerCase();
   const backlogTasks = tasks.filter(task =>
-    (view.scope === 'all' || (view.scope === 'review' ? task.status === 'Review' : ['To do', 'Ready'].includes(task.status))) &&
+    (task.status === 'Backlog' || statusCodes[task.status] === 'BACKLOG') &&
     (!view.mine || (task.assigneeId === profileId && isOpenTask(task))) &&
     (!view.blocked || (task.isBlocked && isOpenTask(task))) &&
     (task.title.toLowerCase().includes(query) || task.taskKey?.toLowerCase().includes(query)) &&
@@ -89,7 +88,7 @@ export function BacklogPage({
     return Object.entries(configuration).every(([key, value]) => view[key as keyof BacklogView] === value)
       && facets.assignee === view.facets.assignee && facets.priority === view.facets.priority && facets.due === view.facets.due;
   });
-  const hasFilters = !!(view.search || view.mine || view.blocked || view.scope !== 'backlog' || Object.values(view.facets).some(Boolean));
+  const hasFilters = !!(view.search || view.mine || view.blocked || Object.values(view.facets).some(Boolean));
 
   function clearFilters() {
     update({ ...defaultView, sort: view.sort });
@@ -103,12 +102,6 @@ export function BacklogPage({
           onChange={event => update(views[Number(event.currentTarget.value)].view)}>
           <option value="" disabled>Custom view</option>
           {views.map((item, index) => <option key={index} value={index}>{item.name}</option>)}
-        </select>
-        <select className="wu-select" aria-label="Task scope" value={view.scope}
-          onChange={event => update({ scope: event.currentTarget.value as BacklogView['scope'] })}>
-          <option value="backlog">To do and Ready</option>
-          <option value="all">All statuses</option>
-          <option value="review">In review</option>
         </select>
         <label className="wu-list-search">
           <Search size={16} aria-hidden="true" />

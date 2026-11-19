@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from 're
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest, WorkspaceRequestError, type WorkspaceFile } from './workspace-api';
-import { canTransition, statusLabels, taskBoardColumn, taskPriorities, type BoardColumnConfig, type Member } from './workspace-tasks';
+import { allTaskColumns, canTransition, statusCodes, statusLabels, taskPriorities, type BoardColumnConfig, type Member } from './workspace-tasks';
 import type { Task } from './types';
 import { finishInputEdit, saveTextOnBlur } from './autosave';
 
@@ -182,7 +182,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
 
   async function copyTaskLink() {
     const url = new URL(location.href);
-    url.searchParams.set('page', 'board');
+    url.searchParams.set('page', statusCodes[task.status] === 'BACKLOG' ? 'backlog' : 'board');
     url.searchParams.set('task', task.taskKey ?? task.id);
     url.hash = '';
     try {
@@ -194,8 +194,9 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     }
   }
 
-  const currentColumn = taskBoardColumn(task, boardColumns);
-  const destinations = boardColumns.filter(column => column.id !== currentColumn?.id && canTransition(task.status, statusLabels[column.status]));
+  const currentStatusCode = statusCodes[task.status];
+  const currentColumn = allTaskColumns.find(column => column.status === currentStatusCode);
+  const destinations = allTaskColumns.filter(column => column.status !== currentStatusCode && canTransition(task.status, column.label));
   const hasFailedEdits = Object.keys(failedEdits).length > 0;
 
   return <Drawer title={task.title} onClose={onClose}>

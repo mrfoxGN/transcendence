@@ -1179,12 +1179,20 @@ export class TasksService {
   
   private isAllowedTransition(from: TaskStatus, to: TaskStatus): boolean {
     if (from === TaskStatus.BACKLOG) {
-      return to === TaskStatus.READY || to === TaskStatus.CANCELLED;
+      return to === TaskStatus.TODO || to === TaskStatus.CANCELLED;
     }
+
+      if (from === TaskStatus.TODO) {
+        return (
+          to === TaskStatus.READY ||
+          to === TaskStatus.BACKLOG ||
+          to === TaskStatus.CANCELLED
+        );
+      }
 
     if (from === TaskStatus.READY) {
       return (
-        to === TaskStatus.BACKLOG ||
+        to === TaskStatus.TODO ||
         to === TaskStatus.IN_PROGRESS ||
         to === TaskStatus.CANCELLED
       );
