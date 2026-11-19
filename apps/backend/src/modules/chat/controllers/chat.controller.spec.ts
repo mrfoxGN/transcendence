@@ -45,6 +45,8 @@ describe('Chat endpoints', () => {
   const chatService = {
     sendMessage: jest.fn(),
     listMessages: jest.fn(),
+    unreadCount: jest.fn(),
+    markRead: jest.fn(),
   };
 
   let app: INestApplication;
@@ -98,6 +100,8 @@ describe('Chat endpoints', () => {
     usersService.findForAuth.mockResolvedValue({ user, tokenVersion: 0 });
     chatService.sendMessage.mockResolvedValue(message);
     chatService.listMessages.mockResolvedValue([message]);
+    chatService.unreadCount.mockResolvedValue(5);
+    chatService.markRead.mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -152,6 +156,27 @@ describe('Chat endpoints', () => {
     );
   });
 
+  it('sends a workspace message with replyToId and requestId', async () => {
+    const replyToId = '88888888-8888-4888-8888-888888888888';
+    const requestId = '77777777-7777-4777-8777-777777777777';
+
+    await request(app.getHttpServer() as Server)
+      .post(`/workspaces/${workspaceId}/messages`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        content: 'Replying now',
+        replyToId,
+        requestId,
+      })
+      .expect(201);
+
+    expect(chatService.sendMessage).toHaveBeenCalledWith(workspaceId, userId, {
+      content: 'Replying now',
+      replyToId,
+      requestId,
+    });
+  });
+
   it('returns 400 when content is empty', async () => {
     await request(app.getHttpServer() as Server)
       .post(`/workspaces/${workspaceId}/messages`)
@@ -175,6 +200,25 @@ describe('Chat endpoints', () => {
       .expect(400);
 
     expect(chatService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('gets unread message count', async () => {
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/workspaces/${workspaceId}/messages/unread-count`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(chatService.unreadCount).toHaveBeenCalledWith(workspaceId, userId);
+    expect(response.body).toEqual({ count: 5 });
+  });
+
+  it('marks a message as read', async () => {
+    await request(app.getHttpServer() as Server)
+      .patch(`/workspaces/${workspaceId}/messages/${messageId}/read`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
+
+    expect(chatService.markRead).toHaveBeenCalledWith(workspaceId, userId, messageId);
   });
 
   it('lists workspace messages', async () => {

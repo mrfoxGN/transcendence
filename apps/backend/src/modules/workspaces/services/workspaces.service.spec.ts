@@ -338,7 +338,7 @@ describe('WorkspacesService update', () => {
     expect(response.name).toBe('Updated Name');
     expect(response.description).toBe('Updated description');
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
 
     expect(response.name).toBe('Updated Name');
     expect(response.description).toBe('Updated description');
@@ -432,7 +432,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const response = await service.archive(workspaceId, ownerId);
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
     expect(response.archivedAt).toBeInstanceOf(Date);
   });
 
@@ -491,7 +491,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     const response = await service.unarchive(workspaceId, ownerId);
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
     expect(response.archivedAt).toBeNull();
   });
 
@@ -550,7 +550,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
 
     await service.softDelete(workspaceId, ownerId);
 
-    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) }));
+    expect(repository.update).toHaveBeenCalledWith(expect.objectContaining({ id: workspaceId, ownerId }), expect.objectContaining({ updatedAt: expect.any(Date) as unknown }));
   });
 
   it('returns 404 when deleting a missing workspace', async () => {
@@ -762,7 +762,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -836,7 +839,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -895,7 +901,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -912,7 +921,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -929,7 +941,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
@@ -951,7 +966,10 @@ describe('WorkspacesService removeMember', () => {
     };
 
     const dataSource = {
-      transaction: jest.fn(async callback => callback(dataSource)),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          await callback(dataSource),
+      ),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -1016,7 +1034,12 @@ describe('WorkspacesService createInvitation', () => {
         .mockImplementation((entity: unknown) => Promise.resolve(entity)),
     };
 
+    const transactionManager = {
+      save: jest.fn(async (_entity: unknown, data: unknown) => data),
+    };
+
     const dataSource = {
+      transaction: jest.fn(async callback => callback(transactionManager)),
       getRepository: jest.fn((entity) => {
         if (entity === Workspace) {
           return workspaceRepository;
@@ -1090,19 +1113,27 @@ describe('WorkspacesService createInvitation', () => {
       }),
     );
 
-    expect(
-      mockMethods(notificationsService).createForUser,
-    ).toHaveBeenCalledWith({
-      userId: invitedUserId,
-      workspaceId,
-      type: 'WORKSPACE_INVITATION',
-      message: 'You were invited to Transcendence Workspace',
-      relatedResourceType: 'workspace_invitation',
-      relatedResourceId: expect.any(String) as unknown,
-      payload: {
-        invitedById: ownerId,
-      },
-    });
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      WorkspaceInvitation,
+      expect.objectContaining({
+        workspaceId,
+        invitedUserId,
+        status: InvitationStatus.PENDING,
+      }),
+    );
+
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: invitedUserId,
+        workspaceId,
+        type: 'WORKSPACE_INVITATION',
+        relatedResourceType: 'workspace_invitation',
+        relatedResourceId: expect.any(String),
+      }),
+    );
+
+    expect(transactionManager.save).toHaveBeenCalledTimes(2);
 
     expect(response.status).toBe(InvitationStatus.PENDING);
     expect(response.invitedUserId).toBe(invitedUserId);
@@ -1110,7 +1141,7 @@ describe('WorkspacesService createInvitation', () => {
     expect(response).not.toHaveProperty('tokenHash');
   });
 
-  it('still creates the invitation when notification creation fails', async () => {
+  it('fails invitation creation when notification persistence fails', async () => {
     const workspaceRepository = {
       findOne: jest.fn().mockResolvedValue(makeWorkspace()),
     };
@@ -1121,28 +1152,27 @@ describe('WorkspacesService createInvitation', () => {
 
     const invitationRepository = {
       findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockImplementation((data: unknown) => data),
-      save: jest
-        .fn()
-        .mockImplementation((entity: unknown) => Promise.resolve(entity)),
+      create: jest.fn((data: unknown) => data),
+    };
+
+    const transactionManager = {
+      save: jest.fn(async (entity: unknown, data: unknown) => {
+        if (entity === WorkspaceInvitation) return data;
+        throw new Error('Notification unavailable');
+      }),
     };
 
     const dataSource = {
       getRepository: jest.fn((entity) => {
-        if (entity === Workspace) {
-          return workspaceRepository;
-        }
-
-        if (entity === WorkspaceMembership) {
-          return membershipRepository;
-        }
-
-        if (entity === WorkspaceInvitation) {
-          return invitationRepository;
-        }
-
+        if (entity === Workspace) return workspaceRepository;
+        if (entity === WorkspaceMembership) return membershipRepository;
+        if (entity === WorkspaceInvitation) return invitationRepository;
         throw new Error('Unexpected repository');
       }),
+      transaction: jest.fn(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback(transactionManager),
+      ),
     } as unknown as DataSource;
 
     const usersService = {
@@ -1153,44 +1183,47 @@ describe('WorkspacesService createInvitation', () => {
     } as unknown as UsersService;
 
     const notificationsService = {
-      createForUser: jest
-        .fn()
-        .mockRejectedValue(new Error('Notification unavailable')),
+      createForUser: jest.fn(),
     } as unknown as NotificationsService;
+
+    const activitiesService = activitySink();
 
     const service = new WorkspacesService(
       dataSource,
       usersService,
       notificationsService,
-      activitySink(),
+      activitiesService,
     );
 
-    jest
-      .spyOn(
-        (
-          service as unknown as {
-            logger: {
-              error: (...args: unknown[]) => void;
-            };
-          }
-        ).logger,
-        'error',
-      )
-      .mockImplementation(() => undefined);
+    await expect(
+      service.createInvitation(workspaceId, ownerId, {
+        invitedUserId,
+      }),
+    ).rejects.toThrow('Notification unavailable');
 
-    const response = await service.createInvitation(workspaceId, ownerId, {
-      invitedUserId,
-    });
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(transactionManager.save).toHaveBeenCalledTimes(2);
 
-    expect(invitationRepository.save).toHaveBeenCalledTimes(1);
+    expect(transactionManager.save).toHaveBeenNthCalledWith(
+      1,
+      WorkspaceInvitation,
+      expect.objectContaining({
+        workspaceId,
+        invitedUserId,
+        status: InvitationStatus.PENDING,
+      }),
+    );
 
-    expect(
-      mockMethods(notificationsService).createForUser,
-    ).toHaveBeenCalledTimes(1);
+    expect(transactionManager.save).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({
+        userId: invitedUserId,
+        type: 'WORKSPACE_INVITATION',
+      }),
+    );
 
-    expect(response.status).toBe(InvitationStatus.PENDING);
-
-    expect(response.invitedUserId).toBe(invitedUserId);
+    expect(mockMethods(activitiesService).create).not.toHaveBeenCalled();
   });
 
   it('returns 404 when workspace does not exist', async () => {

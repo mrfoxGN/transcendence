@@ -1,31 +1,25 @@
-# ============================================================
-# 1. ENVIRONMENT / SECRETS
-# ============================================================
+# Environment / secrets
 .env
 .env.*
 !.env.example
+.env.github-oauth
 
-# ============================================================
-# 2. SSL CERTIFICATES
-# ============================================================
+# TLS certificates
 /nginx/certs/
+/devup-local-cert.pem
 *.key
 *.pem
 *.p12
 *.pfx
 
-# ============================================================
-# 3. NODE / NESTJS / REACT
-# ============================================================
+# Node / NestJS / React
 node_modules/
 dist/
 build/
 coverage/
 .nyc_output/
 
-# ============================================================
-# 4. LOGS
-# ============================================================
+# Logs
 *.log
 logs/
 npm-debug.log*
@@ -33,18 +27,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ============================================================
-# 5. BACKUPS
-# ============================================================
+# Backups
 /backups/
 mysql_*.sql
 backup_*.sql
 *.sql.gz
 *.dump
 
-# ============================================================
-# 6. RUNTIME / STORAGE
-# ============================================================
+# Runtime / uploaded files
 data/
 uploads/
 tmp/
@@ -53,18 +43,14 @@ temp/
 /storage/
 /monitoring/status/data/
 
-# ============================================================
-# 7. DOCKER OVERRIDES
-# ============================================================
+# Docker local overrides and temporary copies
 docker-compose.override.yml
 compose.override.yaml
 *.backup
 *.bak
 *.old
 
-# ============================================================
-# 8. EDITORS / OS
-# ============================================================
+# Editors / OS
 .idea/
 .vscode/
 *.swp
@@ -72,10 +58,9 @@ compose.override.yaml
 *~
 .DS_Store
 Thumbs.db
+*Zone.Identifier*
 
-# ============================================================
-# 9. CACHE / TYPESCRIPT
-# ============================================================
+# Cache / TypeScript
 .cache/
 .eslintcache
 *.tsbuildinfo

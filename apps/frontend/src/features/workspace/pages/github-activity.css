@@ -1,0 +1,143 @@
+/* Repository overview */
+
+.wu-github-overview {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 22px;
+}
+
+.wu-github-overview > .wu-github-repository {
+  height: auto;
+  padding-right: 22px;
+  border-right: 1px solid var(--wu-line);
+}
+
+/* Commit activity */
+
+.wu-github-activity {
+  min-width: 0;
+  padding: 6px 0;
+}
+
+.wu-github-activity__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.wu-github-activity__heading h3 {
+  margin: 0;
+  color: var(--wu-ink);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.wu-github-activity__heading p {
+  margin: 7px 0 0;
+  color: var(--wu-muted);
+  font-size: 13px;
+}
+
+.wu-github-activity__total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.wu-github-activity__total strong {
+  color: var(--wu-ink);
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.wu-github-activity__total span {
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+/* SVG visualization */
+
+.wu-github-activity__chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 5px;
+  overflow: visible;
+}
+
+.wu-github-activity__line {
+  fill: none;
+  stroke: var(--wu-blue);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 5px
+    color-mix(in srgb, var(--wu-blue) 30%, transparent));
+}
+
+.wu-github-activity__point {
+  fill: var(--wu-ink);
+  stroke: var(--wu-blue);
+  stroke-width: 3;
+  cursor: help;
+  transition:
+    r 150ms ease,
+    stroke-width 150ms ease;
+}
+
+.wu-github-activity__point:hover {
+  r: 7;
+  stroke-width: 4;
+}
+
+.wu-github-activity__label {
+  fill: var(--wu-muted);
+  font-size: 13px;
+}
+
+.wu-github-activity__footnote {
+  margin: 0;
+  color: var(--wu-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.wu-github-activity__state {
+  padding: 45px 0;
+  color: var(--wu-muted);
+  font-size: 13px;
+}
+
+.wu-github-activity__state button {
+  margin-left: 10px;
+  color: var(--wu-blue);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Responsive layout */
+
+@media (max-width: 1100px) {
+  .wu-github-overview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .wu-github-overview > .wu-github-repository {
+    padding-right: 0;
+    padding-bottom: 20px;
+    border-right: 0;
+    border-bottom: 1px solid var(--wu-line);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wu-github-activity__point {
+    transition: none;
+  }
+}

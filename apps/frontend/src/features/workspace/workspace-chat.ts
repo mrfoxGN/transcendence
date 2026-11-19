@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { jsonRequest, workspaceRequest } from './workspace-api';
 
 type Conversation = { id: string; otherUserId: string; lastMessageAt: string | null; otherUsername?: string; unreadCount?: number };
-export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string };
+export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string; reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean } };
 const pageSize = 30;
 
 export function useWorkspaceChat(workspaceId: string, token: string | null, selected: string | null, profileId: string) {
@@ -12,7 +12,11 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   const [workspaceUnread, setWorkspaceUnread] = useState(0);
   const [directUnread, setDirectUnread] = useState(0);
   const [unreadAttempt, setUnreadAttempt] = useState(0);
-  const [nextPage, setNextPage] = useState<Record<string, number>>({});
+  const [pages, setPages] = useState<Record<string, number>>({});
+  const [hasOlder, setHasOlder] = useState<Record<string, boolean>>({});
+  const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting'>('connecting');
+  const olderRequest = useRef<AbortController | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -39,10 +43,14 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     setUnreadAttempt(value => value + 1);
   }
 
-  function markRead(id: string, messageId: string) {
+  function markRead(id: string, messageId?: string) {
     if (activeThread.current !== id || document.visibilityState !== 'visible') return;
-    const readPath = path(id) + '/' + encodeURIComponent(messageId) + '/read';
-    void workspaceRequest(id === 'team' ? readPath : 'direct-conversations/' + id + '/read', token, { method: 'PATCH' })
+    const isDirect = id !== 'team';
+    if (isDirect) {
+      setConversations(current => current.map(item => item.id === id ? { ...item, unreadCount: 0 } : item));
+    }
+    const readPath = isDirect ? 'direct-conversations/' + id + '/read' : path('team') + '/' + encodeURIComponent(messageId ?? '') + '/read';
+    void workspaceRequest(readPath, token, { method: 'PATCH' })
       .finally(refreshUnread)
       .catch(() => {});
   }
@@ -73,15 +81,25 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     if (!token || !selected) return;
     const controller = new AbortController();
     setLoading(true);
-    void workspaceRequest(path(selected) + '?limit=' + pageSize, token, { signal: controller.signal })
-      .then(response => response.json() as Promise<ServerMessage[]>)
-      .then(items => {
-        if (controller.signal.aborted) return;
-        merge(selected, items);
-        setNextPage(current => ({ ...current, [selected]: items.length === pageSize ? 2 : 0 }));
-        const latest = items.at(-1);
-        if (latest) markRead(selected, latest.id);
-      })
+    setError('');
+    async function catchUp(id: string) {
+      const items: ServerMessage[] = await (await workspaceRequest(
+        path(id) + '?page=1&limit=' + pageSize,
+        token,
+        { signal: controller.signal },
+      )).json();
+      if (controller.signal.aborted) return;
+      merge(id, items);
+      setPages(current => ({ ...current, [id]: 1 }));
+      setHasOlder(current => ({ ...current, [id]: items.length === pageSize }));
+      const latest = items.at(-1);
+      if (id === 'team') {
+        if (latest) markRead(id, latest.id);
+      } else {
+        markRead(id);
+      }
+    }
+    void catchUp(selected)
       .catch(() => { if (!controller.signal.aborted) setError('Could not load messages.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -89,10 +107,26 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
 
   useEffect(() => {
     if (!token || !profileId) return;
-    const socket = io({ auth: { token } });
+    setConnection('connecting');
+    const socket = io({ auth: { token }, autoConnect: false, upgrade: false });
+    const connectTimer = window.setTimeout(() => socket.connect(), 0);
+    const poll = () => { if (activeThread.current && document.visibilityState === 'visible') setAttempt(value => value + 1); };
     socketRef.current = socket;
     function incoming(id: string, message: ServerMessage) {
       if (activeThread.current) merge(id, [message]);
+      if (id !== 'team') {
+        setConversations(current => {
+          const target = current.find(item => item.id === id);
+          if (!target) return current;
+          const isViewing = activeThread.current === id && document.visibilityState === 'visible';
+          const updated = {
+            ...target,
+            lastMessageAt: message.createdAt,
+            unreadCount: isViewing ? 0 : (target.unreadCount ?? 0) + 1,
+          };
+          return [updated, ...current.filter(item => item.id !== id)];
+        });
+      }
       if (message.senderId !== profileId && activeThread.current === id && document.visibilityState === 'visible') {
         markRead(id, message.id);
       } else refreshUnread();
@@ -100,11 +134,16 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     socket.on('workspace-chat.ready', () => {
       socketReady.current = true;
       socket.emit('workspace-chat.watch', workspaceId);
-      if (activeThread.current) socket.emit('workspace-chat.join', workspaceId);
       refreshUnread();
-      setAttempt(value => value + 1);
+      if (activeThread.current) joinAndSync(socket);
+      else setConnection('connected');
     });
-    socket.on('disconnect', () => { socketReady.current = false; });
+    function reconnecting() {
+      socketReady.current = false;
+      setConnection('reconnecting');
+    }
+    socket.on('disconnect', reconnecting);
+    socket.on('connect_error', reconnecting);
     socket.on('workspace-message.created', (message: ServerMessage) => {
       if (message.workspaceId === workspaceId) incoming('team', message);
     });
@@ -127,50 +166,127 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     document.addEventListener('visibilitychange', refreshOnReturn);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') refreshUnread();
+      poll();
     }, 30_000);
     return () => {
       document.removeEventListener('visibilitychange', refreshOnReturn);
       window.clearInterval(timer);
       socketRef.current = null;
       socketReady.current = false;
+      window.clearTimeout(connectTimer);
+      socket.removeAllListeners();
       socket.disconnect();
     };
   }, [workspaceId, token, profileId]);
 
+  function joinAndSync(socket: ReturnType<typeof io>) {
+    socket.timeout(5_000).emit('workspace-chat.join', workspaceId, (error: Error | null, joined: boolean) => {
+      if (socketRef.current !== socket || !socket.connected || !activeThread.current) return;
+      setConnection(!error && joined ? 'connected' : 'reconnecting');
+      setAttempt(value => value + 1);
+    });
+  }
+
   const chatOpen = selected !== null;
   useEffect(() => {
     const socket = socketRef.current;
-    if (socket && socketReady.current) socket.emit(chatOpen ? 'workspace-chat.join' : 'workspace-chat.leave', workspaceId);
+    if (!socket || !socketReady.current) return;
+    if (chatOpen) joinAndSync(socket);
+    else socket.emit('workspace-chat.leave', workspaceId);
   }, [chatOpen, workspaceId]);
 
-  async function openConversation(userId: string) {
+  async function openConversation(userId: string, username?: string) {
     const result: Conversation = await (await workspaceRequest('direct-conversations/' + userId, token, { method: 'POST' })).json();
-    setConversations(current => [{ ...current.find(item => item.id === result.id), ...result }, ...current.filter(item => item.id !== result.id)]);
+    setConversations(current => {
+      const existing = current.find(item => item.id === result.id);
+      const enriched: Conversation = {
+        ...existing,
+        ...result,
+        otherUsername: existing?.otherUsername ?? username ?? result.otherUsername,
+      };
+      return [enriched, ...current.filter(item => item.id !== result.id)];
+    });
     return result.id;
   }
 
-  async function send(id: string, content: string) {
-    const message: ServerMessage = await (await workspaceRequest(path(id), token, jsonRequest('POST', { content }))).json();
+  async function send(id: string, content: string, requestId?: string, replyToId?: string) {
+    const payload: { content: string; requestId?: string; replyToId?: string } = { content: content.trim() };
+    if (requestId) payload.requestId = requestId;
+    if (replyToId) payload.replyToId = replyToId;
+    const options = jsonRequest('POST', payload);
+    const message: ServerMessage = await (await workspaceRequest(path(id), token, options)).json();
     merge(id, [message]);
-  }
-
-  async function loadOlder() {
-    if (!selected) return;
-    const page = nextPage[selected];
-    if (!page || loading) return;
-    setLoading(true);
-    setError('');
-    try {
-      const items: ServerMessage[] = await (await workspaceRequest(path(selected) + '?limit=' + pageSize + '&page=' + page, token)).json();
-      merge(selected, items);
-      setNextPage(current => ({ ...current, [selected]: items.length === pageSize ? page + 1 : 0 }));
-    } catch {
-      setError('Could not load older messages.');
-    } finally {
-      if (activeThread.current === selected) setLoading(false);
+    if (id !== 'team') {
+      setConversations(current => {
+        const target = current.find(item => item.id === id);
+        if (!target) return current;
+        const updated = { ...target, lastMessageAt: message.createdAt };
+        return [updated, ...current.filter(item => item.id !== id)];
+      });
     }
   }
 
-  return { conversations, messages, workspaceUnread, unreadTotal: workspaceUnread + directUnread, loading, error, hasOlder: !!(selected && nextPage[selected]), openConversation, send, loadOlder,
-    retry: () => { setError(''); setAttempt(value => value + 1); } };
+  useEffect(() => {
+    setLoadingOlder(false);
+    return () => { olderRequest.current?.abort(); olderRequest.current = null; };
+  }, [selected, token, workspaceId]);
+
+  async function loadOlder() {
+    if (!selected || !hasOlder[selected] || loading || olderRequest.current) return;
+    const nextPage = (pages[selected] ?? 1) + 1;
+    const controller = new AbortController();
+    olderRequest.current = controller;
+    setLoadingOlder(true);
+    setError('');
+    try {
+      const items: ServerMessage[] = await (await workspaceRequest(
+        path(selected) + '?page=' + nextPage + '&limit=' + pageSize,
+        token,
+        { signal: controller.signal },
+      )).json();
+      if (controller.signal.aborted) return;
+      merge(selected, items);
+      setPages(current => ({ ...current, [selected]: nextPage }));
+      setHasOlder(current => ({ ...current, [selected]: items.length === pageSize }));
+    } catch {
+      if (!controller.signal.aborted) setError('Could not load older messages.');
+    } finally {
+      if (olderRequest.current === controller) {
+        olderRequest.current = null;
+        setLoadingOlder(false);
+      }
+    }
+  }
+
+  return {
+    conversations,
+    messages,
+    search: async (id: string, query: string, page: number, _signal: AbortSignal): Promise<ServerMessage[]> => {
+      const lower = query.trim().toLowerCase();
+      const threadMessages = messages[id] ?? [];
+      const filtered = threadMessages.filter(m => m.content && m.content.toLowerCase().includes(lower));
+      const limit = 25;
+      const start = (page - 1) * limit;
+      return filtered.slice(start, start + limit);
+    },
+    downloadAttachment: async () => {
+      throw new Error('Attachments are not supported in conversations.');
+    },
+    workspaceUnread,
+    unreadTotal: workspaceUnread + directUnread,
+    loading,
+    loadingOlder,
+    error,
+    connection,
+    hasOlder: !!(selected && hasOlder[selected]),
+    openConversation,
+    send,
+    loadOlder,
+    retry: () => { setError(''); setAttempt(value => value + 1); },
+    reconnect: () => {
+      const socket = socketRef.current;
+      if (socket && socketReady.current) joinAndSync(socket);
+      else socket?.connect();
+    },
+  };
 }

@@ -25,6 +25,7 @@ export enum FriendshipStatus {
 
 export enum TaskStatus {
   BACKLOG = 'BACKLOG',
+  TODO = 'TODO',
   READY = 'READY',
   IN_PROGRESS = 'IN_PROGRESS',
   REVIEW = 'REVIEW',

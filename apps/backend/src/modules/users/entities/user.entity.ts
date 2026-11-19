@@ -4,11 +4,6 @@ import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 
 @Entity('users')
 export class User {
-  @Column({ type: 'enum', enum: ['system', 'light', 'dark'], default: 'system' })
-  theme?: 'system' | 'light' | 'dark';
-
-  @Column({ name: 'notification_badge', type: 'boolean', default: true })
-  notificationBadge?: boolean;
   @PrimaryColumn({
     type: 'char',
     length: 36,
@@ -29,21 +24,6 @@ export class User {
   })
   email!: string;
 
-  @Column({ name: 'verified_email', type: 'varchar', length: 320, nullable: true })
-  verifiedEmail?: string | null;
-
-  @Column({ name: 'email_verify_digest', type: 'char', length: 64, nullable: true })
-  emailVerifyDigest?: string | null;
-
-  @Column({ name: 'email_verify_expires_at', type: 'datetime', precision: 6, nullable: true })
-  emailVerifyExpiresAt?: Date | null;
-
-  @Column({ name: 'password_reset_digest', type: 'char', length: 64, nullable: true })
-  passwordResetDigest?: string | null;
-
-  @Column({ name: 'password_reset_expires_at', type: 'datetime', precision: 6, nullable: true })
-  passwordResetExpiresAt?: Date | null;
-
   @Column({
     name: 'password_hash',
     type: 'varchar',
@@ -53,7 +33,8 @@ export class User {
 
   @Column({
     name: 'avatar_url',
-    type: 'text',
+    type: 'varchar',
+    length: 500,
     nullable: true,
   })
   avatarUrl!: string | null;
@@ -107,4 +88,42 @@ export class User {
     nullable: true,
   })
   deletedAt!: Date | null;
+
+  @Column({
+    name: 'verified_email',
+    type: 'varchar',
+    length: 320,
+    nullable: true,
+  })
+  verifiedEmail!: string | null;
+
+  @Column({
+    name: 'email_verify_code_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  emailVerifyCodeHash!: string | null;
+
+  @Column({
+    name: 'email_verify_expires_at',
+    type: 'datetime',
+    precision: 6,
+    nullable: true,
+  })
+  emailVerifyExpiresAt!: Date | null;
+
+  @Column({
+    name: 'email_verify_attempts',
+    type: 'int',
+    default: 0,
+  })
+  emailVerifyAttempts!: number;
+
+  @Column({
+    name: 'is_two_factor_enabled',
+    type: 'boolean',
+    default: false,
+  })
+  isTwoFactorEnabled!: boolean;
 }

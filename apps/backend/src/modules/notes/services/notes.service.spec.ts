@@ -149,31 +149,6 @@ describe('NotesService', () => {
     );
   });
 
-  it('searches note titles and content and sorts before paging', async () => {
-    await service.findAll(workspaceId, creatorId, {
-      page: 2,
-      search: 'sprint_2',
-      sort: 'name',
-      lookahead: '1',
-    });
-
-    const options = repository.find.mock.calls[0][0];
-    expect(options.where.every((scope: { workspaceId: string }) => scope.workspaceId === workspaceId)).toBe(true);
-    expect(options.where[0].title.objectLiteralParameters).toEqual({
-      search: '%sprint!_2%',
-    });
-    expect(options.where[1].content.objectLiteralParameters).toEqual({ search: '%sprint!_2%' });
-    expect(options.order).toEqual({
-      pinnedAt: 'DESC',
-      title: 'ASC',
-      updatedAt: 'DESC',
-      createdAt: 'DESC',
-      id: 'DESC',
-    });
-    expect(options.skip).toBe(20);
-    expect(options.take).toBe(21);
-  });
-
   it('finds one note in the requested workspace', async () => {
     repository.findOne.mockResolvedValue(makeNote());
 
@@ -231,9 +206,7 @@ describe('NotesService', () => {
       expect.objectContaining({ title: 'Changed' }),
     );
     expect(result.title).toBe('Changed');
-    expect(result.revision).toBe(2);
-    expect(repository.manager.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO note_revisions'),
-      [noteId, 1, 'Meeting notes', 'Discuss the backend', date]);
+
   });
 
   it('lets the workspace owner clear the content', async () => {
@@ -253,6 +226,36 @@ describe('NotesService', () => {
     expect(result.content).toBeNull();
   });
 
+  it('pins and unpins a note', async () => {
+    repository.findOne
+      .mockResolvedValueOnce(makeNote({ pinnedAt: null }))
+      .mockResolvedValueOnce(makeNote({ pinnedAt: date }));
+
+    const pinned = await service.update(workspaceId, noteId, creatorId, {
+      pinned: true,
+    });
+
+    expect(repository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: noteId, workspaceId }),
+      expect.objectContaining({ pinnedAt: expect.any(Date) as unknown }),
+    );
+    expect(pinned.pinnedAt).toEqual(date);
+
+    repository.findOne
+      .mockResolvedValueOnce(makeNote({ pinnedAt: date }))
+      .mockResolvedValueOnce(makeNote({ pinnedAt: null }));
+
+    const unpinned = await service.update(workspaceId, noteId, creatorId, {
+      pinned: false,
+    });
+
+    expect(repository.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: noteId, workspaceId }),
+      expect.objectContaining({ pinnedAt: null }),
+    );
+    expect(unpinned.pinnedAt).toBeNull();
+  });
+
   it('returns 404 if the note disappears during update', async () => {
     repository.findOne.mockResolvedValue(makeNote());
     repository.update.mockResolvedValue({ affected: 0 });
@@ -263,23 +266,6 @@ describe('NotesService', () => {
         title: 'Changed',
       }),
     ).rejects.toThrow(NotFoundException);
-  });
-
-  it('rejects a stale editor before writing a revision or overwriting the note', async () => {
-    repository.findOne.mockResolvedValue(makeNote({ revision: 2 }));
-    await expect(service.update(workspaceId, noteId, creatorId, { revision: 1, content: 'Stale draft' }))
-      .rejects.toThrow(ConflictException);
-    expect(repository.manager.query).not.toHaveBeenCalled();
-    expect(repository.update).not.toHaveBeenCalled();
-  });
-
-  it('restores a snapshot as a new revision and leaves the pin intact', async () => {
-    repository.findOne.mockResolvedValue(makeNote({ revision: 3, pinnedAt: date }));
-    repository.manager.query.mockResolvedValueOnce([{ title: 'Original', content: 'Original text' }]);
-    const result = await service.restoreRevision(workspaceId, noteId, ownerId, 1, 3);
-    expect(result).toMatchObject({ title: 'Original', content: 'Original text', revision: 4, pinnedAt: date });
-    expect(repository.manager.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO note_revisions'),
-      [noteId, 3, 'Meeting notes', 'Discuss the backend', date]);
   });
 
   it('soft deletes a note for its creator', async () => {

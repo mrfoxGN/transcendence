@@ -14,6 +14,8 @@ import { GitHubApiService } from './github-api.service';
 import type {
   PublicGitHubRepository,
   PublicGitHubBranch,
+  PublicGitHubContributor,
+  PublicGitHubCollaborator,
 } from './github-api.service';
 import { GitHubOAuthService } from './github-oauth.service';
 import { GitHubTokenCryptoService } from './github-token-crypto.service';
@@ -102,7 +104,7 @@ export class GitHubService {
       );
     }
 
-    // Do not silently reactivate previously disconnected rows.
+    // Reconnect an existing repository after verifying permissions.
     const previousConnection = await this.connectedRepositories.findOne({
       where: {
         workspaceId,
@@ -111,9 +113,39 @@ export class GitHubService {
     });
 
     if (previousConnection) {
-      throw new ConflictException(
-        'Repository was previously connected to this workspace',
-      );
+      const now = new Date();
+
+      previousConnection.disconnectedAt = null;
+      previousConnection.connectedById = userId;
+      previousConnection.ownerLogin = selected.ownerLogin;
+      previousConnection.name = selected.name;
+      previousConnection.fullName = selected.fullName;
+      previousConnection.repositoryUrl = selected.repositoryUrl;
+      previousConnection.defaultBranch = selected.defaultBranch;
+      previousConnection.visibility = RepositoryVisibility.PUBLIC;
+      previousConnection.lastSyncedAt = null;
+      previousConnection.updatedAt = now;
+
+      previousConnection.encryptedOAuthToken =
+        this.githubTokenCryptoService.encrypt(
+          accessToken,
+          previousConnection.id,
+        );
+
+      const saved = await this.connectedRepositories.save(previousConnection);
+
+      this.githubOAuthService.deleteSetupSession(setupSessionId);
+
+      return {
+        id: saved.id,
+        workspaceId: saved.workspaceId,
+        githubRepositoryId: saved.githubRepositoryId,
+        fullName: saved.fullName,
+        repositoryUrl: saved.repositoryUrl,
+        defaultBranch: saved.defaultBranch,
+        visibility: saved.visibility,
+        createdAt: saved.createdAt,
+      };
     }
 
     const now = new Date();
@@ -159,13 +191,33 @@ export class GitHubService {
     };
   }
 
+  async disconnectRepository(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.workspacesService.assertOwner(workspaceId, userId, true);
+
+    const now = new Date();
+
+    const result = await this.connectedRepositories.update(
+      { workspaceId, disconnectedAt: IsNull() },
+      {
+        disconnectedAt: now,
+        encryptedOAuthToken: null,
+        updatedAt: now,
+      },
+    );
+
+    if (!result.affected) {
+      throw new NotFoundException('No connected repository found');
+    }
+  }
+
   async getWorkspaceRepository(
     workspaceId: string,
     userId: string,
   ): Promise<
-    ConnectedRepositoryResponseDto & {
-      lastSyncedAt: Date | null;
-    }
+    (ConnectedRepositoryResponseDto & { lastSyncedAt: Date | null }) | null
   > {
     // Only workspace members can view the connection.
     await this.workspacesService.findOneForUser(workspaceId, userId);
@@ -178,11 +230,7 @@ export class GitHubService {
       },
     });
 
-    if (!repository) {
-      throw new NotFoundException(
-        'No GitHub repository connected to this workspace',
-      );
-    }
+    if (!repository) return null;
 
     return {
       id: repository.id,
@@ -194,6 +242,63 @@ export class GitHubService {
       visibility: repository.visibility,
       createdAt: repository.createdAt,
       lastSyncedAt: repository.lastSyncedAt,
+    };
+  }
+
+  async getDailyCommitStatistics(workspaceId: string, userId: string) {
+    await this.workspacesService.findOneForUser(workspaceId, userId);
+
+    const repository = await this.connectedRepositories.findOne({
+      where: {
+        workspaceId,
+        disconnectedAt: IsNull(),
+      },
+    });
+
+    if (!repository) {
+      throw new NotFoundException('No GitHub repository connected');
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const start = new Date(today);
+    start.setUTCDate(start.getUTCDate() - 6);
+
+    const end = new Date(today);
+    end.setUTCDate(end.getUTCDate() + 1);
+
+    const rows = await this.repositoryCommits
+      .createQueryBuilder('commit')
+      .select("DATE_FORMAT(commit.committedAt, '%Y-%m-%d')", 'day')
+      .addSelect('COUNT(*)', 'count')
+      .where('commit.repositoryId = :repositoryId', {
+        repositoryId: repository.id,
+      })
+      .andWhere('commit.committedAt >= :start', { start })
+      .andWhere('commit.committedAt < :end', { end })
+      .groupBy("DATE_FORMAT(commit.committedAt, '%Y-%m-%d')")
+      .orderBy('day', 'ASC')
+      .getRawMany<{ day: string; count: string }>();
+
+    const counts = new Map(rows.map((row) => [row.day, Number(row.count)]));
+
+    const items = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(start);
+      date.setUTCDate(date.getUTCDate() + index);
+      const day = date.toISOString().slice(0, 10);
+
+      return {
+        date: day,
+        commits: counts.get(day) ?? 0,
+      };
+    });
+
+    return {
+      days: 7,
+      timezone: 'UTC',
+      total: items.reduce((sum, item) => sum + item.commits, 0),
+      items,
     };
   }
 
@@ -248,6 +353,7 @@ export class GitHubService {
         id: commit.id,
         sha: commit.sha,
         message: commit.message,
+        authorGithubUserId: commit.authorGithubUserId,
         authorName: commit.authorName,
         committerName: commit.committerName,
         committedAt: commit.committedAt,
@@ -313,6 +419,36 @@ export class GitHubService {
     return { repository, accessToken };
   }
 
+  async listWorkspaceCollaborators(
+    workspaceId: string,
+    userId: string,
+  ): Promise<PublicGitHubCollaborator[]> {
+    await this.workspacesService.assertOwner(workspaceId, userId);
+
+    const { repository, accessToken } =
+      await this.getConnectedRepositoryForMember(workspaceId, userId);
+
+    return this.githubApiService.listCollaborators(
+      repository.ownerLogin,
+      repository.name,
+      accessToken,
+    );
+  }
+
+  async listWorkspaceContributors(
+    workspaceId: string,
+    userId: string,
+  ): Promise<PublicGitHubContributor[]> {
+    const { repository, accessToken } =
+      await this.getConnectedRepositoryForMember(workspaceId, userId);
+
+    return this.githubApiService.listContributors(
+      repository.ownerLogin,
+      repository.name,
+      accessToken,
+    );
+  }
+
   async listWorkspaceBranches(
     workspaceId: string,
     userId: string,
@@ -320,10 +456,36 @@ export class GitHubService {
     const { repository, accessToken } =
       await this.getConnectedRepositoryForMember(workspaceId, userId);
 
-    return this.githubApiService.listBranches(
+    const branches = await this.githubApiService.listBranches(
       repository.ownerLogin,
       repository.name,
       accessToken,
     );
+
+    if (branches.length === 0) {
+      return [];
+    }
+
+    const shas = [...new Set(branches.map(branch => branch.sha))];
+
+    const storedCommits = await this.repositoryCommits
+      .createQueryBuilder('commit')
+      .where('commit.repositoryId = :repositoryId', {
+        repositoryId: repository.id,
+      })
+      .andWhere('commit.sha IN (:...shas)', { shas })
+      .getMany();
+
+    const datesBySha = new Map(
+      storedCommits.map(commit => [
+        commit.sha,
+        commit.committedAt,
+      ]),
+    );
+
+    return branches.map(branch => ({
+      ...branch,
+      lastCommittedAt: datesBySha.get(branch.sha) ?? null,
+    }));
   }
 }

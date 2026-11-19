@@ -4,4 +4,10 @@ export class DirectMessageResponseDto {
   senderId!: string;
   content!: string;
   createdAt!: Date;
+  reply?: {
+    id: string;
+    senderId: string | null;
+    preview: string;
+    unavailable: boolean;
+  };
 }

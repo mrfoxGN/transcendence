@@ -93,9 +93,6 @@ export class Task {
   })
   status!: TaskStatus;
 
-  @Column({ name: 'board_column_id', type: 'varchar', length: 40, nullable: true })
-  boardColumnId?: string | null;
-
   @Column({
     type: 'enum',
     enum: TaskPriority,
@@ -138,9 +135,6 @@ export class Task {
     nullable: true,
   })
   dueAt!: Date | null;
-
-  @Column({ name: 'due_date', type: 'date', nullable: true })
-  dueDate!: string | null;
 
   @Column({
     name: 'created_at',

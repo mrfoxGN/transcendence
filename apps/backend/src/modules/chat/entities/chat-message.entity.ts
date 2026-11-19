@@ -1,3 +1,4 @@
+
 import {
   Column,
   Entity,
@@ -55,6 +56,23 @@ export class ChatMessage {
     type: 'text',
   })
   content!: string;
+
+  @Column({
+    name: 'reply_to_id',
+    type: 'char',
+    length: 36,
+    nullable: true,
+  })
+  replyToId!: string | null;
+
+  @ManyToOne(() => ChatMessage, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'reply_to_id',
+  })
+  replyTo?: ChatMessage | null;
 
   @Column({
     name: 'created_at',

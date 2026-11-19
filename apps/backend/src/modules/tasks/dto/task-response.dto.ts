@@ -12,14 +12,12 @@ export class TaskResponseDto {
   description!: string | null;
   acceptanceCriteria!: string | null;
   status!: TaskStatus;
-  boardColumnId?: string;
   priority!: TaskPriority | null;
   position!: number;
   isBlocked!: boolean;
   blockedReason!: string | null;
   blockedAt!: Date | null;
   dueAt!: Date | null;
-  dueDate!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
   completedAt!: Date | null;

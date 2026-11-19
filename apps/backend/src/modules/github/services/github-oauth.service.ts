@@ -73,7 +73,7 @@ export class GitHubOAuthService {
 
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('redirect_uri', callbackUrl);
-    url.searchParams.set('scope', 'read:user');
+    url.searchParams.set('scope', 'read:user public_repo');
     url.searchParams.set('state', state);
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');

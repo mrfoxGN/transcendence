@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -32,6 +33,9 @@ describe('GitHubService - Repository and Commits Read', () => {
 
   const repository = {
     id: repositoryId,
+    ownerLogin: 'mrfoxGN',
+    name: 'transcendence',
+    encryptedOAuthToken: 'encrypted-token',
     workspaceId,
     githubRepositoryId: '1376091667',
     fullName: 'mrfoxGN/transcendence',
@@ -54,11 +58,14 @@ describe('GitHubService - Repository and Commits Read', () => {
 
   const workspacesService = {
     findOneForUser: jest.fn(),
+    assertOwner: jest.fn(),
   };
 
   const githubApiService = {
     getPublicRepository: jest.fn(),
     listRecentCommits: jest.fn(),
+    listContributors: jest.fn(),
+    listCollaborators: jest.fn(),
   };
 
   const connectedRepositories = {
@@ -67,10 +74,19 @@ describe('GitHubService - Repository and Commits Read', () => {
 
   const repositoryCommits = {
     findAndCount: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const githubTokenCryptoService = {
+    decrypt: jest.fn(),
   };
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    workspacesService.assertOwner.mockResolvedValue(undefined);
+    githubTokenCryptoService.decrypt.mockReturnValue('github-token');
+    githubApiService.getPublicRepository.mockResolvedValue(repository);
 
     workspacesService.findOneForUser.mockResolvedValue(undefined);
     connectedRepositories.findOne.mockResolvedValue(repository);
@@ -83,16 +99,16 @@ describe('GitHubService - Repository and Commits Read', () => {
       {} as never,
       connectedRepositories as never,
       repositoryCommits as never,
-      {} as never,
+      githubTokenCryptoService as never,
     );
   });
 
   it('returns connected repository information from MySQL', async () => {
     const result = await service.getWorkspaceRepository(workspaceId, userId);
 
-    expect(result.id).toBe(repositoryId);
-    expect(result.fullName).toBe(repository.fullName);
-    expect(result.lastSyncedAt).toEqual(repository.lastSyncedAt);
+    expect(result?.id).toBe(repositoryId);
+    expect(result?.fullName).toBe(repository.fullName);
+    expect(result?.lastSyncedAt).toEqual(repository.lastSyncedAt);
 
     expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
       workspaceId,
@@ -114,12 +130,12 @@ describe('GitHubService - Repository and Commits Read', () => {
     expect(connectedRepositories.findOne).not.toHaveBeenCalled();
   });
 
-  it('returns 404 when no repository is connected', async () => {
+  it('returns no connection when no repository is connected', async () => {
     connectedRepositories.findOne.mockResolvedValueOnce(null);
 
     await expect(
       service.getWorkspaceRepository(workspaceId, userId),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).resolves.toBeNull();
   });
 
   it('retrieves stored commits from MySQL', async () => {
@@ -204,5 +220,184 @@ describe('GitHubService - Repository and Commits Read', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(repositoryCommits.findAndCount).not.toHaveBeenCalled();
+  });
+
+  it('allows members to retrieve contributors', async () => {
+    const contributors = [{ login: 'developer', contributions: 12 }];
+    githubApiService.listContributors.mockResolvedValue(contributors);
+
+    await expect(
+      service.listWorkspaceContributors(workspaceId, userId),
+    ).resolves.toEqual(contributors);
+
+    expect(workspacesService.findOneForUser).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(githubApiService.listContributors).toHaveBeenCalledWith(
+      'mrfoxGN',
+      'transcendence',
+      'github-token',
+    );
+  });
+
+  it('rejects unauthorized contributor access', async () => {
+    workspacesService.findOneForUser.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.listWorkspaceContributors(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(githubApiService.listContributors).not.toHaveBeenCalled();
+  });
+
+  it('rejects contributors without a connected repository', async () => {
+    connectedRepositories.findOne.mockResolvedValueOnce(null);
+
+    await expect(
+      service.listWorkspaceContributors(workspaceId, userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects missing OAuth authorization', async () => {
+    connectedRepositories.findOne.mockResolvedValueOnce({
+      ...repository,
+      encryptedOAuthToken: null,
+    });
+
+    await expect(
+      service.listWorkspaceContributors(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(githubApiService.listContributors).not.toHaveBeenCalled();
+  });
+
+  it('rejects a changed repository identity', async () => {
+    githubApiService.getPublicRepository.mockResolvedValueOnce({
+      githubRepositoryId: 'different-id',
+    });
+
+    await expect(
+      service.listWorkspaceContributors(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('propagates contributor API errors', async () => {
+    githubApiService.listContributors.mockRejectedValueOnce(
+      new Error('GitHub unavailable'),
+    );
+
+    await expect(
+      service.listWorkspaceContributors(workspaceId, userId),
+    ).rejects.toThrow('GitHub unavailable');
+  });
+
+  it('allows workspace owners to retrieve collaborators', async () => {
+    const collaborators = [{ login: 'developer', role: 'write' }];
+    githubApiService.listCollaborators.mockResolvedValue(collaborators);
+
+    await expect(
+      service.listWorkspaceCollaborators(workspaceId, userId),
+    ).resolves.toEqual(collaborators);
+
+    expect(workspacesService.assertOwner).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+    );
+
+    expect(githubApiService.listCollaborators).toHaveBeenCalledWith(
+      'mrfoxGN',
+      'transcendence',
+      'github-token',
+    );
+  });
+
+  it('rejects collaborator access by non-owners', async () => {
+    workspacesService.assertOwner.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.listWorkspaceCollaborators(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(githubApiService.listCollaborators).not.toHaveBeenCalled();
+  });
+
+  it('calculates seven-day commit statistics including empty days', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-16T12:00:00Z'));
+
+    try {
+      const query = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { day: '2026-11-10', count: '3' },
+          { day: '2026-11-16', count: '5' },
+        ]),
+      };
+
+      repositoryCommits.createQueryBuilder.mockReturnValue(query);
+
+      const result = await service.getDailyCommitStatistics(
+        workspaceId,
+        userId,
+      );
+
+      expect(result.days).toBe(7);
+      expect(result.timezone).toBe('UTC');
+      expect(result.total).toBe(8);
+
+      expect(result.items.map((item) => item.commits)).toEqual([
+        3, 0, 0, 0, 0, 0, 5,
+      ]);
+
+      expect(result.items[0].date).toBe('2026-11-10');
+      expect(result.items[6].date).toBe('2026-11-16');
+
+      expect(query.where).toHaveBeenCalledWith(
+        'commit.repositoryId = :repositoryId',
+        { repositoryId },
+      );
+
+      expect(query.andWhere).toHaveBeenCalledWith(
+        'commit.committedAt >= :start',
+        { start: new Date('2026-11-10T00:00:00Z') },
+      );
+
+      expect(query.andWhere).toHaveBeenCalledWith('commit.committedAt < :end', {
+        end: new Date('2026-11-17T00:00:00Z'),
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('rejects unauthorized commit statistics access', async () => {
+    workspacesService.findOneForUser.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.getDailyCommitStatistics(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(repositoryCommits.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('rejects statistics without a connected repository', async () => {
+    connectedRepositories.findOne.mockResolvedValueOnce(null);
+
+    await expect(
+      service.getDailyCommitStatistics(workspaceId, userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

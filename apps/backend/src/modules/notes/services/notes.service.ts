@@ -1,14 +1,12 @@
-import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { IsNull, Raw, Repository, type EntityManager } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { CreateNoteDto } from '../dto/create-note.dto';
@@ -17,10 +15,6 @@ import { NoteResponseDto } from '../dto/note-response.dto';
 import { Note } from '../entities/note.entity';
 import { NoteMapper } from '../mappers/note.mapper';
 import { UpdateNoteDto } from '../dto/update-note.dto';
-import { ActivitiesService, activityEntry, recordActivity } from '../../activities/services/activities.service';
-import { Activity } from '../../activities/entities/activity.entity';
-
-type Revision = { revision: number; title: string; savedAt: Date };
 
 @Injectable()
 export class NotesService {
@@ -28,7 +22,6 @@ export class NotesService {
     @InjectRepository(Note)
     private readonly notesRepository: Repository<Note>,
     private readonly workspacesService: WorkspacesService,
-    private readonly activities: ActivitiesService,
   ) {}
 
   async create(
@@ -36,7 +29,7 @@ export class NotesService {
     userId: string,
     dto: CreateNoteDto,
   ): Promise<NoteResponseDto> {
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, userId));
+    await this.workspacesService.findOneForUser(workspaceId, userId);
 
     const title = dto.title.trim();
 
@@ -52,7 +45,6 @@ export class NotesService {
       creatorId: userId,
       title,
       content: dto.content ?? null,
-      revision: 1,
       pinnedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -61,12 +53,7 @@ export class NotesService {
 
     const savedNote = await this.notesRepository.save(note);
 
-    await recordActivity(this.activities, this.noteHistory(savedNote, userId, 'NOTE_CREATED'));
     return NoteMapper.toResponse(savedNote);
-  }
-
-  private noteHistory(note: Note, actorUserId: string, actionType: string) {
-    return { workspaceId: note.workspaceId, actorUserId, actionType, resourceType: 'note', resourceId: note.id, metadata: { title: note.title } };
   }
 
   async findAll(
@@ -79,20 +66,19 @@ export class NotesService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const search = query.search?.trim().replace(/[!%_]/g, character => '!' + character);
-    const scope = { workspaceId, deletedAt: IsNull() };
-    const contains = Raw<string>(column => `${column} LIKE :search ESCAPE '!'`, { search: '%' + search + '%' });
     const notes = await this.notesRepository.find({
-      where: search ? [{ ...scope, title: contains }, { ...scope, content: contains }] : scope,
+      where: {
+        workspaceId,
+        deletedAt: IsNull(),
+      },
       order: {
         pinnedAt: 'DESC',
-        ...(query.sort === 'name' && { title: 'ASC' as const }),
         updatedAt: 'DESC',
         createdAt: 'DESC',
         id: 'DESC',
       },
       skip: (page - 1) * limit,
-      take: limit + (query.lookahead === '1' ? 1 : 0),
+      take: limit,
     });
 
     return notes.map((note) => NoteMapper.toResponse(note));
@@ -126,78 +112,71 @@ export class NotesService {
     userId: string,
     dto: UpdateNoteDto,
   ): Promise<NoteResponseDto> {
-    if (dto.title === undefined && dto.content === undefined && dto.pinned === undefined) {
+    if (
+      dto.title === undefined &&
+      dto.content === undefined &&
+      dto.pinned === undefined
+    ) {
       throw new BadRequestException('No changes provided');
     }
-    if (dto.title !== undefined) {
-      if (!dto.title.trim()) throw new BadRequestException('Note title is required');
-    }
-    return this.change(workspaceId, noteId, userId, dto.revision, async (_manager, note) => ({
-      ...(dto.title !== undefined && { title: dto.title.trim() }),
-      ...(dto.content !== undefined && { content: dto.content }),
-      ...(dto.pinned !== undefined && { pinnedAt: dto.pinned ? note.pinnedAt ?? new Date() : null }),
-    }));
-  }
 
-  async listRevisions(workspaceId: string, noteId: string, userId: string, query: ListNotesDto) {
-    await this.findOne(workspaceId, noteId, userId);
-    const limit = query.limit ?? 20;
-    return this.notesRepository.manager.query<Revision[]>(`
-      SELECT revision, title, saved_at AS savedAt FROM note_revisions
-      WHERE note_id = ? ORDER BY revision DESC LIMIT ? OFFSET ?`,
-    [noteId, limit + (query.lookahead === '1' ? 1 : 0), ((query.page ?? 1) - 1) * limit]);
-  }
-
-  async findRevision(workspaceId: string, noteId: string, userId: string, revision: number) {
-    await this.findOne(workspaceId, noteId, userId);
-    const [snapshot] = await this.notesRepository.manager.query<(Revision & { content: string | null })[]>(
-      'SELECT revision, title, content, saved_at AS savedAt FROM note_revisions WHERE note_id = ? AND revision = ?', [noteId, revision],
+    const workspace = await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
     );
-    if (!snapshot) throw new NotFoundException('Note revision not found');
-    return snapshot;
-  }
 
-  restoreRevision(workspaceId: string, noteId: string, userId: string, revision: number, expectedRevision: number) {
-    return this.change(workspaceId, noteId, userId, expectedRevision, async manager => {
-      const [snapshot] = await manager.query<Pick<Note, 'title' | 'content'>[]>(
-        'SELECT title, content FROM note_revisions WHERE note_id = ? AND revision = ?', [noteId, revision],
-      );
-      if (!snapshot) throw new NotFoundException('Note revision not found');
-      return snapshot;
-    }, 'NOTE_RESTORED');
-  }
-
-  private async change(
-    workspaceId: string, noteId: string, userId: string, revision: number,
-    getChanges: (manager: EntityManager, note: Note) => Promise<Partial<Note>>,
-    restoredAction?: 'NOTE_RESTORED',
-  ) {
-    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
-    assertWorkspaceWritable(workspace);
-    return this.notesRepository.manager.transaction(async manager => {
-      const repository = manager.getRepository(Note);
-      const where = { id: noteId, workspaceId, deletedAt: IsNull() };
-      const note = await repository.findOne({ where, lock: { mode: 'pessimistic_write' } });
-      if (!note) throw new NotFoundException('Note not found');
-      if (note.creatorId !== userId && workspace.ownerId !== userId) throw new ForbiddenException();
-      if (note.revision !== revision) throw new ConflictException('This note changed since you opened it. Load the latest version before saving.');
-      const changes = await getChanges(manager, note);
-      const contentChanged = (changes.title !== undefined && changes.title !== note.title)
-        || (changes.content !== undefined && changes.content !== note.content);
-      if (!contentChanged && (changes.pinnedAt === undefined || changes.pinnedAt === note.pinnedAt)) return NoteMapper.toResponse(note);
-      if (contentChanged) {
-        await manager.query('INSERT INTO note_revisions (note_id, revision, title, content, saved_at) VALUES (?, ?, ?, ?, ?)',
-          [note.id, note.revision, note.title, note.content, note.updatedAt]);
-        changes.updatedAt = new Date();
-      }
-      changes.revision = note.revision + 1;
-      const result = await repository.update(where, changes);
-      if (!result.affected) throw new NotFoundException('Note not found');
-      const updated = { ...note, ...changes };
-      const action = restoredAction ?? (contentChanged ? 'NOTE_UPDATED' : updated.pinnedAt ? 'NOTE_PINNED' : 'NOTE_UNPINNED');
-      await manager.save(Activity, activityEntry(this.noteHistory(updated, userId, action)));
-      return NoteMapper.toResponse(updated);
+    const note = await this.notesRepository.findOne({
+      where: { id: noteId, workspaceId, deletedAt: IsNull() },
     });
+
+    if (!note) {
+      throw new NotFoundException('Note not found');
+    }
+
+    if (note.creatorId !== userId && workspace.ownerId !== userId) {
+      throw new ForbiddenException();
+    }
+
+    const changes: Partial<Note> = {};
+
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+
+      if (!title) {
+        throw new BadRequestException('Note title is required');
+      }
+
+      changes.title = title;
+      changes.updatedAt = new Date();
+    }
+
+    if (dto.content !== undefined) {
+      changes.content = dto.content;
+      changes.updatedAt = new Date();
+    }
+
+    if (dto.pinned !== undefined) {
+      changes.pinnedAt = dto.pinned ? (note.pinnedAt ?? new Date()) : null;
+    }
+
+    const result = await this.notesRepository.update(
+      { id: noteId, workspaceId, deletedAt: IsNull() },
+      changes,
+    );
+
+    if (!result.affected) {
+      throw new NotFoundException('Note not found');
+    }
+
+    const updatedNote = await this.notesRepository.findOne({
+      where: { id: noteId, workspaceId, deletedAt: IsNull() },
+    });
+
+    if (!updatedNote) {
+      throw new NotFoundException('Note not found');
+    }
+
+    return NoteMapper.toResponse(updatedNote);
   }
 
   async remove(
@@ -209,7 +188,6 @@ export class NotesService {
       workspaceId,
       userId,
     );
-    assertWorkspaceWritable(workspace);
 
     const note = await this.notesRepository.findOne({
       where: { id: noteId, workspaceId, deletedAt: IsNull() },
@@ -231,6 +209,5 @@ export class NotesService {
     if (!result.affected) {
       throw new NotFoundException('Note not found');
     }
-    await recordActivity(this.activities, this.noteHistory(note, userId, 'NOTE_DELETED'));
   }
 }

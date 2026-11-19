@@ -100,19 +100,20 @@ export class WorkspaceChatGateway implements OnGatewayConnection, OnModuleInit, 
   async joinWorkspace(
     @ConnectedSocket() client: Socket,
     @MessageBody() workspaceId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const socketData = client.data as { userId?: unknown; activeWorkspace?: string };
     const userId = socketData.userId;
 
     if (typeof userId !== 'string') {
       client.disconnect();
-      return;
+      return false;
     }
 
     socketData.activeWorkspace = workspaceId;
     await this.withSubscriptionAccess(workspaceId, userId, () => {
       if (socketData.activeWorkspace === workspaceId) return client.join(`workspace:${workspaceId}`);
     });
+    return socketData.activeWorkspace === workspaceId;
   }
 
   @SubscribeMessage('workspace-chat.watch')

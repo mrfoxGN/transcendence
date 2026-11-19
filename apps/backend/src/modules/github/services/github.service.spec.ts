@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { IsNull } from 'typeorm';
 
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
@@ -52,6 +57,7 @@ describe('GitHubService - Repository Connection', () => {
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(() => {
@@ -145,16 +151,102 @@ describe('GitHubService - Repository Connection', () => {
     expect(connectedRepositories.save).not.toHaveBeenCalled();
   });
 
-  it('rejects previously disconnected repositories', async () => {
+  it('reconnects previously disconnected repositories', async () => {
     connectedRepositories.findOne
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
+        ...selectedRepository,
         id: 'previous-repository',
+        workspaceId,
         disconnectedAt: new Date(),
+        lastSyncedAt: new Date(),
+        encryptedOAuthToken: null,
       });
 
-    await expect(connect()).rejects.toBeInstanceOf(ConflictException);
-    expect(connectedRepositories.save).not.toHaveBeenCalled();
+    const result = await connect();
+
+    expect(result.id).toBe('previous-repository');
+    expect(result.workspaceId).toBe(workspaceId);
+    expect(connectedRepositories.create).not.toHaveBeenCalled();
+
+    expect(connectedRepositories.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'previous-repository',
+        disconnectedAt: null,
+        connectedById: userId,
+        encryptedOAuthToken: 'encrypted-test-token',
+        lastSyncedAt: null,
+      }),
+    );
+
+    expect(githubOAuthService.deleteSetupSession).toHaveBeenCalledWith(
+      setupSessionId,
+    );
+  });
+
+  it('allows the workspace owner to disconnect a repository', async () => {
+    connectedRepositories.update.mockResolvedValueOnce({ affected: 1 });
+
+    await expect(
+      service.disconnectRepository(workspaceId, userId),
+    ).resolves.toBeUndefined();
+
+    expect(workspacesService.assertOwner).toHaveBeenCalledWith(
+      workspaceId,
+      userId,
+      true,
+    );
+
+    expect(connectedRepositories.update).toHaveBeenCalledWith(
+      { workspaceId, disconnectedAt: IsNull() },
+      {
+        disconnectedAt: expect.any(Date) as unknown,
+        encryptedOAuthToken: null,
+        updatedAt: expect.any(Date) as unknown,
+      },
+    );
+  });
+
+  it('rejects disconnection by non-workspace owners', async () => {
+    workspacesService.assertOwner.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+
+    await expect(
+      service.disconnectRepository(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(connectedRepositories.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects disconnection in archived workspaces', async () => {
+    workspacesService.assertOwner.mockRejectedValueOnce(
+      new ConflictException('Workspace is archived'),
+    );
+
+    await expect(
+      service.disconnectRepository(workspaceId, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(connectedRepositories.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects disconnection when no active repository exists', async () => {
+    connectedRepositories.update.mockResolvedValueOnce({ affected: 0 });
+
+    await expect(
+      service.disconnectRepository(workspaceId, userId),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('propagates database errors during disconnection', async () => {
+    connectedRepositories.update.mockRejectedValueOnce(
+      new Error('Database unavailable'),
+    );
+
+    await expect(
+      service.disconnectRepository(workspaceId, userId),
+    ).rejects.toThrow('Database unavailable');
   });
 
   it('stores correct repository metadata', async () => {

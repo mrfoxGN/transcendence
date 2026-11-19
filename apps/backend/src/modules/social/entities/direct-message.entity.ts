@@ -58,6 +58,23 @@ export class DirectMessage {
   content!: string;
 
   @Column({
+  name: 'reply_to_id',
+  type: 'char',
+  length: 36,
+  nullable: true,
+  })
+  replyToId!: string | null;
+  
+  @ManyToOne(() => DirectMessage, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'reply_to_id',
+  })
+  replyTo?: DirectMessage | null;
+
+  @Column({
     name: 'created_at',
     type: 'datetime',
     precision: 6,

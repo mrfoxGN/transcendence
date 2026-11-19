@@ -1,3 +1,4 @@
+import { fromZonedTime } from 'date-fns-tz';
 import { defaultWorkspaceTimeZone } from '../workspaces/workspace-policy';
 
 export function legacyDeadlineDate(value: string | Date, timeZone = defaultWorkspaceTimeZone): string {
@@ -8,9 +9,22 @@ export function legacyDeadlineDate(value: string | Date, timeZone = defaultWorks
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
-export function taskDeadline(dueDate: string | null | undefined, dueAt: string | null | undefined, timeZone?: string) {
-  if (dueDate !== undefined) {
-    return { dueDate, dueAt: dueDate ? new Date(dueDate + 'T00:00:00.000Z') : null };
+export function taskDeadline(
+  dueDate: string | null | undefined,
+  dueAt: string | null | undefined,
+  timeZone = defaultWorkspaceTimeZone,
+): Date | null {
+  // Prioritize dueAt when it contains a value
+  if (dueAt != null) {
+    return new Date(dueAt);
   }
-  return { dueDate: dueAt ? legacyDeadlineDate(dueAt, timeZone) : null, dueAt: dueAt ? new Date(dueAt) : null };
+
+  // Otherwise, use dueDate
+  if (dueDate != null) {
+    return fromZonedTime(
+      `${dueDate}T23:59:59.999`,
+      timeZone,
+    );
+  }
+  return null;
 }

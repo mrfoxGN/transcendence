@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Phone, Search, SquarePen, Video, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { Reply, ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, SquarePen, X } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
 import { Avatar, IconTile, Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import type { Member } from '../workspace-tasks';
-import type { useWorkspaceChat } from '../workspace-chat';
+import type { ServerMessage, useWorkspaceChat } from '../workspace-chat';
 import './chat.css';
 
+type Draft = { text: string; requestId?: string; reply?: { id: string; preview: string } };
+
 type ChatPageProps = {
+  workspaceId: string;
   chat: ReturnType<typeof useWorkspaceChat>;
   selected: string;
   setSelected: (id: string) => void;
@@ -34,19 +37,37 @@ function Portrait({ name, small }: { name: string; small?: boolean }) {
   return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
 }
 
-export function ChatPage({ chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
+export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
   const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState('');
+  const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
   const [conversationError, setConversationError] = useState('');
-  const scrollSnapshot = useRef<{ height: number; top: number } | undefined>(undefined);
+  const view = useRef<{ thread: string; atLatest: boolean; anchor?: { id: string; offset: number } } | undefined>(undefined);
+  const [showJump, setShowJump] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchedTerm, setSearchedTerm] = useState('');
+  const [results, setResults] = useState<ServerMessage[]>([]);
+  const [searchPage, setSearchPage] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [hasMoreResults, setHasMoreResults] = useState(false);
+  const searchRequest = useRef<AbortController | undefined>(undefined);
+  useEffect(() => () => searchRequest.current?.abort(), [selected]);
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const [section, setSection] = useState<(typeof sections)[number]>('Details');
-  const [drafts, setDrafts] = useState<Record<string, { text: string }>>({});
+  const draftKey = `devup:chat-drafts:${profileId}:${workspaceId}`;
+  const [drafts, setDrafts] = useState<Record<string, Draft>>(() => {
+    try { return JSON.parse(sessionStorage.getItem(draftKey) ?? '{}') ?? {}; }
+    catch { return {}; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(draftKey, JSON.stringify(drafts)); }
+    catch { /* Drafts remain available while this view is open. */ }
+  }, [draftKey, drafts]);
   const [drawer, setDrawer] = useState<'details' | 'new'>();
   const [showList, setShowList] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
-  const [callNotice, setCallNotice] = useState<'Voice' | 'Video'>();
   const messageList = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const teammateName = (id: string | null) => roster.find(member => member.userId === id)?.username
@@ -56,17 +77,25 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
       ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
       messages: (chat.messages[item.id] ?? []).map(message => ({
         id: message.id, text: message.content, sentAt: message.createdAt,
+        reply: message.reply ? { ...message.reply, preview: message.reply.preview.slice(0, 100) } : undefined,
         own: message.senderId === profileId, author: teammateName(message.senderId),
       })),
     }));
   const thread = threads.find(item => item.id === selected) ?? { id: selected, title: 'Direct message', member: 'DevUP member', unread: 0, messages: [] };
   const readOnly = workspaceArchived && thread.id === 'team';
+  const isDirect = thread.id !== 'team';
   const draft = drafts[thread.id] ?? { text: '' };
+  const sendError = sendErrors[thread.id];
+  const canSend = !!draft.text.trim();
   const teammates = roster.filter(member => member.userId !== profileId);
   const direct = chat.conversations.find(item => item.id === thread.id);
+  const otherMember = isDirect && thread.member && !teammates.some(person => person.userId === direct?.otherUserId)
+    ? [{ id: direct?.otherUserId ?? 'other', name: thread.member, role: 'Member' }]
+    : [];
   const members = [{ id: profileId, name: profileName, role: 'You' },
     ...teammates.filter(person => !thread.member || person.userId === direct?.otherUserId)
-      .map(person => ({ id: person.userId, name: person.username, role: person.isOwner ? 'Workspace owner' : 'Member' }))];
+      .map(person => ({ id: person.userId, name: person.username, role: person.isOwner ? 'Workspace owner' : 'Member' })),
+    ...otherMember];
   const links = [...new Set(thread.messages.flatMap(message => message.text.match(/https?:\/\/[^\s<>"']+/g) ?? []))];
   const unreadCount = threads.filter(item => item.unread > 0).length;
   const search = query.trim().toLowerCase();
@@ -75,13 +104,34 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
     (!search || item.title.toLowerCase().includes(search) || item.messages.some(message => message.text.toLowerCase().includes(search)))
   );
 
-  useEffect(() => {
+  function recordPosition() {
     const list = messageList.current;
     if (!list) return;
-    const snapshot = scrollSnapshot.current;
-    list.scrollTop = snapshot ? snapshot.top + list.scrollHeight - snapshot.height : list.scrollHeight;
-    scrollSnapshot.current = undefined;
-  }, [thread.id, thread.messages.length]);
+    const top = list.getBoundingClientRect().top;
+    const atLatest = list.scrollHeight - list.clientHeight - list.scrollTop < 40;
+    const firstVisible = atLatest ? undefined : Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .find(row => row.getBoundingClientRect().bottom > top);
+    view.current = {
+      thread: thread.id, atLatest,
+      anchor: firstVisible?.dataset.messageId ? {
+        id: firstVisible.dataset.messageId, offset: firstVisible.getBoundingClientRect().top - top,
+      } : undefined,
+    };
+    setShowJump(!atLatest);
+  }
+
+  useLayoutEffect(() => {
+    const list = messageList.current;
+    if (!list) return;
+    const previous = view.current;
+    if (!previous || previous.thread !== thread.id || previous.atLatest) {
+      list.scrollTop = list.scrollHeight;
+    } else if (previous.anchor) {
+      const row = list.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(previous.anchor.id)}"]`);
+      if (row) list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top - previous.anchor.offset;
+    }
+    recordPosition();
+  });
 
   useEffect(() => {
     const input = composer.current;
@@ -90,24 +140,58 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
   }, [draft.text, thread.id]);
 
+  async function searchHistory(page = 1) {
+    const term = page === 1 ? searchTerm.trim() : searchedTerm;
+    if (!term) return;
+    searchRequest.current?.abort();
+    const controller = new AbortController();
+    searchRequest.current = controller;
+    setSearching(true);
+    setSearchError('');
+    if (page === 1) {
+      setResults([]);
+      setSearchPage(0);
+      setHasMoreResults(false);
+      setSearchedTerm(term);
+    }
+    try {
+      const matches = await chat.search(thread.id, term, page, controller.signal);
+      if (controller.signal.aborted) return;
+      setResults(current => page === 1 ? matches : [...new Map([...current, ...matches].map(item => [item.id, item])).values()]);
+      setSearchPage(page);
+      setHasMoreResults(matches.length === 25);
+    } catch {
+      if (!controller.signal.aborted) setSearchError('Could not search this conversation. Try again.');
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
+    }
+  }
+
   function selectThread(id: string) {
+    searchRequest.current?.abort();
+    setSearching(false);
+    setSearchOpen(false);
+    setResults([]);
+    setSearchTerm('');
+    setSearchedTerm('');
+    setSearchPage(0);
+    setHasMoreResults(false);
+    setSearchError('');
     setSelected(id);
-    setCallNotice(undefined);
-    setSendError('');
     setSection('Details');
     setShowList(false);
-    scrollSnapshot.current = undefined;
     const url = new URL(location.href);
+    url.searchParams.delete('attachment');
     url.hash = id === 'team' ? '' : 'dm-' + id;
     history.replaceState(history.state, '', url);
   }
 
-  async function startConversation(userId: string) {
+  async function startConversation(userId: string, username?: string) {
     if (sending) return;
     setSending(true);
     setConversationError('');
     try {
-      const id = await chat.openConversation(userId);
+      const id = await chat.openConversation(userId, username);
       setFilter('All');
       setQuery('');
       selectThread(id);
@@ -122,15 +206,17 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.text.trim();
-    if (!body || sending) return;
+    if (!canSend || sending) return;
     setSending(true);
-    setSendError('');
+    setSendErrors(current => ({ ...current, [thread.id]: '' }));
     try {
-      await chat.send(thread.id, body);
-      setDrafts(current => current[thread.id]?.text === draft.text ? { ...current, [thread.id]: { text: '' } } : current);
+      const requestId = draft.requestId ?? crypto.randomUUID();
+      setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId } }));
+      await chat.send(thread.id, body, requestId, draft.reply?.id);
+      setDrafts(current => current[thread.id]?.requestId === requestId ? { ...current, [thread.id]: { text: '' } } : current);
       composer.current?.focus();
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : 'Could not send the message.');
+      setSendErrors(current => ({ ...current, [thread.id]: error instanceof Error ? error.message : 'Could not send the message.' }));
     } finally {
       setSending(false);
     }
@@ -187,8 +273,6 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
           <button type="button" className="wu-icon-button wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></button>
           {thread.member ? <Portrait name={thread.member} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
           <div className="wu-chat-heading"><h2>{thread.title}</h2><p>{thread.member ? 'Direct message' : members.length + ' members · General discussion'}</p></div>
-          <button type="button" className="wu-icon-button" aria-label="Voice call" title="Voice call" onClick={() => setCallNotice('Voice')}><Phone size={18} /></button>
-          <button type="button" className="wu-icon-button" aria-label="Video call" title="Video call" onClick={() => setCallNotice('Video')}><Video size={19} /></button>
           <button type="button" className="wu-button wu-button--secondary wu-chat-details-toggle"
             aria-controls="chat-details" aria-expanded={!detailsCollapsed} onClick={() => setDetailsCollapsed(value => !value)}>
             {detailsCollapsed ? <PanelRightOpen size={17} aria-hidden="true" /> : <PanelRightClose size={17} aria-hidden="true" />}
@@ -196,42 +280,75 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
           </button>
           <button type="button" className="wu-icon-button wu-chat-info" aria-label="Show conversation details" title="Show conversation details" onClick={() => setDrawer('details')}><Info size={19} /></button>
         </header>
-        {callNotice && <div className="wu-chat-call-notice"><span role="status">{callNotice} calling is unavailable in this workspace.</span>
-          <button type="button" className="wu-icon-button" aria-label="Dismiss calling notice" onClick={() => setCallNotice(undefined)}><X size={16} /></button>
+        <div className="wu-chat-tools"><button className="wu-text-button" type="button" aria-expanded={searchOpen}
+          onClick={() => setSearchOpen(value => !value)}><Search size={15} /> Search messages</button></div>
+        {searchOpen && <section className="wu-chat-search-results" aria-label="Search conversation">
+          <form onSubmit={event => { event.preventDefault(); void searchHistory(); }}>
+            <input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" value={searchTerm} maxLength={200}
+              onChange={event => setSearchTerm(event.target.value)} />
+            <button className="wu-text-button" type="submit" disabled={searching || !searchTerm.trim()}>Search</button>
+          </form>
+          {searching && <p role="status">Searching…</p>}
+          {searchError && <p role="alert">{searchError}</p>}
+          {!searching && searchPage > 0 && !results.length && <p>No matching messages.</p>}
+          {results.map(message => <article key={message.id}>
+            <strong>{message.senderId === profileId ? 'You' : teammateName(message.senderId)}</strong>{' '}
+            <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
+            {message.reply && <blockquote>{message.reply.preview.slice(0, 100)}</blockquote>}
+            {message.content && <p>{message.content}</p>}
+            {!readOnly && <button className="wu-text-button" type="button" disabled={sending}
+              onClick={() => {
+                const preview = (message.content || 'Message').slice(0, 100);
+                setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview } } }));
+                composer.current?.focus();
+              }}>Reply</button>}
+          </article>)}
+          {hasMoreResults && <button className="wu-text-button" type="button" disabled={searching} onClick={() => void searchHistory(searchPage + 1)}>More results</button>}
+        </section>}
+        {chat.connection !== 'connected' && <div className="wu-chat-connection">
+          <span role="status">{chat.connection === 'connecting' ? 'Connecting to chat…' : 'Reconnecting to chat…'}</span>
+          {chat.connection === 'reconnecting' && <button className="wu-text-button" type="button" onClick={chat.reconnect}>Retry connection</button>}
         </div>}
-        <div ref={messageList} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
+        <div ref={messageList} onScroll={recordPosition} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
           {chat.error && <p role="alert">{chat.error} <button className="wu-text-button" type="button" onClick={chat.retry}>Try again</button></p>}
-          {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading} onClick={() => {
-            const list = messageList.current;
-            if (list) scrollSnapshot.current = { height: list.scrollHeight, top: list.scrollTop };
-            void chat.loadOlder();
-          }}>Load older messages</button>}
+          {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading || chat.loadingOlder} onClick={() => void chat.loadOlder()}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</button>}
           {chat.loading && <p role="status">Loading messages…</p>}
           {!chat.loading && !chat.error && !thread.messages.length && <p className="wu-chat-empty">{readOnly ? 'No messages in this conversation.' : 'Start the conversation with ' + thread.title + '.'}</p>}
           {thread.messages.map((message, index) => {
             const date = new Date(message.sentAt);
             const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
-            return <div key={message.id}>
+            return <div key={message.id} data-message-id={message.id}>
               {newDay && <div className="wu-chat-date"><span>{dayLabel(date)}</span></div>}
               <article className={`wu-message${message.own ? ' is-own' : ''}`}>
                 <Portrait name={message.own ? profileName : message.author} small />
                 <div className="wu-message-content">
                   <div className="wu-message-meta"><strong>{message.own ? 'You' : message.author}</strong><time dateTime={message.sentAt}>{clock.format(date)}</time></div>
                   <div className="wu-message-bubble">
+                    {message.reply && <blockquote className="wu-chat-quote"><strong>{message.reply.unavailable ? 'Original message' : message.reply.senderId === profileId ? 'You' : teammateName(message.reply.senderId)}</strong><p>{message.reply.preview.slice(0, 100)}</p></blockquote>}
                     {message.text && <p>{message.text}</p>}
                   </div>
+                  {!readOnly && <button className="wu-text-button wu-chat-reply" type="button" disabled={sending} onClick={() => {
+                    const preview = (message.text || 'Message').slice(0, 100);
+                    setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview } } }));
+                    composer.current?.focus();
+                  }}><Reply size={14} /> Reply</button>}
                 </div>
               </article>
             </div>;
           })}
         </div>
+        {showJump && <button className="wu-text-button wu-chat-jump" type="button" onClick={() => {
+          if (messageList.current) messageList.current.scrollTop = messageList.current.scrollHeight;
+          recordPosition();
+        }}>Jump to latest</button>}
         {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
-          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !draft.text.trim()}>Retry send</button></p>}
+          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !canSend}>Retry send</button></p>}
+          {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview.slice(0, 100)}</span><button className="wu-icon-button" type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></button></div>}
           <div className="wu-chat-composer">
-            <textarea ref={composer} rows={1} aria-label="Message" placeholder={`Message ${thread.title}…`} value={draft.text}
-              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { ...draft, text: event.target.value } }))}
+            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
+              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value, reply: draft.reply } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !draft.text.trim()}><ArrowUp size={20} /></button>
+            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></button>
           </div>
         </form>}
       </Panel>
@@ -242,7 +359,7 @@ export function ChatPage({ chat, selected, setSelected, profileId, profileName, 
       {drawer === 'new' && <div className="wu-chat-picker">
         {conversationError && <p role="alert">{conversationError}</p>}
         {!teammates.length && <p className="wu-chat-empty">No other workspace members yet.</p>}
-        {teammates.map(person => <button key={person.userId} className="wu-conversation" type="button" disabled={sending} onClick={() => void startConversation(person.userId)}>
+        {teammates.map(person => <button key={person.userId} className="wu-conversation" type="button" disabled={sending} onClick={() => void startConversation(person.userId, person.username)}>
           <Portrait name={person.username} /><span className="wu-conversation-copy"><strong>{person.username}</strong></span><ChevronRight size={16} />
         </button>)}
       </div>}

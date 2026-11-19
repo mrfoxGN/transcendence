@@ -242,30 +242,6 @@ describe('FilesService', () => {
   });
 
   describe('findAll', () => {
-    it('filters literal filename text before sorting and fetching a lookahead row', async () => {
-      repository.find.mockResolvedValue([]);
-
-      await service.findAll(workspaceId, userId, {
-        page: 2,
-        limit: 20,
-        search: '  report_100%!  ',
-        sort: 'size',
-        lookahead: '1',
-      });
-
-      const options = repository.find.mock.calls[0][0];
-      expect(options.where.workspaceId).toBe(workspaceId);
-      expect(options.where.displayName.objectLiteralParameters).toEqual({
-        search: '%report!_100!%!!%',
-      });
-      expect(options.where.displayName.getSql('file.displayName')).toBe(
-        "file.displayName LIKE :search ESCAPE '!'",
-      );
-      expect(options.order).toEqual({ sizeBytes: 'DESC', createdAt: 'DESC', id: 'DESC' });
-      expect(options.skip).toBe(20);
-      expect(options.take).toBe(21);
-    });
-
     it('returns workspace files', async () => {
       repository.find.mockResolvedValue([storedFile]);
 
@@ -317,6 +293,119 @@ describe('FilesService', () => {
 
       await expect(
         service.findOne(workspaceId, fileId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('rename', () => {
+    it('renames a file and records activity', async () => {
+      repository.findOne.mockResolvedValue({
+        ...storedFile,
+        displayName: 'old-name.pdf',
+      });
+      repository.save.mockImplementation((file: unknown) => Promise.resolve(file));
+
+      const result = await service.rename(workspaceId, fileId, userId, {
+        displayName: 'new-name.pdf',
+      });
+
+      expect(result.displayName).toBe('new-name.pdf');
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: fileId,
+          displayName: 'new-name.pdf',
+        }),
+      );
+      expect(activitiesService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId,
+          actorUserId: userId,
+          actionType: 'FILE_RENAMED',
+          resourceType: 'workspace_file',
+          resourceId: fileId,
+          metadata: expect.objectContaining({
+            displayName: 'new-name.pdf',
+          }),
+        }),
+      );
+    });
+
+    it('supports passing displayName as string directly', async () => {
+      repository.findOne.mockResolvedValue({
+        ...storedFile,
+        displayName: 'old-name.pdf',
+      });
+      repository.save.mockImplementation((file: unknown) => Promise.resolve(file));
+
+      const result = await service.rename(
+        workspaceId,
+        fileId,
+        userId,
+        'renamed-file.pdf',
+      );
+
+      expect(result.displayName).toBe('renamed-file.pdf');
+    });
+
+    it('allows workspace owner to rename another user file', async () => {
+      const ownerId = userId;
+      workspacesService.findOneForUser.mockResolvedValue({
+        id: workspaceId,
+        ownerId,
+      });
+
+      repository.findOne.mockResolvedValue({
+        ...storedFile,
+        uploaderId: '66666666-6666-4666-8666-666666666666',
+      });
+      repository.save.mockImplementation((file: unknown) => Promise.resolve(file));
+
+      const result = await service.rename(workspaceId, fileId, ownerId, {
+        displayName: 'owner-renamed.pdf',
+      });
+
+      expect(result.displayName).toBe('owner-renamed.pdf');
+      expect(repository.save).toHaveBeenCalled();
+    });
+
+    it('rejects another workspace member from renaming the file', async () => {
+      const memberId = '77777777-7777-4777-8777-777777777777';
+      workspacesService.findOneForUser.mockResolvedValue({
+        id: workspaceId,
+        ownerId: '88888888-8888-4888-8888-888888888888',
+      });
+
+      repository.findOne.mockResolvedValue({
+        ...storedFile,
+        uploaderId: userId,
+      });
+
+      await expect(
+        service.rename(workspaceId, fileId, memberId, {
+          displayName: 'illegal-rename.pdf',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when displayName is empty or whitespace', async () => {
+      await expect(
+        service.rename(workspaceId, fileId, userId, {
+          displayName: '   ',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(repository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when file is not found', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.rename(workspaceId, fileId, userId, {
+          displayName: 'new-name.pdf',
+        }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });

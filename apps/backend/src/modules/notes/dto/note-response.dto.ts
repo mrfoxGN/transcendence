@@ -1,11 +1,10 @@
 export class NoteResponseDto {
-  revision!: number;
-  pinnedAt!: Date | null;
   id!: string;
   workspaceId!: string;
   creatorId!: string | null;
   title!: string;
   content!: string | null;
+  pinnedAt!: Date | null;
   createdAt!: Date;
   updatedAt!: Date;
 }

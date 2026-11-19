@@ -9,14 +9,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository, EntityManager } from 'typeorm';
 
+import { notifyTask } from '../../notifications/notification-events';
 import { TaskStatus, UserStatus } from '../../../database/enums/database.enums';
-import { ActivitiesService, recordActivity } from '../../activities/services/activities.service';
+import { ActivitiesService } from '../../activities/services/activities.service';
 import { UsersService } from '../../users/services/users.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
-import { canTransitionTask, compareBoardTasks, defaultBoardColumns, taskColumn } from '../../workspaces/board-columns';
-import { WorkspaceKanbanSetting } from '../../workspaces/entities/workspace-kanban-setting.entity';
 import { AssignTaskDto } from '../dto/assign-task.dto';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { TaskAssignmentResponseDto } from '../dto/task-assignment-response.dto';
@@ -70,6 +69,12 @@ export class TasksService {
 
     const now = new Date();
 
+    const dueAt = taskDeadline(
+      dto.dueDate,
+      dto.dueAt,
+      workspace.reportingTimeZone ?? defaultWorkspaceTimeZone,
+    );
+
     const task = this.tasksRepository.create({
       id: randomUUID(),
       workspaceId,
@@ -83,7 +88,7 @@ export class TasksService {
       isBlocked: false,
       blockedReason: null,
       blockedAt: null,
-      ...taskDeadline(dto.dueDate, dto.dueAt, workspace?.reportingTimeZone),
+      dueAt,
       createdAt: now,
       updatedAt: now,
       completedAt: null,
@@ -91,73 +96,64 @@ export class TasksService {
       deletedAt: null,
     });
 
-    const savedTask = dto.boardColumnId || dto.assigneeId
-      ? await this.dataSource.transaction(async manager => {
-        if (dto.assigneeId) await this.workspacesService.lockAssignmentMemberships(manager, workspaceId, userId, dto.assigneeId);
-        const repository = manager.getRepository(Task);
-        if (dto.boardColumnId) {
-          const settings = await manager.getRepository(WorkspaceKanbanSetting).findOne({
-            where: { workspaceId }, lock: { mode: 'pessimistic_write' },
-          });
-          const columns = settings?.boardColumns ?? defaultBoardColumns();
-          const column = columns.find(item => item.id === dto.boardColumnId);
-          if (!column || !settings) throw new BadRequestException('This column is unavailable');
-          const existing = await repository.find({ where: { workspaceId, deletedAt: IsNull() } });
-          if (column.limit && existing.filter(item => taskColumn(columns, item.status, item.boardColumnId).id === column.id).length >= column.limit) {
-            throw new ConflictException('This column has reached its task limit');
-          }
-          if ([TaskStatus.IN_PROGRESS, TaskStatus.REVIEW].includes(column.status)
-            && existing.filter(item => [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW].includes(item.status)).length >= settings.activeWipLimit) {
-            throw new ConflictException('Active WIP limit reached');
-          }
-          task.boardColumnId = column.id;
-          task.position = existing
-            .filter(item => taskColumn(columns, item.status, item.boardColumnId).id === column.id)
-            .reduce((last, item) => Math.max(last, item.position), -1) + 1;
-          task.status = column.status;
-          if (column.status === TaskStatus.DONE) task.completedAt = now;
-          if (column.status === TaskStatus.CANCELLED) task.cancelledAt = now;
+    const assigneeId = dto.assigneeId;
+    const savedTask = assigneeId
+    ? await this.dataSource.transaction(async (manager) => {
+        await this.workspacesService.lockAssignmentMemberships(
+          manager,
+          workspaceId,
+          userId,
+          assigneeId,
+        );
+        const saved = await manager.getRepository(Task).save(task);
+
+        await this.createAssignment(
+          manager,
+          saved.id,
+          userId,
+          assigneeId,
+        );
+
+        if (assigneeId !== userId) {
+          await notifyTask(
+            manager,
+            saved,
+            userId,
+            `create:${saved.id}`,
+            'assignments',
+            { assigneeId },
+          );
         }
-        const saved = await repository.save(task);
-        if (dto.assigneeId) {
-          await manager.getRepository(TaskAssignment).insert({
-            id: randomUUID(), taskId: saved.id, userId: dto.assigneeId,
-            assignedById: userId, assignedAt: now,
-          });
-        }
+
         return saved;
       })
-      : await this.tasksRepository.save(task);
+    : await this.tasksRepository.save(task);
 
-    try {
-      await this.activitiesService.create({
+    await this.recordTaskActivity(
+      workspaceId,
+      userId,
+      savedTask.id,
+      'TASK_CREATED',
+      {
+        title: savedTask.title,
+        status: savedTask.status,
+        priority: savedTask.priority,
+      },
+    );
+
+    if (assigneeId) {
+      await this.recordTaskActivity(
         workspaceId,
-        actorUserId: userId,
-        actionType: 'TASK_CREATED',
-        resourceType: 'task',
-        resourceId: savedTask.id,
-        metadata: {
+        userId,
+        savedTask.id,
+        'TASK_ASSIGNED',
+        {
           title: savedTask.title,
-          status: savedTask.status,
-          priority: savedTask.priority,
+          assigneeId,
         },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Could not create TASK_CREATED activity for task ${savedTask.id}`,
-        error instanceof Error ? error.stack : String(error),
       );
     }
-
-    if (dto.assigneeId) await this.taskHistory(savedTask, userId, 'TASK_ASSIGNED', { assigneeId: dto.assigneeId });
     return TaskMapper.toResponse(savedTask);
-  }
-
-  private taskHistory(task: Pick<Task, 'id' | 'workspaceId' | 'title'>, actorUserId: string, actionType: string, metadata = {}) {
-    return recordActivity(this.activitiesService, {
-      workspaceId: task.workspaceId, actorUserId, actionType, resourceType: 'task', resourceId: task.id,
-      metadata: { title: task.title, ...metadata },
-    });
   }
 
   async getBoard(
@@ -208,12 +204,11 @@ export class TasksService {
       assigneesByTaskId: Object.fromEntries(
         assignments.map((assignment) => [assignment.taskId, assignment.userId]),
       ),
-      ...(settings.boardColumns ? { boardColumns: settings.boardColumns } : {}),
       columns,
     };
   }
 
-  async findById(taskId: string, userId: string, writable = false): Promise<TaskResponseDto> {
+  async findById(taskId: string, userId: string): Promise<TaskResponseDto> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
     });
@@ -222,8 +217,7 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    const workspace = await this.workspacesService.findOneForUser(task.workspaceId, userId);
-    if (writable) assertWorkspaceWritable(workspace);
+    await this.workspacesService.findOneForUser(task.workspaceId, userId);
 
     return TaskMapper.toResponse(task);
   }
@@ -245,19 +239,29 @@ export class TasksService {
       throw new BadRequestException('No changes provided');
     }
 
-    if (dto.title === null || (dto.title !== undefined && !dto.title.trim())) {
+    if (
+      dto.title === null ||
+      (dto.title !== undefined && !dto.title.trim())
+    ) {
       throw new BadRequestException('Task title is required');
     }
 
     const task = await this.tasksRepository.findOne({
-      where: { id: taskId, deletedAt: IsNull() },
+      where: {
+        id: taskId,
+        deletedAt: IsNull(),
+      },
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
     }
 
-    const workspace = await this.workspacesService.findOneForUser(task.workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(
+      task.workspaceId,
+      userId,
+    );
+
     assertWorkspaceWritable(workspace);
 
     const changes: Partial<Task> = {
@@ -281,7 +285,11 @@ export class TasksService {
     }
 
     if (dto.dueDate !== undefined || dto.dueAt !== undefined) {
-      Object.assign(changes, taskDeadline(dto.dueDate, dto.dueAt, workspace?.reportingTimeZone));
+      changes.dueAt = taskDeadline(
+        dto.dueDate,
+        dto.dueAt,
+        workspace.reportingTimeZone ?? defaultWorkspaceTimeZone,
+      );
     }
 
     if (dto.position !== undefined) {
@@ -289,7 +297,10 @@ export class TasksService {
     }
 
     const result = await this.tasksRepository.update(
-      { id: taskId, deletedAt: IsNull() },
+      {
+        id: taskId,
+        deletedAt: IsNull(),
+      },
       changes,
     );
 
@@ -298,24 +309,35 @@ export class TasksService {
     }
 
     const updatedTask = await this.tasksRepository.findOne({
-      where: { id: taskId, deletedAt: IsNull() },
+      where: {
+        id: taskId,
+        deletedAt: IsNull(),
+      },
     });
 
     if (!updatedTask) {
       throw new NotFoundException('Task not found');
     }
+  
+    await this.recordTaskActivity(
+      task.workspaceId,
+      userId,
+      taskId,
+      'TASK_UPDATED',
+      {
+        title: updatedTask.title,
+        changes: dto,
+      },
+    );
 
     return TaskMapper.toResponse(updatedTask);
   }
+
   async transition(
     taskId: string,
     userId: string,
     dto: TransitionTaskDto,
   ): Promise<TaskResponseDto> {
-    if (dto.placement && !dto.boardColumnId) throw new BadRequestException('Choose a destination column for card placement');
-    if ((dto.placement === 'before' || dto.placement === 'after') !== !!dto.anchorTaskId) {
-      throw new BadRequestException('Choose a card to place the task next to');
-    }
     const existingTask = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
     });
@@ -330,7 +352,8 @@ export class TasksService {
     ));
 
     const settings =
-      !dto.boardColumnId && dto.toStatus === TaskStatus.IN_PROGRESS
+      dto.toStatus === TaskStatus.IN_PROGRESS ||
+      dto.toStatus === TaskStatus.REVIEW
         ? await this.workspacesService.getKanbanSettings(
             existingTask.workspaceId,
             userId,
@@ -339,9 +362,6 @@ export class TasksService {
 
     const result = await this.dataSource.transaction(async (manager) => {
       const tasksRepository = manager.getRepository(Task);
-      const columnSettings = dto.boardColumnId ? await manager.getRepository(WorkspaceKanbanSetting).findOne({
-        where: { workspaceId: existingTask.workspaceId }, lock: { mode: 'pessimistic_write' },
-      }) : null;
 
       const workspaceTasks = await tasksRepository
         .createQueryBuilder('task')
@@ -359,31 +379,17 @@ export class TasksService {
         throw new NotFoundException('Task not found');
       }
 
-      const defaults = defaultBoardColumns();
-      const configured = columnSettings?.boardColumns ?? defaults;
-      const layout = [...configured, ...defaults.filter(column =>
-        !configured.some(item => item.status === column.status)
-        && workspaceTasks.some(item => item.status === column.status),
-      )];
-      const column = dto.boardColumnId ? layout.find(item => item.id === dto.boardColumnId && item.status === dto.toStatus) : undefined;
-      if (dto.boardColumnId && !column) throw new BadRequestException('This column is unavailable');
-      if (column && task.status === dto.toStatus) {
-        if (dto.placement) await this.placeTask(tasksRepository, workspaceTasks, layout, column.id, task, dto);
-        task.boardColumnId = column.id;
-        task.updatedAt = new Date();
-        await tasksRepository.save(task);
-        return { response: TaskMapper.toResponse(task), previousStatus: task.status };
-      }
-
-      if (!column && !canTransitionTask(task.status, dto.toStatus)) {
+      if (!this.isAllowedTransition(task.status, dto.toStatus)){
         throw new BadRequestException(
           `Cannot move task from ${task.status} to ${dto.toStatus}`,
         );
       }
 
       if (
-        !column && task.status === TaskStatus.READY &&
-        dto.toStatus === TaskStatus.IN_PROGRESS
+          (task.status === TaskStatus.READY &&
+            dto.toStatus === TaskStatus.IN_PROGRESS) ||
+          (task.status === TaskStatus.DONE &&
+            dto.toStatus === TaskStatus.REVIEW)
       ) {
         const activeCount = await tasksRepository.count({
           where: {
@@ -401,9 +407,7 @@ export class TasksService {
       const now = new Date();
       const previousStatus = task.status;
 
-      if (column && dto.placement) await this.placeTask(tasksRepository, workspaceTasks, layout, column.id, task, dto);
       task.status = dto.toStatus;
-      if (column || task.boardColumnId) task.boardColumnId = column?.id ?? null;
       task.updatedAt = now;
 
       if (dto.toStatus === TaskStatus.DONE) {
@@ -431,6 +435,7 @@ export class TasksService {
       });
 
       await manager.getRepository(TaskStatusHistory).save(history);
+      await notifyTask(manager, task, userId, `status:${history.id}`, 'status');
 
       return {
         response: TaskMapper.toResponse(task),
@@ -438,27 +443,18 @@ export class TasksService {
       };
     });
 
-    if (result.previousStatus === result.response.status) return result.response;
-    try {
-      await this.activitiesService.create({
-        workspaceId: existingTask.workspaceId,
-        actorUserId: userId,
-        actionType: 'TASK_STATUS_CHANGED',
-        resourceType: 'task',
-        resourceId: taskId,
-        metadata: {
-          title: result.response.title,
-          fromStatus: result.previousStatus,
-          toStatus: result.response.status,
-          note: dto.note ?? null,
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Could not create TASK_STATUS_CHANGED activity for task ${taskId}`,
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
+    await this.recordTaskActivity(
+      existingTask.workspaceId,
+      userId,
+      taskId,
+      'TASK_STATUS_CHANGED',
+      {
+        title: result.response.title,
+        fromStatus: result.previousStatus,
+        toStatus: result.response.status,
+        note: dto.note ?? null,
+      },
+    );
 
     return result.response;
   }
@@ -487,14 +483,21 @@ export class TasksService {
     if (!result.affected) {
       throw new NotFoundException('Task not found');
     }
-    await this.taskHistory(task, userId, 'TASK_DELETED');
+    await this.recordTaskActivity(
+      task.workspaceId,
+      userId,
+      taskId,
+      'TASK_DELETED',
+      {
+        title: task.title,
+      },
+    );
   }
 
   async assign(
     taskId: string,
     actorId: string,
     dto: AssignTaskDto,
-    replace = false,
   ): Promise<TaskAssignmentResponseDto> {
     const existingTask = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
@@ -504,15 +507,23 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
+    const workspace = await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       actorId,
-    ));
+    );
+
+    assertWorkspaceWritable(workspace);
 
     await this.validateAssignee(existingTask.workspaceId, dto.userId);
 
     const result = await this.dataSource.transaction(async (manager) => {
-      await this.workspacesService.lockAssignmentMemberships(manager, existingTask.workspaceId, actorId, dto.userId);
+      await this.workspacesService.lockAssignmentMemberships(
+        manager,
+        existingTask.workspaceId,
+        actorId,
+        dto.userId,
+      );
+
       const task = await manager.getRepository(Task).findOne({
         where: { id: taskId, deletedAt: IsNull() },
         lock: { mode: 'pessimistic_write' },
@@ -528,40 +539,43 @@ export class TasksService {
         where: { taskId },
       });
 
-      if (existingAssignment && !replace) {
+      if (existingAssignment) {
         throw new ConflictException('Task already assigned');
       }
-      if (existingAssignment?.userId === dto.userId) return { assignment: existingAssignment, changed: false };
 
-      const assignment = assignmentsRepository.create({
-        id: existingAssignment?.id ?? randomUUID(),
+      const savedAssignment = await this.createAssignment(
+        manager,
         taskId,
-        userId: dto.userId,
-        assignedById: actorId,
-        assignedAt: new Date(),
-      });
+        actorId,
+        dto.userId,
+      );
 
-      const savedAssignment = await assignmentsRepository.save(assignment);
-
-      return { assignment: savedAssignment, changed: true };
-    });
-    if (result.changed) await this.taskHistory(existingTask, actorId, 'TASK_ASSIGNED', { assigneeId: dto.userId });
-    return TaskAssignmentMapper.toResponse(result.assignment);
-  }
-
-  private async validateAssignee(workspaceId: string, userId: string) {
-    const assignee = await this.usersService.findById(userId);
-    if (assignee.status !== UserStatus.ACTIVE) {
-      throw new BadRequestException('Assignee must be active');
-    }
-    try {
-      await this.workspacesService.findOneForUser(workspaceId, userId);
-    } catch (error) {
-      if (error instanceof ForbiddenException) {
-        throw new BadRequestException('Assignee must belong to the workspace');
+      if (dto.userId !== actorId) {
+        await notifyTask(
+          manager,
+          task,
+          actorId,
+          `assignment:${savedAssignment.id}`,
+          'assignments',
+          { assigneeId: dto.userId },
+        );
       }
-      throw error;
-    }
+
+      return TaskAssignmentMapper.toResponse(savedAssignment);
+    });
+
+    await this.recordTaskActivity(
+      existingTask.workspaceId,
+      actorId,
+      taskId,
+      'TASK_ASSIGNED',
+      {
+        title: existingTask.title,
+        assigneeId: dto.userId,
+      },
+    );
+
+    return result;
   }
 
   async addDependency(
@@ -703,8 +717,20 @@ export class TasksService {
     userId: string,
     dependencyId: string,
   ): Promise<void> {
-    await this.findById(taskId, userId, true);
+    const task = await this.tasksRepository.findOne({
+      where: { id: taskId, deletedAt: IsNull() },
+    });
 
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const workspace = await this.workspacesService.findOneForUser(
+      task.workspaceId,
+      userId,
+    );
+
+    assertWorkspaceWritable(workspace);
     const result = await this.dataSource
       .getRepository(TaskDependency)
       .delete({ id: dependencyId, taskId });
@@ -714,6 +740,7 @@ export class TasksService {
     }
   }
 
+  
   async block(
     taskId: string,
     userId: string,
@@ -725,7 +752,20 @@ export class TasksService {
       throw new BadRequestException('Block reason is required');
     }
 
-    const task = await this.findById(taskId, userId, true);
+    const task = await this.tasksRepository.findOne({
+      where: { id: taskId, deletedAt: IsNull() },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const workspace = await this.workspacesService.findOneForUser(
+      task.workspaceId,
+      userId,
+    );
+
+    assertWorkspaceWritable(workspace);
 
     const now = new Date();
 
@@ -744,12 +784,35 @@ export class TasksService {
       throw new ConflictException('Task is already blocked');
     }
 
-    await this.taskHistory(task, userId, 'TASK_BLOCKED');
+    await this.recordTaskActivity(
+      task.workspaceId,
+      userId,
+      taskId,
+      'TASK_BLOCKED',
+      { title: task.title, reason },
+    );
+
     return this.findById(taskId, userId);
   }
+  
+  async unblock(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskResponseDto> {
+    const task = await this.tasksRepository.findOne({
+      where: { id: taskId, deletedAt: IsNull() },
+    });
 
-  async unblock(taskId: string, userId: string): Promise<TaskResponseDto> {
-    const task = await this.findById(taskId, userId, true);
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const workspace = await this.workspacesService.findOneForUser(
+      task.workspaceId,
+      userId,
+    );
+
+    assertWorkspaceWritable(workspace);
 
     const result = await this.tasksRepository.update(
       { id: taskId, deletedAt: IsNull(), isBlocked: true },
@@ -766,31 +829,36 @@ export class TasksService {
       throw new ConflictException('Task is not blocked');
     }
 
-    await this.taskHistory(task, userId, 'TASK_UNBLOCKED');
+    await this.recordTaskActivity(
+      task.workspaceId,
+      userId,
+      taskId,
+      'TASK_UNBLOCKED',
+      { title: task.title },
+    );
+
     return this.findById(taskId, userId);
   }
 
-  private async placeTask(
-    repository: Repository<Task>,
-    tasks: Task[],
-    layout: ReturnType<typeof defaultBoardColumns>,
-    columnId: string,
-    moved: Task,
-    dto: TransitionTaskDto,
-  ) {
-    const ordered = tasks
-      .filter(task => task.id !== moved.id && taskColumn(layout, task.status, task.boardColumnId).id === columnId)
-      .sort(compareBoardTasks);
-    const anchor = ordered.findIndex(task => task.id === dto.anchorTaskId);
-    if (dto.anchorTaskId && anchor < 0) {
-      throw new ConflictException('The reference card moved. Refresh the board and try again.');
+  async getWatch(taskId: string, userId: string): Promise<{ watching: boolean }> {
+    await this.findById(taskId, userId);
+    const rows: unknown[] = await this.dataSource.query(
+      'SELECT 1 FROM task_watchers WHERE task_id = ? AND user_id = ?', [taskId, userId],
+    );
+    return { watching: rows.length > 0 };
+  }
+
+  async setWatch(taskId: string, userId: string, watching: boolean): Promise<{ watching: boolean }> {
+    await this.findById(taskId, userId);
+    if (watching) {
+      await this.dataSource.query(
+        `INSERT INTO task_watchers (task_id, user_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE user_id = task_watchers.user_id`, [taskId, userId],
+      );
+    } else {
+      await this.dataSource.query('DELETE FROM task_watchers WHERE task_id = ? AND user_id = ?', [taskId, userId]);
     }
-    const index = dto.placement === 'end' ? ordered.length : anchor + Number(dto.placement === 'after');
-    ordered.splice(index, 0, moved);
-    for (const [position, task] of ordered.entries()) {
-      if (task === moved) moved.position = position;
-      else if (task.position !== position) await repository.update({ id: task.id }, { position });
-    }
+    return { watching };
   }
 
   async getAssignment(
@@ -813,7 +881,8 @@ export class TasksService {
 
     return assignment ? TaskAssignmentMapper.toResponse(assignment) : null;
   }
-  async unassign(taskId: string, userId: string, allowMissing = false): Promise<void> {
+  
+  async unassign(taskId: string, userId: string): Promise<void> {
     const existingTask = await this.tasksRepository.findOne({
       where: { id: taskId, deletedAt: IsNull() },
     });
@@ -822,12 +891,14 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
+    const workspace = await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    ));
+    );
 
-    const removed = await this.dataSource.transaction(async (manager) => {
+    assertWorkspaceWritable(workspace);
+
+    await this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
         where: { id: taskId, deletedAt: IsNull() },
         lock: { mode: 'pessimistic_write' },
@@ -841,13 +912,22 @@ export class TasksService {
         .getRepository(TaskAssignment)
         .delete({ taskId });
 
-      if (!result.affected && !allowMissing) {
+      if (!result.affected) {
         throw new NotFoundException('Task assignment not found');
       }
-      return !!result.affected;
     });
-    if (removed) await this.taskHistory(existingTask, userId, 'TASK_UNASSIGNED');
+
+    await this.recordTaskActivity(
+      existingTask.workspaceId,
+      userId,
+      taskId,
+      'TASK_UNASSIGNED',
+      {
+        title: existingTask.title,
+      },
+    );
   }
+
   async addComment(
     taskId: string,
     userId: string,
@@ -867,10 +947,12 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(
+    const workspace = await this.workspacesService.findOneForUser(
       existingTask.workspaceId,
       userId,
-    ));
+    );
+
+    assertWorkspaceWritable(workspace);
 
     return this.dataSource.transaction(async (manager) => {
       const task = await manager.getRepository(Task).findOne({
@@ -884,7 +966,9 @@ export class TasksService {
 
       const now = new Date();
 
-      const comment = manager.getRepository(TaskComment).create({
+      const repository = manager.getRepository(TaskComment);
+
+      const comment = repository.create({
         id: randomUUID(),
         taskId,
         authorId: userId,
@@ -895,9 +979,15 @@ export class TasksService {
         deletedAt: null,
       });
 
-      const savedComment = await manager
-        .getRepository(TaskComment)
-        .save(comment);
+      const savedComment = await repository.save(comment);
+
+      await notifyTask(
+        manager,
+        task,
+        userId,
+        `comment:${savedComment.id}`,
+        'comments',
+      );
 
       return TaskCommentMapper.toResponse(savedComment);
     });
@@ -968,6 +1058,7 @@ export class TasksService {
       return TaskCommentMapper.toResponse(savedComment);
     });
   }
+
   async listComments(
     taskId: string,
     userId: string,
@@ -995,6 +1086,7 @@ export class TasksService {
 
     return comments.map((comment) => TaskCommentMapper.toResponse(comment));
   }
+
   async removeComment(
     taskId: string,
     commentId: string,
@@ -1049,5 +1141,101 @@ export class TasksService {
 
       await commentsRepository.save(comment);
     });
+  }
+
+  private async createAssignment(
+    manager: EntityManager,
+    taskId: string,
+    actorId: string,
+    assigneeId: string,
+  ): Promise<TaskAssignment> {
+    const assignmentsRepository = manager.getRepository(TaskAssignment);
+
+    const assignment = assignmentsRepository.create({
+      id: randomUUID(),
+      taskId,
+      userId: assigneeId,
+      assignedById: actorId,
+      assignedAt: new Date(),
+    });
+
+    return assignmentsRepository.save(assignment);
+  }
+
+  private async validateAssignee(workspaceId: string, userId: string) {
+    const assignee = await this.usersService.findById(userId);
+    if (assignee.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException('Assignee must be active');
+    }
+    try {
+      await this.workspacesService.findOneForUser(workspaceId, userId);
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw new BadRequestException('Assignee must belong to the workspace');
+      }
+      throw error;
+    }
+  }
+  
+  private isAllowedTransition(from: TaskStatus, to: TaskStatus): boolean {
+    if (from === TaskStatus.BACKLOG) {
+      return to === TaskStatus.TODO || to === TaskStatus.CANCELLED;
+    }
+
+      if (from === TaskStatus.TODO) {
+        return (
+          to === TaskStatus.READY ||
+          to === TaskStatus.BACKLOG ||
+          to === TaskStatus.CANCELLED
+        );
+      }
+
+    if (from === TaskStatus.READY) {
+      return (
+        to === TaskStatus.TODO ||
+        to === TaskStatus.IN_PROGRESS ||
+        to === TaskStatus.CANCELLED
+      );
+    }
+
+    if (from === TaskStatus.IN_PROGRESS) {
+      return to === TaskStatus.REVIEW || to === TaskStatus.CANCELLED || to === TaskStatus.READY;
+    }
+
+    if (from === TaskStatus.REVIEW) {
+      return (
+        to === TaskStatus.IN_PROGRESS ||
+        to === TaskStatus.DONE ||
+        to === TaskStatus.CANCELLED
+      );
+    }
+    if (from === TaskStatus.DONE) {
+      return to === TaskStatus.REVIEW;
+    }
+    return false;
+  }  
+  
+  private async recordTaskActivity(
+    workspaceId: string,
+    actorId: string,
+    taskId: string,
+    actionType: Parameters<ActivitiesService['create']>[0]['actionType'],
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await this.activitiesService.create({
+        workspaceId,
+        actorUserId: actorId,
+        actionType,
+        resourceType: 'task',
+        resourceId: taskId,
+        metadata,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not create ${actionType} activity for task ${taskId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 }

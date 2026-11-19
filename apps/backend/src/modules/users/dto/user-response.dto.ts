@@ -5,6 +5,7 @@ export class UserResponseDto {
   username!: string;
   email!: string;
   emailVerified?: boolean;
+  isTwoFactorEnabled?: boolean;
   theme?: 'system' | 'light' | 'dark';
   notificationBadge?: boolean;
   avatarUrl!: string | null;

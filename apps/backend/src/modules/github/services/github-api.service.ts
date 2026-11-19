@@ -31,6 +31,23 @@ export interface PublicGitHubBranch {
   name: string;
   sha: string;
   protected: boolean;
+  lastCommittedAt?: Date | null;
+}
+
+export interface PublicGitHubContributor {
+  login: string;
+  avatarUrl: string;
+  profileUrl: string;
+  contributions: number;
+  isOwner: boolean;
+}
+
+export interface PublicGitHubCollaborator {
+  login: string;
+  avatarUrl: string;
+  profileUrl: string;
+  role: string;
+  isOwner: boolean;
 }
 
 @Injectable()
@@ -259,6 +276,7 @@ export class GitHubApiService {
     owner: string,
     repo: string,
     accessToken?: string,
+    since?: Date,
   ): Promise<PublicGitHubCommit[]> {
     const url = new URL(
       `${this.baseUrl}/repos/` +
@@ -266,9 +284,54 @@ export class GitHubApiService {
         `${encodeURIComponent(repo)}/commits`,
     );
 
-    url.searchParams.set('per_page', '30');
+    url.searchParams.set('per_page', since ? '100' : '30');
     url.searchParams.set('page', '1');
 
+    if (since) {
+      url.searchParams.set('since', since.toISOString());
+    }
+
+    const collected = new Map<string, PublicGitHubCommit>();
+    let nextUrl = url;
+
+    for (let page = 0; page < 50; page++) {
+      const result = await this.fetchCommitPage(
+        nextUrl,
+        accessToken,
+        Boolean(since),
+      );
+
+      if (!since) return result.commits;
+
+      for (const commit of result.commits) {
+        collected.set(commit.sha, commit);
+      }
+
+      if (!result.next) {
+        return Array.from(collected.values());
+      }
+
+      nextUrl = new URL(result.next, url);
+
+      if (
+        nextUrl.origin !== url.origin ||
+        nextUrl.username ||
+        nextUrl.password
+      ) {
+        throw new BadGatewayException('Invalid GitHub pagination URL');
+      }
+    }
+
+    throw new ServiceUnavailableException(
+      'GitHub commit pagination limit exceeded',
+    );
+  }
+
+  private async fetchCommitPage(
+    url: URL,
+    accessToken: string | undefined,
+    paginate: boolean,
+  ): Promise<{ commits: PublicGitHubCommit[]; next: string | null }> {
     let response: Response;
 
     try {
@@ -284,7 +347,7 @@ export class GitHubApiService {
 
     // GitHub returns 409 for repositories without Git history.
     if (response.status === 409) {
-      return [];
+      return { commits: [], next: null };
     }
 
     if (response.status === 404) {
@@ -313,7 +376,7 @@ export class GitHubApiService {
       throw new BadGatewayException('Invalid GitHub commits response');
     }
 
-    return payload.map((item: unknown): PublicGitHubCommit => {
+    const commits = payload.map((item: unknown): PublicGitHubCommit => {
       if (
         !this.isRecord(item) ||
         typeof item.sha !== 'string' ||
@@ -377,12 +440,17 @@ export class GitHubApiService {
             : null,
       };
     });
+
+    const link = paginate ? response.headers.get('link') : null;
+    const next = link?.match(/<([^>]+)>\s*;\s*rel="next"/i)?.[1] ?? null;
+
+    return { commits, next };
   }
 
   private async fetchPublicRepositoryItems(
     owner: string,
     repo: string,
-    resource: 'branches',
+    resource: 'branches' | 'contributors' | 'collaborators',
     parameters: Record<string, string> = {},
     accessToken?: string,
   ): Promise<unknown[]> {
@@ -416,13 +484,42 @@ export class GitHubApiService {
         throw new ServiceUnavailableException('GitHub API is unavailable');
       }
 
+      if (response.status === 204 || response.status === 409) {
+        return items;
+      }
+
       if (response.status === 404) {
         throw new NotFoundException('GitHub repository not found');
       }
 
+      if (response.status === 401) {
+        throw new ForbiddenException(
+          'GitHub authorization expired or invalid. Ask the workspace owner to reconnect the repository.',
+        );
+      }
+
       if (response.status === 403 || response.status === 429) {
-        throw new ServiceUnavailableException(
-          'GitHub API rate limit or availability error',
+        const details: unknown = await response.json().catch(() => null);
+
+        const message =
+          this.isRecord(details) && typeof details.message === 'string'
+            ? details.message
+            : '';
+
+        const rateLimited =
+          response.status === 429 ||
+          response.headers.get('x-ratelimit-remaining') === '0' ||
+          response.headers.has('retry-after') ||
+          /rate limit/i.test(message);
+
+        if (rateLimited) {
+          throw new ServiceUnavailableException(
+            'GitHub API rate limit exceeded. Please try again later.',
+          );
+        }
+
+        throw new ForbiddenException(
+          'GitHub access denied. Ask the workspace owner to check repository permissions and reconnect GitHub.',
         );
       }
 
@@ -450,6 +547,85 @@ export class GitHubApiService {
     }
 
     return items;
+  }
+
+  async listCollaborators(
+    owner: string,
+    repo: string,
+    accessToken: string,
+  ): Promise<PublicGitHubCollaborator[]> {
+    const items = await this.fetchPublicRepositoryItems(
+      owner,
+      repo,
+      'collaborators',
+      {},
+      accessToken,
+    );
+
+    return items.map((item): PublicGitHubCollaborator => {
+      if (
+        !this.isRecord(item) ||
+        typeof item.login !== 'string' ||
+        typeof item.avatar_url !== 'string' ||
+        typeof item.html_url !== 'string'
+      ) {
+        throw new BadGatewayException('Invalid GitHub collaborator data');
+      }
+
+      return {
+        login: item.login,
+        avatarUrl: item.avatar_url,
+        profileUrl: item.html_url,
+        role: typeof item.role_name === 'string' ? item.role_name : 'Unknown',
+        isOwner: item.login.toLowerCase() === owner.toLowerCase(),
+      };
+    });
+  }
+
+  async listContributors(
+    owner: string,
+    repo: string,
+    accessToken?: string,
+  ): Promise<PublicGitHubContributor[]> {
+    const items = await this.fetchPublicRepositoryItems(
+      owner,
+      repo,
+      'contributors',
+      {},
+      accessToken,
+    );
+
+    const contributors = items.map((item): PublicGitHubContributor => {
+      if (
+        !this.isRecord(item) ||
+        typeof item.login !== 'string' ||
+        typeof item.avatar_url !== 'string' ||
+        typeof item.html_url !== 'string' ||
+        typeof item.contributions !== 'number'
+      ) {
+        throw new BadGatewayException('Invalid GitHub contributor data');
+      }
+
+      return {
+        login: item.login,
+        avatarUrl: item.avatar_url,
+        profileUrl: item.html_url,
+        contributions: item.contributions,
+        isOwner: item.login.toLowerCase() === owner.toLowerCase(),
+      };
+    });
+
+    if (contributors.length > 0) return contributors;
+
+    return [
+      {
+        login: owner,
+        avatarUrl: `https://github.com/${encodeURIComponent(owner)}.png`,
+        profileUrl: `https://github.com/${encodeURIComponent(owner)}`,
+        contributions: 0,
+        isOwner: true,
+      },
+    ];
   }
 
   async listBranches(

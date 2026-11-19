@@ -9,10 +9,9 @@ export class NoteMapper {
       creatorId: note.creatorId,
       title: note.title,
       content: note.content,
+      pinnedAt: note.pinnedAt ?? null,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
-      revision: note.revision ?? 1,
-      pinnedAt: note.pinnedAt ?? null,
     };
   }
 }

@@ -157,6 +157,7 @@ describe('TasksService', () => {
       [WorkspaceKanbanSetting, makeRepository()],
     ]);
     const manager = {
+      query: jest.fn().mockResolvedValue([]),
       getRepository: jest.fn(
         (entity: abstract new (...args: never[]) => object) => {
           const repository = repositories.get(entity);
@@ -361,7 +362,6 @@ describe('TasksService', () => {
       expect(changes).toEqual({
         title: 'Updated',
         dueAt: new Date(dueAt),
-        dueDate: '2026-12-01',
         updatedAt: expect.any(Date) as unknown,
       });
     });
@@ -369,8 +369,7 @@ describe('TasksService', () => {
     it('stores a calendar deadline independently of the legacy timestamp', async () => {
       await service.update(taskId, userId, { dueDate: '2026-03-23' });
       expect(tasks.update).toHaveBeenCalledWith(expect.anything() as unknown, {
-        dueDate: '2026-03-23',
-        dueAt: new Date('2026-03-23T00:00:00Z'),
+        dueAt: expect.any(Date) as unknown,
         updatedAt: expect.any(Date) as unknown,
       });
     });
@@ -387,7 +386,6 @@ describe('TasksService', () => {
         acceptanceCriteria: null,
         priority: null,
         dueAt: null,
-        dueDate: null,
         updatedAt: expect.any(Date) as unknown,
       });
     });
@@ -511,43 +509,39 @@ describe('TasksService', () => {
   });
 
   describe('status transitions', () => {
-    it('moves a completed card into a full column before an existing card', async () => {
+    it('moves a completed card back to review and clears completedAt', async () => {
       task.status = TaskStatus.DONE;
       task.completedAt = new Date();
-      const anchor = makeTask({ id: otherTaskId, status: TaskStatus.IN_PROGRESS });
-      const settings = dataSource.getRepository(WorkspaceKanbanSetting) as ReturnType<typeof makeRepository>;
-      settings.findOne.mockResolvedValue({
-        activeWipLimit: 1,
-        boardColumns: [{ id: 'active', label: 'Active', status: TaskStatus.IN_PROGRESS, limit: 1 }],
-      });
-      query.getMany.mockResolvedValue([task, anchor]);
+      query.getMany.mockResolvedValue([task]);
+      transactionTasks.count.mockResolvedValue(0);
 
       const moved = await service.transition(taskId, userId, {
-        toStatus: TaskStatus.IN_PROGRESS,
-        boardColumnId: 'active',
-        placement: 'before',
-        anchorTaskId: anchor.id,
+        toStatus: TaskStatus.REVIEW,
       });
 
       expect(moved).toMatchObject({
-        status: TaskStatus.IN_PROGRESS, boardColumnId: 'active', completedAt: null, position: 0,
+        status: TaskStatus.REVIEW,
+        completedAt: null,
       });
-      expect(transactionTasks.update).toHaveBeenCalledWith({ id: anchor.id }, { position: 1 });
-      expect(transactionTasks.count).not.toHaveBeenCalled();
       expect(history.save).toHaveBeenCalled();
     });
 
     const allowed: Array<[TaskStatus, TaskStatus]> = [
-      [TaskStatus.BACKLOG, TaskStatus.READY],
+      [TaskStatus.BACKLOG, TaskStatus.TODO],
       [TaskStatus.BACKLOG, TaskStatus.CANCELLED],
-      [TaskStatus.READY, TaskStatus.BACKLOG],
+      [TaskStatus.TODO, TaskStatus.BACKLOG],
+      [TaskStatus.TODO, TaskStatus.READY],
+      [TaskStatus.TODO, TaskStatus.CANCELLED],
+      [TaskStatus.READY, TaskStatus.TODO],
       [TaskStatus.READY, TaskStatus.IN_PROGRESS],
       [TaskStatus.READY, TaskStatus.CANCELLED],
+      [TaskStatus.IN_PROGRESS, TaskStatus.READY],
       [TaskStatus.IN_PROGRESS, TaskStatus.REVIEW],
       [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
       [TaskStatus.REVIEW, TaskStatus.IN_PROGRESS],
       [TaskStatus.REVIEW, TaskStatus.DONE],
       [TaskStatus.REVIEW, TaskStatus.CANCELLED],
+      [TaskStatus.DONE, TaskStatus.REVIEW],
     ];
 
     it.each(allowed)(
@@ -620,7 +614,7 @@ describe('TasksService', () => {
     );
 
     it('still transitions the task when activity creation fails', async () => {
-      task.status = TaskStatus.BACKLOG;
+      task.status = TaskStatus.TODO;
 
       activities.create.mockRejectedValue(new Error('Activity unavailable'));
 
@@ -680,6 +674,7 @@ describe('TasksService', () => {
     });
 
     it('propagates a history insert failure out of the transaction callback', async () => {
+      task.status = TaskStatus.TODO;
       const error = new Error('History insert failed');
       history.save.mockRejectedValue(error);
       await expect(
@@ -695,19 +690,18 @@ describe('TasksService', () => {
       const result = await service.create(workspaceId, userId, {
         title: 'Assigned task', assigneeId: otherUserId, priority: TaskPriority.HIGH, dueDate: '2026-12-01',
       });
-      expect(result).toMatchObject({ taskKey: 'TASK-42', priority: TaskPriority.HIGH, dueDate: '2026-12-01' });
-      expect(assignments.insert).toHaveBeenCalledWith(expect.objectContaining({ taskId: result.id, userId: otherUserId, assignedById: userId }));
+      expect(result).toMatchObject({ taskKey: 'TASK-42', priority: TaskPriority.HIGH, dueAt: expect.any(Date) });
+      expect(assignments.save).toHaveBeenCalledWith(expect.objectContaining({ taskId: result.id, userId: otherUserId, assignedById: userId }));
       expect(tasks.save).not.toHaveBeenCalled();
     });
 
-    it('reassigns the existing row and treats repeating the same update as successful', async () => {
+    it('rejects assigning a task that is already assigned', async () => {
       const existing = { id: 'assignment-id', taskId, userId, assignedById: userId, assignedAt: date };
-      assignments.findOne.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, userId: otherUserId });
-      const reassigned = await service.assign(taskId, userId, { userId: otherUserId }, true);
-      await service.assign(taskId, userId, { userId: otherUserId }, true);
-      expect(reassigned).toMatchObject({ id: existing.id, userId: otherUserId });
-      expect(assignments.save).toHaveBeenCalledTimes(1);
-      expect(assignments.delete).not.toHaveBeenCalled();
+      assignments.findOne.mockResolvedValue(existing);
+      await expect(
+        service.assign(taskId, userId, { userId: otherUserId }),
+      ).rejects.toThrow(ConflictException);
+      expect(assignments.save).not.toHaveBeenCalled();
     });
 
     it('assigns an active workspace member and records who assigned them', async () => {

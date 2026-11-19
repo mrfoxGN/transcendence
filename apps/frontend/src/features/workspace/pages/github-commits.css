@@ -1,0 +1,470 @@
+/* DevUP — GitHub Commits Timeline */
+
+.wu-gcommits {
+  --gc-blue: #72a6ff;
+  --gc-purple: #a995ff;
+  --gc-green: #55d6a0;
+
+  width: 100%;
+  min-width: 0;
+  color: var(--wu-ink);
+}
+
+/* Header */
+
+.wu-gcommits__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 8px 4px 26px;
+  border-bottom: 1px solid var(--wu-line);
+}
+
+.wu-gcommits__heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wu-gcommits__heading-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 45px;
+  width: 45px;
+  height: 45px;
+  border-radius: 13px;
+  background: rgb(114 166 255 / 10%);
+  color: var(--gc-blue);
+}
+
+.wu-gcommits__heading h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+}
+
+.wu-gcommits__heading p {
+  margin: 7px 0 0;
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+.wu-gcommits__branch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 11px 15px;
+  border: 1px solid rgb(114 166 255 / 35%);
+  border-radius: 10px;
+  background: rgb(114 166 255 / 7%);
+  color: var(--wu-ink);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.wu-gcommits__branch svg {
+  flex-shrink: 0;
+  color: var(--gc-blue);
+}
+
+/* Timeline */
+
+.wu-gcommits__timeline {
+  display: grid;
+  gap: 30px;
+  padding: 26px 0 10px;
+}
+
+.wu-gcommits__group {
+  min-width: 0;
+}
+
+.wu-gcommits__date {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  margin: 0 0 13px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--wu-line);
+  border-radius: 20px;
+  background: rgb(114 166 255 / 8%);
+  color: var(--wu-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wu-gcommits__date svg {
+  color: var(--gc-blue);
+}
+
+.wu-gcommits__list {
+  display: grid;
+  gap: 11px;
+  margin: 0 0 0 16px;
+  padding: 0 0 0 25px;
+  border-left: 1px solid rgb(114 166 255 / 35%);
+  list-style: none;
+}
+
+.wu-gcommits__item {
+  position: relative;
+  min-width: 0;
+}
+
+.wu-gcommits__timeline-dot {
+  position: absolute;
+  top: 26px;
+  left: -32px;
+  width: 13px;
+  height: 13px;
+  border: 3px solid #273448;
+  border-radius: 50%;
+  background: var(--gc-blue);
+}
+
+/* Commit cards */
+
+.wu-gcommits__card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+  min-height: 79px;
+  padding: 15px 18px;
+  border: 1px solid var(--wu-line);
+  border-radius: 11px;
+  background: color-mix(
+    in srgb,
+    var(--gc-blue) 3%,
+    var(--wu-surface)
+  );
+}
+
+.wu-gcommits__content {
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wu-gcommits__title {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.wu-gcommits__title svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--gc-blue);
+}
+
+.wu-gcommits__title strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Commit metadata */
+
+.wu-gcommits__metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-left: 25px;
+  color: var(--wu-muted);
+  font-size: 11px;
+}
+
+.wu-gcommits__sha {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1px solid var(--wu-line);
+  border-radius: 15px;
+  background: rgb(114 166 255 / 7%);
+  color: var(--wu-ink);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.wu-gcommits__sha:hover {
+  border-color: rgb(114 166 255 / 45%);
+}
+
+.wu-gcommits__sha svg {
+  color: var(--gc-blue);
+}
+
+.wu-gcommits__separator {
+  color: var(--wu-muted);
+}
+
+.wu-gcommits__author {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.wu-gcommits__avatar {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: rgb(114 166 255 / 15%);
+  color: var(--gc-blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Labels and actions */
+
+.wu-gcommits__end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 15px;
+  flex: 0 0 auto;
+}
+
+.wu-gcommits__tag {
+  min-width: 57px;
+  padding: 5px 10px;
+  border: 1px solid rgb(114 166 255 / 30%);
+  border-radius: 20px;
+  background: rgb(114 166 255 / 8%);
+  color: var(--gc-blue);
+  font-size: 11px;
+  text-align: center;
+}
+
+.wu-gcommits__tag--fix {
+  border-color: rgb(85 214 160 / 35%);
+  background: rgb(85 214 160 / 8%);
+  color: var(--gc-green);
+}
+
+.wu-gcommits__tag--merge {
+  border-color: rgb(169 149 255 / 40%);
+  background: rgb(169 149 255 / 8%);
+  color: var(--gc-purple);
+}
+
+.wu-gcommits__tag--revert {
+  border-color: rgb(255 171 114 / 35%);
+  color: #ffbd89;
+}
+
+.wu-gcommits__end time {
+  color: var(--wu-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wu-gcommits__timezone {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.wu-gcommits__external {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--wu-muted);
+}
+
+.wu-gcommits__external:hover {
+  color: var(--gc-blue);
+}
+
+/* States */
+
+.wu-gcommits__empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 75px 20px;
+  color: var(--wu-muted);
+  text-align: center;
+}
+
+.wu-gcommits__empty svg {
+  color: var(--gc-blue);
+}
+
+.wu-gcommits__empty strong {
+  color: var(--wu-ink);
+}
+
+.wu-gcommits__empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.wu-gcommits__error {
+  color: var(--wu-red, #ff8585);
+  font-size: 12px;
+}
+
+.wu-gcommits__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.wu-gcommits button:focus-visible,
+.wu-gcommits a:focus-visible {
+  outline: 2px solid var(--gc-blue);
+  outline-offset: 3px;
+}
+
+/* Responsive */
+
+@media (max-width: 760px) {
+  .wu-gcommits__card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .wu-gcommits__end {
+    justify-content: flex-start;
+    padding-left: 25px;
+  }
+
+  .wu-gcommits__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .wu-gcommits__list {
+    margin-left: 8px;
+    padding-left: 20px;
+  }
+
+  .wu-gcommits__timeline-dot {
+    left: -27px;
+  }
+
+  .wu-gcommits__card {
+    padding: 12px;
+  }
+}
+
+/* Existing backend pagination */
+
+.wu-gcommits-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 18px;
+  border-top: 1px solid var(--wu-line);
+}
+
+.wu-gcommits-pagination > span {
+  color: var(--wu-muted);
+  font-size: 12px;
+}
+
+/* Real GitHub author avatars */
+
+.wu-gcommits__avatar {
+  overflow: hidden;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid rgb(114 166 255 / 25%);
+}
+
+.wu-gcommits__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.wu-gcommits__author {
+  gap: 11px;
+}
+
+/* Commits timeline — readability refinements */
+
+.wu-gcommits__card {
+  min-height: 100px;
+  padding: 20px 22px;
+}
+
+.wu-gcommits__content {
+  gap: 13px;
+}
+
+.wu-gcommits__title strong {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.wu-gcommits__metadata {
+  gap: 13px;
+  font-size: 13px;
+}
+
+.wu-gcommits__sha {
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.wu-gcommits__avatar {
+  width: 29px;
+  height: 29px;
+  flex: 0 0 29px;
+  font-size: 12px;
+}
+
+.wu-gcommits__author {
+  gap: 9px;
+  font-size: 12px;
+}
+
+.wu-gcommits__end time {
+  font-size: 13px;
+}
+
+.wu-gcommits__list {
+  gap: 14px;
+}
+
+.wu-gcommits__timeline-dot {
+  top: 36px;
+}
+
+.wu-gcommits__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}

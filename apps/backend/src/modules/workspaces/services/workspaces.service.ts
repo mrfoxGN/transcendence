@@ -9,15 +9,15 @@ import {
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DataSource, IsNull, type EntityManager } from 'typeorm';
 
-import { InvitationStatus } from '../../../database/enums/database.enums';
+import {
+  TaskStatus, InvitationStatus } from '../../../database/enums/database.enums';
 import { ActivitiesService, activityEntry, recordActivity } from '../../activities/services/activities.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
+import { Notification } from '../../notifications/entities/notification.entity';
 import { UsersService } from '../../users/services/users.service';
 import { Task } from '../../tasks/entities/task.entity';
 import { TaskAssignment } from '../../tasks/entities/task-assignment.entity';
-import { TaskStatusHistory } from '../../tasks/entities/task-status-history.entity';
 import { Activity } from '../../activities/entities/activity.entity';
-import { canTransitionTask, compareBoardTasks, defaultBoardColumns, isActiveTaskStatus, taskColumn } from '../board-columns';
 import { CreateWorkspaceInvitationDto } from '../dto/create-workspace-invitation.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { SaveBacklogViewDto } from '../dto/save-backlog-view.dto';
@@ -375,9 +375,6 @@ export class WorkspacesService {
     currentUserId: string,
     dto: CreateWorkspaceInvitationDto,
   ): Promise<WorkspaceInvitationResponseDto> {
-    if (dto.invitedEmail && !dto.invitedUserId) {
-      return this.issueEmailInvitation(workspaceId, currentUserId, dto.invitedEmail.trim().toLowerCase());
-    }
     const workspaceRepository = this.dataSource.getRepository(Workspace);
 
     const workspace = await workspaceRepository.findOne({
@@ -396,11 +393,42 @@ export class WorkspacesService {
     }
 
     assertWorkspaceWritable(workspace);
-    if (!dto.invitedUserId || dto.invitedEmail) {
-      throw new BadRequestException('Provide one user ID or email address');
+
+    const provided = [
+      dto.invitedUserId,
+      dto.invitedEmail,
+      dto.invitedUsername,
+    ].filter(value => value !== undefined && value !== null);
+
+    if (provided.length !== 1) {
+      throw new BadRequestException(
+        'Provide exactly one user ID, email address, or username',
+      );
+    }
+
+    if (dto.invitedEmail || dto.invitedUsername) {
+      const user = dto.invitedEmail
+        ? await this.usersService.findByEmail(
+            dto.invitedEmail.trim().toLowerCase(),
+          )
+        : await this.usersService.findByUsername(
+            dto.invitedUsername!.trim(),
+          );
+
+      if (!user) {
+        throw new NotFoundException('No registered DevUP user found');
+      }
+
+      return this.createInvitation(workspaceId, currentUserId, {
+        invitedUserId: user.id,
+      });
     }
 
     const invitedUserId = dto.invitedUserId;
+
+    if (!invitedUserId) {
+      throw new BadRequestException('A valid user ID is required');
+    }
 
     if (invitedUserId === currentUserId) {
       throw new BadRequestException('Workspace owner cannot invite themselves');
@@ -450,26 +478,24 @@ export class WorkspacesService {
       createdAt: new Date(),
     });
 
-    const savedInvitation = await invitationRepository.save(invitation);
+    const savedInvitation = await this.dataSource.transaction(async manager => {
+      const saved = await manager.save(WorkspaceInvitation, invitation);
 
-    try {
-      await this.notificationsService.createForUser({
+      await manager.save(Notification, {
+        id: randomUUID(),
         userId: invitedUserId,
         workspaceId,
         type: 'WORKSPACE_INVITATION',
         message: `You were invited to ${workspace.name}`,
         relatedResourceType: 'workspace_invitation',
-        relatedResourceId: savedInvitation.id,
-        payload: {
-          invitedById: currentUserId,
-        },
+        relatedResourceId: saved.id,
+        payload: { invitedById: currentUserId },
+        createdAt: new Date(),
+        readAt: null,
       });
-    } catch (error) {
-      this.logger.error(
-        `Failed to create workspace invitation notification for user ${invitedUserId}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-    }
+
+      return saved;
+    });
 
     await this.auditHistory(workspaceId, currentUserId, 'AUDIT_INVITATION_CREATED', 'workspace_invitation', savedInvitation.id);
     return WorkspaceInvitationMapper.toResponse(savedInvitation);
@@ -520,7 +546,7 @@ export class WorkspacesService {
       });
       return { invitation: await repository.save(invitation), workspaceName: workspace.name };
     });
-    const invitePath = '/join-workspace#' + new URLSearchParams({ workspace: workspaceId, invitation: invitation.id, token });
+    const invitePath = '/join-workspace#' + new URLSearchParams({ workspace: workspaceId, invitation: invitation.id, token }).toString();
     await this.auditHistory(workspaceId, actorId, invitationId ? 'AUDIT_INVITATION_RESENT' : 'AUDIT_INVITATION_CREATED', 'workspace_invitation', invitation.id);
     const sent = await this.sendInvitationEmail(invitation.invitedEmail!, workspaceName, invitePath);
     return { ...WorkspaceInvitationMapper.toResponse(invitation), invitePath, delivery: sent ? 'sent' as const : 'link' as const };
@@ -810,14 +836,10 @@ export class WorkspacesService {
     userId: string,
     dto: UpdateWorkspaceKanbanSettingsDto,
   ): Promise<WorkspaceKanbanSettingsResponseDto> {
-    if (dto.moveColumnTasks && !dto.boardColumns) {
-      throw new BadRequestException('Provide the board layout when moving a deleted column’s tasks');
-    }
     if (
       dto.activeWipLimit === undefined &&
       dto.definitionOfReady === undefined &&
-      dto.definitionOfDone === undefined &&
-      dto.boardColumns === undefined
+      dto.definitionOfDone === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -840,111 +862,6 @@ export class WorkspacesService {
     }
 
     assertWorkspaceWritable(workspace);
-    if (dto.boardColumns) {
-      const columns = dto.boardColumns.map(column => ({ ...column, label: column.label.trim() }));
-      if (columns.some(column => !column.label) ||
-        new Set(columns.map(column => column.id)).size !== columns.length ||
-        new Set(columns.map(column => column.label.toLowerCase())).size !== columns.length) {
-        throw new BadRequestException('Column names and IDs must be unique');
-      }
-      const updated = await this.dataSource.transaction(async manager => {
-        const repository = manager.getRepository(WorkspaceKanbanSetting);
-        const settings = await repository.findOne({ where: { workspaceId }, lock: { mode: 'pessimistic_write' } });
-        if (!settings) throw new NotFoundException('Kanban settings not found');
-        const previous = settings.boardColumns ?? defaultBoardColumns();
-        if (columns.some(column => previous.some(old => old.id === column.id && old.status !== column.status))) {
-          throw new BadRequestException('An existing column cannot change its workflow status');
-        }
-        const tasksRepository = manager.getRepository(Task);
-        const tasks = dto.moveColumnTasks
-          ? await tasksRepository.createQueryBuilder('task')
-            .where('task.workspaceId = :workspaceId', { workspaceId })
-            .andWhere('task.deletedAt IS NULL')
-            .orderBy('task.id', 'ASC')
-            .setLock('pessimistic_write').getMany()
-          : await tasksRepository.find({ where: { workspaceId, deletedAt: IsNull() } });
-        const previousCounts = new Map<string, number>();
-        for (const task of tasks) {
-          const id = taskColumn(previous, task.status, task.boardColumnId).id;
-          previousCounts.set(id, (previousCounts.get(id) ?? 0) + 1);
-        }
-        const move = dto.moveColumnTasks;
-        if (move) {
-          const source = previous.find(column => column.id === move.fromColumnId);
-          const destination = columns.find(column => column.id === move.toColumnId);
-          if (!source || !destination || columns.some(column => column.id === source.id)
-            || !previous.some(column => column.id === destination.id)) {
-            throw new BadRequestException('Choose a remaining destination column');
-          }
-          const remaining = previous.filter(column => column.id !== source.id);
-          if (remaining.length !== columns.length || remaining.some((column, index) =>
-            column.id !== columns[index].id || column.label !== columns[index].label
-            || (column.limit ?? null) !== (columns[index].limit ?? null))) {
-            throw new ConflictException('The board layout changed. Refresh the board and try again.');
-          }
-          if (source.status !== destination.status && !canTransitionTask(source.status, destination.status)) {
-            throw new BadRequestException('The destination workflow status is not allowed');
-          }
-          const moving = tasks.filter(task => taskColumn(previous, task.status, task.boardColumnId).id === source.id).sort(compareBoardTasks);
-          const staying = tasks.filter(task => taskColumn(previous, task.status, task.boardColumnId).id === destination.id).sort(compareBoardTasks);
-          const activeCount = tasks.filter(task => isActiveTaskStatus(task.status)).length;
-          const limit = dto.activeWipLimit ?? settings.activeWipLimit;
-          if (!isActiveTaskStatus(source.status) && isActiveTaskStatus(destination.status) && activeCount + moving.length > limit) {
-            throw new ConflictException('Active WIP limit reached');
-          }
-          const now = new Date();
-          for (const [position, task] of staying.entries()) {
-            if (task.position !== position) await tasksRepository.update({ id: task.id }, { position });
-          }
-          for (const [index, task] of moving.entries()) {
-            const fromStatus = task.status;
-            task.status = destination.status;
-            task.boardColumnId = destination.id;
-            task.position = staying.length + index;
-            task.updatedAt = now;
-            if (fromStatus !== task.status) {
-              if (task.status === 'DONE') task.completedAt = now;
-              if (task.status === 'CANCELLED') task.cancelledAt = now;
-              await manager.insert(TaskStatusHistory, {
-                id: randomUUID(), taskId: task.id, fromStatus, toStatus: task.status,
-                changedById: userId, changedAt: now, note: null,
-              });
-              await manager.insert(Activity, {
-                id: randomUUID(), workspaceId, actorUserId: userId, actionType: 'TASK_STATUS_CHANGED',
-                resourceType: 'task', resourceId: task.id, createdAt: now,
-                metadata: { title: task.title, fromStatus, toStatus: task.status },
-              });
-            }
-            await tasksRepository.save(task);
-          }
-        }
-        const counts = new Map<string, number>();
-        for (const task of tasks) {
-          const id = taskColumn(previous, task.status, task.boardColumnId).id;
-          if (previous.some(column => column.id === id) && !columns.some(column => column.id === id)) {
-            throw new ConflictException('Move the tasks out of the column before deleting it');
-          }
-          const next = taskColumn(columns, task.status, task.boardColumnId).id;
-          counts.set(next, (counts.get(next) ?? 0) + 1);
-        }
-        if (columns.some(column => {
-          const count = counts.get(column.id) ?? 0;
-          if (!column.limit || count <= column.limit) return false;
-          const previousLimit = previous.find(item => item.id === column.id)?.limit;
-          return !previousLimit || column.limit < previousLimit || count > (previousCounts.get(column.id) ?? 0);
-        })) {
-          throw new ConflictException('A column limit cannot be lower than its current task count');
-        }
-        settings.boardColumns = columns;
-        if (dto.activeWipLimit !== undefined) settings.activeWipLimit = dto.activeWipLimit;
-        if (dto.definitionOfReady !== undefined) settings.definitionOfReady = dto.definitionOfReady;
-        if (dto.definitionOfDone !== undefined) settings.definitionOfDone = dto.definitionOfDone;
-        settings.updatedAt = new Date();
-        return WorkspaceKanbanSettingsMapper.toResponse(await repository.save(settings));
-      });
-      await this.boardHistory(workspaceId, userId, dto);
-      return updated;
-    }
 
     const settingsRepository = this.dataSource.getRepository(
       WorkspaceKanbanSetting,
@@ -982,7 +899,6 @@ export class WorkspacesService {
 
   private boardHistory(workspaceId: string, actorUserId: string, dto: UpdateWorkspaceKanbanSettingsDto) {
     const fields = [
-      ...(dto.boardColumns ? ['columns'] : []),
       ...(dto.activeWipLimit !== undefined ? ['active work limit'] : []),
       ...(dto.definitionOfReady !== undefined ? ['definition of ready'] : []),
       ...(dto.definitionOfDone !== undefined ? ['definition of done'] : []),

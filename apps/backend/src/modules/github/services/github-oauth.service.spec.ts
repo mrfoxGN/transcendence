@@ -100,7 +100,7 @@ describe('GitHubOAuthService', () => {
 
     expect(url.searchParams.get('client_id')).toBe('test-client-id');
 
-    expect(url.searchParams.get('scope')).toBe('read:user');
+    expect(url.searchParams.get('scope')).toBe('read:user public_repo');
   });
 
   it('rejects non-workspace owners', async () => {

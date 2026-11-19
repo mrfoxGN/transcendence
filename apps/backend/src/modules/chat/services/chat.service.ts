@@ -1,5 +1,5 @@
 import { assertWorkspaceWritable } from '../../workspaces/workspace-policy';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
@@ -10,6 +10,7 @@ import { ListChatMessagesDto } from '../dto/list-chat-messages.dto';
 import { SendChatMessageDto } from '../dto/send-chat-message.dto';
 import { ChatMessage } from '../entities/chat-message.entity';
 import { WorkspaceChatGateway } from '../gateways/workspace-chat.gateway';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Injectable()
 export class ChatService {
@@ -52,7 +53,8 @@ export class ChatService {
     if (result.affectedRows > 0) this.workspaceChatGateway.emitReadUpdated(userId, workspaceId);
   }
 
-  async listMessages(
+  
+async listMessages(
     workspaceId: string,
     userId: string,
     query: ListChatMessagesDto,
@@ -72,6 +74,9 @@ export class ChatService {
         workspaceId,
         deletedAt: IsNull(),
       },
+      relations: {
+        replyTo: true,
+      },
       order: {
         createdAt: 'DESC',
         id: 'DESC',
@@ -80,50 +85,144 @@ export class ChatService {
       take: limit,
     });
 
-    return messages.reverse().map((message) => ({
-      id: message.id,
-      workspaceId: message.workspaceId,
-      senderId: message.senderId,
-      content: message.content,
-      createdAt: message.createdAt,
-    }));
+    return messages.reverse().map((message) =>
+      this.toMessageResponse(message),
+    );
   }
-
+  
   async sendMessage(
     workspaceId: string,
     senderId: string,
     dto: SendChatMessageDto,
   ): Promise<ChatMessageResponseDto> {
-    assertWorkspaceWritable(await this.workspacesService.findOneForUser(workspaceId, senderId));
-
-    const content = dto.content.trim();
-
-    if (!content) {
+    if (typeof dto?.content !== 'string' || !dto.content.trim()) {
       throw new BadRequestException('Message content is required');
     }
 
-    const message = this.chatMessagesRepository.create({
-      id: randomUUID(),
-      workspaceId,
-      senderId,
-      content,
-      createdAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
+    const content = dto.content.trim();
 
-    const saved = await this.chatMessagesRepository.save(message);
+    const result = await this.chatMessagesRepository.manager.transaction(
+      async (manager) => {
+        const workspace = await manager.findOne(Workspace, {
+          where: { id: workspaceId },
+          lock: { mode: 'pessimistic_write' },
+        });
 
-    const response: ChatMessageResponseDto = {
-      id: saved.id,
-      workspaceId: saved.workspaceId,
-      senderId: saved.senderId,
-      content: saved.content,
-      createdAt: saved.createdAt,
+        if (!workspace) {
+          throw new NotFoundException('Workspace not found');
+        }
+
+        await this.workspacesService.findOneForUser(
+          workspaceId,
+          senderId,
+        );
+        assertWorkspaceWritable(workspace);
+
+        if (dto.requestId) {
+          const previous = await manager.findOne(ChatMessage, {
+            where: { id: dto.requestId },
+            relations: { replyTo: true },
+          });
+
+          if (previous) {
+            if (
+              previous.workspaceId !== workspaceId ||
+              previous.senderId !== senderId ||
+              previous.deletedAt !== null ||
+              previous.content !== content ||
+              previous.replyToId !== (dto.replyToId ?? null)
+            ) {
+              throw new ConflictException(
+                'Message request ID is already in use',
+              );
+            }
+
+            return {
+              replay: true,
+              message: this.toMessageResponse(previous),
+            };
+          }
+        }
+
+        let replyTo: ChatMessage | null = null;
+
+        if (dto.replyToId) {
+          replyTo = await manager.findOne(ChatMessage, {
+            where: {
+              id: dto.replyToId,
+              workspaceId,
+              deletedAt: IsNull(),
+            },
+          });
+
+          if (!replyTo) {
+            throw new BadRequestException('Invalid reply message');
+          }
+        }
+
+        const message = manager.create(ChatMessage, {
+          id: dto.requestId ?? randomUUID(),
+          workspaceId,
+          senderId,
+          content,
+          replyToId: replyTo?.id ?? null,
+          createdAt: new Date(),
+          editedAt: null,
+          deletedAt: null,
+        });
+
+        await manager.insert(ChatMessage, message);
+
+        message.replyTo = replyTo;
+
+        return {
+          replay: false,
+          message: this.toMessageResponse(message),
+        };
+      },
+    );
+
+    if (!result.replay) {
+      this.workspaceChatGateway.emitMessageCreated(
+        workspaceId,
+        result.message,
+      );
+    }
+
+    return result.message;
+  }
+
+
+
+  private toMessageResponse(
+    message: ChatMessage,
+  ): ChatMessageResponseDto {
+    const replyTo = message.replyTo;
+
+    return {
+      id: message.id,
+      workspaceId: message.workspaceId,
+      senderId: message.senderId,
+      content: message.content,
+      createdAt: message.createdAt,
+      ...(message.replyToId
+        ? {
+            reply: {
+              id: message.replyToId,
+              senderId:
+                replyTo && !replyTo.deletedAt
+                  ? replyTo.senderId
+                  : null,
+              preview:
+                replyTo && !replyTo.deletedAt
+                  ? replyTo.content.slice(0, 100)
+                  : '',
+              unavailable:
+                !replyTo || replyTo.deletedAt !== null,
+            },
+          }
+        : {}),
     };
-
-    this.workspaceChatGateway.emitMessageCreated(workspaceId, response);
-
-    return response;
   }
 }
+

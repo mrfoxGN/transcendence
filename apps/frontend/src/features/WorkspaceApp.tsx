@@ -17,7 +17,7 @@ import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFace
 import { homeFilters } from './workspace/previewData';
 import { useWorkspaceChat } from './workspace/workspace-chat';
 import { WorkspaceRequestError, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from './workspace/workspace-api';
-import { loadBoard, taskPriorities, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
+import { loadBoard, statusCodes, taskPriorities, type BoardColumnConfig, type Member } from './workspace/workspace-tasks';
 import { addCalendarDays, calendarDate, isDueInNextSevenDays, nextSevenDaysLabel } from './workspace/workspace-calendar';
 import type { PageKey, Task } from './workspace/types';
 import { HomePage } from './workspace/pages/HomePage';
@@ -98,9 +98,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [taskSaving, setTaskSaving] = useState(false);
   const submittingModal = useRef(false);
   const [taskError, setTaskError] = useState('');
-  const [targetColumn, setTargetColumn] = useState<BoardColumnConfig>();
   const [columnError, setColumnError] = useState('');
-  const [savingColumns, setSavingColumns] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [filter, setFilter] = useState('All tasks');
   const [facets, setFacets] = useState(emptyFacets);
@@ -121,9 +119,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     const member = members.items?.find(person => person.userId === task.assigneeId);
     return member ? { ...task, person: member.username, initials: member.username.slice(0, 2).toUpperCase() } : task;
   }), [board, members.items]);
+  const backlogTasks = useMemo(() => (board?.backlogTasks ?? []).map(task => {
+    const member = members.items?.find(person => person.userId === task.assigneeId);
+    return member ? { ...task, person: member.username, initials: member.username.slice(0, 2).toUpperCase() } : task;
+  }), [board, members.items]);
+  const allTasks = useMemo(() => [...tasks, ...backlogTasks], [tasks, backlogTasks]);
   const columns = board?.columns ?? [];
   const boardColumns = board?.boardColumns ?? [];
-  const selectedTask = tasks.find(task => task.id === selectedTaskId || (selectedTaskId && task.taskKey === selectedTaskId.toUpperCase()));
+  const selectedTask = allTasks.find(task => task.id === selectedTaskId || (selectedTaskId && task.taskKey === selectedTaskId.toUpperCase()));
   const [analyticsPeriod, setAnalyticsPeriod] = useState('Last 30 days');
 
   useEffect(() => {
@@ -268,11 +271,9 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     setTaskSaving(true);
     setTaskError('');
     try {
-      const column = targetColumn ?? boardColumns.find(item => item.status === 'BACKLOG') ?? boardColumns[0];
       await workspaceRequest(workspacePath + '/tasks', token, jsonRequest('POST', {
         title,
-        description: String(form.get('description') ?? ''),
-        boardColumnId: column?.id,
+        description: form.get('description') ? String(form.get('description')) : undefined,
         assigneeId: form.get('assigneeId') || undefined,
         priority: form.get('priority') || undefined,
         dueDate: form.get('dueDate') || undefined,
@@ -280,7 +281,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       setBoardAttempt(value => value + 1);
       recentActivity.retry();
       setModal(null);
-      setToast(column ? 'Task added to ' + column.label + '.' : 'Task added to the backlog.');
+      setToast('Task added to the backlog.');
     } catch (error) {
       setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not create the task. Try again.');
     } finally {
@@ -290,16 +291,51 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }
 
   async function moveBoardTask(id: string, column: BoardColumnConfig, placement: 'before' | 'after' | 'end', anchorTaskId?: string) {
-    const task = tasks.find(item => item.id === id);
+    const task = allTasks.find(item => item.id === id);
     if (archived || !task || taskSaving || !token) return false;
     setTaskSaving(true);
     setColumnError('');
     try {
-      await workspaceRequest('tasks/' + id + '/transition', token, jsonRequest('POST', {
-        toStatus: column.status, boardColumnId: column.id, placement, anchorTaskId,
-      }));
-      setToast(`Moved “${task.title}” to ${column.label}.`);
-      recentActivity.retry();
+      const currentStatusCode = statusCodes[task.status];
+      const targetStatusCode = column.status;
+      if (currentStatusCode === targetStatusCode) {
+        const columnTasks = tasks.filter(item => item.id !== id && statusCodes[item.status] === targetStatusCode)
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        let targetPosition: number;
+        if (placement === 'before' && anchorTaskId) {
+          const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+          targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) : 0;
+        } else if (placement === 'after' && anchorTaskId) {
+          const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+          targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) + 1 : 0;
+        } else {
+          targetPosition = columnTasks.length ? (columnTasks[columnTasks.length - 1].position ?? 0) + 1 : 0;
+        }
+        if (targetPosition !== task.position) {
+          await workspaceRequest('tasks/' + id, token, jsonRequest('PATCH', { position: targetPosition }));
+        }
+      } else {
+        await workspaceRequest('tasks/' + id + '/transition', token, jsonRequest('POST', {
+          toStatus: column.status,
+        }));
+        if (placement || anchorTaskId) {
+          const columnTasks = tasks.filter(item => item.id !== id && statusCodes[item.status] === targetStatusCode)
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+          let targetPosition: number;
+          if (placement === 'before' && anchorTaskId) {
+            const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+            targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) : 0;
+          } else if (placement === 'after' && anchorTaskId) {
+            const anchorIndex = columnTasks.findIndex(t => t.id === anchorTaskId);
+            targetPosition = anchorIndex >= 0 ? (columnTasks[anchorIndex].position ?? 0) + 1 : 0;
+          } else {
+            targetPosition = columnTasks.length ? (columnTasks[columnTasks.length - 1].position ?? 0) + 1 : 0;
+          }
+          await workspaceRequest('tasks/' + id, token, jsonRequest('PATCH', { position: targetPosition })).catch(() => {});
+        }
+        setToast(`Moved “${task.title}” to ${column.label}.`);
+        recentActivity.retry();
+      }
       return true;
     } catch (error) {
       setColumnError(`Could not move “${task.title}” to ${column.label}. ${error instanceof Error ? error.message : 'Try again.'}`);
@@ -310,29 +346,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  function openTaskForm(column?: BoardColumnConfig) {
+  function openTaskForm() {
     if (archived) return;
     setTaskError('');
-    setTargetColumn(column);
     setModal('task');
-  }
-
-  async function saveBoardColumns(next: BoardColumnConfig[], moveColumnTasks?: { fromColumnId: string; toColumnId: string }) {
-    if (archived || !token || savingColumns || workspace?.ownerId !== profileId) return false;
-    setSavingColumns(true);
-    setColumnError('');
-    try {
-      await workspaceRequest(workspacePath + '/kanban-settings', token, jsonRequest('PATCH', { boardColumns: next, moveColumnTasks }));
-      if (!moveColumnTasks) setBoard(current => current ? { ...current, boardColumns: next } : current);
-      else recentActivity.retry();
-      setBoardAttempt(value => value + 1);
-      return true;
-    } catch (error) {
-      setColumnError(error instanceof Error ? error.message : 'Could not save the board.');
-      return false;
-    } finally {
-      setSavingColumns(false);
-    }
   }
 
   async function logout() {
@@ -370,25 +387,29 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   async function submitInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (archived || submittingModal.current || taskSaving || !token) return;
-    const invitedEmail = String(new FormData(event.currentTarget).get('email')).trim();
+    const identifier = String(new FormData(event.currentTarget).get('identifier')).trim();
+    if (!identifier) return;
+    const invitationPayload = identifier.includes('@')
+      ? { invitedEmail: identifier }
+      : { invitedUsername: identifier };
     submittingModal.current = true;
     setTaskSaving(true);
     setTaskError('');
     try {
-      const response = await workspaceRequest(workspacePath + '/invitations', token, jsonRequest('POST', { invitedEmail }));
+      const response = await workspaceRequest(workspacePath + '/invitations', token, jsonRequest('POST', invitationPayload));
       setInviteDelivery(await response.json() as TeamInvitation);
       invitations.retry();
       setModal(null);
     } catch (error) {
       switch (error instanceof WorkspaceRequestError ? error.message : '') {
         case 'Pending invitation already exists':
-          setTaskError('This person already has an invitation. Use Resend invitation in the Team list.');
+          setTaskError('This user already has a pending invitation. You can revoke it from the Team page if needed.');
           break;
         case 'User is already a workspace member':
           setTaskError('This person is already a workspace member. You can find them in the Team list.');
           break;
         default:
-          setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not send the invitation. Try again.');
+          setTaskError(error instanceof WorkspaceRequestError ? error.message : 'Could not create the invitation. Try again.');
       }
     } finally {
       submittingModal.current = false;
@@ -432,7 +453,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function openActivityResource(event: ActivityEvent) {
     if (event.resourceType === 'task') {
-      const task = tasks.find(item => item.id === event.resourceId);
+      const task = allTasks.find(item => item.id === event.resourceId);
       if (task) { setSelectedTask(task); return true; }
       if (event.resourceId && event.resourceState === 'available') {
         openTaskById(event.resourceId);
@@ -504,7 +525,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           storageKey={'devup:backlog:' + workspaceId + ':' + profileId}
           viewsPath={workspacePath + '/backlog-views'}
           token={token}
-          tasks={tasks}
+          tasks={backlogTasks}
           profileId={profileId}
           today={today}
           nextSevenDaysEnd={nextSevenDaysEnd}
@@ -525,7 +546,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           activeCount={board?.activeCount ?? 0}
           activeWipLimit={board?.activeWipLimit ?? 0}
           columns={boardColumns} allTasks={tasks}
-          canManage={!archived && workspace.ownerId === profileId} savingColumns={savingColumns} saveColumns={saveBoardColumns} error={columnError}
+          backlogTasks={backlogTasks}
+          error={columnError}
           onMoveTask={moveBoardTask}
           movingTask={taskSaving}
           setSelectedTask={setSelectedTask}
@@ -562,7 +584,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'chat': return token && (
         <ChatPage
-          chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
+          key={profileId + ':' + workspaceId} workspaceId={workspaceId} chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
           profileName={profileName} roster={members.items ?? []} workspaceArchived={archived}
         />
       );
@@ -635,7 +657,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     <div className="wu-main">
       <header className="wu-topbar">
         <a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a>
-        <WorkspaceCommand pages={navigation} tasks={tasks}
+        <WorkspaceCommand pages={navigation} tasks={allTasks}
           disabled={!!(!workspace || (!archived && modal) || selectedTask)} onNavigate={navigate} onOpenTask={setSelectedTask} />
         <div className="wu-top-actions">
           <NotificationInbox token={token} workspaceId={workspaceId} showBadge={profile.notificationBadge} />
@@ -674,7 +696,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         {renderPage()}
       </main>
     </div>
-    {workspace && selectedTask && <TaskDetails key={selectedTask.id + (archived ? '-archived' : '')} task={selectedTask} tasks={tasks} members={members.items ?? []}
+    {workspace && selectedTask && <TaskDetails key={selectedTask.id + (archived ? '-archived' : '')} task={selectedTask} tasks={allTasks} members={members.items ?? []}
       readOnly={archived}
       projectSection={<TaskProjectField taskId={selectedTask.id} projects={projects.items} error={projects.error} retry={projects.retry}
         path={projectsPath} token={token} readOnly={archived} openProject={id => navigate('projects', 'project-' + id)} />}
@@ -702,11 +724,11 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <button className="wu-button wu-button--primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Creating…' : 'Create task'}</button>
       </div>
     </form> : <form onSubmit={submitInvite}>
-      <label className="wu-field-label">Email address
-        <input autoFocus name="email" type="email" placeholder="name@company.com" required readOnly={taskSaving}
+      <label className="wu-field-label">Username or email address
+        <input autoFocus name="identifier" type="text" placeholder="Enter username or email" required readOnly={taskSaving}
           aria-describedby="invite-email-help" />
       </label>
-      <p id="invite-email-help" className="wu-muted">They can sign in or create an account with this email. The invitation expires in seven days.</p>
+      <p id="invite-email-help" className="wu-muted">Enter the email of an existing DevUP user. They'll receive an in-app invitation and can accept or decline.</p>
       {taskError && <p role="alert">{taskError}</p>}
       <div className="wu-modal-actions">
         <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>
