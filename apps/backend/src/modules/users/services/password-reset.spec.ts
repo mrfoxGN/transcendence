@@ -27,6 +27,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     emailVerifyCodeHash: null,
     emailVerifyExpiresAt: null,
     emailVerifyAttempts: 0,
+    isTwoFactorEnabled: false,
     lastSeenAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),

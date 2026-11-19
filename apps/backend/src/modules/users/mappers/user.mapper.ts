@@ -8,6 +8,7 @@ export class UserMapper {
       username: user.username,
       email: user.email,
       emailVerified: user.verifiedEmail === user.email,
+      isTwoFactorEnabled: user.isTwoFactorEnabled ?? false,
       avatarUrl: user.avatarUrl,
       appRole: user.appRole,
       status: user.status,

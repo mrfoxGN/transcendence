@@ -118,6 +118,7 @@ export class UsersService {
       emailVerifyCodeHash: null,
       emailVerifyExpiresAt: null,
       emailVerifyAttempts: 0,
+      isTwoFactorEnabled: false,
     });
 
     // 4. Save safely
@@ -479,5 +480,148 @@ export class UsersService {
     }
 
     return user.id;
+  }
+
+  async createTwoFactorCode(
+    userId: string,
+  ): Promise<{ email: string; code: string } | null> {
+    const user = await this.usersRepository.findOneBy({
+      id: userId,
+      deletedAt: IsNull(),
+    });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return null;
+    }
+
+    const now = new Date();
+
+    // Allow another request after one minute.
+    if (
+      user.emailVerifyExpiresAt &&
+      user.emailVerifyExpiresAt.getTime() > now.getTime() + 9 * 60 * 1000
+    ) {
+      return null;
+    }
+
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+    const codeHash = await argon2.hash(`2fa:${code}`);
+
+    const result = await this.usersRepository.update(
+      {
+        id: userId,
+        email: user.email,
+        emailVerifyCodeHash: user.emailVerifyCodeHash ?? IsNull(),
+        deletedAt: IsNull(),
+      },
+      {
+        emailVerifyCodeHash: codeHash,
+        emailVerifyExpiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        emailVerifyAttempts: 0,
+      },
+    );
+
+    return result.affected ? { email: user.email, code } : null;
+  }
+
+  async verifyTwoFactorCode(userId: string, code: string): Promise<User> {
+    const invalidCode = new BadRequestException(
+      'Invalid or expired verification code',
+    );
+
+    const user = await this.usersRepository.findOneBy({
+      id: userId,
+      deletedAt: IsNull(),
+    });
+    const now = new Date();
+
+    if (
+      !user ||
+      user.status !== UserStatus.ACTIVE ||
+      !user.emailVerifyCodeHash ||
+      !user.emailVerifyExpiresAt ||
+      user.emailVerifyExpiresAt <= now ||
+      user.emailVerifyAttempts >= 5
+    ) {
+      throw invalidCode;
+    }
+
+    const matches = await argon2.verify(user.emailVerifyCodeHash, `2fa:${code}`);
+
+    if (!matches) {
+      await this.usersRepository.increment(
+        {
+          id: userId,
+          email: user.email,
+          emailVerifyCodeHash: user.emailVerifyCodeHash,
+          emailVerifyAttempts: LessThan(5),
+          deletedAt: IsNull(),
+        },
+        'emailVerifyAttempts',
+        1,
+      );
+
+      throw invalidCode;
+    }
+
+    const result = await this.usersRepository.update(
+      {
+        id: userId,
+        email: user.email,
+        emailVerifyCodeHash: user.emailVerifyCodeHash,
+        emailVerifyExpiresAt: MoreThan(new Date()),
+        emailVerifyAttempts: LessThan(5),
+        deletedAt: IsNull(),
+      },
+      {
+        emailVerifyCodeHash: null,
+        emailVerifyExpiresAt: null,
+        emailVerifyAttempts: 0,
+        updatedAt: new Date(),
+      },
+    );
+
+    if (!result.affected) {
+      throw invalidCode;
+    }
+
+    return user;
+  }
+
+  async enableTwoFactor(userId: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOneBy({
+      id: userId,
+      deletedAt: IsNull(),
+    });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.isTwoFactorEnabled = true;
+    user.updatedAt = new Date();
+
+    const saved = await this.usersRepository.save(user);
+    return UserMapper.toResponse(saved);
+  }
+
+  async disableTwoFactor(userId: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOneBy({
+      id: userId,
+      deletedAt: IsNull(),
+    });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.isTwoFactorEnabled = false;
+    user.emailVerifyCodeHash = null;
+    user.emailVerifyExpiresAt = null;
+    user.emailVerifyAttempts = 0;
+    user.updatedAt = new Date();
+
+    const saved = await this.usersRepository.save(user);
+    return UserMapper.toResponse(saved);
   }
 }

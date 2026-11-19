@@ -7,6 +7,8 @@ import { finishInputEdit, saveTextOnBlur } from '../autosave';
 import { Avatar } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import { jsonRequest, workspaceRequest } from '../workspace-api';
+import { OtpCodeInput } from '../../auth/OtpCodeInput';
+import { ResendCodeButton } from '../../auth/ResendCodeButton';
 
 export type Theme = 'system' | 'light' | 'dark';
 export type PersonalProfile = {
@@ -14,6 +16,7 @@ export type PersonalProfile = {
   username: string;
   email: string;
   emailVerified?: boolean;
+  isTwoFactorEnabled?: boolean;
   avatarUrl?: string | null;
   theme?: Theme;
   notificationBadge?: boolean;
@@ -70,6 +73,48 @@ export function PersonalSettings({ tab, profile, token, onProfile, onTheme }: {
     }, 'Password changed. Sign in again.');
   }
 
+  const [twoFactorPrompt, setTwoFactorPrompt] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [twoFactorError, setTwoFactorError] = useState('');
+
+  async function requestEnableTwoFactor() {
+    if (!token || busy) return;
+    setTwoFactorError('');
+    await run(async () => {
+      await accountRequest('2fa/request-enable', undefined, token);
+      setTwoFactorPrompt(true);
+      setTwoFactorCode('');
+    }, 'A 6-digit verification code was sent to your email.');
+  }
+
+  async function confirmEnableTwoFactor(codeToVerify?: string) {
+    const code = (codeToVerify || twoFactorCode).trim();
+    if (code.length !== 6 || !token || twoFactorBusy) return;
+    setTwoFactorBusy(true);
+    setTwoFactorError('');
+    try {
+      const updated = await accountRequest<PersonalProfile>('2fa/confirm-enable', { code }, token);
+      onProfile({ ...profile, isTwoFactorEnabled: true, ...(updated && { ...updated }) });
+      setTwoFactorPrompt(false);
+      setTwoFactorCode('');
+      setNotice('Two-factor authentication enabled successfully.');
+    } catch (err) {
+      setTwoFactorError(err instanceof Error ? err.message : 'Invalid verification code.');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }
+
+  async function disableTwoFactor() {
+    if (!token || busy) return;
+    await run(async () => {
+      const updated = await accountRequest<PersonalProfile>('2fa/disable', undefined, token);
+      onProfile({ ...profile, isTwoFactorEnabled: false, ...(updated && { ...updated }) });
+      setTwoFactorPrompt(false);
+    }, 'Two-factor authentication disabled.');
+  }
+
   return <>
     {!avatarOpen && error && <p role="alert">{error}</p>}
     {(busy || notice) && !avatarOpen && <p role="status">{busy ? 'Working…' : notice}</p>}
@@ -89,6 +134,108 @@ export function PersonalSettings({ tab, profile, token, onProfile, onTheme }: {
         <div className="wu-readonly-field"><span>Email address</span><strong>{profile.email}</strong></div>
         {profile.emailVerified === false && token && <EmailVerificationForm token={token} onVerified={() => onProfile({ ...profile, emailVerified: true })} />}
         {profile.emailVerified && <p className="wu-muted">Email verified</p>}
+        <hr />
+        <h3>Two-factor authentication (Email 2FA)</h3>
+        <p className="wu-muted">
+          Add an extra layer of protection. When enabled, signing in requires a 6-digit code sent to your email.
+        </p>
+        <div className="wu-readonly-field">
+          <span>Status</span>
+          <strong style={{ color: profile.isTwoFactorEnabled ? '#10be6c' : 'inherit' }}>
+            {profile.isTwoFactorEnabled ? '● Enabled' : '○ Disabled'}
+          </strong>
+        </div>
+
+        {profile.isTwoFactorEnabled ? (
+          <button
+            className="wu-button wu-button--secondary"
+            type="button"
+            disabled={busy || !token}
+            onClick={() => void disableTwoFactor()}
+            style={{ justifySelf: 'start' }}
+          >
+            Disable 2FA
+          </button>
+        ) : !profile.emailVerified ? (
+          <p className="wu-muted" style={{ fontStyle: 'italic' }}>
+            Please verify your email address above before enabling two-factor authentication.
+          </p>
+        ) : twoFactorPrompt ? (
+          <div
+            className="two-factor-setup-box"
+            style={{
+              background: 'var(--wu-surface-soft, rgba(0,0,0,0.03))',
+              padding: '16px',
+              borderRadius: '10px',
+              border: '1px solid var(--wu-line, #e2e8f0)',
+            }}
+          >
+            <p style={{ margin: '0 0 12px', fontWeight: 500 }}>
+              Enter the 6-digit verification code sent to {profile.email}:
+            </p>
+            {twoFactorError && (
+              <p role="alert" style={{ color: '#ef4444', marginBottom: '10px' }}>
+                {twoFactorError}
+              </p>
+            )}
+            <OtpCodeInput
+              value={twoFactorCode}
+              onChange={setTwoFactorCode}
+              onComplete={(code) => void confirmEnableTwoFactor(code)}
+              disabled={twoFactorBusy}
+              hasError={Boolean(twoFactorError)}
+              autoFocus
+            />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginTop: '14px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <button
+                className="wu-button"
+                type="button"
+                disabled={twoFactorBusy || twoFactorCode.length !== 6}
+                onClick={() => void confirmEnableTwoFactor(twoFactorCode)}
+              >
+                {twoFactorBusy ? 'Verifying…' : 'Confirm & Enable 2FA'}
+              </button>
+              <ResendCodeButton
+                cooldownSeconds={60}
+                storageKey={`devup_2fa_enable_resend_${profile.id}`}
+                onResend={async () => {
+                  await accountRequest('2fa/request-enable', undefined, token);
+                  setTwoFactorError('');
+                }}
+              />
+              <button
+                className="wu-text-button"
+                type="button"
+                disabled={twoFactorBusy}
+                onClick={() => {
+                  setTwoFactorPrompt(false);
+                  setTwoFactorError('');
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="wu-button"
+            type="button"
+            disabled={busy || !token}
+            onClick={() => void requestEnableTwoFactor()}
+            style={{ justifySelf: 'start' }}
+          >
+            Enable 2FA
+          </button>
+        )}
+        <hr />
         <form className="auth-form" onSubmit={changePassword}>
           <h3>Change password</h3>
           <label className="wu-field-label">Current password<input name="currentPassword" type="password" autoComplete="current-password" required disabled={busy} /></label>

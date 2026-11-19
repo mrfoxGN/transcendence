@@ -119,4 +119,11 @@ export class User {
     default: 0,
   })
   emailVerifyAttempts!: number;
+
+  @Column({
+    name: 'is_two_factor_enabled',
+    type: 'boolean',
+    default: false,
+  })
+  isTwoFactorEnabled!: boolean;
 }

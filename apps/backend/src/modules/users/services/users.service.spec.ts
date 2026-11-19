@@ -34,6 +34,7 @@ function makeUser(): User {
     emailVerifyCodeHash: null,
     emailVerifyExpiresAt: null,
     emailVerifyAttempts: 0,
+    isTwoFactorEnabled: false,
   };
 }
 

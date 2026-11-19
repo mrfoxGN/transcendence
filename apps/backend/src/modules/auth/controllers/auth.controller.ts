@@ -21,6 +21,9 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
 import { RequestPasswordResetDto } from '../dto/request-password-reset.dto';
 import { ConfirmPasswordResetDto } from '../dto/confirm-password-reset.dto';
+import { ConfirmTwoFactorDto } from '../dto/confirm-two-factor.dto';
+import { ResendTwoFactorDto } from '../dto/resend-two-factor.dto';
+import { ConfirmEnableTwoFactorDto } from '../dto/confirm-enable-two-factor.dto';
 
 type AuthenticatedRequest = Request & {
   user: UserResponseDto;
@@ -39,6 +42,20 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(dto);
+  }
+
+  @Post('login/2fa')
+  @HttpCode(200)
+  confirmTwoFactorLogin(
+    @Body() dto: ConfirmTwoFactorDto,
+  ): Promise<LoginResponseDto> {
+    return this.authService.confirmTwoFactorLogin(dto);
+  }
+
+  @Post('login/2fa/resend')
+  @HttpCode(204)
+  resendTwoFactorLogin(@Body() dto: ResendTwoFactorDto): Promise<void> {
+    return this.authService.resendTwoFactorLogin(dto);
   }
 
   @Get('profile')
@@ -107,5 +124,36 @@ export class AuthController {
       dto.code,
       dto.newPassword,
     );
+  }
+
+  @Post('2fa/request-enable')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  requestEnableTwoFactor(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    return this.authService.requestEnableTwoFactor(request.user.id);
+  }
+
+  @Post('2fa/confirm-enable')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  confirmEnableTwoFactor(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ConfirmEnableTwoFactorDto,
+  ): Promise<UserResponseDto> {
+    return this.authService.confirmEnableTwoFactor(request.user.id, dto.code);
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  disableTwoFactor(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<UserResponseDto> {
+    return this.authService.disableTwoFactor(request.user.id);
   }
 }

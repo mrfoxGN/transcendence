@@ -1,3 +1,5 @@
 export class LoginResponseDto {
-  accessToken!: string;
+  accessToken?: string;
+  twoFactorRequired?: boolean;
+  twoFactorToken?: string;
 }

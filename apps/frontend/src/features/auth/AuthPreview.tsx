@@ -1,7 +1,9 @@
 import { useState, type FormEvent, useEffect } from 'react';
-import { ArrowRight, Check, Eye, EyeOff, Lock, Mail, User, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Lock, Mail, ShieldCheck, User, X, AlertCircle } from 'lucide-react';
 import { sessionKey } from '../WorkspacePicker';
 import { authRoute, requestedWorkspace } from '../auth-routing';
+import { OtpCodeInput } from './OtpCodeInput';
+import { ResendCodeButton } from './ResendCodeButton';
 
 export interface AuthPreviewProps {
   mode: 'login' | 'register';
@@ -40,6 +42,14 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // 2FA challenge states
+  const [twoFactorStep, setTwoFactorStep] = useState(false);
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [twoFactorEmail, setTwoFactorEmail] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorPending, setTwoFactorPending] = useState(false);
+  const [twoFactorNotice, setTwoFactorNotice] = useState('');
+
   const destination = requestedWorkspace();
 
   // URL alerts
@@ -74,6 +84,43 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
   const isPasswordValid = password.length >= 8;
   const isUsernameValid = username.trim().length >= 3 && username.trim().length <= 30;
 
+  async function handleTwoFactorSubmit(codeToVerify?: string) {
+    const code = (codeToVerify || twoFactorCode).trim();
+    if (code.length !== 6 || twoFactorPending) return;
+
+    setTwoFactorPending(true);
+    setErrorMessage('');
+    setTwoFactorNotice('');
+
+    try {
+      const response = await fetch('/api/auth/login/2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ twoFactorToken, code }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.accessToken) {
+        const detail = result?.message;
+        setErrorMessage(
+          Array.isArray(detail)
+            ? detail.join(' ')
+            : detail || 'Invalid or expired 2FA code. Please check and try again.',
+        );
+        return;
+      }
+
+      sessionStorage.setItem(sessionKey, result.accessToken);
+      const onboarding = new URLSearchParams(window.location.search).get('onboarding') === '1';
+      window.location.replace(onboarding ? authRoute('/onboarding', destination) : destination);
+    } catch {
+      setErrorMessage('Could not verify 2FA code. Please check your connection and try again.');
+    } finally {
+      setTwoFactorPending(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -105,7 +152,7 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
 
       const result = await response.json().catch(() => null);
 
-      if (!response.ok || (signingUp ? !result?.id : !result?.accessToken)) {
+      if (!response.ok || (signingUp ? !result?.id : (!result?.accessToken && !result?.twoFactorRequired))) {
         const detail = result?.message;
         setErrorMessage(
           response.status >= 500
@@ -118,6 +165,16 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
       }
 
       if (!signingUp) {
+        if (result.twoFactorRequired && result.twoFactorToken) {
+          setTwoFactorToken(result.twoFactorToken);
+          setTwoFactorEmail(email.trim());
+          setTwoFactorStep(true);
+          setTwoFactorCode('');
+          setErrorMessage('');
+          setTwoFactorNotice('');
+          return;
+        }
+
         sessionStorage.setItem(sessionKey, result.accessToken);
         const onboarding = new URLSearchParams(window.location.search).get('onboarding') === '1';
         window.location.replace(onboarding ? authRoute('/onboarding', destination) : destination);
@@ -174,7 +231,7 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
 
       <section className="auth-shell" aria-labelledby="auth-title">
         {/* Switcher Tabs */}
-        {!complete && (
+        {!complete && !twoFactorStep && (
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
             <button
               type="button"
@@ -199,24 +256,38 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
 
         <div className="auth-header-copy">
           <h1 id="auth-title">
-            {complete
+            {twoFactorStep
+              ? 'Two-Factor Authentication'
+              : complete
               ? 'Account created!'
               : signingUp
               ? 'Join DevUP'
               : 'Welcome back'}
           </h1>
-          {!complete && (
+          {twoFactorStep ? (
+            <p className="auth-description">
+              Enter the 6-digit verification code sent to{' '}
+              <strong>{twoFactorEmail || 'your email'}</strong> to sign in.
+            </p>
+          ) : !complete ? (
             <p className="auth-description">
               {signingUp
                 ? 'Bring tasks, conversations, and code into one unified space.'
                 : 'Enter your credentials to access your workspaces.'}
             </p>
-          )}
+          ) : null}
         </div>
 
         <div className="auth-panel">
           {/* Status / Alert Notices */}
-          {notice && !errorMessage && !complete && (
+          {twoFactorNotice && !errorMessage && (
+            <div className="auth-alert auth-alert--success" role="status">
+              <Check size={18} aria-hidden="true" />
+              <span>{twoFactorNotice}</span>
+            </div>
+          )}
+
+          {notice && !errorMessage && !complete && !twoFactorStep && (
             <div className={`auth-alert auth-alert--${notice.type}`} role="status">
               <Check size={18} aria-hidden="true" />
               <span>{notice.text}</span>
@@ -230,7 +301,95 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
             </div>
           )}
 
-          {complete ? (
+          {twoFactorStep ? (
+            <div className="auth-form" style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '16px',
+                    background: 'rgba(36, 91, 201, 0.12)',
+                    color: '#245bc9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ShieldCheck size={32} />
+                </div>
+              </div>
+
+              <OtpCodeInput
+                value={twoFactorCode}
+                onChange={setTwoFactorCode}
+                onComplete={(code) => void handleTwoFactorSubmit(code)}
+                disabled={twoFactorPending}
+                hasError={Boolean(errorMessage)}
+                autoFocus
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.25rem' }}>
+                <ResendCodeButton
+                  storageKey={`devup_2fa_resend_${twoFactorToken.slice(-8)}`}
+                  cooldownSeconds={60}
+                  onResend={async () => {
+                    const res = await fetch('/api/auth/login/2fa/resend', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ twoFactorToken }),
+                    });
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => null);
+                      throw new Error(err?.message || 'Could not resend 2FA code.');
+                    }
+                    setErrorMessage('');
+                    setTwoFactorNotice('A fresh verification code has been sent to your email.');
+                  }}
+                />
+              </div>
+
+              <button
+                className="button button--primary auth-submit"
+                type="button"
+                disabled={twoFactorPending || twoFactorCode.length !== 6}
+                onClick={() => void handleTwoFactorSubmit(twoFactorCode)}
+                style={{ marginTop: '1.25rem' }}
+              >
+                {twoFactorPending ? (
+                  <span className="auth-loading-state">
+                    <span className="auth-spinner" aria-hidden="true" />
+                    <span>Verifying…</span>
+                  </span>
+                ) : (
+                  <span>Verify & Sign in</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="auth-switch-button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  marginTop: '1.25rem',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setTwoFactorStep(false);
+                  setTwoFactorCode('');
+                  setTwoFactorToken('');
+                  setErrorMessage('');
+                  setTwoFactorNotice('');
+                }}
+              >
+                <ArrowLeft size={14} /> Back to email & password
+              </button>
+            </div>
+          ) : complete ? (
             <div className="auth-success-card" role="status">
               <div className="auth-success-icon" aria-hidden="true">
                 <Check size={28} />
@@ -356,7 +515,7 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
           )}
         </div>
 
-        {!complete && (
+        {!complete && !twoFactorStep && (
           <p className="auth-switch">
             {signingUp ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button

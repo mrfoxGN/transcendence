@@ -14,6 +14,11 @@ describe('AuthService', () => {
     create: jest.fn(), findByEmail: jest.fn(), revokeTokens: jest.fn(),
     changePassword: jest.fn(), createEmailVerificationCode: jest.fn(),
     confirmEmailVerification: jest.fn(),
+    createTwoFactorCode: jest.fn(),
+    verifyTwoFactorCode: jest.fn(),
+    enableTwoFactor: jest.fn(),
+    disableTwoFactor: jest.fn(),
+    findById: jest.fn(),
   };
   const direct = { disconnectUser: jest.fn() };
   const workspace = { disconnectUser: jest.fn() };
@@ -114,5 +119,96 @@ describe('AuthService', () => {
   it('passes email confirmation to the users service', async () => {
     await service.confirmEmailVerification(id, '012345');
     expect(users.confirmEmailVerification).toHaveBeenCalledWith(id, '012345');
+  });
+
+  describe('two-factor authentication', () => {
+    it('requires 2FA when user has 2FA enabled', async () => {
+      users.findByEmail.mockResolvedValue({
+        id,
+        email,
+        passwordHash,
+        status: UserStatus.ACTIVE,
+        tokenVersion: 1,
+        isTwoFactorEnabled: true,
+      });
+      users.createTwoFactorCode.mockResolvedValue({ email, code: '123456' });
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true } as Response);
+
+      const result = await service.login({ email, password });
+      expect(result.twoFactorRequired).toBe(true);
+      expect(result.twoFactorToken).toBeDefined();
+
+      const payload = await jwt.verifyAsync(result.twoFactorToken!);
+      expect(payload).toMatchObject({ sub: id, purpose: '2fa_login', tokenVersion: 1 });
+    });
+
+    it('verifies 2FA code and returns access token', async () => {
+      const twoFactorToken = await jwt.signAsync({
+        sub: id,
+        purpose: '2fa_login',
+        tokenVersion: 1,
+      });
+      users.verifyTwoFactorCode.mockResolvedValue({
+        id,
+        tokenVersion: 1,
+        status: UserStatus.ACTIVE,
+      });
+
+      const result = await service.confirmTwoFactorLogin({
+        twoFactorToken,
+        code: '123456',
+      });
+      expect(result.accessToken).toBeDefined();
+
+      const payload = await jwt.verifyAsync(result.accessToken!);
+      expect(payload).toMatchObject({ sub: id, tokenVersion: 1 });
+    });
+
+    it('rejects 2FA verification with an invalid token or wrong purpose', async () => {
+      const invalidToken = await jwt.signAsync({
+        sub: id,
+        purpose: 'other_purpose',
+        tokenVersion: 1,
+      });
+
+      await expect(
+        service.confirmTwoFactorLogin({
+          twoFactorToken: invalidToken,
+          code: '123456',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('allows resending 2FA code', async () => {
+      const twoFactorToken = await jwt.signAsync({
+        sub: id,
+        purpose: '2fa_login',
+        tokenVersion: 1,
+      });
+      users.createTwoFactorCode.mockResolvedValue({ email, code: '654321' });
+      const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true } as Response);
+
+      await service.resendTwoFactorLogin({ twoFactorToken });
+      expect(users.createTwoFactorCode).toHaveBeenCalledWith(id);
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    it('confirms enabling 2FA', async () => {
+      users.verifyTwoFactorCode.mockResolvedValue({ id });
+      users.enableTwoFactor.mockResolvedValue({ id, isTwoFactorEnabled: true });
+
+      const result = await service.confirmEnableTwoFactor(id, '123456');
+      expect(users.verifyTwoFactorCode).toHaveBeenCalledWith(id, '123456');
+      expect(users.enableTwoFactor).toHaveBeenCalledWith(id);
+      expect(result.isTwoFactorEnabled).toBe(true);
+    });
+
+    it('disables 2FA', async () => {
+      users.disableTwoFactor.mockResolvedValue({ id, isTwoFactorEnabled: false });
+
+      const result = await service.disableTwoFactor(id);
+      expect(users.disableTwoFactor).toHaveBeenCalledWith(id);
+      expect(result.isTwoFactorEnabled).toBe(false);
+    });
   });
 });

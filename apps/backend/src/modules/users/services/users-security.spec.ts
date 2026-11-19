@@ -27,6 +27,7 @@ describe('UsersService authentication and verification', () => {
       appRole: AppRole.USER, status: UserStatus.ACTIVE, avatarUrl: null,
       verifiedEmail: null, emailVerifyCodeHash: codeHash,
       emailVerifyExpiresAt: new Date(Date.now() + 120_000), emailVerifyAttempts: 0,
+      isTwoFactorEnabled: false,
       createdAt: new Date(), updatedAt: new Date(), lastSeenAt: null, deletedAt: null,
     };
     repository.findOneBy.mockResolvedValue(user);

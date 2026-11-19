@@ -53,6 +53,11 @@ describe('Auth endpoints', () => {
     changePassword: jest.fn(),
     createEmailVerificationCode: jest.fn(),
     confirmEmailVerification: jest.fn(),
+    createTwoFactorCode: jest.fn(),
+    verifyTwoFactorCode: jest.fn(),
+    enableTwoFactor: jest.fn(),
+    disableTwoFactor: jest.fn(),
+    findById: jest.fn(),
   };
 
   const directChatGateway = { disconnectUser: jest.fn() };

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -16,6 +17,8 @@ import { LoginResponseDto } from '../dto/login-response.dto';
 import { WorkspaceChatGateway } from '../../chat/gateways/workspace-chat.gateway';
 import { DirectChatGateway } from '../../social/gateways/direct-chat.gateway';
 import { ChangePasswordDto } from '../dto/change-password.dto';
+import { ConfirmTwoFactorDto } from '../dto/confirm-two-factor.dto';
+import { ResendTwoFactorDto } from '../dto/resend-two-factor.dto';
 
 @Injectable()
 export class AuthService {
@@ -54,12 +57,144 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.validateCredentials(dto);
 
+    if (user.isTwoFactorEnabled) {
+      const challenge = await this.usersService.createTwoFactorCode(user.id);
+
+      if (challenge) {
+        try {
+          await this.sendCodeEmail(
+            challenge.email,
+            challenge.code,
+            'DevUP Two-Factor Authentication Code',
+          );
+        } catch (error) {
+          this.logger.error(
+            '2FA email could not be sent',
+            error instanceof Error ? error.stack : String(error),
+          );
+        }
+      }
+
+      const twoFactorToken = await this.jwtService.signAsync(
+        {
+          sub: user.id,
+          purpose: '2fa_login',
+          tokenVersion: user.tokenVersion,
+        },
+        { expiresIn: '10m' },
+      );
+
+      return {
+        twoFactorRequired: true,
+        twoFactorToken,
+      };
+    }
+
     return {
       accessToken: await this.jwtService.signAsync({
         sub: user.id,
         tokenVersion: user.tokenVersion,
       }),
     };
+  }
+
+  async confirmTwoFactorLogin(
+    dto: ConfirmTwoFactorDto,
+  ): Promise<LoginResponseDto> {
+    let payload: { sub?: unknown; purpose?: unknown; tokenVersion?: unknown };
+    try {
+      payload = await this.jwtService.verifyAsync(dto.twoFactorToken);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired 2FA session');
+    }
+
+    if (
+      typeof payload.sub !== 'string' ||
+      payload.purpose !== '2fa_login' ||
+      !Number.isInteger(payload.tokenVersion)
+    ) {
+      throw new UnauthorizedException('Invalid or expired 2FA session');
+    }
+
+    const user = await this.usersService.verifyTwoFactorCode(
+      payload.sub,
+      dto.code,
+    );
+
+    if (user.tokenVersion !== payload.tokenVersion) {
+      throw new UnauthorizedException('Session expired. Please sign in again.');
+    }
+
+    return {
+      accessToken: await this.jwtService.signAsync({
+        sub: user.id,
+        tokenVersion: user.tokenVersion,
+      }),
+    };
+  }
+
+  async resendTwoFactorLogin(dto: ResendTwoFactorDto): Promise<void> {
+    let payload: { sub?: unknown; purpose?: unknown; tokenVersion?: unknown };
+    try {
+      payload = await this.jwtService.verifyAsync(dto.twoFactorToken);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired 2FA session');
+    }
+
+    if (
+      typeof payload.sub !== 'string' ||
+      payload.purpose !== '2fa_login' ||
+      !Number.isInteger(payload.tokenVersion)
+    ) {
+      throw new UnauthorizedException('Invalid or expired 2FA session');
+    }
+
+    const challenge = await this.usersService.createTwoFactorCode(payload.sub);
+    if (!challenge) {
+      throw new BadRequestException(
+        'Please wait a minute before requesting another code',
+      );
+    }
+
+    await this.sendCodeEmail(
+      challenge.email,
+      challenge.code,
+      'DevUP Two-Factor Authentication Code',
+    );
+  }
+
+  async requestEnableTwoFactor(userId: string): Promise<void> {
+    const user = await this.usersService.findById(userId);
+    if (!user.emailVerified) {
+      throw new BadRequestException(
+        'Please verify your email address before enabling two-factor authentication',
+      );
+    }
+
+    const challenge = await this.usersService.createTwoFactorCode(userId);
+    if (!challenge) {
+      throw new BadRequestException(
+        'Please wait a minute before requesting another code',
+      );
+    }
+
+    await this.sendCodeEmail(
+      challenge.email,
+      challenge.code,
+      'Confirm Enabling Two-Factor Authentication on DevUP',
+    );
+  }
+
+  async confirmEnableTwoFactor(
+    userId: string,
+    code: string,
+  ): Promise<UserResponseDto> {
+    await this.usersService.verifyTwoFactorCode(userId, code);
+    return this.usersService.enableTwoFactor(userId);
+  }
+
+  async disableTwoFactor(userId: string): Promise<UserResponseDto> {
+    return this.usersService.disableTwoFactor(userId);
   }
 
   async logout(userId: string): Promise<void> {

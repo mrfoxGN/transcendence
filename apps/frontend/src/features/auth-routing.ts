@@ -17,7 +17,7 @@ export function requestedWorkspace() {
   return safeWorkspaceDestination(new URLSearchParams(location.search).get('next'));
 }
 
-export async function accountRequest(path: string, body?: object, token?: string, method: 'POST' | 'PATCH' = 'POST') {
+export async function accountRequest<T = void>(path: string, body?: object, token?: string | null, method: 'POST' | 'PATCH' = 'POST'): Promise<T> {
   const response = await fetch('/api/auth/' + path, {
     method,
     headers: {
@@ -30,4 +30,6 @@ export async function accountRequest(path: string, body?: object, token?: string
     const result = await response.json().catch(() => null);
     throw new Error(Array.isArray(result?.message) ? result.message.join(' ') : result?.message ?? 'Could not complete the request. Try again.');
   }
+  if (response.status === 204) return undefined as T;
+  return (await response.json().catch(() => undefined)) as T;
 }
