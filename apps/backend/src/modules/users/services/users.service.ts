@@ -143,7 +143,9 @@ export class UsersService {
       dto.username === undefined &&
       dto.email === undefined &&
       dto.avatarUrl === undefined &&
-      dto.avatarImage === undefined
+      dto.avatarImage === undefined &&
+      dto.theme === undefined &&
+      dto.notificationBadge === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -205,6 +207,14 @@ export class UsersService {
 
     if (dto.avatarUrl !== undefined) {
       user.avatarUrl = dto.avatarUrl;
+    }
+
+    if (dto.theme !== undefined) {
+      user.theme = dto.theme;
+    }
+
+    if (dto.notificationBadge !== undefined) {
+      user.notificationBadge = dto.notificationBadge;
     }
 
     user.updatedAt = new Date();

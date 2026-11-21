@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Archive, CheckCircle2, ChevronRight, Contrast, LogOut, PanelLeftClose, PanelLeftOpen, Plus, UserRound, UsersRound, X } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronRight, Contrast, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, UserRound, UsersRound, X } from 'lucide-react';
 import { workspaceIcons } from './workspace/workspace-icons';
 import { sessionKey, signOut, switchAccount } from './WorkspacePicker';
 import './workspace-app.css';
@@ -663,6 +663,19 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <WorkspaceCommand pages={navigation} tasks={allTasks}
           disabled={!!(!workspace || (!archived && modal) || selectedTask)} onNavigate={navigate} onOpenTask={setSelectedTask} />
         <div className="wu-top-actions">
+          <button
+            className="wu-theme-button"
+            type="button"
+            aria-label={`Switch theme (currently ${theme === 'system' ? (browserDark ? 'dark (system)' : 'light (system)') : theme})`}
+            title={`Switch to ${theme === 'dark' || (theme === 'system' && browserDark) ? 'light' : 'dark'} mode`}
+            onClick={() => void saveTheme((theme === 'dark' || (theme === 'system' && browserDark)) ? 'light' : 'dark')}
+          >
+            {(theme === 'dark' || (theme === 'system' && browserDark)) ? (
+              <Sun size={17} aria-hidden="true" />
+            ) : (
+              <Moon size={17} aria-hidden="true" />
+            )}
+          </button>
           <NotificationInbox token={token} workspaceId={workspaceId} showBadge={profile.notificationBadge} />
           <button className="wu-user-button wu-profile-trigger" type="button" aria-label={'Account menu for ' + profileName} popoverTarget="wu-profile-menu">
             {profileAvatar ? <img className="wu-avatar" src={profileAvatar} alt="" /> : <Avatar initials={profileInitials} tone="blue" preview={false} />}

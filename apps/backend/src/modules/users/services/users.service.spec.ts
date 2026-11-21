@@ -154,6 +154,25 @@ describe('UsersService', () => {
     ).rejects.toThrow('Choose either an image or a URL.');
   });
 
+  it('updates theme and notificationBadge', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      save: jest.fn().mockImplementation((user: User) => Promise.resolve(user)),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+
+    const response = await service.updateProfile(makeUser().id, {
+      theme: 'dark',
+      notificationBadge: false,
+    });
+
+    expect(response.theme).toBe('dark');
+    expect(response.notificationBadge).toBe(false);
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: makeUser().id, theme: 'dark', notificationBadge: false }),
+    );
+  });
+
   it('rejects an existing username', async () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),
