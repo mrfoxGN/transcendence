@@ -35,10 +35,14 @@ make up
 make status
 ```
 
-`make up` builds missing Backend and Frontend images and starts the stack. MySQL
+`make up` builds missing Backend and Nginx images and starts the stack. Nginx's
+image includes the compiled Frontend files; there is no separate Production
+Frontend container. MySQL
 must become healthy before `migrate` runs. The one-shot `migrate` service runs
 compiled TypeORM migrations and exits with code 0. Backend starts after that;
-Nginx waits for Backend health and Frontend startup. The `backup` service also
+Nginx waits for Backend health and certificate preparation. On an existing
+installation, `make up` removes the obsolete Frontend container with
+`--remove-orphans`, preserving named volumes. The `backup` service also
 starts after migration and makes its first snapshot at startup.
 
 The `cert-init` service creates a self-signed certificate for `PUBLIC_HOST`, or
@@ -72,8 +76,7 @@ Backend, MySQL, Prometheus, and the exporters have no direct host ports.
 | `mysql` | Stores application database data in `mysql_data`. |
 | `migrate` | Runs TypeORM migrations once at container startup, then exits. |
 | `backend` | Runs the API and writes uploaded files to `backend_storage`. |
-| `frontend` | Serves the built browser application. |
-| `nginx` | Handles HTTPS, redirects, and routing. |
+| `nginx` | Serves the built Frontend files directly and handles HTTPS, redirects, API and WebSocket routing. |
 | `cert-init` | Prepares the TLS certificate, then exits. |
 | `backup` | Saves database and uploaded-file snapshots to the host `./backups/` directory. |
 | `prometheus` | Collects metrics and stores them in `prometheus_data`. |
@@ -113,8 +116,11 @@ specified by `monitoring/prometheus.yml`. It retains samples for seven days by
 time; no separate size limit is configured. Grafana queries Prometheus over the
 internal monitoring network. The dashboard's `up` panel reports scrape-target
 reachability; it does not prove Backend, Frontend, or MySQL application health.
-Gatus separately checks `http://backend:3000/health`, `http://frontend:80/`,
-and the MySQL TCP port every 30 seconds. A successful TCP connection does not
+Gatus separately checks `http://backend:3000/health`, `https://nginx:443/`,
+and the MySQL TCP port every 30 seconds. The internal Frontend check skips
+certificate verification because its Docker hostname is `nginx` while the
+self-signed certificate identifies `PUBLIC_HOST`. External clients should
+still verify the certificate as shown above. A successful TCP connection does not
 prove that the Backend can execute a database query.
 
 `monitoring/alerts.yml` currently contains three Prometheus rules:
@@ -149,7 +155,8 @@ make health
 make backup
 ```
 
-`make logs` follows Backend, Frontend, and Nginx logs. To inspect a particular
+`make logs` follows Backend and Nginx logs. Static Frontend requests appear in
+Nginx logs. To inspect a particular
 service, use `docker compose -f docker-compose.prod.yml logs --tail=100 SERVICE`.
 The current Compose file does not configure per-container log rotation. Nginx
 writes access logs to stdout in the `app_access` format defined in
@@ -158,7 +165,13 @@ Backend logging remains owned by the Backend team.
 
 `make restart` restarts Backend, reloads Nginx, and verifies HTTPS health.
 `make update` rebuilds Backend, runs migrations and replaces it;
-`make update-frontend` rebuilds and replaces Frontend. Follow
+`make update-frontend` rebuilds and replaces the single Nginx container with
+the new Frontend files. This briefly interrupts both Frontend and proxied API
+connections while Nginx is replaced. The Backend container and data volumes
+are preserved. Development and Production both use the same two-stage
+Frontend Dockerfile and `nginx/nginx.conf.template`, with one Nginx container
+per stack. There are no separate Frontend-specific Nginx configurations or
+TLS entrypoint scripts. Follow
 [Release and rollback](RELEASE_AND_ROLLBACK.md) before versioned releases or
 database schema changes. `make restore BACKUP=backups/TIMESTAMP` restores the
 selected local snapshot after confirmation; see the backup guide before using

@@ -12,19 +12,33 @@ DevUP is a shared workspace for software teams. Teams plan work in a backlog and
 2. From the repository root, build and start the stack:
 
 ```sh
-docker compose up --build
+docker compose up --build --remove-orphans
 ```
 
 3. Open [DevUP](https://localhost) when the services are ready, or use the HTTPS port you configured. Compose starts MySQL, applies migrations, starts the API, and serves the frontend. Nginx redirects HTTP on port 8080 and serves the UI, API, and chat on the same HTTPS origin.
 4. Create an account, choose an avatar, then create a workspace or join one by invitation. Use a second account to try invitations, assignments, and chat.
-5. Stop the stack with `docker compose down`. Compose keeps the database and local TLS certificate in named volumes.
+5. Stop the stack with `docker compose down`. Compose keeps the database in its named volume and the TLS files in the ignored `nginx/certs/` directory.
 
 For the production stack with monitoring, backups, and the edge Nginx, follow the
 [local production deployment guide](docs/deployment/LOCAL_PRODUCTION.md).
 
-On first launch, the frontend generates a self-signed localhost certificate and keeps it in the `frontend_tls` volume. For warning-free local use, export only the public certificate with `docker compose cp frontend:/etc/nginx/tls/cert.pem ./devup-local-cert.pem` and trust it in the test browser or OS. Keep the private key in the volume.
+Development and Production use one shared Nginx configuration:
+`nginx/nginx.conf.template`. A single Nginx container serves the compiled
+Frontend files and proxies API and WebSocket traffic. The `cert-init` service
+creates a self-signed certificate on first launch and reuses valid certificates
+in `nginx/certs/`. Trust only the public `nginx/certs/fullchain.pem` in your
+test browser or OS; keep `nginx/certs/privkey.pem` private. Existing installations
+can retain an unused `frontend_tls` volume from the older layout; it is no
+longer mounted and is not removed automatically.
 
-Set `HTTPS_PORT` in `.env` if port 443 is occupied, and `FRONTEND_PORT` to change the HTTP redirect port. For a custom hostname, set `PUBLIC_ORIGIN` to the full HTTPS origin and use a Compose override to mount a trusted certificate chain and private key as `/etc/nginx/tls/cert.pem` and `/etc/nginx/tls/key.pem`. Compose derives account email links and the GitHub redirect URLs from that origin. Register the HTTPS callback at `/api/github/callback` in your GitHub OAuth app. Configure your own secrets before deploying outside local development.
+Set `HTTPS_PORT` in `.env` if port 443 is occupied, and `FRONTEND_PORT` to change
+the Development HTTP redirect port. Set `PUBLIC_HOST` for a custom hostname.
+For a trusted certificate, supply its chain and key as
+`nginx/certs/fullchain.pem` and `nginx/certs/privkey.pem`. Development Compose
+derives account email links and GitHub redirect URLs from `PUBLIC_HOST` and
+`HTTPS_PORT`, unless `PUBLIC_ORIGIN` explicitly overrides those URLs. Register
+the HTTPS callback at `/api/github/callback` in your GitHub OAuth app.
+Configure your own secrets before deploying outside local development.
 
 Set `AUTH_EMAIL_FROM` and `RESEND_API_KEY` to enable account and invitation emails. Set `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET` to enable the optional GitHub integration.
 

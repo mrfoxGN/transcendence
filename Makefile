@@ -14,14 +14,14 @@ COMPOSE := docker compose -f docker-compose.prod.yml
 help:
 	@printf '%s\n' \
 		'make up               Start production (build missing images)' \
-		'make build            Build Backend + Frontend' \
+		'make build            Build Backend + Nginx (includes Frontend)' \
 		'make build-backend    Build Backend image' \
-		'make build-frontend   Build Frontend image' \
+		'make build-frontend   Build Nginx image with Frontend files' \
 		'make update           Build, migrate and deploy Backend' \
 		'make update-frontend  Build and deploy Frontend' \
 		'make restart          Restart Backend' \
 		'make status           Show production services' \
-		'make logs             Follow Backend, Frontend and Nginx logs' \
+		'make logs             Follow Backend and Nginx logs' \
 		'make health           Check HTTPS health' \
 		'make backup           Backup database/files' \
 		'make restore BACKUP=backups/<date>   Restore a selected backup' \
@@ -42,13 +42,13 @@ check:
 # ==========================================
 
 build: check
-	$(COMPOSE) build backend frontend
+	$(COMPOSE) build backend nginx
 
 build-backend: check
 	$(COMPOSE) build backend
 
 build-frontend: check
-	$(COMPOSE) build frontend
+	$(COMPOSE) build nginx
 
 # ==========================================
 # START PRODUCTION
@@ -60,7 +60,7 @@ build-frontend: check
 
 up: check
 	@set -e; \
-	for service in backend frontend; do \
+	for service in backend nginx; do \
 		image=$$($(COMPOSE) config --format json | \
 			python3 -c 'import json,sys; c=json.load(sys.stdin); print(c["services"][sys.argv[1]]["image"])' "$$service"); \
 		if ! docker image inspect "$$image" >/dev/null 2>&1; then \
@@ -70,7 +70,7 @@ up: check
 			echo "Image $$image already exists."; \
 		fi; \
 	done
-	$(COMPOSE) up -d --no-build --wait --wait-timeout 120
+	$(COMPOSE) up -d --no-build --remove-orphans --wait --wait-timeout 120
 
 # ==========================================
 # BACKEND UPDATE
@@ -81,8 +81,8 @@ update: build-backend
 	$(COMPOSE) stop backend
 	$(COMPOSE) run --rm --no-deps -T migrate
 	$(COMPOSE) up -d --no-deps --no-build --pull never --force-recreate --wait --wait-timeout 120 backend
-	$(COMPOSE) exec -T nginx nginx -t
-	$(COMPOSE) exec -T nginx nginx -s reload
+	$(COMPOSE) exec -T nginx nginx -t -c /tmp/nginx.conf
+	$(COMPOSE) exec -T nginx nginx -s reload -c /tmp/nginx.conf
 	$(MAKE) health
 
 # ==========================================
@@ -90,10 +90,8 @@ update: build-backend
 # ==========================================
 
 update-frontend: build-frontend
-	$(COMPOSE) up -d --no-deps --no-build --pull never --force-recreate --wait --wait-timeout 120 frontend
-	$(COMPOSE) exec -T frontend nginx -t
-	$(COMPOSE) exec -T nginx nginx -t
-	$(COMPOSE) exec -T nginx nginx -s reload
+	$(COMPOSE) up -d --no-deps --no-build --pull never --force-recreate --wait --wait-timeout 120 nginx
+	$(COMPOSE) exec -T nginx nginx -t -c /tmp/nginx.conf
 	curl --fail --silent --show-error \
 		--cacert nginx/certs/fullchain.pem \
 		https://localhost/ >/dev/null
@@ -106,8 +104,8 @@ update-frontend: build-frontend
 restart: check
 	$(COMPOSE) restart --no-deps backend
 	$(COMPOSE) up -d --no-deps --no-build --pull never --wait --wait-timeout 120 backend
-	$(COMPOSE) exec -T nginx nginx -t
-	$(COMPOSE) exec -T nginx nginx -s reload
+	$(COMPOSE) exec -T nginx nginx -t -c /tmp/nginx.conf
+	$(COMPOSE) exec -T nginx nginx -s reload -c /tmp/nginx.conf
 	$(MAKE) health
 
 # ==========================================
@@ -132,7 +130,7 @@ status:
 # ==========================================
 
 logs:
-	$(COMPOSE) logs --tail=100 -f backend frontend nginx
+	$(COMPOSE) logs --tail=100 -f backend nginx
 
 # ==========================================
 # BACKUP

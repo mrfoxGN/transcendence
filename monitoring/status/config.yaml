@@ -11,7 +11,10 @@ endpoints:
 
   - name: Frontend
     group: DevUP
-    url: "http://frontend:80/"
+    url: "https://nginx:443/"
+    client:
+      # Internal Docker hostname; the self-signed certificate uses PUBLIC_HOST.
+      insecure: true
     interval: 30s
     conditions:
       - "[STATUS] == 200"

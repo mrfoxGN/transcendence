@@ -73,9 +73,9 @@ services:
       <<: *database-environment
       APP_PORT: "3000"
       JWT_SECRET: ${JWT_SECRET:-devup-local-compose-only-change-before-deploying}
-      AUTH_PUBLIC_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
-      GITHUB_OAUTH_FRONTEND_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
-      GITHUB_OAUTH_CALLBACK_URL: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}/api/github/callback
+      AUTH_PUBLIC_URL: ${PUBLIC_ORIGIN:-https://${PUBLIC_HOST:-localhost}:${HTTPS_PORT:-443}}
+      GITHUB_OAUTH_FRONTEND_URL: ${PUBLIC_ORIGIN:-https://${PUBLIC_HOST:-localhost}:${HTTPS_PORT:-443}}
+      GITHUB_OAUTH_CALLBACK_URL: ${PUBLIC_ORIGIN:-https://${PUBLIC_HOST:-localhost}:${HTTPS_PORT:-443}}/api/github/callback
 
     volumes:
       - ./apps/backend:/app
@@ -94,21 +94,44 @@ services:
       retries: 12
       start_period: 30s
 
-  frontend:
+  cert-init:
+    image: alpine:3.22
+    restart: "no"
+    environment:
+      TLS_HOST: ${PUBLIC_HOST:-localhost}
+    volumes:
+      - ./scripts/generate-certs.sh:/scripts/generate-certs.sh:ro
+      - ./nginx/certs:/certs
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        apk add --no-cache openssl
+        exec /bin/sh /scripts/generate-certs.sh
+
+  nginx:
     build: ./apps/frontend
     restart: unless-stopped
     environment:
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://localhost:${HTTPS_PORT:-443}}
+      HTTPS_PORT: "${HTTPS_PORT:-443}"
+      GATUS_PORT: "${GATUS_PORT:-8443}"
     volumes:
-      - frontend_tls:/etc/nginx/tls
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        envsubst '$$HTTPS_PORT $$GATUS_PORT' < /etc/nginx/nginx.conf.template > /tmp/nginx.conf
+        nginx -t -c /tmp/nginx.conf
+        exec nginx -c /tmp/nginx.conf -g 'daemon off;'
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
       - "127.0.0.1:${HTTPS_PORT:-443}:443"
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       backend:
         condition: service_healthy
 
 volumes:
   mysql_data:
   backend_node_modules:
-  frontend_tls:
