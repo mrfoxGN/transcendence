@@ -11,6 +11,7 @@ type Draft = { text: string; requestId?: string; reply?: { id: string; preview: 
 
 type ChatPageProps = {
   workspaceId: string;
+  workspaceName?: string;
   chat: ReturnType<typeof useWorkspaceChat>;
   selected: string;
   setSelected: (id: string) => void;
@@ -37,7 +38,7 @@ function Portrait({ name, small }: { name: string; small?: boolean }) {
   return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
 }
 
-export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
+export function ChatPage({ workspaceId, workspaceName = 'Workspace', chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
   const [sending, setSending] = useState(false);
   const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
   const [conversationError, setConversationError] = useState('');
@@ -72,7 +73,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
   const composer = useRef<HTMLTextAreaElement>(null);
   const teammateName = (id: string | null) => roster.find(member => member.userId === id)?.username
     ?? chat.conversations.find(item => item.otherUserId === id)?.otherUsername ?? 'DevUP member';
-  const threads = [{ id: 'team', title: 'DevUP Team', member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
+  const threads = [{ id: 'team', title: workspaceName, member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
     ...chat.conversations.map(item => ({ ...item, title: teammateName(item.otherUserId), member: teammateName(item.otherUserId) }))].map(item => ({
       ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
       messages: (chat.messages[item.id] ?? []).map(message => ({
@@ -227,7 +228,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
       {sections.map(item => <button key={item} type="button" aria-pressed={section === item} onClick={() => setSection(item)}>{item}</button>)}
     </div>
     {section === 'Details' && <section className="wu-chat-description">
-      <h3>Description</h3><p>{thread.member ? 'Private conversation with ' + thread.member + '.' : 'General discussion for DevUP. Share project updates, ask questions, and keep the team in the loop.'}</p>
+      <h3>Description</h3><p>{thread.member ? 'Private conversation with ' + thread.member + '.' : 'General discussion for ' + workspaceName + '. Share project updates, ask questions, and keep the team in the loop.'}</p>
     </section>}
     {(section === 'Details' || section === 'Members') && <section>
       <h3>Members ({members.length})</h3>
@@ -345,7 +346,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
           {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !canSend}>Retry send</button></p>}
           {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview.slice(0, 100)}</span><button className="wu-icon-button" type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></button></div>}
           <div className="wu-chat-composer">
-            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
+            <textarea ref={composer} rows={1} aria-label="Message" placeholder={`Message ${thread.title}…`} value={draft.text} disabled={sending}
               onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value, reply: draft.reply } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></button>

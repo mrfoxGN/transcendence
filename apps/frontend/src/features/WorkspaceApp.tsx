@@ -186,7 +186,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }, [boardAttempt]);
 
   useEffect(() => {
-    document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · DevUP`;
+    document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · ${workspaceName} · DevUP`;
     const onPop = () => {
       setPage(getPageFromUrl());
       setSettingsSection(location.hash);
@@ -196,7 +196,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [page]);
+  }, [page, workspaceName]);
 
   useEffect(() => {
     const preference = matchMedia('(prefers-color-scheme: dark)');
@@ -424,7 +424,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function pageHeading(action?: ReactNode) {
     return <header className="wu-page-heading">
-      <h1>{pageLabel}</h1>
+      <h1>
+        {pageLabel}
+        {page === 'home' && <span className="wu-muted" style={{ fontWeight: 400, marginInlineStart: 8 }}>· {workspaceName}</span>}
+      </h1>
       {action && <div className="wu-page-action">{action}</div>}
     </header>;
   }
@@ -584,7 +587,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'chat': return token && (
         <ChatPage
-          key={profileId + ':' + workspaceId} workspaceId={workspaceId} chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
+          key={profileId + ':' + workspaceId} workspaceId={workspaceId} workspaceName={workspaceName} chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
           profileName={profileName} roster={members.items ?? []} workspaceArchived={archived}
         />
       );
