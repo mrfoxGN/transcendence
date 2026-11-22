@@ -3,8 +3,8 @@ import { Download, Link2, Pencil, Search, Upload } from 'lucide-react';
 import { Panel } from '../components';
 import { WorkspaceIllustration } from '../WorkspaceIllustration';
 import { ActionMenu, DocumentPagination, Drawer, LoadingPanel } from '../WorkspaceControls';
-import { documentPagePath, documentPageSize, fileSize, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from '../workspace-api';
-import { FilePreview, FileTypeIcon } from '../FilePreview';
+import { documentPageSize, fileSize, jsonRequest, useWorkspaceCollection, workspaceRequest, type WorkspaceFile } from '../workspace-api';
+import { FilePreview, FileTypeIcon, getFileKind } from '../FilePreview';
 import { uploadLimit, uploadWorkspaceFile } from '../upload-workspace-file';
 import type { PageHeading } from '../types';
 import type { Member } from '../workspace-tasks';
@@ -35,13 +35,30 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
   const [kind, setKind] = useState('');
   const [uploader, setUploader] = useState('');
   const [page, setPage] = useState(1);
-  const filters = new URLSearchParams();
-  if (kind) filters.set('kind', kind);
-  if (uploader) filters.set('uploaderId', uploader);
+  const listPath = `${path.split('?')[0]}?page=1&limit=100`;
+  const { items: listedFiles, setItems, error: loadError, retry } = useWorkspaceCollection<WorkspaceFile>(listPath, token);
+  const allFiles = listedFiles ?? files ?? [];
   const filtered = !!(kind || uploader || search.trim());
-  const { items: listedFiles, setItems, error: loadError, retry } = useWorkspaceCollection<WorkspaceFile>(
-    documentPagePath(path, page, search, sort) + (filters.size ? '&' + filters : ''), token,
-  );
+  const queryText = search.trim().toLowerCase();
+
+  const filteredFiles = allFiles.filter(item => {
+    if (kind && getFileKind(item) !== kind) return false;
+    if (uploader && item.uploaderId !== uploader) return false;
+    if (queryText && !item.displayName.toLowerCase().includes(queryText)) return false;
+    return true;
+  });
+
+  const sortedFiles = [...filteredFiles].sort((a, b) => {
+    if (sort === 'name') {
+      return a.displayName.localeCompare(b.displayName);
+    }
+    if (sort === 'size') {
+      return Number(b.sizeBytes) - Number(a.sizeBytes);
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const paginatedFiles = sortedFiles.slice((page - 1) * documentPageSize, page * documentPageSize);
   const [linkedFile, setLinkedFile] = useState<WorkspaceFile>();
   const [fileError, setFileError] = useState(false);
   const [fileAttempt, setFileAttempt] = useState(0);
@@ -54,10 +71,11 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
   const [deleting, setDeleting] = useState(false);
   const [renaming, setRenaming] = useState<WorkspaceFile>();
   const [renameBusy, setRenameBusy] = useState(false);
-  const file = listedFiles?.find(item => item.id === selectedId)
-    ?? files?.find(item => item.id === selectedId)
+  const file = allFiles.find(item => item.id === selectedId)
     ?? (linkedFile?.id === selectedId ? linkedFile : undefined);
-  const recent = files?.slice(0, 4) ?? [];
+  const recent = [...allFiles]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
   useEffect(() => () => uploadRequest.current?.abort(), []);
 
   useEffect(() => {
@@ -86,6 +104,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
     uploadRequest.current = controller;
     try {
       const created = await uploadWorkspaceFile(path, token, file, setUploadProgress, controller.signal);
+      setItems(items => [created, ...(items ?? [])]);
       onUpload(created);
       retry();
     } catch (error) {
@@ -122,6 +141,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
     setDeleting(true);
     try {
       await workspaceRequest(path + '/' + encodeURIComponent(removing.id), token, { method: 'DELETE' });
+      setItems(items => items?.filter(item => item.id !== removing.id));
       onDelete(removing.id);
       retry();
       if (selectedId === removing.id) setSelectedId('');
@@ -219,12 +239,12 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
           {filtered && <button className="wu-text-button" type="button" onClick={() => { setKind(''); setUploader(''); setSearch(''); setPage(1); }}>Clear filters</button>}
         </div>
         {loadError && <p role="alert">Could not load files. <button className="wu-text-button" onClick={retry}>Try again</button></p>}
-        {!listedFiles && !loadError && <LoadingPanel label="Loading workspace files" />}
-        {listedFiles?.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="folder" /><p className="wu-muted">{page > 1 ? 'No files on this page.' : filtered ? 'No files match these filters.' : 'No files yet.'}</p></div>}
-        {!!listedFiles?.length && <table className="wu-table wu-list-table wu-files-table" role="table" aria-label="Workspace files">
+        {!listedFiles && !files && !loadError && <LoadingPanel label="Loading workspace files" />}
+        {(listedFiles || files) && sortedFiles.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="folder" /><p className="wu-muted">{page > 1 ? 'No files on this page.' : filtered ? 'No files match these filters.' : 'No files yet.'}</p></div>}
+        {!!sortedFiles.length && <table className="wu-table wu-list-table wu-files-table" role="table" aria-label="Workspace files">
           <thead role="rowgroup"><tr role="row"><th scope="col">Name</th><th scope="col">Date added</th><th scope="col">Size</th><th scope="col">Uploaded by</th><th scope="col"><span className="wu-visually-hidden">Actions</span></th></tr></thead>
           <tbody role="rowgroup">
-            {listedFiles.slice(0, documentPageSize).map(item => <tr key={item.id} role="row">
+            {paginatedFiles.map(item => <tr key={item.id} role="row">
               <td role="cell"><button className="wu-list-item-name" type="button" onClick={() => selectFile(item.id)}><FileTypeIcon file={item} /><span>{item.displayName}</span></button></td>
               <td role="cell" data-label="Date added" className="wu-muted">{new Date(item.createdAt).toLocaleDateString()}</td>
               <td role="cell" data-label="Size" className="wu-muted">{fileSize(item.sizeBytes)}</td>
@@ -239,7 +259,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
             </tr>)}
           </tbody>
         </table>}
-        <DocumentPagination page={page} count={listedFiles?.length} onPage={setPage} />
+        <DocumentPagination page={page} count={sortedFiles.length - (page - 1) * documentPageSize} onPage={setPage} />
     </Panel>
     {drawerOpen && <Drawer title="File details" onClose={() => setDrawerOpen(false)}>
       <div className="wu-file-inspector">{fileError ? <p role="alert">This file could not be opened. It may have been removed or you may not have access. <button className="wu-text-button" onClick={() => { setFileError(false); setFileAttempt(value => value + 1); }}>Try again</button></p>

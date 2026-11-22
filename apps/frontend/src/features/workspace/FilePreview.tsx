@@ -5,10 +5,41 @@ import { workspaceRequest, type WorkspaceFile } from './workspace-api';
 const rasterTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'];
 const textTypes = ['text/plain', 'text/csv'];
 
+export function getFileKind(file: WorkspaceFile): 'image' | 'document' | 'text' | 'other' {
+  const mime = (file.mimeType ?? '').toLowerCase();
+  const name = (file.displayName ?? '').toLowerCase();
+
+  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/i.test(name)) {
+    return 'image';
+  }
+
+  if (
+    mime === 'application/pdf' ||
+    mime === 'application/msword' ||
+    mime === 'application/rtf' ||
+    mime.startsWith('application/vnd.ms-') ||
+    mime.startsWith('application/vnd.openxmlformats-officedocument.') ||
+    mime.startsWith('application/vnd.oasis.opendocument.') ||
+    /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp|rtf)$/i.test(name)
+  ) {
+    return 'document';
+  }
+
+  if (
+    mime.startsWith('text/') ||
+    /\.(txt|csv|tsv|json|md|xml|log|yaml|yml)$/i.test(name)
+  ) {
+    return 'text';
+  }
+
+  return 'other';
+}
+
 export function FileTypeIcon({ file }: { file: WorkspaceFile }) {
-  const kind = file.mimeType?.startsWith('image/') ? 'image' : file.mimeType?.startsWith('text/') || file.mimeType === 'application/pdf' ? 'document' : 'other';
-  const Icon = kind === 'image' ? FileImage : kind === 'document' ? FileText : File;
-  return <span className="wu-file-type" data-kind={kind}><Icon size={17} aria-hidden="true" /></span>;
+  const kind = getFileKind(file);
+  const Icon = kind === 'image' ? FileImage : kind === 'document' || kind === 'text' ? FileText : File;
+  const dataKind = kind === 'image' ? 'image' : kind === 'document' || kind === 'text' ? 'document' : 'other';
+  return <span className="wu-file-type" data-kind={dataKind}><Icon size={17} aria-hidden="true" /></span>;
 }
 
 export function FilePreview({ file, path, token }: { file: WorkspaceFile; path: string; token: string | null }) {

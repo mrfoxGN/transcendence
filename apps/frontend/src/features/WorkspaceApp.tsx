@@ -109,7 +109,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [inviteDelivery, setInviteDelivery] = useState<TeamInvitation>();
   const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
   const filePath = workspacePath + '/files';
-  const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath, token);
+  const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath + '?page=1&limit=100', token);
   const members = useWorkspaceCollection<Member>(workspacePath + '/members', token);
   const projectsPath = workspacePath + '/projects';
   const projects = useWorkspaceCollection<Project>(projectsPath, page === 'projects' || selectedTaskId ? token : null);
