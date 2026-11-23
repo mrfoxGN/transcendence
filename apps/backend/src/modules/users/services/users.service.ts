@@ -142,7 +142,10 @@ export class UsersService {
     if (
       dto.username === undefined &&
       dto.email === undefined &&
-      dto.avatarUrl === undefined
+      dto.avatarUrl === undefined &&
+      dto.avatarImage === undefined &&
+      dto.theme === undefined &&
+      dto.notificationBadge === undefined
     ) {
       throw new BadRequestException('No changes provided');
     }
@@ -158,6 +161,28 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (dto.avatarImage !== undefined) {
+      if (dto.avatarUrl !== undefined) {
+        throw new BadRequestException('Choose either an image or a URL.');
+      }
+      const encoded = dto.avatarImage.slice('data:image/jpeg;base64,'.length);
+      const image = Buffer.from(encoded, 'base64');
+      if (
+        !dto.avatarImage.startsWith('data:image/jpeg;base64,') ||
+        image.length < 5 ||
+        image.length > 24 * 1024 ||
+        image.toString('base64') !== encoded ||
+        image[0] !== 0xff ||
+        image[1] !== 0xd8 ||
+        image[2] !== 0xff ||
+        image[image.length - 2] !== 0xff ||
+        image[image.length - 1] !== 0xd9
+      ) {
+        throw new BadRequestException('Choose a valid avatar image.');
+      }
+      user.avatarUrl = dto.avatarImage;
     }
 
     if (dto.username !== undefined && dto.username !== user.username) {
@@ -182,6 +207,14 @@ export class UsersService {
 
     if (dto.avatarUrl !== undefined) {
       user.avatarUrl = dto.avatarUrl;
+    }
+
+    if (dto.theme !== undefined) {
+      user.theme = dto.theme;
+    }
+
+    if (dto.notificationBadge !== undefined) {
+      user.notificationBadge = dto.notificationBadge;
     }
 
     user.updatedAt = new Date();

@@ -325,7 +325,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
             <button className="wu-text-button" type="button" disabled={busy} onClick={() => void mutate('/comments/' + comment.id, 'DELETE')}>Delete comment</button>
           </>}
         </div>)}
-      {!readOnly && <form onSubmit={async event => {
+      {!readOnly && <form className="wu-comment-form" onSubmit={async event => {
         event.preventDefault();
         const form = event.currentTarget;
         const content = String(new FormData(form).get('content')).trim();

@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { FileText, Link2, Pencil, Pin, Plus, Search } from 'lucide-react';
+import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link2, Pencil, Pin, Plus, Search, Trash2 } from 'lucide-react';
 import { Panel } from '../components';
-import { WorkspaceIllustration } from '../WorkspaceIllustration';
-import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
-import { documentPageSize, jsonRequest, useWorkspaceCollection, useWorkspaceData, workspaceRequest } from '../workspace-api';
+import { Drawer, LoadingPanel } from '../WorkspaceControls';
+import { documentPageSize, jsonRequest, useWorkspaceData, workspaceRequest } from '../workspace-api';
 import type { PageHeading, Task } from '../types';
 import type { Member } from '../workspace-tasks';
 import './notes.css';
+import './notes-design.css';
+import {NoteCardPreview} from './NoteCardPreview';
+import { useWorkspaceDocumentCollection } from '../workspace-documents';
+import {projectAppearance} from '../project-appearance';
 
 type Note = {
   id: string;
@@ -19,6 +23,7 @@ type Note = {
   updatedAt: string;
 };
 type Draft = { title: string; content: string };
+const NoteRichEditor=lazy(async()=>({default:(await import('./NoteRichEditor')).NoteRichEditor}));
 const noteIdFromUrl = () => location.hash.startsWith('#note-') ? location.hash.slice(6) : '';
 const formatTime = (date: string) => new Date(date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -30,36 +35,22 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
   const [sort, setSort] = useState('updated');
   const [page, setPage] = useState(1);
   const queryText = search.trim().toLowerCase();
-  const clientSideFilter = Boolean(queryText) || sort !== 'updated';
-  const listPath = clientSideFilter
-    ? `${path}?page=1&limit=100`
-    : `${path}?page=${page}&limit=${documentPageSize}`;
-  const list = useWorkspaceCollection<Note>(listPath, token);
-
-  const filtered = clientSideFilter
-    ? (list.items ?? [])
-        .filter(note =>
-          !queryText ||
-          note.title.toLowerCase().includes(queryText) ||
-          (note.content ?? '').toLowerCase().includes(queryText),
-        )
-        .sort((a, b) => {
-          const pinDiff = (b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0) - (a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0);
-          if (pinDiff !== 0) return pinDiff;
-          return sort === 'name'
-            ? a.title.localeCompare(b.title)
-            : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-        })
-    : (list.items ?? []);
-
-  const startIdx = clientSideFilter ? (page - 1) * documentPageSize : 0;
-  const visible = clientSideFilter ? filtered.slice(startIdx, startIdx + documentPageSize) : filtered;
-  const hasNext = clientSideFilter
-    ? filtered.length > startIdx + documentPageSize
-    : (list.items?.length ?? 0) >= documentPageSize;
+  const list = useWorkspaceDocumentCollection<Note>(path, token);
+  const filtered = (list.items ?? [])
+    .filter(note=>!queryText||note.title.toLowerCase().includes(queryText)||(note.content??'').toLowerCase().includes(queryText))
+    .sort((a,b)=>{
+      const pinDiff=(b.pinnedAt?Date.parse(b.pinnedAt):0)-(a.pinnedAt?Date.parse(a.pinnedAt):0);
+      return pinDiff || (sort==='name'?a.title.localeCompare(b.title):Date.parse(b.updatedAt)-Date.parse(a.updatedAt));
+    });
+  const startIdx=(page-1)*documentPageSize;
+  const visible=filtered.slice(startIdx,startIdx+documentPageSize);
+  const hasNext=filtered.length>startIdx+documentPageSize;
+  useEffect(()=>{
+    if(list.items)setPage(value=>Math.min(value,Math.max(1,Math.ceil(filtered.length/documentPageSize))));
+  },[list.items,filtered.length]);
 
   const [selectedId, setSelectedId] = useState(noteIdFromUrl);
-  const activeId = selectedId || visible[0]?.id;
+  const activeId = selectedId;
   const notePath = activeId ? path + '/' + encodeURIComponent(activeId) : '';
   const detail = useWorkspaceData<Note>(notePath, activeId ? token : null);
   const selected = detail.error ? undefined
@@ -74,7 +65,6 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [removing, setRemoving] = useState<Note>();
-  const reader = useRef<HTMLElement>(null);
   const canEdit = (note: Note) => !readOnly && (owner || note.creatorId === profileId);
   const authorName = (note: Note) => note.creatorId === profileId ? 'You' : members.find(member => member.userId === note.creatorId)?.username ?? 'Unknown author';
 
@@ -85,15 +75,14 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
     return () => { window.removeEventListener('popstate', sync); window.removeEventListener('hashchange', sync); };
   }, []);
 
-  function updateDraft(next: Draft) { draftRef.current = next; setDraft(next); }
-  function showNote(id: string, moveFocus = false) {
+  function updateDraft(next: Draft) { draftRef.current = next; setDraft(next); setNotice(''); }
+  function showNote(id: string) {
     setSelectedId(id);
     setError('');
     setNotice('');
     const url = new URL(location.href);
     url.hash = id ? 'note-' + id : '';
     history.replaceState(history.state, '', url);
-    if (moveFocus && matchMedia('(max-width: 780px)').matches) requestAnimationFrame(() => reader.current?.focus());
   }
 
   function storeNote(note: Note) {
@@ -102,6 +91,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
   }
 
   function start(note?: Note) {
+    showNote(note?.id??'');
     baseline.current = note ?? null;
     queuedSave.current = false;
     setError('');
@@ -145,6 +135,13 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
     }
   }
 
+  useEffect(()=>{
+    if(editing!=='edit'||!baseline.current)return;
+    if(draft.title.trim()===baseline.current.title&&draft.content===(baseline.current.content??''))return;
+    const timer=window.setTimeout(()=>{void saveDraft();},900);
+    return()=>window.clearTimeout(timer);
+  },[draft,editing]);
+
   async function changeNote(action: () => Promise<void>) {
     if (readOnly || savingRef.current) return;
     savingRef.current = true;
@@ -171,7 +168,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
       setEditing(undefined);
       setSearch('');
       setPage(1);
-      showNote(note.id, true);
+      showNote(note.id);
       list.retry();
     });
   }
@@ -194,92 +191,59 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
     catch { showNote(selected.id); setError('Copy the note link from the address bar.'); }
   }
 
-  const referenceKeys = new Set((selected?.content ?? '').match(/\bTASK-[1-9]\d*\b/gi)?.map(key => key.toUpperCase()));
+  const referenceKeys = new Set((selected?.content ?? '').match(/\b(?:TASK|DEV)-[1-9]\d*\b/gi)?.map(key => key.toUpperCase()));
   const referencedTasks = tasks.filter(task => task.taskKey && referenceKeys.has(task.taskKey.toUpperCase()));
 
   return <>
-    {pageHeading(!readOnly && <button className="wu-button wu-button--primary" type="button" disabled={busy || !!editing} onClick={() => start()}><Plus size={16} />New note</button>)}
-    <div className="wu-notes-layout">
-      <Panel className="wu-notes-list">
-        <h2>Workspace notes</h2>
-        <div className="wu-notes-tools">
-          <label className="wu-list-search"><Search size={16} aria-hidden="true" />
-            <input type="search" aria-label="Search notes" placeholder="Search notes" maxLength={200} disabled={!!editing}
-              value={search} onChange={event => { setSearch(event.target.value); setPage(1); showNote(''); }} />
-          </label>
-          <select className="wu-select" aria-label="Sort notes" disabled={!!editing} value={sort}
-            onChange={event => { setSort(event.target.value); setPage(1); showNote(''); }}>
-            <option value="updated">Recently updated</option><option value="name">Title A–Z</option>
-          </select>
-        </div>
-        {list.error && <p role="alert">Could not load notes. <button className="wu-text-button" onClick={list.retry}>Try again</button></p>}
-        {!list.items && !list.error && <LoadingPanel label="Loading workspace notes" />}
-        {list.items && visible.length === 0 && <div className="wu-object-empty"><WorkspaceIllustration kind="note" />
-          <p className="wu-muted">{page > 1 ? 'No notes on this page.' : search.trim() ? 'No notes match your search.' : 'No notes yet.'}</p></div>}
-        {!!visible.length && <ul className="wu-notes-items">
-          {visible.map(note => <li key={note.id}>
-            <button className="wu-note-item" data-current={note.id === activeId} aria-current={note.id === activeId ? 'true' : undefined}
-              type="button" disabled={!!editing} onClick={() => showNote(note.id, true)}>
-              <span className="wu-note-list-icon">{note.pinnedAt ? <Pin size={16} aria-label="Pinned" /> : <FileText size={16} aria-hidden="true" />}</span>
-              <span><strong>{note.title}</strong><small>{authorName(note)} · {new Date(note.updatedAt).toLocaleDateString()}</small></span>
-            </button>
-          </li>)}
-        </ul>}
-        {(page > 1 || hasNext) && <nav className="wu-document-pagination" aria-label="Document pages">
-          <button className="wu-button wu-button--secondary" type="button" disabled={!!editing || page === 1} onClick={() => { setPage(page - 1); showNote(''); }}>Previous</button>
-          <span aria-live="polite">Page {page}</span>
-          <button className="wu-button wu-button--secondary" type="button" disabled={!!editing || !hasNext} onClick={() => { setPage(page + 1); showNote(''); }}>Next</button>
-        </nav>}
-      </Panel>
-      <section ref={reader} tabIndex={-1} aria-label="Note reader" className="wu-panel wu-note-editor">
-        {editing ? <form className="wu-note-form" onSubmit={editing === 'new' ? create : event => { event.preventDefault(); void saveDraft(true); }}>
-          <h2>{editing === 'new' ? 'New note' : 'Edit note'}</h2>
-          <label className="wu-field-label">Title<input value={draft.title} onChange={event => updateDraft({ ...draftRef.current, title: event.target.value })}
-            onBlur={() => { if (editing === 'edit') void saveDraft(); }} required maxLength={200} autoFocus placeholder="e.g. Sprint planning notes" /></label>
-          <label className="wu-field-label">Note<textarea value={draft.content} onChange={event => updateDraft({ ...draftRef.current, content: event.target.value })}
-            onBlur={() => { if (editing === 'edit') void saveDraft(); }} rows={12} placeholder="Capture decisions, next steps, or open questions" /></label>
-          <p className="wu-muted">Use a task ID like TASK-42 to link to a workspace task.</p>
-          {error && <p role="alert">{error}</p>}
-          <div className="wu-note-toolbar">
-            {editing === 'new' ? <><button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={() => setEditing(undefined)}>Cancel</button>
-              <button className="wu-button wu-button--primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create note'}</button></>
-              : <><span className="wu-muted" role="status">{busy ? 'Saving…' : notice}</span><button className="wu-button wu-button--secondary" type="button"
-                disabled={busy} onClick={() => void saveDraft(true)}>Done editing</button></>}
+    {pageHeading(!readOnly && <button className="wu-button wu-button--primary wu-button--with-icon" type="button" disabled={busy || !!editing} onClick={() => start()}><Plus size={15} aria-hidden="true"/>New note</button>)}
+    <div className="wu-notes-board">
+      <div className="wu-notes-card-tools">
+        <label className="wu-list-search"><Search size={16} aria-hidden="true"/><input type="search" aria-label="Search notes" placeholder="Search your notes" maxLength={200} value={search} onChange={event=>{setSearch(event.target.value);setPage(1);}}/></label>
+        <select className="wu-select" aria-label="Sort notes" value={sort} onChange={event=>{setSort(event.target.value);setPage(1);}}><option value="updated">Recently updated</option><option value="name">Title A–Z</option></select>
+        {list.items&&<span className="wu-notes-card-count">{filtered.length} {filtered.length===1?'note':'notes'}</span>}
+      </div>
+      {list.error&&<p role="alert">Could not load notes. <button className="wu-text-button" type="button" onClick={list.retry}>Try again</button></p>}
+      {!list.items&&!list.error&&<LoadingPanel label="Loading workspace notes"/>}
+      {error&&!editing&&!removing&&!activeId&&<p role="alert">{error}</p>}
+      {list.items&&!visible.length&&<Panel><IllustratedEmptyState kind={search.trim()?'search':'notes'} title={search.trim()?'No matching notes':'Room for your next idea'} detail={search.trim()?'Try another title or a few words from the note.':'Keep decisions, ideas, and next steps together.'} action={!search.trim()&&!readOnly?'Create note':undefined} onAction={()=>start()}/></Panel>}
+      {!!visible.length&&<ul className="wu-notes-card-grid">{visible.map(note=><li key={note.id}>
+        <article className="wu-note-gradient-card" data-note-id={note.id} style={projectAppearance('note:'+note.id)}>
+          <div className="wu-note-card-actions">
+            {canEdit(note)?<>
+              <button type="button" className="wu-icon-button" aria-label={(note.pinnedAt?'Unpin note: ':'Pin note: ')+note.title} title={note.pinnedAt?'Unpin note':'Pin note'} aria-pressed={!!note.pinnedAt} disabled={busy} onClick={()=>pin(note)}><Pin size={15} fill={note.pinnedAt?'currentColor':'none'} aria-hidden="true"/></button>
+              <button type="button" className="wu-icon-button" aria-label={'Edit note: '+note.title} title="Edit note" disabled={busy} onClick={()=>start(note)}><Pencil size={15} aria-hidden="true"/></button>
+              <button type="button" className="wu-icon-button wu-note-delete" aria-label={'Delete note: '+note.title} title="Delete note" disabled={busy} onClick={()=>{setError('');setRemoving(note);}}><Trash2 size={15} aria-hidden="true"/></button>
+            </>:<span className="wu-note-readonly">Read only</span>}
           </div>
-        </form> : detail.error ? <p role="alert">This note could not be opened. <button className="wu-text-button" type="button" onClick={detail.retry}>Try again</button></p>
-          : selected ? <>
-            <header className="wu-note-header">
-              <div><h2>{selected.title}</h2><p className="wu-note-meta">{authorName(selected)} · Updated {formatTime(selected.updatedAt)}{!canEdit(selected) && ' · Read only'}</p></div>
-              <div className="wu-note-actions">
-                {canEdit(selected) && <button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={() => start(selected)}><Pencil size={15} />Edit</button>}
-                <button className="wu-icon-button" type="button" aria-label="Copy note link" title="Copy link" onClick={() => void copyLink()}><Link2 size={17} /></button>
-                {canEdit(selected) && <ActionMenu label="Note actions" actions={[
-                  { label: selected.pinnedAt ? 'Unpin note' : 'Pin note', disabled: busy, run: () => pin(selected) },
-                  { label: 'Delete note', disabled: busy, run: () => { setError(''); setRemoving(selected); } },
-                ]} />}
-              </div>
-            </header>
-            {error && !removing && <p role="alert">{error}</p>}
-            {notice && <p className="wu-muted" role="status">{notice}</p>}
-            <div className="wu-note-body"><p>{selected.content || 'This note is empty.'}</p></div>
-            {!!referencedTasks.length && <section className="wu-note-linked"><h3>Referenced tasks</h3>
-              {referencedTasks.map(task => <button key={task.id} type="button" className="wu-task-link" onClick={() => onOpenTask(task.id)}>
-                <Link2 size={15} /><span>{task.taskKey} · {task.title}</span></button>)}</section>}
-          </> : activeId ? <LoadingPanel label="Opening note" />
-            : <div className="wu-note-reader-empty"><WorkspaceIllustration kind="note" /><p className="wu-muted">{search.trim() ? 'Select a note from the search results.' : 'Select a note to read it here.'}</p></div>}
-      </section>
+          <h2><button type="button" onClick={()=>showNote(note.id)}>{note.title}</button></h2>
+          <button type="button" className="wu-note-card-read" aria-label={'Read note: '+note.title} onClick={()=>showNote(note.id)}><NoteCardPreview content={note.content??''}/></button>
+          <footer><span>{authorName(note)}</span><time dateTime={note.updatedAt} title={formatTime(note.updatedAt)}>{new Date(note.updatedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</time></footer>
+        </article>
+      </li>)}</ul>}
+      {(page>1||hasNext)&&<nav className="wu-document-pagination" aria-label="Document pages"><button className="wu-button wu-button--secondary" type="button" disabled={page===1} onClick={()=>setPage(page-1)}>Previous</button><span aria-live="polite">Page {page}</span><button className="wu-button wu-button--secondary" type="button" disabled={!hasNext} onClick={()=>setPage(page+1)}>Next</button></nav>}
     </div>
-    {removing && <Drawer title={'Delete ' + removing.title + '?'} confirmation closeDisabled={busy} onClose={() => setRemoving(undefined)}>
-      <p>This removes the note from the workspace.</p>
-      {error && <p role="alert">{error}</p>}
-      <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={busy} onClick={() => setRemoving(undefined)}>Cancel</button>
-        <button className="wu-button wu-button--primary" disabled={busy} onClick={() => void changeNote(async () => {
-          await workspaceRequest(path + '/' + removing.id, token, { method: 'DELETE' });
-          list.setItems(items => items?.filter(item => item.id !== removing.id));
-          showNote('');
-          setRemoving(undefined);
-          list.retry();
-        })}>Delete note</button></div>
+    {(editing||activeId)&&<Drawer title={editing==='new'?'New note':editing==='edit'?'Edit note':selected?.title??'Note'} closeDisabled={busy||!!editing} onClose={()=>{setEditing(undefined);showNote('');}}>
+      <div className="wu-note-workbench"><Suspense fallback={<LoadingPanel label="Loading note editor"/>}>
+        {editing?<form className="wu-note-writing-form" onKeyDown={event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();if(!busy){if(editing==='edit')void saveDraft();else event.currentTarget.requestSubmit();}}}} onSubmit={editing==='new'?create:event=>{event.preventDefault();void saveDraft(true);}}>
+          <label className="wu-field-label">Title<input value={draft.title} onChange={event=>updateDraft({...draftRef.current,title:event.target.value})} required maxLength={200} autoFocus placeholder="Give your note a title"/></label>
+          <NoteRichEditor key={editing==='new'?'new':baseline.current?.id} value={draft.content} onChange={content=>updateDraft({...draftRef.current,content})}/>
+          <p className="wu-note-writing-hint">Reference a task by its ID to keep your notes connected to your work.</p>
+          {error&&<p role="alert">{error}</p>}
+          <div className="wu-note-writing-actions">
+            <span className="wu-muted" role="status">{busy?'Saving…':editing==='new'?'Unsaved draft':(draft.title.trim()!==baseline.current?.title||draft.content!==(baseline.current?.content??''))?'Unsaved changes':notice||'Changes save automatically'}</span>
+            {editing==='new'?<><button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={()=>{setEditing(undefined);showNote('');}}>Cancel</button><button className="wu-button wu-button--primary" type="submit" disabled={busy}>{busy?'Creating…':'Create note'}</button></>:<button className="wu-button wu-button--primary" type="submit" disabled={busy}>Done editing</button>}
+          </div>
+        </form>:detail.error?<p role="alert">This note could not be opened. <button className="wu-text-button" type="button" onClick={detail.retry}>Try again</button></p>:selected?<>
+          <div className="wu-note-reading-meta"><span>{authorName(selected)} · Updated {formatTime(selected.updatedAt)}{!canEdit(selected)&&' · Read only'}</span><div>{canEdit(selected)&&<button className="wu-button wu-button--secondary wu-button--with-icon" type="button" disabled={busy} onClick={()=>start(selected)}><Pencil size={15} aria-hidden="true"/>Edit</button>}<button className="wu-icon-button" type="button" aria-label="Copy note link" title="Copy note link" onClick={()=>void copyLink()}><Link2 size={16} aria-hidden="true"/></button></div></div>
+          {error&&!removing&&<p role="alert">{error}</p>}{notice&&<p className="wu-muted" role="status">{notice}</p>}
+          <NoteRichEditor key={'read-'+selected.id+'-'+selected.updatedAt} value={selected.content||'This note is empty.'} editable={false}/>
+          {!!referencedTasks.length&&<section className="wu-note-linked"><h3>Referenced tasks</h3>{referencedTasks.map(task=><button key={task.id} type="button" className="wu-task-link" onClick={()=>onOpenTask(task.id)}><Link2 size={15} aria-hidden="true"/><span>{task.taskKey} · {task.title}</span></button>)}</section>}
+        </>:<LoadingPanel label="Opening note"/>}
+      </Suspense></div>
+    </Drawer>}
+    {removing&&<Drawer title={'Delete '+removing.title+'?'} confirmation closeDisabled={busy} onClose={()=>setRemoving(undefined)}>
+      <p>This removes the note from the workspace.</p>{error&&<p role="alert">{error}</p>}
+      <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={busy} onClick={()=>setRemoving(undefined)}>Cancel</button><button className="wu-button wu-button--primary" disabled={busy} onClick={()=>void changeNote(async()=>{await workspaceRequest(path+'/'+removing.id,token,{method:'DELETE'});list.setItems(items=>items?.filter(item=>item.id!==removing.id));if(activeId===removing.id)showNote('');setRemoving(undefined);list.retry();})}>Delete note</button></div>
     </Drawer>}
   </>;
 }

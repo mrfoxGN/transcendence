@@ -1,3 +1,4 @@
+import { EmptyIllustration, IllustratedEmptyState } from '../../shared/illustrations/EmptyIllustration';
 import { useEffect, useId, useState, type Ref } from 'react';
 import { Bell, Settings2, Users, Check, X, CheckCircle2 } from 'lucide-react';
 import { jsonRequest, workspaceRequest } from './workspace-api';
@@ -223,7 +224,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
 )}
       {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => void refresh()}>Refresh</button></p>}
       {busy && !updates.length && <p role="status">Loading notifications…</p>}
-      {!busy && !error && !visible.length && <p className="wu-muted">{unreadOnly ? 'You’re all caught up.' : 'No notifications yet.'}</p>}
+      {!busy && !error && !visible.length && <IllustratedEmptyState compact kind="notifications" title={unreadOnly ? 'You’re all caught up' : 'No notifications yet'} detail="New notifications will appear here." />}
       {groups.map(group => group.items.length > 0 && (
         <section key={group.label} className="wu-notification-group">
           <h3>{group.label}</h3>

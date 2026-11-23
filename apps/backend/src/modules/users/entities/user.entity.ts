@@ -4,6 +4,20 @@ import { AppRole, UserStatus } from '../../../database/enums/database.enums';
 
 @Entity('users')
 export class User {
+  @Column({
+    type: 'enum',
+    enum: ['system', 'light', 'dark'],
+    default: 'system',
+  })
+  theme?: 'system' | 'light' | 'dark';
+
+  @Column({
+    name: 'notification_badge',
+    type: 'boolean',
+    default: true,
+  })
+  notificationBadge?: boolean;
+
   @PrimaryColumn({
     type: 'char',
     length: 36,
@@ -33,8 +47,7 @@ export class User {
 
   @Column({
     name: 'avatar_url',
-    type: 'varchar',
-    length: 500,
+    type: 'text',
     nullable: true,
   })
   avatarUrl!: string | null;

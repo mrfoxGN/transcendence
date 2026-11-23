@@ -18,16 +18,8 @@ export function GithubRepositoryIdentity({
       className="wu-github-repository"
       aria-label="Connected GitHub repository"
     >
-      <div className="wu-github-repository__logo">
-        <img
-          src="/github-invertocat.svg"
-          alt=""
-          width={42}
-          height={42}
-        />
-      </div>
-
       <div className="wu-github-repository__content">
+        <div className="wu-github-repository__eyebrow">Connected repository<span className="wu-github-repository__connected">Connected</span></div>
         <h2>
           <a
             href={repositoryUrl}
@@ -56,7 +48,7 @@ export function GithubRepositoryIdentity({
 
           {lastSyncedAt ? (
             <time dateTime={lastSyncedAt}>
-              Last synchronized:{' '}
+              Last synced:{' '}
               {new Date(lastSyncedAt).toLocaleString()}
             </time>
           ) : (

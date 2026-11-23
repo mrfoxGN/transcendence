@@ -49,7 +49,7 @@ export function WorkspaceCommand({ pages, tasks, disabled, onNavigate, onOpenTas
         onClick={() => { if (!dialog.current?.open) dialog.current?.showModal(); }}
       >
         <Search size={16} aria-hidden="true" />
-        <span>Search tasks and pages</span>
+        <span>Search workspace</span>
         <kbd aria-hidden="true">{isApple ? '⌘ K' : 'Ctrl K'}</kbd>
       </button>
       <dialog

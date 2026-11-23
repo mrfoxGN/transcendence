@@ -1,0 +1,5 @@
+.wu-chart-feedback { position: relative; min-width: 0; }
+.devup-design .workspace-app .wu-chart-tooltip { position: absolute; z-index: 8; transform: translate(-50%,-100%); width: 176px; max-width: calc(100% - 16px); padding: 10px 12px; border: 1px solid var(--wu-line); border-radius: 9px; background: var(--wu-surface); color: var(--wu-ink); box-shadow: 0 6px 20px #1724401a; font-size: 11px; line-height: 1.5; }
+.devup-design .workspace-app .wu-chart-tooltip > span { display: block; color: var(--wu-muted); }
+.devup-design .workspace-app .wu-chart-tooltip > strong { display: block; margin-top: 3px; font-size: 13px; font-weight: 500; }
+.devup-design .workspace-app[data-theme=dark] .wu-chart-tooltip { background: var(--wu-raised); border-color: #484b55; box-shadow: inset 0 1px 0 #ffffff08,0 8px 24px #00000055; }

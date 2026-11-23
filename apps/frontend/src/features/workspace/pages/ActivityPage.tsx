@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
+import { useId, useState } from 'react';
 import { Activity, ArrowRight, ArrowRightLeft, CircleAlert, FileMinus, FilePenLine, FileUp, GitBranch, ListPlus, Settings, Shield, StickyNote, UserMinus, UserPlus, type LucideIcon } from 'lucide-react';
-import { FilterChips, Panel } from '../components';
+import { Avatar, FilterChips, Panel } from '../components';
 import { useWorkspaceData } from '../workspace-api';
 import type { Member } from '../workspace-tasks';
 import type { PageHeading } from '../types';
@@ -50,10 +51,44 @@ const resourceActions: Record<string, string> = {
 const fallbackEvent = { label: 'Updated the workspace', icon: Activity, tone: 'neutral' };
 const eventTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-export function WorkspaceActivityList({ items, members, openResource }: {
-  items: ActivityEvent[]; members: Member[]; openResource: (event: ActivityEvent) => boolean;
+function HomeActivityFeed({items,members,openResource,today,timeZone}: {
+  items:ActivityEvent[]; members:Member[]; openResource:(event:ActivityEvent)=>boolean; today:string; timeZone:string;
 }) {
-  if (!items.length) return <p className="wu-muted">No activity in this view.</p>;
+  const id=useId();
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'});
+  const clock=new Intl.DateTimeFormat(undefined,{timeZone,hour:'numeric',minute:'2-digit'});
+  const stamp=new Intl.DateTimeFormat(undefined,{timeZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const sorted=[...items].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt));
+  return <div className="wu-home-activity-groups">{['Today','Earlier'].map((group,index)=>{
+    const events=sorted.filter(event=>(day.format(new Date(event.createdAt))===today)===(group==='Today'));
+    if(!events.length)return null;
+    return <section key={group} aria-labelledby={id+'-'+index}><h3 id={id+'-'+index}>{group}</h3><ul>
+      {events.map(event=>{
+        const member=members.find(person=>person.userId===event.actorUserId);
+        const actor=event.actorName??member?.username??(event.actorUserId?'Former member':'Workspace');
+        const initials=actor.split(/\s+/).slice(0,2).map(word=>word[0]).join('').toUpperCase();
+        const label=eventStyles[event.actionType]?.label??fallbackEvent.label;
+        const action=event.actionType==='MEMBER_JOINED'?'joined the workspace':event.actionType==='MEMBER_LEFT'?'left the workspace':label.toLowerCase();
+        const title=event.metadata?.title??event.metadata?.displayName;
+        const deleted=event.resourceState==='deleted'||['TASK_DELETED','FILE_DELETED','NOTE_DELETED'].includes(event.actionType);
+        const resourceAction=resourceActions[event.resourceType??''];
+        return <li key={event.id}>
+          <span className="wu-home-activity-avatar" aria-hidden="true">{member?.avatarUrl?<img src={member.avatarUrl} alt=""/>:<Avatar initials={initials} preview={false} small/>}</span>
+          <div className="wu-home-activity-copy"><p><strong>{actor}</strong> {action}</p>
+            {typeof title==='string'&&title&&(event.resourceId&&resourceAction&&!deleted?<button type="button" aria-label={resourceAction+': '+title} onClick={()=>openResource(event)}>{title}</button>:<span className="wu-home-activity-resource">{title}{deleted?' · Deleted':''}</span>)}
+          </div>
+          <time dateTime={event.createdAt} title={stamp.format(new Date(event.createdAt))}>{group==='Today'?clock.format(new Date(event.createdAt)):stamp.format(new Date(event.createdAt))}</time>
+        </li>;
+      })}
+    </ul></section>;
+  })}</div>;
+}
+
+export function WorkspaceActivityList({ items, members, openResource, home=false, today, timeZone='Africa/Casablanca' }: {
+  items: ActivityEvent[]; members: Member[]; openResource: (event: ActivityEvent) => boolean; home?:boolean; today?:string; timeZone?:string;
+}) {
+  if (!items.length) return <IllustratedEmptyState compact kind="activity" title="No activity in this view" detail="Updates will appear as your team works." />;
+  if(home && today) return <HomeActivityFeed items={items} members={members} openResource={openResource} today={today} timeZone={timeZone}/>;
   return <ul className="wu-event-feed">{items.map(event => {
     const { label, icon: Icon, tone } = eventStyles[event.actionType] ?? fallbackEvent;
     const title = event.metadata?.title ?? event.metadata?.displayName;

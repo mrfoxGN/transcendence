@@ -1,3 +1,5 @@
+import { ChartTooltipSurface } from '../../../shared/charts/ChartTooltipSurface';
+import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Clock3, List, Table2 } from 'lucide-react';
 import { FilterChips, Panel } from '../components';
@@ -39,7 +41,7 @@ function elapsed(ms: number) {
 }
 
 function TaskRows({ rows, onOpen }: { rows: (ReportTask & { key?: string; detail?: string })[]; onOpen: (id: string) => void }) {
-  if (!rows.length) return <p className="wu-muted">No tasks contribute to this metric.</p>;
+  if (!rows.length) return <IllustratedEmptyState compact kind="analytics" title="No tasks for this metric" detail="Try another period or check back after your team makes progress." />;
   return <ul className="wu-analytics-task-list">{rows.map(row => <li key={row.key ?? row.id}>
     <div><strong>{row.title}</strong><small>{[row.taskKey, row.detail].filter(Boolean).join(' · ')}</small></div>
     {row.deleted ? <span className="wu-muted">Deleted</span> : <button type="button" className="wu-text-button" aria-label={'Open task: ' + row.title}
@@ -102,7 +104,7 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
         </select></label>
       </div>
       {report.error ? <Panel className="wu-content-panel"><p role="alert">Could not load the period report. <button className="wu-text-button" type="button" onClick={report.retry}>Try again</button></p></Panel>
-        : !report.data ? <LoadingPanel label="Loading the period report" /> : <>
+        : !report.data ? <LoadingPanel label="Loading the period report" /> : !report.data.rows.length ? <Panel className="wu-content-panel"><IllustratedEmptyState kind="analytics" title="Your progress will appear here" detail="Reports will take shape as your team works on tasks." /></Panel> : <>
           <div className="wu-analytics-totals">
             <button type="button" className="wu-panel wu-analytics-total" onClick={() => setDrill({ kind: 'completion' })}>
               <span>Completion events</span><strong>{report.data.completions.length}</strong><ArrowRight size={15} aria-hidden="true" />
@@ -116,28 +118,28 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
           {view === 'Charts' ? <div className="wu-analytics-grid">
             <Panel className="wu-content-panel">
               <h3>Completion events by day</h3>
-              <div className="wu-analytics-scale" aria-hidden="true">{maxCompleted}</div>
-              <div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
+              <div className="wu-analytics-scale" aria-hidden="true">{maxCompleted} {maxCompleted === 1 ? 'event' : 'events'}</div>
+              <ChartTooltipSurface><div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
                 {rows.map(row => <button key={row.day} type="button" data-count={row.completed} className="wu-analytics-bar"
-                  title={dayLabel(row.day) + ' · ' + row.completed + ' completions'} aria-label={dayLabel(row.day) + ', ' + row.completed + ' completion events'}
+                  data-chart-label={dayLabel(row.day)} data-chart-detail={row.completed+' completion events'} aria-label={dayLabel(row.day) + ', ' + row.completed + ' completion events'}
                   onClick={() => setDrill({ kind: 'completion', day: row.day })}>
                   <span style={{ height: row.completed / maxCompleted * 100 + '%' }} />
                 </button>)}
-              </div>
-              <div className="wu-analytics-axis"><span>{dayLabel(rows[0].day)}</span><span>{dayLabel(rows[rows.length - 1].day)}</span></div>
+              </div></ChartTooltipSurface>
+              <div className="wu-analytics-axis">{[...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])].map(index => <span key={rows[index].day}>{dayLabel(rows[index].day)}</span>)}</div>
             </Panel>
             <Panel className="wu-content-panel">
               <h3>Cumulative flow</h3>
-              <div className="wu-analytics-scale" aria-hidden="true">{maxFlow}</div>
-              <div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
+              <div className="wu-analytics-scale" aria-hidden="true">{maxFlow} {maxFlow === 1 ? 'task' : 'tasks'}</div>
+              <ChartTooltipSurface><div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
                 {rows.map(row => <button key={row.day} type="button" className="wu-analytics-bar wu-analytics-bar--stack"
-                  title={dayLabel(row.day) + ' · ' + statuses.reduce((sum, status) => sum + row.counts[status], 0) + ' tasks'}
+                  data-chart-label={dayLabel(row.day)} data-chart-detail={statuses.reduce((sum,status)=>sum+row.counts[status],0)+' tasks'}
                   aria-label={'Status breakdown for ' + dayLabel(row.day)} onClick={() => setDrill({ kind: 'flow', day: row.day })}>
                   {statuses.map(status => row.counts[status] > 0 && <span key={status} data-status={status}
                     style={{ height: row.counts[status] / maxFlow * 100 + '%' }} />)}
                 </button>)}
-              </div>
-              <div className="wu-analytics-axis"><span>{dayLabel(rows[0].day)}</span><span>{dayLabel(rows[rows.length - 1].day)}</span></div>
+              </div></ChartTooltipSurface>
+              <div className="wu-analytics-axis">{[...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])].map(index => <span key={rows[index].day}>{dayLabel(rows[index].day)}</span>)}</div>
               <ul className="wu-analytics-legend">{statuses.map(status => <li key={status}><i data-status={status} />{statusLabels[status]}</li>)}</ul>
             </Panel>
           </div> : <Panel className="wu-content-panel">

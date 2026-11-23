@@ -10,6 +10,8 @@ export class UserMapper {
       emailVerified: user.verifiedEmail === user.email,
       isTwoFactorEnabled: user.isTwoFactorEnabled ?? false,
       avatarUrl: user.avatarUrl,
+      theme: user.theme,
+      notificationBadge: user.notificationBadge,
       appRole: user.appRole,
       status: user.status,
       createdAt: user.createdAt,

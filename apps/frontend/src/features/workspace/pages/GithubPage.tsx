@@ -1,6 +1,5 @@
+import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useState, type FormEvent } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { workspaceIcons } from '../workspace-icons';
 import { Panel } from '../components';
 import { GithubTabs, type GithubTabName } from './GithubTabs';
 import { jsonRequest, useWorkspaceCollection, useWorkspaceData, workspaceRequest, WorkspaceRequestError } from '../workspace-api';
@@ -16,6 +15,7 @@ import { GithubCommits } from './GithubCommits';
 import { GithubContributors } from './GithubContributors';
 import { GithubCollaborators } from './GithubCollaborators';
 import './github.css';
+import './github-design.css';
 
 type Repository = { fullName: string; defaultBranch: string; repositoryUrl: string; lastSyncedAt: string | null; githubRepositoryId: string };
 
@@ -164,7 +164,7 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
     void action('connect', String(new FormData(event.currentTarget).get('repository')));
   }
 
-  return <>
+  return <div className="wu-github-workbench">
     {!repository && pageHeading()}
     {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Refresh</button></p>}
     {notice && <p role="status">{notice}</p>}
@@ -175,18 +175,17 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
           <button className="wu-button wu-button--primary" disabled={busy || !owner}>Connect repository</button></form>}
       <button type="button" className="wu-text-button" disabled={busy} onClick={() => setSetupId('')}>Cancel</button>
     </Panel> : repository === undefined ? !error && <p role="status">Loading repository…</p>
-      : !repository ? <Panel className="wu-content-panel"><h2>No repository connected</h2><p>Connect a public GitHub repository to browse branches and commits.</p>
-        {owner && <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={() => void action('authorize')}><workspaceIcons.github size={16} />Connect GitHub</button>}</Panel>
+      : !repository ? <Panel className="wu-content-panel"><IllustratedEmptyState kind="integrations" title="No repository connected" detail="Connect a public GitHub repository to browse branches and commits." action={owner && !busy ? 'Connect GitHub' : undefined} onAction={() => void action('authorize')} /></Panel>
       : <>
-        <GithubHeader
+        {pageHeading(<GithubHeader
           repositoryUrl={repository.repositoryUrl}
           owner={owner}
           busy={busy}
           onSync={() => void action('sync')}
           onDisconnect={() => void action('disconnect')}
-        />
+        />)}
         <GithubTabs active={tab} owner={owner} onChange={setTab} />
-        <Panel className="wu-content-panel">
+        <Panel className={tab === 'Repository' ? 'wu-content-panel wu-github-overview-shell' : 'wu-content-panel wu-github-tab-panel'}>
           {tab === 'Repository' && (
             <div className="wu-github-overview">
               <GithubRepositoryIdentity
@@ -364,5 +363,5 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
           </div>
         )}
       </>}
-  </>;
+  </div>;
 }

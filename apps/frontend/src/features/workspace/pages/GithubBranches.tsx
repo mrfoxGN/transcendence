@@ -188,7 +188,7 @@ export function GithubBranches({
                       : ''
                   }
                 >
-                  <td>
+                  <td data-label="Branch">
                     <div className="wu-gbranches__branch">
                       <GitBranch
                         size={17}
@@ -207,7 +207,7 @@ export function GithubBranches({
                     </div>
                   </td>
 
-                  <td>
+                  <td data-label="Latest commit">
                     <button
                       type="button"
                       className="wu-gbranches__sha"
@@ -235,7 +235,7 @@ export function GithubBranches({
                     </button>
                   </td>
 
-                  <td>
+                  <td data-label="Protection">
                     {branch.protected ? (
                       <span className="wu-gbranches__protected">
                         <LockKeyhole
@@ -251,7 +251,7 @@ export function GithubBranches({
                     )}
                   </td>
 
-                  <td>
+                  <td data-label="Action">
                     <a
                       className="wu-gbranches__view"
                       href={branchUrl(repositoryUrl, branch.name)}

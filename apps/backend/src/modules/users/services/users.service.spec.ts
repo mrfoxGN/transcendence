@@ -113,6 +113,66 @@ describe('UsersService', () => {
     );
   });
 
+  it('updates an avatar image', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      save: jest.fn().mockImplementation((user: User) => Promise.resolve(user)),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+    const avatarImage = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9]).toString('base64')}`;
+
+    const response = await service.updateProfile(makeUser().id, { avatarImage });
+
+    expect(response.avatarUrl).toBe(avatarImage);
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: makeUser().id, avatarUrl: avatarImage }),
+    );
+  });
+
+  it('rejects an invalid avatar image', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      save: jest.fn(),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+
+    await expect(
+      service.updateProfile(makeUser().id, { avatarImage: 'data:image/jpeg;base64,invalid' }),
+    ).rejects.toThrow('Choose a valid avatar image.');
+  });
+
+  it('rejects update with both avatarUrl and avatarImage', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      save: jest.fn(),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+    const avatarImage = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9]).toString('base64')}`;
+
+    await expect(
+      service.updateProfile(makeUser().id, { avatarUrl: 'https://example.com/avatar.jpg', avatarImage }),
+    ).rejects.toThrow('Choose either an image or a URL.');
+  });
+
+  it('updates theme and notificationBadge', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue(makeUser()),
+      save: jest.fn().mockImplementation((user: User) => Promise.resolve(user)),
+    };
+    const service = new UsersService(repository as unknown as Repository<User>);
+
+    const response = await service.updateProfile(makeUser().id, {
+      theme: 'dark',
+      notificationBadge: false,
+    });
+
+    expect(response.theme).toBe('dark');
+    expect(response.notificationBadge).toBe(false);
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: makeUser().id, theme: 'dark', notificationBadge: false }),
+    );
+  });
+
   it('rejects an existing username', async () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue(makeUser()),

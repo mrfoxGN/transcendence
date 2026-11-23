@@ -1,3 +1,4 @@
+import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { Reply, ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, SquarePen, X } from 'lucide-react';
 import { workspaceIcons } from '../workspace-icons';
@@ -290,7 +291,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
           </form>
           {searching && <p role="status">Searching…</p>}
           {searchError && <p role="alert">{searchError}</p>}
-          {!searching && searchPage > 0 && !results.length && <p>No matching messages.</p>}
+          {!searching && searchPage > 0 && !results.length && <IllustratedEmptyState compact kind="search" title="No matching messages" detail="Try a different word or phrase." />}
           {results.map(message => <article key={message.id}>
             <strong>{message.senderId === profileId ? 'You' : teammateName(message.senderId)}</strong>{' '}
             <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
@@ -313,7 +314,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
           {chat.error && <p role="alert">{chat.error} <button className="wu-text-button" type="button" onClick={chat.retry}>Try again</button></p>}
           {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading || chat.loadingOlder} onClick={() => void chat.loadOlder()}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</button>}
           {chat.loading && <p role="status">Loading messages…</p>}
-          {!chat.loading && !chat.error && !thread.messages.length && <p className="wu-chat-empty">{readOnly ? 'No messages in this conversation.' : 'Start the conversation with ' + thread.title + '.'}</p>}
+          {!chat.loading && !chat.error && !thread.messages.length && <IllustratedEmptyState kind="messages" title="Start the conversation" detail={readOnly ? 'No messages in this conversation.' : 'Share an update or ask your team a question below.'} />}
           {thread.messages.map((message, index) => {
             const date = new Date(message.sentAt);
             const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
@@ -358,7 +359,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
       {drawer === 'details' && <div className="wu-chat-details-body">{details}</div>}
       {drawer === 'new' && <div className="wu-chat-picker">
         {conversationError && <p role="alert">{conversationError}</p>}
-        {!teammates.length && <p className="wu-chat-empty">No other workspace members yet.</p>}
+        {!teammates.length && <IllustratedEmptyState compact kind="team" title="No teammates yet" detail="Invite someone from the Team page to start a direct conversation." />}
         {teammates.map(person => <button key={person.userId} className="wu-conversation" type="button" disabled={sending} onClick={() => void startConversation(person.userId, person.username)}>
           <Portrait name={person.username} /><span className="wu-conversation-copy"><strong>{person.username}</strong></span><ChevronRight size={16} />
         </button>)}
