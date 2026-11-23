@@ -1,54 +1,39 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -euo pipefail
+# Only the backup owner can read newly created files.
+umask 077
 
-# On the host, `make backup` asks the running backup container for a one-off copy.
-if [[ "${BASH_SOURCE[0]}" != /scripts/backup.sh ]]; then
-  root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-  exec docker compose -f "$root/docker-compose.prod.yml" exec -T backup \
-    /bin/bash /scripts/backup.sh --once
+BACKUP_DIR="/backups"
+TIMESTAMP=$(date -u +%Y-%m-%d_%H-%M-%S_UTC)
+BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP"
+RETENTION_DAYS=7
+FILE_OWNER=$(stat -c '%u:%g' /scripts/backup.sh)
+
+# 1. Prepare a private folder for this backup.
+chown "$FILE_OWNER" "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
+if [[ -e "$BACKUP_PATH" ]]; then
+  echo 'Backup already exists'
+  exit 1
 fi
+WORK_DIR=$(mktemp -d "$BACKUP_DIR/.partial-XXXXXX")
+# Remove the unfinished folder if a command fails.
+trap 'rm -rf -- "$WORK_DIR"' EXIT
 
-backup_once() {
-  [[ -d /backups && -d /storage ]] || { echo 'Backup mounts missing' >&2; return 1; }
-  umask 077
-  owner="$(stat -c '%u:%g' /scripts/backup.sh)"
-  chown "$owner" /backups
-  chmod 700 /backups
+echo "[$(date)] Starting backup..."
+# 2. Save MySQL as compressed SQL.
+mysqldump -h "$DB_HOST" -u "$DB_USER" --single-transaction --quick \
+  --no-tablespaces --routines --triggers --events "$DB_NAME" | gzip > "$WORK_DIR/mysql.sql.gz"
 
-  stamp="$(date -u +%Y-%m-%d_%H-%M-%S_UTC)"
-  dest="/backups/$stamp"
-  [[ ! -e "$dest" ]] || { echo "Backup already exists: $dest" >&2; return 1; }
-  temp="$(mktemp -d "/backups/.partial-${stamp}-XXXXXX")"
-  trap 'rm -rf -- "$temp"' EXIT
+# 3. Check the SQL archive, then mark the backup as complete.
+gzip -t "$WORK_DIR/mysql.sql.gz"
+chown -R "$FILE_OWNER" "$WORK_DIR"
+mv -T -- "$WORK_DIR" "$BACKUP_PATH"
+echo "[$(date)] Backup saved: $BACKUP_PATH"
 
-  mysqldump --protocol=TCP -h "$DB_HOST" -u "$DB_USER" \
-    --single-transaction --quick --no-tablespaces \
-    --routines --triggers --events "$DB_NAME" | gzip -c > "$temp/mysql.sql.gz"
-  tar -czf "$temp/storage.tar.gz" -C /storage .
-  gzip -t "$temp/mysql.sql.gz"
-  tar -tzf "$temp/storage.tar.gz" >/dev/null
-  chmod 600 "$temp/mysql.sql.gz" "$temp/storage.tar.gz"
-  chown -R "$owner" "$temp"
-  mv -T -- "$temp" "$dest"
-  printf 'Backup OK: %s\n' "$dest"
-}
-
-if [[ "${1:-}" == --once ]]; then
-  backup_once
-elif [[ $# -eq 0 ]]; then
-  while true; do
-    if /bin/bash /scripts/backup.sh --once; then
-      next="$(date -d 'tomorrow 03:00:00' +%s)"
-      delay=$((next - $(date +%s)))
-      (( delay > 0 )) || delay=60
-      printf 'Next backup: %s\n' "$(date -d "@$next" '+%Y-%m-%d %H:%M:%S %Z')"
-      sleep "$delay"
-    else
-      echo 'Backup failed; retrying in 5 minutes.' >&2
-      sleep 300
-    fi
-  done
-else
-  echo 'Usage: backup.sh [--once]' >&2
-  exit 2
-fi
+# 4. Delete snapshots older than seven days, only after a successful backup.
+# Ignore unfinished backups and directories such as local-recovery.
+find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d \
+  -name '20??-??-??_??-??-??_UTC' -mmin +$((RETENTION_DAYS * 1440)) \
+  -exec rm -rf -- {} +
+echo "[$(date)] Done. Backups older than $RETENTION_DAYS days removed."

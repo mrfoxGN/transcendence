@@ -137,7 +137,7 @@ logs:
 # ==========================================
 
 backup:
-	bash scripts/backup.sh
+	$(COMPOSE) exec -T backup /bin/bash /scripts/backup.sh
 
 restore:
 	@test -n "$(BACKUP)" || { echo "Usage: make restore BACKUP=backups/<date>" >&2; exit 2; }
