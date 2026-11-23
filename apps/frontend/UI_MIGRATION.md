@@ -117,3 +117,6 @@ The production build still reports the pre-existing large-bundle warning.
 
 No migration commits have been pushed. Test accounts/records exist only in the
 isolated stack; the previous demo workspace/database was not migrated.
+
+
+Backend-team handoff: [API requests, priorities and acceptance criteria](BACKEND_API_REQUESTS.md).

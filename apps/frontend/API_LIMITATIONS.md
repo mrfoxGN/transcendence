@@ -1,6 +1,7 @@
 # Features not supplied by the current backend APIs
 
 Target: `mrfoxGN/transcendence` main `d401454`, backend source unchanged by migration.
+Backend-team request: [proposed contracts and acceptance criteria](BACKEND_API_REQUESTS.md).
 See [backend audit](../../docs/backend-audit/README.md) for controller/DTO evidence.
 This report distinguishes missing server support from working frontend fallbacks.
 
