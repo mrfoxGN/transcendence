@@ -6,7 +6,7 @@ const browser = await chromium.launch({headless:true,executablePath:process.env.
 const page = await browser.newPage({viewport:{width:1440,height:950}});
 const wid='11111111-1111-4111-8111-111111111111', uid='22222222-2222-4222-8222-222222222222';
 const stamp='2026-11-22T12:00:00Z';
-const profile={id:uid,username:'Alex Morgan',email:'alex@example.test',theme:'light',emailVerified:true,avatarUrl:null,notificationBadge:true};
+const profile={id:uid,username:'Alex Morgan',email:'alex@example.test',theme:'light',isTwoFactorEnabled:false,emailVerified:true,avatarUrl:null,notificationBadge:true};
 const workspace={id:wid,ownerId:uid,name:'DevUP workspace',description:'Team workspace',archivedAt:null,reportingTimeZone:'Africa/Casablanca'};
 const members=[{userId:uid,username:'Alex Morgan',isOwner:true,avatarUrl:null,joinedAt:stamp},{userId:'u2',username:'Sarah Kim',isOwner:false,avatarUrl:null,joinedAt:stamp}];
 const statuses=['BACKLOG','TODO','READY','IN_PROGRESS','REVIEW','DONE','CANCELLED'];
@@ -31,7 +31,15 @@ await page.route('**/api/**',async route=>{
  if(path==='auth/profile')return json(profile);
  if(path==='workspaces')return json([workspace]);
  if(path===`workspaces/${wid}`){if(method==='PATCH')Object.assign(workspace,body);return json(workspace);}
- if(path===`users/${uid}`&&method==='PATCH'){Object.assign(profile,body);return json(profile);}
+ if(path===`users/${uid}`&&method==='PATCH'){
+  const unknownKeys=Object.keys(body).filter(key=>!['username','email','theme','notificationBadge','avatarUrl','avatarImage'].includes(key));
+  assert.deepEqual(unknownKeys,[],'Profile follows target DTO');
+  if(body.avatarImage){assert.ok(!('avatarUrl' in body));const jpeg=Buffer.from(body.avatarImage.split(',')[1],'base64');assert.ok(jpeg.length<=24*1024);assert.equal(jpeg[0],255);assert.equal(jpeg[1],216);assert.equal(jpeg.at(-1),217);profile.avatarUrl=body.avatarImage;}
+  Object.assign(profile,Object.fromEntries(Object.entries(body).filter(([key])=>key!=='avatarImage')));return json(profile);
+ }
+ if(path==='auth/2fa/request-enable')return route.fulfill({status:204});
+ if(path==='auth/2fa/confirm-enable'){assert.equal(body.code,'123456');profile.isTwoFactorEnabled=true;return json(profile);}
+ if(path==='auth/2fa/disable'){profile.isTwoFactorEnabled=false;return json(profile);}
  if(path.endsWith('/board'))return json({columns:statuses.map(status=>({status,tasks:tasks.filter(t=>t.status===status)})),boardColumns:columns,activeCount:2,activeWipLimit:5,reportingTimeZone:'Africa/Casablanca',assigneesByTaskId:Object.fromEntries(tasks.map(t=>[t.id,uid]))});
  if(path.endsWith('/members'))return json(members);
  if(path.endsWith('/kanban-settings')){if(method==='PATCH')Object.assign(kanban,body);return json(kanban);}
@@ -65,7 +73,11 @@ await page.route('**/api/**',async route=>{
   if(path.endsWith('/revisions'))return json([]);
   if(method==='POST'){const note={id:'n'+(notes.length+1),...body,creatorId:uid,pinnedAt:null,revision:1,updatedAt:stamp};notes.push(note);return json(note);}
   if(method==='PATCH'){const n=notes.find(n=>n.id===id);assert.ok(!('revision' in body),'Notes use the current update DTO');Object.assign(n,body,{updatedAt:stamp},'pinned' in body?{pinnedAt:body.pinned?stamp:null}:{});return json(n);}
-  return json(id?notes.find(n=>n.id===id):notes);
+  if(id)return json(notes.find(n=>n.id===id));
+  const unsupported=[...url.searchParams.keys()].filter(key=>!['page','limit'].includes(key));
+  if(unsupported.length)return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'Unsupported Notes query'})});
+  const start=(Number(url.searchParams.get('page')??1)-1)*Number(url.searchParams.get('limit')??20);
+  return json(notes.slice(start,start+Number(url.searchParams.get('limit')??20)));
  }
  if(path.endsWith('/assignment'))return json({userId:uid});
  if(path.endsWith('/comments')||path.endsWith('/dependencies'))return json([]);
@@ -78,6 +90,18 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.TARGET_ONLY==='1'){
+  notes.push(...Array.from({length:104},(_,i)=>({id:'note-batch-'+i,title:i===103?'Beyond first hundred notes':`Notes ${String(i).padStart(3,'0')}`,content:'Target-compatible note content',creatorId:uid,updatedAt:stamp,pinnedAt:null})));
+  await page.goto(root+'notes');await page.locator('.wu-note-gradient-card').first().waitFor();assert.equal(await page.locator('.wu-note-gradient-card').count(),20);
+  await page.getByRole('searchbox',{name:'Search notes'}).fill('Beyond first hundred');await page.getByRole('button',{name:'Beyond first hundred notes',exact:true}).waitFor();assert.equal(await page.locator('.wu-note-gradient-card').count(),1);
+  await page.goto(root+'settings#profile');await page.getByRole('button',{name:'Change avatar',exact:true}).click();await page.getByRole('button',{name:'Use your own image'}).click();
+  await page.locator('input[type=file]').setInputFiles('public/illustrations/empty-states/geometric/light/tasks.webp');
+  await page.getByRole('button',{name:'Save avatar',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.wu-avatar-large')?.getAttribute('src')?.startsWith('data:image/jpeg;base64,'));assert.ok(profile.avatarUrl.startsWith('data:image/jpeg;base64,'));
+  await page.goto(root+'settings#appearance');await page.getByRole('button',{name:'Use dark theme',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.workspace-app')?.getAttribute('data-theme')==='dark');assert.equal(profile.theme,'dark');
+  await page.goto(root+'settings#security');await page.getByRole('button',{name:'Enable 2FA',exact:true}).click();await page.locator('.otp-box').first().fill('123456');await page.getByRole('button',{name:'Disable 2FA',exact:true}).waitFor();assert.equal(profile.isTwoFactorEnabled,true);
+  await page.getByRole('button',{name:'Disable 2FA',exact:true}).click();await page.getByRole('button',{name:'Enable 2FA',exact:true}).waitFor();assert.equal(profile.isTwoFactorEnabled,false);
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Target features passed: strict Notes pagination, search beyond 100 notes, JPEG avatar compression/upload, persistent theme API, and enable/disable 2FA DTOs.');process.exit(0);
+ }
  if(process.env.FILES_ONLY==='1'){
   files.push(...Array.from({length:103},(_,i)=>({id:'batch-'+i,displayName:i===102?'Beyond first hundred.pdf':`Batch ${String(i).padStart(3,'0')}.txt`,mimeType:i===102?'application/pdf':'text/plain',sizeBytes:String(i===102?999999:200+i),uploaderId:uid,createdAt:stamp,taskId:null})));
   await page.goto(root+'files');await page.locator('.wu-files-table tbody tr').first().waitFor();

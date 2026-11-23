@@ -3,12 +3,13 @@ import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'rea
 import { Link2, Pencil, Pin, Plus, Search, Trash2 } from 'lucide-react';
 import { Panel } from '../components';
 import { Drawer, LoadingPanel } from '../WorkspaceControls';
-import { documentPageSize, jsonRequest, useWorkspaceCollection, useWorkspaceData, workspaceRequest } from '../workspace-api';
+import { documentPageSize, jsonRequest, useWorkspaceData, workspaceRequest } from '../workspace-api';
 import type { PageHeading, Task } from '../types';
 import type { Member } from '../workspace-tasks';
 import './notes.css';
 import './notes-design.css';
 import {NoteCardPreview} from './NoteCardPreview';
+import { useWorkspaceDocumentCollection } from '../workspace-documents';
 import {projectAppearance} from '../project-appearance';
 
 type Note = {
@@ -34,33 +35,19 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
   const [sort, setSort] = useState('updated');
   const [page, setPage] = useState(1);
   const queryText = search.trim().toLowerCase();
-  const clientSideFilter = Boolean(queryText) || sort !== 'updated';
-  const listPath = clientSideFilter
-    ? `${path}?page=1&limit=100`
-    : `${path}?page=${page}&limit=${documentPageSize}`;
-  const list = useWorkspaceCollection<Note>(listPath, token);
-
-  const filtered = clientSideFilter
-    ? (list.items ?? [])
-        .filter(note =>
-          !queryText ||
-          note.title.toLowerCase().includes(queryText) ||
-          (note.content ?? '').toLowerCase().includes(queryText),
-        )
-        .sort((a, b) => {
-          const pinDiff = (b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0) - (a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0);
-          if (pinDiff !== 0) return pinDiff;
-          return sort === 'name'
-            ? a.title.localeCompare(b.title)
-            : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-        })
-    : (list.items ?? []);
-
-  const startIdx = clientSideFilter ? (page - 1) * documentPageSize : 0;
-  const visible = clientSideFilter ? filtered.slice(startIdx, startIdx + documentPageSize) : filtered;
-  const hasNext = clientSideFilter
-    ? filtered.length > startIdx + documentPageSize
-    : (list.items?.length ?? 0) >= documentPageSize;
+  const list = useWorkspaceDocumentCollection<Note>(path, token);
+  const filtered = (list.items ?? [])
+    .filter(note=>!queryText||note.title.toLowerCase().includes(queryText)||(note.content??'').toLowerCase().includes(queryText))
+    .sort((a,b)=>{
+      const pinDiff=(b.pinnedAt?Date.parse(b.pinnedAt):0)-(a.pinnedAt?Date.parse(a.pinnedAt):0);
+      return pinDiff || (sort==='name'?a.title.localeCompare(b.title):Date.parse(b.updatedAt)-Date.parse(a.updatedAt));
+    });
+  const startIdx=(page-1)*documentPageSize;
+  const visible=filtered.slice(startIdx,startIdx+documentPageSize);
+  const hasNext=filtered.length>startIdx+documentPageSize;
+  useEffect(()=>{
+    if(list.items)setPage(value=>Math.min(value,Math.max(1,Math.ceil(filtered.length/documentPageSize))));
+  },[list.items,filtered.length]);
 
   const [selectedId, setSelectedId] = useState(noteIdFromUrl);
   const activeId = selectedId;
