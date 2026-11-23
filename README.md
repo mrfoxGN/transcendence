@@ -8,39 +8,47 @@ DevUP is a shared workspace for software teams. Teams plan work in a backlog and
 
 ## Instructions
 
-1. Install Docker Engine or Docker Desktop with Docker Compose v2.24 or newer. Start Docker and make sure ports 443, 8080, and 3306 are available. Set `HTTPS_PORT`, `FRONTEND_PORT`, or `MYSQL_PORT` in an optional `.env` to use different ports. See [.env.example](.env.example) for the supported settings.
-2. From the repository root, build and start the stack:
+1. Install Docker Engine, Docker Compose v2.24 or newer, and Make.
+2. From the repository root, create your private configuration if it does not exist:
 
 ```sh
-docker compose up --build --remove-orphans
+cp -n devops/.env.example .env
 ```
 
-3. Open [DevUP](https://localhost) when the services are ready, or use the HTTPS port you configured. Compose starts MySQL, applies migrations, starts the API, and serves the frontend. Nginx redirects HTTP on port 8080 and serves the UI, API, and chat on the same HTTPS origin.
-4. Create an account, choose an avatar, then create a workspace or join one by invitation. Use a second account to try invitations, assignments, and chat.
-5. Stop the stack with `docker compose down`. Compose keeps the database in its named volume and the TLS files in the ignored `nginx/certs/` directory.
+Set the database, JWT, Grafana and email settings in `.env`. Never commit secrets.
+`PUBLIC_HOST`, `BIND_IP`, `HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT` control
+host-facing addresses. The defaults publish Nginx on localhost ports 80, 443 and 8443.
+MySQL and Backend have no published host ports.
 
-For the production stack with monitoring, backups, and the edge Nginx, follow the
-[local production deployment guide](docs/deployment/LOCAL_PRODUCTION.md).
+3. Build and start Production:
 
-Development and Production use one shared Nginx configuration:
-`nginx/nginx.conf.template`. A single Nginx container serves the compiled
-Frontend files and proxies API and WebSocket traffic. The `cert-init` service
-creates a self-signed certificate on first launch and reuses valid certificates
-in `nginx/certs/`. Trust only the public `nginx/certs/fullchain.pem` in your
-test browser or OS; keep `nginx/certs/privkey.pem` private. Existing installations
-can retain an unused `frontend_tls` volume from the older layout; it is no
-longer mounted and is not removed automatically.
+```sh
+make build
+make up
+make status
+```
 
-Set `HTTPS_PORT` in `.env` if port 443 is occupied, and `FRONTEND_PORT` to change
-the Development HTTP redirect port. Set `PUBLIC_HOST` for a custom hostname.
-For a trusted certificate, supply its chain and key as
-`nginx/certs/fullchain.pem` and `nginx/certs/privkey.pem`. Development Compose
-derives account email links and GitHub redirect URLs from `PUBLIC_HOST` and
-`HTTPS_PORT`, unless `PUBLIC_ORIGIN` explicitly overrides those URLs. Register
-the HTTPS callback at `/api/github/callback` in your GitHub OAuth app.
-Configure your own secrets before deploying outside local development.
+Open [DevUP](https://localhost) and accept or explicitly trust the local self-signed
+certificate. Create an account and workspace to start using the application.
+Grafana is available at `/grafana/`, and the status page at `https://localhost:8443/`.
+Use the configured host and ports if you changed `.env`.
 
-Set `AUTH_EMAIL_FROM` and `RESEND_API_KEY` to enable account and invitation emails. Set `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET` to enable the optional GitHub integration.
+4. Stop with `make down`. Named volumes and the root `backups/` directory are preserved.
+
+All deployment configuration is organized under [devops/](devops/README.md), including
+Dockerfiles, Compose, Nginx, monitoring, scripts and deployment documentation.
+The root Makefile forwards commands to `devops/Makefile`. GitHub Actions must stay
+under `.github/workflows/`; `.env` and local backups stay at the repository root.
+Application build contexts retain their `.dockerignore` files under `apps/`.
+
+Nginx serves the built Frontend and proxies Backend and Socket.IO on the same HTTPS
+origin. TLS files are stored under ignored `devops/nginx/certs/`; keep the private key
+secret. Backend's production image is shared with the one-shot migration service.
+
+Automatic backups and restores currently cover **MySQL only**. Uploaded files remain
+in their persistent volume but are not included in new backups. See the
+[backup guide](devops/docs/BACKUP_AND_RESTORE.md) and
+[local production guide](devops/docs/LOCAL_PRODUCTION.md).
 
 ## Resources
 

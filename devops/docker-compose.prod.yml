@@ -27,8 +27,8 @@ services:
   migrate:
     image: ${BACKEND_IMAGE:-transcendence-backend:prod}
     build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+      context: ../apps/backend
+      dockerfile: ../../devops/docker/backend.Dockerfile
     environment:
       NODE_ENV: production
       DB_HOST: mysql
@@ -68,7 +68,7 @@ services:
       MYSQL_PWD: ${DB_PASSWORD}
       TZ: ${BACKUP_TZ:-Africa/Casablanca}
     volumes:
-      - ./backups:/backups
+      - ../backups:/backups
       - ./scripts/backup.sh:/scripts/backup.sh:ro
     networks:
       - database
@@ -79,8 +79,8 @@ services:
   backend:
     image: ${BACKEND_IMAGE:-transcendence-backend:prod}
     build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+      context: ../apps/backend
+      dockerfile: ../../devops/docker/backend.Dockerfile
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -239,8 +239,8 @@ services:
   nginx:
     image: transcendence-nginx:prod
     build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile
+      context: ../apps/frontend
+      dockerfile: ../../devops/docker/frontend.Dockerfile
       target: production
     restart: unless-stopped
     ports:

@@ -1,7 +1,7 @@
 # Local production deployment
 
-This guide describes the current `docker-compose.prod.yml` stack. Run commands
-from the repository root. The same Compose file can be used on another host by
+This guide describes the current `devops/docker-compose.prod.yml` stack. Run commands
+from the repository root. Pass `--env-file .env` when using Compose directly. The same Compose file can be used on another host by
 setting the host and port values in `.env`; commands and URLs below use the
 localhost defaults unless stated otherwise.
 
@@ -10,14 +10,14 @@ localhost defaults unless stated otherwise.
 Copy the example only if `.env` does not exist:
 
 ```bash
-cp -n .env.example .env
+cp -n devops/.env.example .env
 ```
 
 Set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `JWT_SECRET`,
 `GRAFANA_ADMIN_PASSWORD`, and `GRAFANA_SECRET_KEY`. Generate independent values
 for secrets, for example with `openssl rand -hex 32`. Never commit `.env`.
 `PUBLIC_HOST`, `BIND_IP`, `HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT` select the
-host-facing addresses; see `docker-compose.prod.yml` for their defaults.
+host-facing addresses; see `devops/docker-compose.prod.yml` for their defaults.
 `BACKUP_TZ` selects the daily backup timezone and defaults to
 `Africa/Casablanca`. `BACKEND_IMAGE` selects the image shared by Backend and
 migrations.
@@ -30,7 +30,7 @@ GitHub OAuth and token variables are optional until those features are used.
 ## 2. Start and verify
 
 ```bash
-docker compose -f docker-compose.prod.yml config --quiet
+docker compose --env-file .env -f devops/docker-compose.prod.yml config --quiet
 make up
 make status
 ```
@@ -47,14 +47,14 @@ starts after migration and makes its first snapshot at startup.
 
 The `cert-init` service creates a self-signed certificate for `PUBLIC_HOST`, or
 keeps a matching certificate with at least 30 days remaining. The certificate
-and key live in the ignored `nginx/certs/` directory. A self-signed certificate
+and key live in the ignored `devops/nginx/certs/` directory. A self-signed certificate
 requires explicit trust in browsers and HTTPS clients. For a publicly trusted
 certificate, supply one through the deployment's certificate procedure.
 
 With the default localhost host and ports:
 
 ```bash
-curl --cacert nginx/certs/fullchain.pem https://localhost/health
+curl --cacert devops/nginx/certs/fullchain.pem https://localhost/health
 curl -I http://localhost/health
 ```
 
@@ -78,7 +78,7 @@ Backend, MySQL, Prometheus, and the exporters have no direct host ports.
 | `backend` | Runs the API and writes uploaded files to `backend_storage`. |
 | `nginx` | Serves the built Frontend files directly and handles HTTPS, redirects, API and WebSocket routing. |
 | `cert-init` | Prepares the TLS certificate, then exits. |
-| `backup` | Saves database and uploaded-file snapshots to the host `./backups/` directory. |
+| `backup` | Saves MySQL snapshots to the host `./backups/` directory. |
 | `prometheus` | Collects metrics and stores them in `prometheus_data`. |
 | `grafana` | Displays the provisioned dashboard and stores its local state in `grafana_data`. |
 | `node-exporter` | Exposes Linux host CPU, RAM, and filesystem metrics. |
@@ -95,24 +95,23 @@ data. Do not use `down -v` when retaining application data.
 For backup timing, verification, restore and its limitations, follow
 [Backup and restore](BACKUP_AND_RESTORE.md). The current service takes a
 snapshot at startup and then daily at 03:00 in `BACKUP_TZ` while running. The
-backup is local only; automatic retention and notification delivery are not
-configured.
+backup is local only; snapshots older than seven days are removed after successful backups. Notification delivery is not configured.
 
 ## 4. Monitoring and alerts
 
 Open `https://localhost/grafana/` with the Grafana administrator credentials
 from `.env`. If the host or HTTPS port differs, use those configured values.
 The provisioned dashboard is **DevUP Monitoring** at
-`/grafana/d/devup-monitoring/`. Its seven panels show host CPU, host RAM, host
+`/grafana/d/devup-devops/monitoring/`. Its seven panels show host CPU, host RAM, host
 root disk usage, per-service container RAM, per-service container CPU, Docker
 network traffic, and Prometheus scrape-target status. It refreshes every 15
 seconds and initially shows the last hour. The dashboard source is
-`monitoring/dashboards/devup-monitoring.json`; its provisioning and datasource
-files are in `monitoring/`. Persistent dashboard changes should be made in the
+`devops/monitoring/dashboards/devup-monitoring.json`; its provisioning and datasource
+files are in `devops/monitoring/`. Persistent dashboard changes should be made in the
 source JSON.
 
 Prometheus scrapes itself, Node Exporter, and cAdvisor every 15 seconds, as
-specified by `monitoring/prometheus.yml`. It retains samples for seven days by
+specified by `devops/monitoring/prometheus.yml`. It retains samples for seven days by
 time; no separate size limit is configured. Grafana queries Prometheus over the
 internal monitoring network. The dashboard's `up` panel reports scrape-target
 reachability; it does not prove Backend, Frontend, or MySQL application health.
@@ -123,7 +122,7 @@ self-signed certificate identifies `PUBLIC_HOST`. External clients should
 still verify the certificate as shown above. A successful TCP connection does not
 prove that the Backend can execute a database query.
 
-`monitoring/alerts.yml` currently contains three Prometheus rules:
+`devops/monitoring/alerts.yml` currently contains three Prometheus rules:
 
 | Rule | Condition | Pending period |
 | --- | --- | --- |
@@ -139,12 +138,12 @@ error rates, application failures, individual container restarts, or backup
 failures. Validate rule syntax with:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T prometheus promtool check rules /etc/prometheus/alerts.yml
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T prometheus promtool check rules /etc/prometheus/alerts.yml
 ```
 
 Gatus gives a separate status page on `https://localhost:8443/` by default.
 It reports the three configured endpoint checks; its configuration is
-`monitoring/status/config.yaml`. It does not replace application-level tests.
+`devops/monitoring/status/config.yaml`. It does not replace application-level tests.
 
 ## 5. Routine operations
 
@@ -157,10 +156,9 @@ make backup
 
 `make logs` follows Backend and Nginx logs. Static Frontend requests appear in
 Nginx logs. To inspect a particular
-service, use `docker compose -f docker-compose.prod.yml logs --tail=100 SERVICE`.
-The current Compose file does not configure per-container log rotation. Nginx
-writes access logs to stdout in the `app_access` format defined in
-`nginx/nginx.conf.template`; it logs normalized paths without query strings.
+service, use `docker compose --env-file .env -f devops/docker-compose.prod.yml logs --tail=100 SERVICE`.
+The current Compose file does not configure per-container log rotation. Nginx writes access logs to stdout using the currently configured format in
+`devops/nginx/nginx.conf.template`. Do not assume query parameters are redacted.
 Backend logging remains owned by the Backend team.
 
 `make restart` restarts Backend, reloads Nginx, and verifies HTTPS health.
@@ -168,9 +166,8 @@ Backend logging remains owned by the Backend team.
 `make update-frontend` rebuilds and replaces the single Nginx container with
 the new Frontend files. This briefly interrupts both Frontend and proxied API
 connections while Nginx is replaced. The Backend container and data volumes
-are preserved. Development and Production both use the same two-stage
-Frontend Dockerfile and `nginx/nginx.conf.template`, with one Nginx container
-per stack. There are no separate Frontend-specific Nginx configurations or
+are preserved. Production uses `devops/docker/frontend.Dockerfile` and
+`devops/nginx/nginx.conf.template`, with one Nginx container. There are no separate Frontend-specific Nginx configurations or
 TLS entrypoint scripts. Follow
 [Release and rollback](RELEASE_AND_ROLLBACK.md) before versioned releases or
 database schema changes. `make restore BACKUP=backups/TIMESTAMP` restores the

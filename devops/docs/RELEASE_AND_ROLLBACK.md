@@ -1,3 +1,6 @@
+> Current scope: backup/restore covers MySQL only. Uploaded files are not restored.
+> Deployment files now live in `devops/`; run commands from the repository root.
+
 # Backend releases and rollback
 
 This procedure covers the local Backend image. It does not change backend
@@ -34,7 +37,7 @@ Preserve old images; do not prune them while they are rollback candidates.
 2. Confirm the tag does not already exist, then build it once using the existing
    Dockerfile. Use the same image for migration and application execution.
 3. Record its image ID and validate the release against a separate test
-   environment before touching Production. The current `scripts/restore.sh`
+   environment before touching Production. The current `devops/scripts/restore.sh`
    restores in place; it does not create an isolated validation stack.
 4. Ask the backend owner whether the previous application remains compatible
    with the database after the candidate migrations. Test that compatibility.
@@ -47,7 +50,7 @@ export BACKEND_IMAGE=transcendence-backend:release-REPLACE-WITH-UNIQUE-VERSION
 # If this succeeds, STOP: this release name already exists.
 docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}'
 # Only after confirming the tag is unused:
-docker compose -f docker-compose.prod.yml build backend
+docker compose --env-file .env -f devops/docker-compose.prod.yml build backend
 docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}'
 ```
 
@@ -59,7 +62,7 @@ fails. Do not copy a placeholder as an actual release value.
 1. Record the currently running Backend image ID and retain its release tag.
 2. Take a fresh database/files backup with the **current** image selected using
    `make backup`. Save the printed backup path and verify both archives with
-   `bash scripts/restore.sh --check backups/YOUR_TIMESTAMP`. Avoid overlapping
+   `bash devops/scripts/restore.sh --check backups/YOUR_TIMESTAMP`. Avoid overlapping
    the backup with deployment; Backend remains online during the snapshot, so
    file and database contents can change between archive steps.
 3. Set `BACKEND_IMAGE` to the tested candidate. Validate Compose, confirm MySQL
@@ -68,20 +71,20 @@ fails. Do not copy a placeholder as an actual release value.
 4. Run migrations and require exit code 0 before replacing Backend:
 
 ```bash
-docker compose -f docker-compose.prod.yml config --quiet
-docker compose -f docker-compose.prod.yml stop backend
-docker compose -f docker-compose.prod.yml run --rm --no-deps -T migrate
+docker compose --env-file .env -f devops/docker-compose.prod.yml config --quiet
+docker compose --env-file .env -f devops/docker-compose.prod.yml stop backend
+docker compose --env-file .env -f devops/docker-compose.prod.yml run --rm --no-deps -T migrate
 # Continue only after successful migrations:
-docker compose -f docker-compose.prod.yml up -d --no-deps --no-build --pull never --wait --wait-timeout 120 backend
+docker compose --env-file .env -f devops/docker-compose.prod.yml up -d --no-deps --no-build --pull never --wait --wait-timeout 120 backend
 ```
 
 5. Nginx resolves `backend` when loading configuration. Refresh its upstream
    after container replacement, then verify the external HTTPS route:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
-docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
-curl --fail --cacert nginx/certs/fullchain.pem https://localhost/health
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t -c /tmp/nginx.conf
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload -c /tmp/nginx.conf
+curl --fail --cacert devops/nginx/certs/fullchain.pem https://localhost/health
 ```
 
 6. Test actual login/database-dependent application operations and inspect
@@ -99,10 +102,10 @@ ID against the release record, then run:
 
 ```bash
 docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}'
-docker compose -f docker-compose.prod.yml up -d --no-deps --no-build --pull never --wait --wait-timeout 120 backend
-docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
-docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
-curl --fail --cacert nginx/certs/fullchain.pem https://localhost/health
+docker compose --env-file .env -f devops/docker-compose.prod.yml up -d --no-deps --no-build --pull never --wait --wait-timeout 120 backend
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t -c /tmp/nginx.conf
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload -c /tmp/nginx.conf
+curl --fail --cacert devops/nginx/certs/fullchain.pem https://localhost/health
 ```
 
 This replaces only Backend. It does not execute migrations, revert schema,

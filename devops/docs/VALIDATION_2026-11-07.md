@@ -1,3 +1,5 @@
+> Historical record: deployment paths and features may have changed. See [current layout](../README.md) and [current backup scope](BACKUP_AND_RESTORE.md).
+
 # Local Production validation — 2026-11-07
 
 ## Scope

@@ -1,3 +1,5 @@
+> Historical record: deployment paths and features may have changed. See [current layout](../README.md) and [current backup scope](BACKUP_AND_RESTORE.md).
+
 # Production security review and changes — 2026-11-08
 
 Scope: DevOps plan phases 19–20, current local Production runtime, Nginx and

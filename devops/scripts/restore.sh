@@ -2,12 +2,15 @@
 set -euo pipefail
 
 # Locate this project, even when called from another directory.
-ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-COMPOSE_FILE=${COMPOSE_FILE_PATH:-docker-compose.prod.yml}
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+COMPOSE_FILE=${COMPOSE_FILE_PATH:-devops/docker-compose.prod.yml}
 if [[ "$COMPOSE_FILE" != /* ]]; then
   COMPOSE_FILE="$ROOT/$COMPOSE_FILE"
 fi
 COMPOSE=(docker compose -f "$COMPOSE_FILE")
+if [[ -f "$ROOT/.env" ]]; then
+  COMPOSE+=(--env-file "$ROOT/.env")
+fi
 
 # 1. Select the backup. --check validates it without restoring anything.
 CHECK_ONLY=false

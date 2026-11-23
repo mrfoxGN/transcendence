@@ -1,3 +1,6 @@
+> Current scope: backup/restore covers MySQL only. Uploaded files are not restored.
+> Deployment files now live in `devops/`; run commands from the repository root.
+
 # Disaster recovery (current local setup)
 
 This runbook matches the current Compose backup service and restore script.
@@ -28,7 +31,7 @@ application backup.
 ## First response
 
 1. Identify the failed component with `make status` and relevant
-   `docker compose -f docker-compose.prod.yml logs --tail=100 SERVICE` output.
+   `docker compose --env-file .env -f devops/docker-compose.prod.yml logs --tail=100 SERVICE` output.
 2. Preserve the current volumes and any useful logs. Avoid `down -v`, volume
    removal, or a broad Docker prune while investigating.
 3. List available snapshot directories under `backups/` and select the
@@ -37,7 +40,7 @@ application backup.
 4. Verify the selected snapshot:
 
 ```bash
-bash scripts/restore.sh --check backups/YYYY-MM-DD_HH-MM-SS_UTC
+bash devops/scripts/restore.sh --check backups/YYYY-MM-DD_HH-MM-SS_UTC
 ```
 
 This checks gzip/tar readability. It does not check image compatibility or

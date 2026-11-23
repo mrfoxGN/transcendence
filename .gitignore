@@ -5,7 +5,7 @@
 .env.github-oauth
 
 # TLS certificates
-/nginx/certs/
+/devops/nginx/certs/
 /devup-local-cert.pem
 *.key
 *.pem
@@ -41,7 +41,7 @@ tmp/
 temp/
 /apps/backend/storage/
 /storage/
-/monitoring/status/data/
+/devops/monitoring/status/data/
 
 # Docker local overrides and temporary copies
 docker-compose.override.yml

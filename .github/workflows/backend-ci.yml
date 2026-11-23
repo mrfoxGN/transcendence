@@ -46,7 +46,7 @@ jobs:
         run: npm run build
 
       - name: Build production Docker image
-        run: docker build --tag transcendence-backend:ci .
+        run: docker build -f ../../devops/docker/backend.Dockerfile --tag transcendence-backend:ci .
 
   migrations:
     name: Verify migrations on a fresh database
