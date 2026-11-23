@@ -18,6 +18,7 @@ const projects=[{id:'p1',name:'Workspace experience',ownerId:uid,targetDate:'202
 const commits=tasks.map((t,i)=>({id:'co'+i,sha:String(i+1).repeat(40),message:t.title,authorName:'Alex Morgan',committedAt:stamp,githubUrl:'https://github.com/example/devup/commit/'+String(i+1).repeat(40)}));
 const activity=tasks.map((t,i)=>({id:'a'+i,actorUserId:uid,actorName:'Alex Morgan',actionType:'TASK_CREATED',resourceType:'task',resourceId:t.id,resourceState:'available',subjectName:t.title,metadata:{title:t.title,taskTitle:t.title},createdAt:stamp}));
 const kanban={activeWipLimit:5,definitionOfReady:'Clear scope',definitionOfDone:'Reviewed'};
+const chatMessages=Array.from({length:18},(_,i)=>({id:'message-'+i,senderId:i%4<2?'u2':uid,content:i===17?'Latest update: the chat layout is ready for review.':i===15?'Long message '+('Readable content with clear spacing. '.repeat(30)):'Project update '+i,createdAt:new Date(Date.parse(stamp)+i*60000).toISOString()}));
 const errors=[],unknown=[],writes=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>sessionStorage.setItem('devup.access-token','test-contract-token'));
@@ -48,8 +49,13 @@ await page.route('**/api/**',async route=>{
  if(path.endsWith('/unread-count'))return json({count:0});
  if(path.startsWith('notifications'))return json([]);
  if(path.endsWith('/invitations'))return json([]);
- if(path==='direct-conversations')return json([]);
- if(path.endsWith('/messages'))return json([]);
+ if(path==='direct-conversations')return json(process.env.CHAT_ONLY?[{id:'dm1',otherUserId:'u2',otherUsername:'Sarah Kim',lastMessageAt:stamp,unreadCount:2}]:[]);
+ if(path.endsWith('/messages')){
+  if(!process.env.CHAT_ONLY)return json([]);
+  if(method==='POST'){assert.deepEqual(Object.keys(body).sort(),['content','replyToId','requestId'].sort());const sent={id:'sent-message',senderId:uid,content:body.content,createdAt:new Date().toISOString()};chatMessages.push(sent);return json(sent);}
+  return json(path.startsWith('direct-')?[]:chatMessages);
+ }
+ if(process.env.CHAT_ONLY && path.endsWith('/read'))return json({});
  if(path.endsWith('/github/statistics/commits'))return json({days:30,timezone:'UTC',total:12,items:[{date:'2026-11-21',commits:4},{date:'2026-11-22',commits:8}]});
  if(path.endsWith('/github/contributors')||path.endsWith('/github/collaborators'))return json([{login:'alex-morgan',avatarUrl:'/devup.svg',profileUrl:'https://github.com/example',role:'admin',isOwner:true,contributions:12}]);
  if(path.endsWith('/github/repository'))return json({fullName:'example/devup',defaultBranch:'main',repositoryUrl:'https://github.com/example/devup',lastSyncedAt:stamp,githubRepositoryId:'1'});
@@ -90,6 +96,22 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.CHAT_ONLY==='1'){
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:850});await page.goto(root+'chat');await page.locator('.wu-message').first().waitFor();
+   assert.ok(await page.locator('.wu-message.is-grouped').count()>0,'Consecutive messages are grouped');
+   assert.equal(await page.locator('.wu-message').count(),18);
+   const dimensions=await page.evaluate(()=>({body:document.documentElement.scrollWidth,width:innerWidth,height:innerHeight,bottom:document.querySelector('.wu-chat-composer').getBoundingClientRect().bottom}));
+   assert.ok(dimensions.body<=dimensions.width,'No page horizontal overflow');assert.ok(dimensions.bottom<=dimensions.height,'Composer stays in viewport');
+   await page.screenshot({path:`/tmp/devup-migration-artifacts/chat-${theme}-${width}.png`});
+   if(width===1440){await page.getByRole('button',{name:'Show details',exact:true}).click();await page.locator('#chat-details').waitFor({state:'visible'});await page.getByRole('button',{name:'Hide details',exact:true}).click();}
+   else {await page.getByRole('button',{name:'Show conversations',exact:true}).click();await page.getByRole('searchbox',{name:'Search conversations'}).fill('Sarah');assert.equal(await page.locator('.wu-chat-conversations .wu-conversation').count(),1);await page.getByRole('searchbox',{name:'Search conversations'}).fill('');await page.locator('.wu-chat-conversations .wu-conversation').first().click();}
+  }
+  await page.setViewportSize({width:1440,height:850});await page.goto(root+'chat');await page.locator('.wu-message').first().waitFor();
+  const input=page.getByRole('textbox',{name:'Message',exact:true});await input.fill('Draft persists');await page.locator('.wu-chat-conversations .wu-conversation').nth(1).click();await input.fill('Direct draft');await page.locator('.wu-chat-conversations .wu-conversation').first().click();assert.equal(await input.inputValue(),'Draft persists');
+  await page.locator('.wu-message').last().hover();await page.locator('.wu-chat-reply').last().click();await input.fill('Reply fixture');await input.press('Enter');await page.getByText('Reply fixture',{exact:true}).waitFor();assert.equal(await input.inputValue(),'');assert.equal(writes.filter(w=>w.path.endsWith('/messages')&&w.method==='POST').length,1);
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Chat passed: four theme/viewport views, grouping, overflow, composer, details, mobile list search, per-thread drafts and reply send DTO.');process.exit(0);
+ }
  if(process.env.TARGET_ONLY==='1'){
   notes.push(...Array.from({length:104},(_,i)=>({id:'note-batch-'+i,title:i===103?'Beyond first hundred notes':`Notes ${String(i).padStart(3,'0')}`,content:'Target-compatible note content',creatorId:uid,updatedAt:stamp,pinnedAt:null})));
   await page.goto(root+'notes');await page.locator('.wu-note-gradient-card').first().waitFor();assert.equal(await page.locator('.wu-note-gradient-card').count(),20);
@@ -224,4 +246,4 @@ try{
  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);
  console.log(JSON.stringify({views:36,errors,unknown,writes:writes.map(w=>({path:w.path,method:w.method})),checks:'current Notes DTO, Backlog/TODO workflow and transition payload, authenticated multipart upload, Files tabs/grid/recent files, GitHub stats/contributors/collaborators/sync/branches and disconnect cancellation'},null,2));
 }
-}finally{await browser.close();}
+}catch(error){console.error('Failed view:',page.url(), 'Browser errors:',errors);throw error;}finally{await browser.close();}

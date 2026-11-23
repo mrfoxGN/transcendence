@@ -12,6 +12,7 @@ type Draft = { text: string; requestId?: string; reply?: { id: string; preview: 
 
 type ChatPageProps = {
   workspaceId: string;
+  workspaceName: string;
   chat: ReturnType<typeof useWorkspaceChat>;
   selected: string;
   setSelected: (id: string) => void;
@@ -35,10 +36,10 @@ function dayLabel(date: Date) {
 
 function Portrait({ name, small }: { name: string; small?: boolean }) {
   const initials = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-  return <Avatar initials={initials} tone="mint" small={small} preview={false} />;
+  return <Avatar initials={initials} tone="violet" small={small} preview={false} />;
 }
 
-export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
+export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
   const [sending, setSending] = useState(false);
   const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
   const [conversationError, setConversationError] = useState('');
@@ -68,16 +69,16 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
   }, [draftKey, drafts]);
   const [drawer, setDrawer] = useState<'details' | 'new'>();
   const [showList, setShowList] = useState(false);
-  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(true);
   const messageList = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const teammateName = (id: string | null) => roster.find(member => member.userId === id)?.username
     ?? chat.conversations.find(item => item.otherUserId === id)?.otherUsername ?? 'DevUP member';
-  const threads = [{ id: 'team', title: 'DevUP Team', member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
+  const threads = [{ id: 'team', title: workspaceName, member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
     ...chat.conversations.map(item => ({ ...item, title: teammateName(item.otherUserId), member: teammateName(item.otherUserId) }))].map(item => ({
       ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
       messages: (chat.messages[item.id] ?? []).map(message => ({
-        id: message.id, text: message.content, sentAt: message.createdAt,
+        id: message.id, senderId: message.senderId, text: message.content, sentAt: message.createdAt,
         reply: message.reply ? { ...message.reply, preview: message.reply.preview.slice(0, 100) } : undefined,
         own: message.senderId === profileId, author: teammateName(message.senderId),
       })),
@@ -102,7 +103,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
   const search = query.trim().toLowerCase();
   const visibleThreads = threads.filter(item =>
     (filter !== 'Unread' || item.unread > 0) &&
-    (!search || item.title.toLowerCase().includes(search) || item.messages.some(message => message.text.toLowerCase().includes(search)))
+    (!search || item.title.toLowerCase().includes(search))
   );
 
   function recordPosition() {
@@ -228,7 +229,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
       {sections.map(item => <button key={item} type="button" aria-pressed={section === item} onClick={() => setSection(item)}>{item}</button>)}
     </div>
     {section === 'Details' && <section className="wu-chat-description">
-      <h3>Description</h3><p>{thread.member ? 'Private conversation with ' + thread.member + '.' : 'General discussion for DevUP. Share project updates, ask questions, and keep the team in the loop.'}</p>
+      <h3>Description</h3><p>{thread.member ? 'Private conversation with ' + thread.member + '.' : 'Share project updates, ask questions, and keep the team in the loop.'}</p>
     </section>}
     {(section === 'Details' || section === 'Members') && <section>
       <h3>Members ({members.length})</h3>
@@ -236,14 +237,15 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
         {members.map(member => <li key={member.id}><Portrait name={member.name} small /><span><strong>{member.name}</strong><small>{member.role}</small></span></li>)}
       </ul>
     </section>}
-    {section === 'Links' && <section><h3>Shared links</h3>
-      {links.length ? <ul className="wu-chat-links">{links.map(link => <li key={link}><a href={link} target="_blank" rel="noreferrer">{link}</a></li>)}</ul> : <p>No links shared yet.</p>}
+    {section === 'Links' && <section><h3>Links in loaded messages</h3>
+      {links.length ? <ul className="wu-chat-links">{links.map(link => <li key={link}><a href={link} target="_blank" rel="noreferrer">{link}</a></li>)}</ul> : <p>No links in the loaded messages.</p>}
     </section>}
   </>;
 
   return <>
     <div className={`wu-chat-layout${showList ? ' is-list-open' : ''}${detailsCollapsed ? ' is-details-collapsed' : ''}`}>
       <Panel className="wu-conversation-panel">
+        <div className="wu-chat-list-heading"><h2>Messages</h2><span>{threads.length} conversations</span></div>
         <div className="wu-chat-search-row">
           <button type="button" className="wu-icon-button wu-chat-list-close" aria-label="Hide conversations" title="Hide conversations" onClick={() => setShowList(false)}><ArrowLeft size={19} /></button>
           <label className="wu-chat-search"><Search size={17} aria-hidden="true" /><input type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} /></label>
@@ -256,11 +258,11 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
         <div className="wu-chat-conversations" aria-label="Conversations" tabIndex={0}>
           {visibleThreads.map(item => {
             const latest = item.messages.at(-1);
-            return <button type="button" key={item.id} className="wu-conversation" aria-current={item.id === thread.id ? 'true' : undefined} onClick={() => selectThread(item.id)}>
+            return <div key={item.id}>{(item.id === 'team' || visibleThreads.find(entry => entry.id !== 'team')?.id === item.id) && <p className="wu-chat-group-label">{item.id === 'team' ? 'Workspace' : 'Direct messages'}</p>}<button type="button" key={item.id} className="wu-conversation" aria-current={item.id === thread.id ? 'true' : undefined} onClick={() => selectThread(item.id)}>
               {item.member ? <Portrait name={item.member} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
               <span className="wu-conversation-copy"><strong>{item.title}</strong><small>{latest ? (latest.own ? 'You: ' : !item.member ? latest.author.split(' ')[0] + ': ' : '') + latest.text : item.lastMessageAt ? 'Open conversation' : 'No messages yet'}</small></span>
               <span className="wu-conversation-meta">{latest && <time dateTime={latest.sentAt}>{clock.format(new Date(latest.sentAt))}</time>}{!!item.unread && <span className="wu-chat-unread" aria-label={item.unread + ' unread'}>{item.unread}</span>}</span>
-            </button>;
+            </button></div>;
           })}
           {!visibleThreads.length && <p className="wu-chat-empty">{search ? 'No conversations match your search.' : 'No ' + filter.toLowerCase() + ' conversations.'}</p>}
         </div>
@@ -282,8 +284,9 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
           <button type="button" className="wu-icon-button wu-chat-info" aria-label="Show conversation details" title="Show conversation details" onClick={() => setDrawer('details')}><Info size={19} /></button>
         </header>
         <div className="wu-chat-tools"><button className="wu-text-button" type="button" aria-expanded={searchOpen}
-          onClick={() => setSearchOpen(value => !value)}><Search size={15} /> Search messages</button></div>
+          onClick={() => setSearchOpen(value => !value)}><Search size={15} /> Search loaded messages</button></div>
         {searchOpen && <section className="wu-chat-search-results" aria-label="Search conversation">
+          <p className="wu-chat-search-hint">Search messages loaded in this conversation. Load older messages to include more history.</p>
           <form onSubmit={event => { event.preventDefault(); void searchHistory(); }}>
             <input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" value={searchTerm} maxLength={200}
               onChange={event => setSearchTerm(event.target.value)} />
@@ -318,12 +321,15 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
           {thread.messages.map((message, index) => {
             const date = new Date(message.sentAt);
             const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
+            const previous = thread.messages[index - 1];
+            const grouped = !newDay && message.senderId !== null && previous?.senderId === message.senderId
+              && date.getTime() - new Date(previous.sentAt).getTime() < 5 * 60 * 1000;
             return <div key={message.id} data-message-id={message.id}>
               {newDay && <div className="wu-chat-date"><span>{dayLabel(date)}</span></div>}
-              <article className={`wu-message${message.own ? ' is-own' : ''}`}>
-                <Portrait name={message.own ? profileName : message.author} small />
+              <article className={`wu-message${message.own ? ' is-own' : ''}${grouped ? ' is-grouped' : ''}`}>
+                {grouped ? <span className="wu-chat-avatar-spacer" aria-hidden="true" /> : <Portrait name={message.own ? profileName : message.author} small />}
                 <div className="wu-message-content">
-                  <div className="wu-message-meta"><strong>{message.own ? 'You' : message.author}</strong><time dateTime={message.sentAt}>{clock.format(date)}</time></div>
+                  <div className="wu-message-meta">{!grouped && <strong>{message.own ? 'You' : message.author}</strong>}<time dateTime={message.sentAt}>{clock.format(date)}</time></div>
                   <div className="wu-message-bubble">
                     {message.reply && <blockquote className="wu-chat-quote"><strong>{message.reply.unavailable ? 'Original message' : message.reply.senderId === profileId ? 'You' : teammateName(message.reply.senderId)}</strong><p>{message.reply.preview.slice(0, 100)}</p></blockquote>}
                     {message.text && <p>{message.text}</p>}
@@ -351,6 +357,7 @@ export function ChatPage({ workspaceId, chat, selected, setSelected, profileId, 
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></button>
           </div>
+          <p className="wu-chat-composer-hint">Enter to send <span>·</span> Shift + Enter for a new line</p>
         </form>}
       </Panel>
       <section className="wu-panel wu-chat-details" id="chat-details" aria-label="Conversation details">{details}</section>
