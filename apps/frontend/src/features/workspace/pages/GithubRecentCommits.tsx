@@ -55,7 +55,7 @@ export function GithubRecentCommits({
   return (
     <section className="wu-github-recent">
       <header className="wu-github-recent__heading">
-        <h2>Recent Commits</h2>
+        <h2>Recent commits</h2>
 
         <button
           type="button"

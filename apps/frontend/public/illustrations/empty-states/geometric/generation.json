@@ -1,0 +1,165 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "kind": "tasks",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP empty-state illustration, light theme. Subject: a clipboard with three checklist rows and one check mark. Minimal flat geometric illustration matching the user's blue pictogram reference: clean filled shapes, front-facing, smooth blue-to-periwinkle gradients, pale blue supporting shapes, small violet accent, subtle oval blue ground shadow. A single centered compact composition occupying 72% of a square canvas. Transparent background, no lettering, no labels, no watermark, no border, no surrounding UI. Restrained polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "tasks",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a clipboard with three checklist rows and one check mark. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "projects",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a project folder holding two project cards. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "projects",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a project folder holding two project cards. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "files",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: an open file inbox with two document sheets. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "files",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: an open file inbox with two document sheets. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "notes",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a notebook with a folded page corner and simple writing lines. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "notes",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a notebook with a folded page corner and simple writing lines. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "messages",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: two overlapping speech bubbles. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "messages",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: two overlapping speech bubbles. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "notifications",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a notification bell with a small unread dot. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "notifications",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a notification bell with a small unread dot. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "search",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a magnifying glass over a document. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "search",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a magnifying glass over a document. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "analytics",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a report card with three ascending bars. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "analytics",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a report card with three ascending bars. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "team",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: three simple geometric human bust silhouettes. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "team",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: three simple geometric human bust silhouettes. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "integrations",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: two interlocking connector blocks. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "integrations",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: two interlocking connector blocks. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "activity",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: three small event cards connected vertically. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "activity",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: three small event cards connected vertically. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "calendar",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a desktop calendar with one highlighted day. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "calendar",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a desktop calendar with one highlighted day. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "invitations",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: an open envelope with a small person and plus symbol. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "invitations",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: an open envelope with a small person and plus symbol. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "restricted",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a document protected by a padlock. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "restricted",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a document protected by a padlock. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "offline",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: a cloud with a separated connection cable. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "offline",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: a cloud with a separated connection cable. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "error",
+      "theme": "light",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP light-theme empty-state illustration. Subject: an application window with a small warning triangle. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for white surfaces: cobalt blue foreground, pale blue supporting shapes and periwinkle highlights. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    },
+    {
+      "kind": "error",
+      "theme": "dark",
+      "prompt": "Use case: stylized-concept. Asset type: DevUP dark-theme empty-state illustration. Subject: an application window with a small warning triangle. Minimal flat geometric illustration matching a restrained blue pictogram family: clean filled shapes, front-facing, smooth blue/periwinkle gradients, subtle violet accents, soft oval ground shadow. Designed for charcoal #1b1c20: luminous cornflower blue and lavender foreground, deep indigo supporting shapes, gentle cool highlights, no white backing, not an inversion. Single centered compact composition occupying 72% of a square canvas. Genuinely transparent background. No lettering, numbers, labels, watermark, border or surrounding UI. Polished 2D vector-like bitmap, no outlines, no clay, no photorealism."
+    }
+  ]
+}

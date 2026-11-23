@@ -2,6 +2,7 @@ import { useState, type FormEvent, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Lock, Mail, ShieldCheck, User, X, AlertCircle } from 'lucide-react';
 import { sessionKey } from '../WorkspacePicker';
 import { authRoute, requestedWorkspace } from '../auth-routing';
+import { EntryThemeControl } from './EntryAppearance';
 import { OtpCodeInput } from './OtpCodeInput';
 import { ResendCodeButton } from './ResendCodeButton';
 
@@ -224,40 +225,16 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
     <main className="auth-page">
       <header className="auth-header">
         <Brand />
-        <a className="auth-close" href="/" aria-label="Back to DevUP home">
+        <div className="entry-header-actions"><EntryThemeControl /><a className="auth-close" href="/" aria-label="Back to DevUP home">
           <X size={20} aria-hidden="true" />
-        </a>
+        </a></div>
       </header>
 
       <section className="auth-shell" aria-labelledby="auth-title">
-        {/* Switcher Tabs */}
-        {!complete && !twoFactorStep && (
-          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!signingUp}
-              className={`auth-tab ${!signingUp ? 'auth-tab--active' : ''}`}
-              onClick={() => switchMode('login')}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={signingUp}
-              className={`auth-tab ${signingUp ? 'auth-tab--active' : ''}`}
-              onClick={() => switchMode('register')}
-            >
-              Create Account
-            </button>
-          </div>
-        )}
-
         <div className="auth-header-copy">
           <h1 id="auth-title">
             {twoFactorStep
-              ? 'Two-Factor Authentication'
+              ? 'Verify your sign-in'
               : complete
               ? 'Account created!'
               : signingUp
@@ -272,7 +249,7 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
           ) : !complete ? (
             <p className="auth-description">
               {signingUp
-                ? 'Bring tasks, conversations, and code into one unified space.'
+                ? 'Your team’s work, together in one place.'
                 : 'Enter your credentials to access your workspaces.'}
             </p>
           ) : null}

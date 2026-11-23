@@ -1,0 +1,132 @@
+/* GitHub uses the same calm workspace hierarchy as Files and Home. */
+.devup-design .workspace-app .wu-github-workbench { min-width: 0; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-tabs { width: fit-content; max-width: 100%; gap: 3px; margin: 8px 0 20px; padding: 3px; border: 0; border-radius: 9px; background: var(--wu-surface-soft); scrollbar-width: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-tabs::-webkit-scrollbar { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-tab { min-height: 33px; padding: 0 12px; border: 0; border-radius: 6px; font-size: 12px; font-weight: 400; box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-tab[aria-pressed='true'] { background: var(--wu-surface); color: var(--wu-ink); box-shadow: 0 1px 4px #17244012; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-overview-shell { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-overview { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.35fr); align-items: stretch; gap: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository,
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity { padding: 20px; border: 1px solid var(--wu-line); border-radius: 16px; background: var(--wu-surface); min-width: 0; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: flex-start; height: auto; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository::before { content: ''; position: absolute; z-index: -1; inset: -30px -15px auto; height: 110px; background: var(--wu-top-glow); filter: blur(16px); pointer-events: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository__content { width: 100%; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository__eyebrow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--wu-muted); margin-bottom: 22px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository__connected { color: var(--wu-blue); font-size: 10px; background: var(--wu-surface); border: 1px solid var(--wu-line); padding: 3px 7px; border-radius: 6px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository h2 { font-size: 18px; font-weight: 500; line-height: 1.4; letter-spacing: -.3px; margin-bottom: 12px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository h2 svg { width: 15px; height: 15px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository__badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; background: var(--wu-surface-soft); }
+.devup-design .workspace-app .wu-github-workbench .wu-github-repository__sync { font-size: 10px; margin-top: 24px; align-items: flex-start; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__heading h3 { font-size: 15px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__heading p { font-size: 11px; margin-top: 5px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__total strong { font-size: 28px; font-weight: 600; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__line { stroke: #7b61e8; stroke-width: 2.5; filter: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__point { fill: var(--wu-surface); stroke: #7b61e8; stroke-width: 1.5; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__point:hover { r: 5; stroke-width: 2; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-activity__footnote { font-size: 10px; text-align: left; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights--single { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights > section { min-height: 0; padding: 18px; background: var(--wu-surface); border: 1px solid var(--wu-line); border-radius: 16px; box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights h2 { font-size: 15px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights header { margin-bottom: 20px; align-items: center; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights header p { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights header .wu-text-button { font-size: 11px; white-space: nowrap; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-insights header .wu-text-button svg { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-people-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-people-list a { display: flex; gap: 10px; align-items: center; color: var(--wu-ink); font-size: 12px; text-decoration: none; min-width: 0; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-people-list a > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-people-list small { display: block; color: var(--wu-muted); margin-top: 4px; font-size: 10px; text-transform: capitalize; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-person-avatar { display: grid; place-items: center; position: relative; overflow: hidden; width: 30px; height: 30px; flex: none; background: var(--wu-violet-soft); color: var(--wu-violet); border-radius: 50%; font-size: 10px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-person-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-network__footer { text-align: left; margin: 20px 0 0; font-size: 10px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__timeline { gap: 12px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__timeline::before,
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__marker { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__item { grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__icon { width: 28px; height: 28px; border-radius: 8px; background: var(--wu-violet-soft); color: var(--wu-violet); }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__icon svg { width: 15px; height: 15px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__details a,
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__details strong { font-size: 13px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__metadata { font-size: 10px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-recent__badge { font-size: 9px; padding: 3px 5px; border-radius: 5px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors__list { gap: 18px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors__item img { width: 30px; height: 30px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors__name { font-size: 12px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors__track { height: 5px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors__track span { background: #7b61e8; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors__note { font-size: 10px; margin-top: 18px; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-tab-panel { padding: 18px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__header { padding: 0 0 18px; gap: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__heading-icon { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__heading h2 { font-size: 16px; font-weight: 500; letter-spacing: -.2px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__heading p { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__header { padding: 0 0 18px; gap: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__heading-icon { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__heading h2 { font-size: 16px; font-weight: 500; letter-spacing: -.2px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__heading p { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__header { padding: 0 0 18px; gap: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__heading-icon { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__heading h2 { font-size: 16px; font-weight: 500; letter-spacing: -.2px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__heading p { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__header { padding: 0 0 18px; gap: 16px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__heading-icon { display: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__heading h2 { font-size: 16px; font-weight: 500; letter-spacing: -.2px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__heading p { display: none; }
+
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__stat,
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__stat { min-width: 0; padding: 10px 12px; gap: 10px; border-color: var(--wu-line); background: var(--wu-surface-soft); }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__stat strong,
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__stat strong { font-size: 20px; font-weight: 600; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__row,
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__card { min-height: 76px; border-color: var(--wu-line); background: var(--wu-surface); box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__name a,
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__name a,
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__branch strong { font-size: 13px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__avatar-link img,
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__avatar img { width: 36px; height: 36px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__filter { min-height: 32px; padding: 6px 10px; border-radius: 7px; font-size: 11px; border-color: var(--wu-line); background: var(--wu-surface-soft); }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__filter.is-active { background: var(--wu-blue-soft); border-color: var(--wu-line); box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gbranches__table td { padding-block: 14px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits { --gc-blue: var(--wu-blue); --gc-purple: var(--wu-violet); --gc-green: var(--wu-blue); }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__date { padding: 5px 8px; border-radius: 6px; font-size: 11px; background: var(--wu-surface-soft); }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__timeline-dot { width: 9px; height: 9px; border-color: var(--wu-surface); left: -30px; }
+@media (max-width: 1150px) {
+  .devup-design .workspace-app .wu-github-workbench .wu-github-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-top-contributors { grid-column: auto; }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-recent { grid-column: 1 / -1; grid-row: 1; }
+}
+@media (max-width: 800px) {
+  .devup-design .workspace-app .wu-github-workbench .wu-github-overview { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .devup-design .workspace-app .wu-github-workbench .wu-github-header-actions { gap: 6px; }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-header-actions .wu-button { font-size: 11px; padding-inline: 9px; }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-header-actions .wu-button svg { width: 13px; }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-insights { grid-template-columns: minmax(0, 1fr); }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-recent { grid-column: auto; grid-row: auto; }
+  .devup-design .workspace-app .wu-github-workbench .wu-github-repository,
+  .devup-design .workspace-app .wu-github-workbench .wu-github-activity,
+  .devup-design .workspace-app .wu-github-workbench .wu-github-tab-panel { padding: 16px; }
+}
+
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__card { padding: 14px; border-color: var(--wu-line); background: var(--wu-surface); border-radius: 10px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__avatar,
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__avatar-link { width: 36px; height: 36px; flex-basis: 36px; border: 0; box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__description { font-size: 11px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__owner,
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__owner,
+.devup-design .workspace-app .wu-github-workbench .wu-gcollab__permission { font-size: 10px; border-color: var(--wu-line); background: var(--wu-violet-soft); color: var(--wu-violet); border-radius: 6px; padding: 4px 7px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__card { padding: 14px; border-radius: 10px; background: var(--wu-surface); border-color: var(--wu-line); box-shadow: none; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__title strong { font-size: 13px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__branch { padding: 6px 9px; border-color: var(--wu-line); background: var(--wu-surface-soft); font-size: 11px; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__timeline { gap: 20px; padding-top: 18px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcommits__metadata { font-size: 11px; }
+.devup-design .workspace-app .wu-github-workbench .wu-gcontributors__row { padding: 14px; border-radius: 10px; }
+
+@media (max-width: 600px) {
+  .devup-design .workspace-app .wu-github-workbench .wu-gcollab__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 8px; }
+  .devup-design .workspace-app .wu-github-workbench .wu-gcollab__stat { padding: 10px; min-width: 0; }
+  .devup-design .workspace-app .wu-github-workbench .wu-gcollab__stat-icon { display: none; }
+  .devup-design .workspace-app .wu-github-workbench .wu-gcollab__stat > div > span { font-size: 10px; overflow-wrap: anywhere; }
+}

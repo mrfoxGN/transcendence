@@ -1,0 +1,74 @@
+/* Notes: softly colored covers, quiet controls, and a focused writing surface. */
+.devup-design .wu-notes-board { min-width:0; }
+.devup-design .wu-notes-card-tools { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+.devup-design .wu-notes-card-tools .wu-list-search { flex:1 1 260px; max-width:520px; }
+.devup-design .wu-notes-card-tools .wu-select { min-height:38px; font-size:12px; }
+.devup-design .wu-notes-card-count { margin-left:auto; color:var(--wu-muted); font-size:11px; }
+.devup-design .wu-notes-card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:20px; list-style:none; padding:0; margin:0; }
+.devup-design .wu-notes-card-grid > li { min-width:0; }
+.devup-design .wu-note-gradient-card { position:relative; isolation:isolate; display:flex; flex-direction:column; min-width:0; min-height:310px; height:100%; overflow:hidden; padding:16px 22px 18px; border:1px solid var(--wu-line); border-radius:16px; background:var(--wu-surface); box-shadow:0 2px 12px #27314a04; }
+.devup-design .wu-note-gradient-card:before { content:''; position:absolute; pointer-events:none; z-index:-1; top:-95px; left:-10%; width:120%; height:255px; background:radial-gradient(ellipse at 15% 15%,var(--folder-accent),transparent 62%),radial-gradient(ellipse at 85% 10%,var(--folder-pink),transparent 64%),radial-gradient(ellipse at 55% 0,var(--folder-blue),transparent 75%); filter:blur(24px); opacity:var(--wu-glow-opacity,.58); mask-image:linear-gradient(#000 15%,transparent 100%); }
+
+.devup-design .wu-note-card-actions { display:flex; justify-content:flex-end; align-items:center; gap:3px; min-height:30px; margin:0 -8px 10px 0; }
+.devup-design .wu-note-card-actions .wu-icon-button { width:30px; height:30px; color:var(--wu-muted); border-radius:7px; }
+.devup-design .wu-note-card-actions .wu-icon-button:hover { background:color-mix(in srgb,var(--wu-surface) 72%,transparent); color:var(--wu-ink); }
+.devup-design .wu-note-card-actions .wu-icon-button[aria-pressed=true] { color:var(--wu-violet); }
+.devup-design .wu-note-card-actions .wu-note-delete:hover { color:var(--wu-red); }
+.devup-design .wu-note-readonly { color:var(--wu-muted); font-size:10px; }
+.devup-design .wu-note-gradient-card h2 { margin:0 0 12px; font-size:16px; line-height:1.4; }
+.devup-design .wu-note-gradient-card h2 button { display:block; border:0; background:none; color:var(--wu-ink); font:inherit; font-weight:600; letter-spacing:-.2px; padding:0; text-align:left; overflow-wrap:anywhere; }
+.devup-design .wu-note-gradient-card h2 button:hover { color:var(--wu-blue); }
+.devup-design .wu-note-card-read { display:block; flex:1; width:100%; padding:0; border:0; background:none; color:var(--wu-muted); text-align:left; }
+.devup-design .wu-note-card-excerpt { display:block; min-width:0; }
+.devup-design .wu-note-card-excerpt p { max-height:9.9em; overflow:hidden; margin:0; font-size:13px; line-height:1.65; font-weight:400; white-space:pre-line; overflow-wrap:anywhere; }
+.devup-design .wu-note-card-excerpt[data-overflow=true] { mask-image:linear-gradient(#000 55%,transparent 100%); }
+.devup-design .wu-note-gradient-card footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:20px; padding-top:12px; border-top:1px solid color-mix(in srgb,var(--wu-line) 65%,transparent); color:var(--wu-muted); font-size:11px; }
+.devup-design .wu-note-gradient-card footer time { font-variant-numeric:tabular-nums; }
+/* The existing modal/focus behavior is shared; only the note writing panel is wider. */
+.devup-design .wu-native-drawer:has(.wu-note-workbench) { width:min(880px,100vw); max-width:100vw; }
+.devup-design .wu-native-drawer:has(.wu-note-workbench) .wu-drawer-body { padding:24px 32px; }
+.devup-design .wu-native-drawer:has(.wu-note-workbench) .wu-drawer-head { align-items:flex-start; gap:16px; margin-bottom:20px; padding-bottom:16px; }
+.devup-design .wu-native-drawer:has(.wu-note-workbench) .wu-drawer-head h2 { overflow-wrap:anywhere; max-width:40ch; font-size:21px; font-weight:600; }
+.devup-design .wu-note-workbench { min-width:0; }
+.devup-design .wu-note-writing-form { display:grid; gap:16px; }
+.devup-design .wu-note-writing-form > .wu-field-label { gap:8px; margin:0; }
+.devup-design .wu-note-writing-form > .wu-field-label input { min-height:44px; padding:10px 12px; font-size:17px; font-weight:500; }
+.devup-design .wu-note-rich-editor { min-width:0; border:1px solid var(--wu-line); border-radius:12px; overflow:hidden; background:var(--wu-surface); }
+.devup-design .wu-note-rich-editor:has(.wu-note-prose:focus) { border-color:#a294cf; outline:1px solid #a294cf; outline-offset:0; }
+.devup-design .wu-note-formatbar { display:flex; align-items:center; flex-wrap:wrap; gap:3px; padding:9px; border-bottom:1px solid var(--wu-line); background:var(--wu-surface-soft); }
+.devup-design .wu-note-formatbar > button { display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:6px; background:none; color:var(--wu-muted); }
+.devup-design .wu-note-formatbar > button:hover,.devup-design .wu-note-formatbar > button[aria-pressed=true] { background:var(--wu-surface); color:var(--wu-violet); }
+.devup-design .wu-note-formatbar > button:disabled { opacity:.35; cursor:default; }
+.devup-design .wu-note-formatbar select { width:125px; min-height:32px; padding:4px 7px; border:1px solid var(--wu-line); border-radius:6px; background:var(--wu-surface); color:var(--wu-ink); font-size:12px; margin-right:5px; }
+.devup-design .wu-note-formatbar-spacer { flex:1; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose { min-height:330px; max-height:calc(100dvh - 350px); overflow:auto; padding:24px; outline:none; color:var(--wu-ink); font-size:14px; line-height:1.75; overflow-wrap:anywhere; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose > :first-child { margin-top:0; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose > :last-child { margin-bottom:0; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose p { margin:0 0 14px; font-size:14px; line-height:1.75; white-space:pre-wrap; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose :is(h1,h2,h3) { margin:24px 0 12px; line-height:1.35; font-weight:600; letter-spacing:-.3px; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose h1 { font-size:25px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose h2 { font-size:21px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose h3 { font-size:17px; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose :is(ul,ol) { padding-left:24px; margin:0 0 16px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose li { margin:4px 0; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose li p { margin:0; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul[data-type=taskList] { list-style:none; padding:0; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul[data-type=taskList] > li { display:flex; align-items:flex-start; gap:10px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul[data-type=taskList] > li > label { flex:none; margin-top:3px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul[data-type=taskList] > li > div { flex:1; min-width:0; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul[data-type=taskList] input { width:15px; height:15px; margin:0; accent-color:var(--wu-blue); }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose blockquote { margin:18px 0; padding:4px 0 4px 18px; border-left:3px solid #b9a6d8; color:var(--wu-muted); }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose code { padding:2px 5px; border-radius:4px; background:var(--wu-surface-soft); font-size:12px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose pre { overflow-x:auto; padding:16px; border-radius:8px; background:var(--wu-surface-soft); }.devup-design .workspace-app .wu-note-workbench .wu-note-prose pre code { background:none; padding:0; white-space:pre; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose a { color:var(--wu-blue); text-decoration:underline; text-underline-offset:3px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose hr { border:0; border-top:1px solid var(--wu-line); margin:20px 0; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose p.is-editor-empty:first-child:before { content:attr(data-placeholder); color:var(--wu-subtle); float:left; height:0; pointer-events:none; font-size:13px; }
+.devup-design .wu-note-editor-count { display:flex; justify-content:space-between; gap:12px; padding:10px 14px; border-top:1px solid var(--wu-line); color:var(--wu-muted); font-size:11px; font-variant-numeric:tabular-nums; }
+.devup-design .wu-note-link-input { display:flex; align-items:flex-end; flex-wrap:wrap; gap:10px; padding:14px; border-bottom:1px solid var(--wu-line); background:var(--wu-surface-soft); }.devup-design .wu-note-link-input label { display:grid; gap:5px; flex:1 1 230px; color:var(--wu-muted); font-size:11px; }.devup-design .wu-note-link-input input { min-height:36px; width:100%; padding:7px 9px; border:1px solid var(--wu-line); border-radius:6px; }.devup-design .wu-note-link-input > p { width:100%; margin:0; color:var(--wu-red); font-size:12px; }
+.devup-design .wu-note-workbench .wu-note-writing-hint { margin:0; font-size:11px; line-height:1.6; color:var(--wu-muted); }
+.devup-design .wu-note-writing-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:10px; padding:16px 0 4px; border-top:1px solid var(--wu-line); }
+.devup-design .wu-note-writing-actions > [role=status] { margin-right:auto; font-size:11px; }
+.devup-design .wu-note-reading-meta { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:20px; color:var(--wu-muted); font-size:12px; }.devup-design .wu-note-reading-meta > div { display:flex; align-items:center; gap:8px; }
+.devup-design .wu-note-rich-editor--reading { border:0; border-radius:0; }.devup-design .wu-note-rich-editor--reading .wu-note-prose { padding:0; min-height:160px; max-height:none; overflow:visible; }.devup-design .wu-note-rich-editor--reading .wu-note-editor-count { padding-inline:0; margin-top:20px; }
+@media(max-width:680px) {
+ .devup-design .wu-notes-card-tools .wu-list-search { flex-basis:100%; max-width:none; }.devup-design .wu-notes-card-tools .wu-select { flex:1; }.devup-design .wu-notes-card-grid { grid-template-columns:1fr; gap:16px; }.devup-design .wu-note-gradient-card { padding:14px 20px 18px; min-height:280px; }
+ .devup-design .wu-native-drawer:has(.wu-note-workbench) .wu-drawer-body { padding:20px 16px; }.devup-design .wu-note-formatbar { padding:7px; gap:3px; }.devup-design .wu-note-formatbar select { width:112px; }.devup-design .workspace-app .wu-note-workbench .wu-note-prose { padding:18px 16px; min-height:240px; max-height:45dvh; }.devup-design .wu-note-rich-editor--reading .wu-note-prose { padding:0; min-height:160px; max-height:none; }
+}
+
+/* Keep previews directly under titles and restore document list markers. */
+.devup-design .wu-note-card-read { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul { list-style:disc; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose ol { list-style:decimal; }
+.devup-design .workspace-app .wu-note-workbench .wu-note-prose ul[data-type=taskList] { list-style:none; }
+
+.devup-design .workspace-app .wu-note-workbench .wu-note-rich-editor--reading .wu-note-prose { padding:0; min-height:160px; max-height:none; overflow:visible; }

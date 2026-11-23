@@ -1,0 +1,78 @@
+/* Shared visual tokens. Keep page layout in its owning stylesheet. */
+.devup-design .workspace-app {
+  --wu-canvas: #f5f6f8;
+  --wu-surface: #ffffff;
+  --wu-surface-soft: #f2f3f6;
+  --wu-ink: #191d27;
+  --wu-muted: #535d6d;
+  --wu-subtle: #647080;
+  --wu-line: #e1e4eb;
+  --wu-hover-row: #f0f1f5;
+  --wu-hover-control: #eceef3;
+  --wu-hover-border: #bdc4d2;
+  --wu-focus: #7462cc;
+  --wu-card-shadow: 0 3px 12px #202b4007;
+  --wu-hover-shadow: 0 5px 16px #202b400c;
+  --wu-glow-blue: #8cb3f5;
+  --wu-glow-pink: #e5a1d9;
+  --wu-glow-violet: #b39aed;
+  --wu-glow-opacity: .58;
+  --wu-top-glow: radial-gradient(ellipse at 12% 0%, color-mix(in srgb,var(--wu-glow-blue) 44%,transparent),transparent 65%), radial-gradient(ellipse at 85% 0%,color-mix(in srgb,var(--wu-glow-pink) 44%,transparent),transparent 65%), radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--wu-glow-violet) 44%,transparent),transparent 70%);
+}
+
+.devup-design .workspace-app .wu-panel { box-shadow: var(--wu-card-shadow); }
+
+/* Shared interaction states: hover is quiet; selection and focus remain explicit. */
+.devup-design .workspace-app :is(.wu-button,.wu-icon-button,.wu-text-button,.wu-chip,.wu-nav-item,.wu-github-tab,.wu-file-type-tabs button,.wu-file-view-toggle button,.wu-note-formatbar button) {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+.devup-design .wu-button.wu-button--primary,
+.devup-design .workspace-app[data-theme=dark] .wu-button.wu-button--primary {
+  background: linear-gradient(135deg,#605ac4 0%,#6d52ba 100%);
+  border: 1px solid #6152b7;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px #ffffff19, inset 0 1px 0 #ffffff24, 0 1px 2px #30245312;
+  text-shadow: none;
+}
+.devup-design .wu-button.wu-button--primary:disabled { opacity: .45; box-shadow: none; }
+.devup-design .wu-button.wu-button--primary:active:not(:disabled) { background: linear-gradient(135deg,#5751b5,#6248aa); box-shadow: inset 0 1px 2px #24133f20; }
+.devup-design .workspace-app :is(.wu-table,.wu-gbranches__table) tbody tr { transition: background-color 140ms ease; }
+.devup-design .workspace-app :is(.wu-table,.wu-gbranches__table) tbody tr:focus-within { background: var(--wu-hover-row); }
+.devup-design .workspace-app :is(.wu-table,.wu-gbranches__table) tbody tr:focus-within td { background: transparent; }
+.devup-design .workspace-app .wu-table tbody tr:is(.is-row-selected,[aria-selected=true]) { background: var(--wu-blue-soft); }
+.devup-design .workspace-app .wu-table tbody tr:is(.is-row-selected,[aria-selected=true]) td { background: transparent; }
+.devup-design .workspace-app :is(.wu-recent-file,.wu-file-card,.wu-note-gradient-card,.wu-project-card,.wu-task-card) { transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+.devup-design .workspace-app :is(.wu-list-search,.wu-command-input,.wu-chat-search,.wu-note-rich-editor) { transition: border-color 140ms ease, box-shadow 140ms ease; }
+.devup-design .workspace-app :is(button,a,input,select,textarea,[tabindex]):focus-visible { outline: 2px solid var(--wu-focus); outline-offset: 3px; }
+/* Grouped inputs retain one focus owner instead of gaining a second inner outline. */
+.devup-design .workspace-app :is(.wu-list-search,.wu-command-input,.wu-chat-search) input:focus-visible { outline: none; }
+.devup-design .workspace-app :is(.wu-list-search,.wu-command-input,.wu-chat-search):focus-within { border-color: var(--wu-focus); outline: 1px solid var(--wu-focus); outline-offset: 0; }
+.devup-design .workspace-app .wu-note-rich-editor:has(.wu-note-prose:focus) { outline: 1px solid var(--wu-focus); outline-offset: 0; border-color: var(--wu-focus); }
+.devup-design .workspace-app .wu-note-rich-editor .wu-note-prose:focus-visible { outline: none; }
+@media (hover: hover) and (pointer: fine) {
+  .devup-design .wu-button.wu-button--primary:hover:not(:disabled) { background: linear-gradient(135deg,#6862cb,#755bc1); border-color: #6c5cc3; box-shadow: inset 0 0 0 1px #ffffff26,inset 0 1px 0 #ffffff30,0 1px 3px #30245316; }
+  .devup-design .workspace-app .wu-button.wu-button--secondary:hover:not(:disabled) { background: var(--wu-hover-control); border-color: var(--wu-hover-border); color: var(--wu-ink); box-shadow: none; }
+  .devup-design .workspace-app :is(.wu-icon-button,.wu-theme-button,.wu-board-grip,.wu-board-move):hover:not(:disabled) { background: var(--wu-hover-control); color: var(--wu-ink); }
+  .devup-design .workspace-app .wu-note-delete:hover:not(:disabled) { background: var(--wu-red-soft); color: var(--wu-red); }
+  .devup-design .workspace-app :is(.wu-table,.wu-gbranches__table) tbody tr:hover { background: var(--wu-hover-row); }
+  .devup-design .workspace-app :is(.wu-table,.wu-gbranches__table) tbody tr:hover td { background: transparent; }
+  .devup-design .workspace-app .wu-table tbody tr:is(.is-row-selected,[aria-selected=true]):hover { background: var(--wu-blue-soft); }
+  .devup-design .workspace-app .wu-table tbody tr :is(.wu-file-actions,.wu-team-actions > .wu-icon-button) { opacity: 0; transition: opacity 140ms ease; }
+  .devup-design .workspace-app .wu-table tbody tr:is(:hover,:focus-within) :is(.wu-file-actions,.wu-team-actions > .wu-icon-button) { opacity: 1; }
+  .devup-design .workspace-app :is(.wu-recent-file,.wu-file-card,.wu-note-gradient-card,.wu-project-card,.wu-task-card):hover { border-color: var(--wu-hover-border); box-shadow: var(--wu-hover-shadow); }
+  .devup-design .workspace-app .wu-project-card:hover { transform: translateY(-1px); }
+  .devup-design .workspace-app .wu-home-task:hover,
+  .devup-design .workspace-app .wu-project-task:hover { background: var(--wu-hover-row); }
+  .devup-design .workspace-app .wu-sidebar .wu-nav-item:not(.is-active):hover { background: #ffffff80; color: var(--wu-ink) !important; }
+  .devup-design .workspace-app[data-theme=dark] .wu-sidebar .wu-nav-item:not(.is-active):hover { background: #ffffff0d; }
+  .devup-design .workspace-app :is(.wu-chip:not(.is-active),.wu-github-tab[aria-pressed=false],.wu-file-type-tabs button[aria-pressed=false],.wu-file-view-toggle button[aria-pressed=false],.wu-note-formatbar button[aria-pressed=false],.wu-settings-section-nav button:not([aria-current])):hover:not(:disabled) { background: var(--wu-hover-control); color: var(--wu-ink); box-shadow: none; }
+  .devup-design .workspace-app .wu-text-button:hover:not(:disabled),
+  .devup-design .workspace-app a:not([class]):hover { color: var(--wu-blue); text-decoration: underline; text-underline-offset: 3px; }
+  .devup-design .workspace-app :is(.wu-list-search,.wu-command-input,.wu-chat-search,.wu-note-rich-editor):hover:not(:focus-within),
+  .devup-design .workspace-app .wu-field-label :is(input,textarea,select):hover:not(:disabled,:focus,[readonly]),
+  .devup-design .workspace-app .wu-select:hover:not(:disabled,:focus) { border-color: var(--wu-hover-border); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .devup-design .workspace-app :is(button,a,input,select,textarea,tr,.wu-file-card,.wu-note-gradient-card) { transition: none; }
+  .devup-design .workspace-app .wu-project-card:hover { transform: none; }
+}

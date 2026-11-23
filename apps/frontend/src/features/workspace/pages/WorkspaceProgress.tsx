@@ -3,7 +3,7 @@ import { Panel, Pill } from '../components';
 import { AvatarGroup } from '../WorkspaceControls';
 import type { Task } from '../types';
 
-export function WorkspaceProgress({ tasks, columns, onOpenBoard }: { tasks: Task[]; columns: string[]; onOpenBoard: () => void }) {
+export function WorkspaceProgress({ tasks, columns, onOpenBoard, compact=false }: { tasks: Task[]; columns: string[]; onOpenBoard: () => void; compact?:boolean }) {
   const counts = columns.map(status => ({
     status,
     count: tasks.filter(task => task.status === status).length,
@@ -28,13 +28,13 @@ export function WorkspaceProgress({ tasks, columns, onOpenBoard }: { tasks: Task
             <span>{done} of {total} tasks done</span>
           </div>
           <progress className="wu-home-progress-bar" value={done} max={total} aria-label="Tasks completed" aria-valuetext={`${done} of ${total} tasks done`} />
-          <dl className="wu-home-progress-breakdown">
+          {!compact && <dl className="wu-home-progress-breakdown">
             {counts.filter(entry => entry.status !== 'Done').map(({ status, count }) => (
               <div key={status}><dt>{status === 'Review' ? 'In review' : status}</dt><dd>{count}</dd></div>
             ))}
-          </dl>
+          </dl>}
           {blocked > 0 && <Pill tone="red">{blocked} blocked</Pill>}
-          {contributors.length > 0 && <div className="wu-progress-contributors">
+          {!compact && contributors.length > 0 && <div className="wu-progress-contributors">
             <span>Contributors</span><AvatarGroup people={contributors} />
           </div>}
         </>

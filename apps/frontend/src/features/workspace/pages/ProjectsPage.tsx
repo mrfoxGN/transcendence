@@ -1,5 +1,6 @@
+import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Pin, Plus } from 'lucide-react';
 import { Panel, Pill } from '../components';
 import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
 import { jsonRequest, workspaceRequest } from '../workspace-api';
@@ -8,6 +9,8 @@ import { statusLabels, type Member } from '../workspace-tasks';
 import { linkProjectTask, projectStatusLabels, type Milestone, type Project, type ProjectProgress, type ProjectTask } from '../workspace-projects';
 import type { PageHeading, Task } from '../types';
 import './projects.css';
+import { useProjectPins } from '../useProjectPins';
+import { projectAppearance } from '../project-appearance';
 
 type Editor = { kind: 'project'; item?: Project } | { kind: 'milestone'; item?: Milestone };
 type Removal = { name: string; path: string; project: boolean };
@@ -33,11 +36,17 @@ function TaskList({ tasks, onOpenTask }: { tasks: ProjectTask[]; onOpenTask: (id
   </li>)}</ul>;
 }
 
-export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, onProject, onOpenTask, tasks, members, profileId, path, token, readOnly }: {
+export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, onProject, onOpenTask, tasks, members, profileId, workspaceId, path, token, readOnly }: {
   pageHeading: PageHeading; projects?: Project[]; failed: boolean; retry: () => void;
   projectId: string | null; onProject: (id?: string) => void; onOpenTask: (id: string) => void;
-  tasks: Task[]; members: Member[]; profileId: string; path: string; token: string | null; readOnly: boolean;
+  tasks: Task[]; members: Member[]; profileId: string; workspaceId: string; path: string; token: string | null; readOnly: boolean;
 }) {
+  const {pinnedIds,togglePin}=useProjectPins(workspaceId,profileId);
+  const [pinNotice,setPinNotice]=useState('');
+  function pinButton(item:Project){
+    const pinned=pinnedIds.includes(item.id);
+    return <button type="button" className="wu-icon-button wu-project-pin-toggle" aria-label={(pinned?'Unpin ':'Pin ')+item.name} aria-pressed={pinned} title={pinned?'Unpin from Home':'Pin to Home'} onClick={()=>{togglePin(item.id);setPinNotice(item.name+(pinned?' unpinned.':' pinned to Home.'));}}><Pin size={16} strokeWidth={1.75} fill={pinned?'currentColor':'none'} aria-hidden="true"/></button>;
+  }
   const [editor, setEditor] = useState<Editor>();
   const [removal, setRemoval] = useState<Removal>();
   const [busy, setBusy] = useState(false);
@@ -87,7 +96,8 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
   }
 
   return <>
-    {pageHeading(!readOnly && (!projectId || project) && <button type="button" className="wu-button wu-button--primary" disabled={busy} onClick={() => edit({ kind: project ? 'milestone' : 'project' })}>
+    <span className="wu-visually-hidden" role="status">{pinNotice}</span>
+    {pageHeading(!readOnly && (!projectId || project) && <button type="button" className="wu-button wu-button--primary wu-button--with-icon" disabled={busy} onClick={() => edit({ kind: project ? 'milestone' : 'project' })}>
       <Plus size={16} aria-hidden="true" />{project ? 'New milestone' : 'New project'}
     </button>)}
     {failed ? <Panel className="wu-project-panel"><p role="alert">Could not load projects. <button className="wu-text-button" type="button" onClick={retry}>Try again</button></p></Panel>
@@ -98,7 +108,7 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
           <Panel className="wu-project-panel wu-project-overview">
             <div className="wu-panel-heading">
               <h2>{project.name}</h2>
-              <div className="wu-project-actions"><Pill tone={project.status === 'completed' ? 'green' : 'blue'}>{projectStatusLabels[project.status]}</Pill>
+              <div className="wu-project-actions">{pinButton(project)}<Pill tone={project.status === 'completed' ? 'green' : 'blue'}>{projectStatusLabels[project.status]}</Pill>
                 {!readOnly && <ActionMenu label="Project actions" actions={[
                   { label: 'Edit project', disabled: busy, run: () => edit({ kind: 'project', item: project }) },
                   { label: 'Delete project', disabled: busy, run: () => remove({ name: project.name, path: path + '/' + project.id, project: true }) },
@@ -132,7 +142,7 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
           {!editor && !removal && error && <p role="alert">{error}</p>}
           <Panel className="wu-project-panel">
             <h2>Milestones</h2>
-            {!project.milestones.length && <p className="wu-muted">No milestones yet.</p>}
+            {!project.milestones.length && <IllustratedEmptyState compact kind="calendar" title="No milestones yet" detail="Set a target date for the next stage of this project." />}
             {project.milestones.map(item => <section key={item.id} className="wu-project-milestone">
               <div className="wu-panel-heading"><div><h3>{item.name}</h3><p>{targetLabel(item.targetDate)}</p></div>
                 {!readOnly && <ActionMenu label={'Actions for ' + item.name} actions={[
@@ -149,14 +159,17 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
           </Panel>
         </> : <Panel className="wu-project-panel"><p role="status">This project is unavailable.</p></Panel>}
       </> : projects.length ? <ul className="wu-project-grid">{projects.map(item => <li key={item.id}>
-        <button type="button" className="wu-panel wu-project-card" onClick={() => onProject(item.id)}>
-          <span className="wu-project-card-heading"><strong>{item.name}</strong><ArrowRight size={17} aria-hidden="true" /></span>
-          <span className="wu-muted">{projectStatusLabels[item.status]} · {targetLabel(item.targetDate)}</span>
-          <Progress progress={item.progress} label={item.name + ' progress'} />
+        <button type="button" className="wu-panel wu-project-card wu-project-folder" style={projectAppearance(item.id)} onClick={() => onProject(item.id)}>
+          <span className="wu-folder-cover" aria-hidden="true"/>
+          <span className="wu-folder-front">
+            <span className="wu-project-card-heading"><strong>{item.name}</strong></span>
+            <span className="wu-folder-subtitle">{projectStatusLabels[item.status]} · {item.milestones.length} {item.milestones.length===1?'milestone':'milestones'}</span>
+            <span className="wu-folder-stats"><span><strong>{item.progress.total.toString().padStart(2,'0')}</strong><span>tasks</span></span><span><strong>{item.progress.total?Math.round(item.progress.done/item.progress.total*100):0}%</strong><span>complete</span></span></span>
+            <progress value={item.progress.done} max={item.progress.total||1} aria-label={item.name+' completion'} aria-valuetext={item.progress.done+' of '+item.progress.total+' tasks done'}/>
+          </span>
         </button>
-      </li>)}</ul> : <Panel className="wu-project-panel"><h2>No projects yet</h2>
-        <p className="wu-muted">{readOnly ? 'This workspace has no projects.' : 'Create a project to group tasks and track milestones.'}</p>
-      </Panel>}
+        {pinButton(item)}
+      </li>)}</ul> : <Panel className="wu-project-panel"><IllustratedEmptyState kind="projects" title="No projects yet" detail="Group related tasks and milestones in a project." action={!readOnly ? 'Create project' : undefined} onAction={() => edit({kind:'project'})} /></Panel>}
     {!readOnly && editor && <Drawer title={(editor.item ? 'Edit ' : 'New ') + editor.kind} closeDisabled={busy} onClose={() => setEditor(undefined)}>
       <form className="wu-project-form" onSubmit={save}>
         <label className="wu-field-label">Name<input name="name" required maxLength={120} defaultValue={editor.item?.name} placeholder={editor.kind === 'project' ? 'e.g. Workspace onboarding' : 'e.g. Release candidate'} /></label>

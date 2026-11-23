@@ -1,3 +1,5 @@
+import {EmptyIllustration} from '../../../shared/illustrations/EmptyIllustration';
+import {ThemePreview,NotificationPreview} from './SettingsVisuals';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
@@ -306,10 +308,11 @@ export function PersonalSettings({
               </div>
 
               <form onSubmit={handleUsernameSubmit}>
-                <label className="wu-field-label">
-                  Username
+                <div className="wu-field-label">
+                  <label htmlFor="settings-username">Username</label>
                   <div className="wu-input-row">
                     <input
+                      id="settings-username"
                       value={usernameInput}
                       onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="e.g. nourdev"
@@ -326,7 +329,7 @@ export function PersonalSettings({
                       Save username
                     </button>
                   </div>
-                </label>
+                </div>
                 <p className="wu-field-hint">
                   Must be between 3 and 30 characters. Your handle is visible to teammates
                   in task assignments and workspace discussions.
@@ -353,6 +356,8 @@ export function PersonalSettings({
               </h2>
               <p>Manage your password, email verification, and two-factor authentication.</p>
             </div>
+
+            <div className="wu-settings-security-visual"><EmptyIllustration kind="restricted" size={104}/><div><strong>Protect your account</strong><p>Keep your account protected with a strong password, a verified email, and two-factor authentication.</p></div></div>
 
             {/* Email Verification Card */}
             <div className="wu-settings-card">
@@ -616,86 +621,11 @@ export function PersonalSettings({
               </p>
 
               <div className="wu-theme-grid">
-                {/* System */}
-                <button
-                  type="button"
-                  className={`wu-theme-tile ${(profile.theme ?? 'system') === 'system' ? 'is-active' : ''}`}
-                  disabled={busy || !profile.id}
-                  onClick={() => {
-                    void run(async () => {
-                      if (!(await onTheme('system'))) throw new Error('Could not save theme.');
-                    }, 'Theme set to match system.');
-                  }}
-                >
-                  <div className="wu-theme-tile-head">
-                    <div className="wu-theme-tile-icon">
-                      <Laptop size={18} />
-                    </div>
-                    {(profile.theme ?? 'system') === 'system' && (
-                      <div className="wu-theme-tile-check">
-                        <Check size={12} />
-                      </div>
-                    )}
-                  </div>
-                  <h5 className="wu-theme-tile-name">System</h5>
-                  <p className="wu-theme-tile-desc">
-                    Automatically matches your operating system theme settings.
-                  </p>
-                </button>
-
-                {/* Light */}
-                <button
-                  type="button"
-                  className={`wu-theme-tile ${profile.theme === 'light' ? 'is-active' : ''}`}
-                  disabled={busy || !profile.id}
-                  onClick={() => {
-                    void run(async () => {
-                      if (!(await onTheme('light'))) throw new Error('Could not save theme.');
-                    }, 'Light theme activated.');
-                  }}
-                >
-                  <div className="wu-theme-tile-head">
-                    <div className="wu-theme-tile-icon">
-                      <Sun size={18} />
-                    </div>
-                    {profile.theme === 'light' && (
-                      <div className="wu-theme-tile-check">
-                        <Check size={12} />
-                      </div>
-                    )}
-                  </div>
-                  <h5 className="wu-theme-tile-name">Light</h5>
-                  <p className="wu-theme-tile-desc">
-                    Crisp, clean light surfaces with high readability.
-                  </p>
-                </button>
-
-                {/* Dark */}
-                <button
-                  type="button"
-                  className={`wu-theme-tile ${profile.theme === 'dark' ? 'is-active' : ''}`}
-                  disabled={busy || !profile.id}
-                  onClick={() => {
-                    void run(async () => {
-                      if (!(await onTheme('dark'))) throw new Error('Could not save theme.');
-                    }, 'Dark theme activated.');
-                  }}
-                >
-                  <div className="wu-theme-tile-head">
-                    <div className="wu-theme-tile-icon">
-                      <Moon size={18} />
-                    </div>
-                    {profile.theme === 'dark' && (
-                      <div className="wu-theme-tile-check">
-                        <Check size={12} />
-                      </div>
-                    )}
-                  </div>
-                  <h5 className="wu-theme-tile-name">Dark</h5>
-                  <p className="wu-theme-tile-desc">
-                    Deep charcoal background that reduces eye strain at night.
-                  </p>
-                </button>
+                {(['light','dark','system'] as Theme[]).map(mode=><button key={mode} type="button" className={'wu-theme-tile'+((profile.theme??'system')===mode?' is-active':'')} aria-label={'Use '+mode+' theme'} aria-pressed={(profile.theme??'system')===mode} disabled={busy||!profile.id} onClick={()=>{void run(async()=>{if(!(await onTheme(mode)))throw new Error('Could not save theme.');},mode==='system'?'Theme set to match system.':mode[0].toUpperCase()+mode.slice(1)+' theme activated.');}}>
+                  <ThemePreview mode={mode}/>
+                  <span className="wu-theme-option-caption"><strong>{mode[0].toUpperCase()+mode.slice(1)}</strong>{(profile.theme??'system')===mode&&<span className="wu-theme-tile-check"><Check size={12} aria-hidden="true"/></span>}</span>
+                  <span className="wu-theme-tile-desc">{mode==='light'?'Bright, clear surfaces':mode==='dark'?'A calm charcoal workspace':'Follow your device'}</span>
+                </button>)}
               </div>
             </div>
           </>
@@ -717,6 +647,7 @@ export function PersonalSettings({
                 </h4>
               </div>
 
+              <NotificationPreview badge={profile.notificationBadge??true}/>
               <div className="wu-toggle-card">
                 <div className="wu-toggle-card-meta">
                   <h5 className="wu-toggle-card-title">Unread badge counter</h5>
@@ -725,7 +656,7 @@ export function PersonalSettings({
                   </p>
                 </div>
                 <label className="wu-switch" aria-label="Toggle unread notification badge">
-                  <input
+                  <input aria-label="Show unread notification badge"
                     type="checkbox"
                     checked={profile.notificationBadge ?? true}
                     disabled={busy || !profile.id}

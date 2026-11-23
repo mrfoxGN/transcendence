@@ -1,5 +1,6 @@
+import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { UserRoundPlus, Search } from 'lucide-react';
 import { Avatar, Panel, Pill } from '../components';
 import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
 import { workspaceRequest } from '../workspace-api';
@@ -51,27 +52,27 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
     setConfirmation({ title, action, detail, run });
   }
 
-  return <>{pageHeading(owner && !archived ? <button className="wu-button wu-button--primary" type="button" onClick={onInvite}><Plus size={16} />Invite member</button>
+  return <>{pageHeading(owner && !archived ? <button className="wu-button wu-button--primary wu-button--with-icon" type="button" onClick={onInvite}><UserRoundPlus size={15} aria-hidden="true" />Invite member</button>
     : !owner && members?.some(member => member.userId === profileId) && <button className="wu-button wu-button--secondary" type="button"
       onClick={() => confirm('Leave this workspace?', 'Leave workspace', 'You’ll lose access and your tasks will become unassigned.', async () => {
         await workspaceRequest(path + '/membership', token, { method: 'DELETE' });
         location.replace('/workspaces');
       })}>Leave workspace</button>)}
-    <Panel className="wu-content-panel">
+    <Panel className="wu-content-panel wu-team-panel">
       <div className="wu-panel-heading"><div><h2>People{members ? ' (' + members.length + ')' : ''}</h2><p>Members with access to {workspaceName}.</p></div></div>
       {!!members?.length && <label className="wu-list-search"><Search size={16} aria-hidden="true" />
         <input type="search" aria-label="Search members" placeholder="Search members" value={query} onChange={event => setQuery(event.target.value)} />
       </label>}
       {loadError ? <p role="alert">Could not load members. <button className="wu-text-button" onClick={retry}>Try again</button></p>
         : !members || !visibleMembers ? <LoadingPanel label="Loading workspace members" />
-        : !members.length ? <p className="wu-muted">No workspace members found.</p>
-        : !visibleMembers.length ? <p className="wu-muted">No members match your search.</p>
-        : <div className="wu-table-wrap"><table className="wu-table"><thead><tr><th>Member</th><th>Role</th><th>Joined</th><th><span className="wu-visually-hidden">Actions</span></th></tr></thead><tbody>
+        : !members.length ? <IllustratedEmptyState kind="team" title="Make room for your team" detail="Invite someone to start collaborating." action={owner && !archived ? 'Invite member' : undefined} onAction={onInvite} />
+        : !visibleMembers.length ? <IllustratedEmptyState compact kind="search" title="No matching members" action="Clear search" onAction={() => setQuery('')} />
+        : <div className="wu-table-wrap"><table className="wu-table wu-team-table"><thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Joined</th><th scope="col"><span className="wu-visually-hidden">Actions</span></th></tr></thead><tbody>
           {visibleMembers.map(person => <tr key={person.userId}>
-            <td><span className="wu-person">{person.avatarUrl ? <img className="wu-avatar" src={person.avatarUrl} alt="" /> : <Avatar initials={person.username.slice(0, 2).toUpperCase()} preview={false} />}<strong>{person.username}</strong>{person.userId === profileId && <small>You</small>}</span></td>
-            <td><Pill tone={person.isOwner ? 'blue' : 'neutral'}>{person.isOwner ? 'Owner' : 'Member'}</Pill></td>
-            <td>{new Date(person.joinedAt).toLocaleDateString()}</td>
-            <td>{owner && !archived && !person.isOwner && <ActionMenu label={'Actions for ' + person.username} actions={[
+            <td data-label="Member"><span className="wu-person">{person.avatarUrl ? <img className="wu-avatar" src={person.avatarUrl} alt="" /> : <Avatar initials={person.username.slice(0, 2).toUpperCase()} preview={false} />}<strong>{person.username}</strong>{person.userId === profileId && <small>You</small>}</span></td>
+            <td data-label="Role"><Pill tone={person.isOwner ? 'blue' : 'neutral'}>{person.isOwner ? 'Owner' : 'Member'}</Pill></td>
+            <td data-label="Joined">{new Date(person.joinedAt).toLocaleDateString()}</td>
+            <td className="wu-team-actions" data-label="Actions">{owner && !archived && !person.isOwner && <ActionMenu label={'Actions for ' + person.username} actions={[
               { label: 'Transfer ownership', run: () => confirm('Transfer ownership to ' + person.username + '?', 'Transfer ownership', 'They’ll manage this workspace. You’ll stay as a member.', async () => {
                 await workspaceRequest(path + '/owner/' + person.userId, token, { method: 'PATCH' });
                 refreshWorkspace();
@@ -98,7 +99,7 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
       {!confirmation && error && <p role="alert">{error}</p>}
       {invitations.error ? <p role="alert">Could not load invitations. <button type="button" className="wu-text-button" onClick={invitations.retry}>Try again</button></p>
         : !invitations.items ? <LoadingPanel label="Loading invitations" />
-        : !invitations.items.length ? <p className="wu-muted">No invitations yet.</p>
+        : !invitations.items.length ? <IllustratedEmptyState compact kind="invitations" title="No invitations yet" detail="Invite someone to join this workspace." action={!archived ? 'Invite member' : undefined} onAction={onInvite} />
         : <ul className="wu-document-list">{invitations.items.map(invitation => <li key={invitation.id}>
           <span>{invitation.invitedEmail ?? 'DevUP user'} · {statuses[invitation.status]}
             {invitation.status === 'PENDING' && invitation.expiresAt && ' · Expires ' + new Date(invitation.expiresAt).toLocaleDateString()}</span>
