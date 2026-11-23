@@ -31,7 +31,7 @@ export function TaskFacets({ tasks, value, onChange }: { tasks: Task[]; value: F
   ] as const;
   const applied = facets.filter(({ key }) => value[key]);
   return <>
-    <button className="wu-button wu-button--secondary" type="button" popoverTarget={id} onClick={event => {
+    <button className="wu-button wu-button--secondary wu-button--with-icon" type="button" popoverTarget={id} onClick={event => {
       const anchor = event.currentTarget.getBoundingClientRect();
       if (!popover.current) return;
       popover.current.style.left = Math.max(8, Math.min(anchor.left, window.innerWidth - 288)) + 'px';

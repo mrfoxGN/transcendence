@@ -1,18 +1,4 @@
-import {
-  GitBranch,
-  GitCommitHorizontal,
-  House,
-  UserRoundCheck,
-  UsersRound,
-} from 'lucide-react';
-
-const tabs = [
-  { label: 'Repository', icon: House },
-  { label: 'Branches', icon: GitBranch },
-  { label: 'Commits', icon: GitCommitHorizontal },
-  { label: 'Contributors', icon: UsersRound },
-  { label: 'Collaborators', icon: UserRoundCheck },
-] as const;
+const tabs = [{ label: 'Repository' }, { label: 'Branches' }, { label: 'Commits' }, { label: 'Contributors' }, { label: 'Collaborators' }] as const;
 
 export type GithubTabName = (typeof tabs)[number]['label'];
 
@@ -31,7 +17,7 @@ export function GithubTabs({
     <nav className="wu-github-tabs" aria-label="GitHub navigation">
       {tabs
         .filter(tab => owner || tab.label !== 'Collaborators')
-        .map(({ label, icon: Icon }) => (
+        .map(({ label }) => (
           <button
             key={label}
             type="button"
@@ -39,7 +25,6 @@ export function GithubTabs({
             aria-pressed={active === label}
             onClick={() => onChange(label)}
           >
-            <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
             <span>{label}</span>
           </button>
         ))}

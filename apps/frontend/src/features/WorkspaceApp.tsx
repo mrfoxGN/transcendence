@@ -1,5 +1,6 @@
+import { IllustratedEmptyState } from '../shared/illustrations/EmptyIllustration';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Archive, CheckCircle2, ChevronRight, Contrast, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Plus, Sun, UserRound, UsersRound, X } from 'lucide-react';
+import { Archive, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Contrast, LogOut, PanelLeftClose, PanelLeftOpen, Plus, UserRound, UsersRound, X } from 'lucide-react';
 import { workspaceIcons } from './workspace/workspace-icons';
 import { sessionKey, signOut, switchAccount } from './WorkspacePicker';
 import './workspace-app.css';
@@ -11,6 +12,7 @@ import { TaskProjectField } from './workspace/TaskProjectField';
 import type { Project } from './workspace/workspace-projects';
 import { WorkspaceSwitcher } from './workspace/WorkspaceSwitcher';
 import { WorkspaceCommand } from './workspace/WorkspaceCommand';
+import { useWorkspaceHistory } from './workspace/useWorkspaceHistory';
 import { NotificationInbox } from './workspace/NotificationInbox';
 import { LoadingPanel } from './workspace/WorkspaceControls';
 import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFacets';
@@ -78,6 +80,25 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }
   const token = sessionStorage.getItem(sessionKey);
   const [page, setPage] = useState<PageKey>(getPageFromUrl);
+  const workspaceHistory = useWorkspaceHistory(workspaceId);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  useEffect(() => {
+    if (!mobileSidebarOpen) return;
+    const sidebar = document.getElementById('workspace-sidebar');
+    const focusables = () => Array.from(sidebar?.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input,select,[tabindex="0"]') ?? []).filter(item => item.getClientRects().length && getComputedStyle(item).visibility !== 'hidden');
+    const focusTimer = window.setTimeout(() => focusables()[0]?.focus(), 0);
+    const close = (event: KeyboardEvent) => {
+      if (document.querySelector('dialog[open],:popover-open')) return;
+      if (event.key === 'Escape') setMobileSidebarOpen(false);
+      if (event.key === 'Tab') {
+        const items = focusables(); const first = items[0]; const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    window.addEventListener('keydown', close);
+    return () => { clearTimeout(focusTimer); window.removeEventListener('keydown', close); document.querySelector<HTMLElement>('.wu-mobile-nav-toggle')?.focus(); };
+  }, [mobileSidebarOpen]);
   const [settingsSection, setSettingsSection] = useState(location.hash);
   const [projectSection, setProjectSection] = useState(() => location.hash.slice(1));
   const themeSaving = useRef(false);
@@ -109,10 +130,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [inviteDelivery, setInviteDelivery] = useState<TeamInvitation>();
   const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
   const filePath = workspacePath + '/files';
-  const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath + '?page=1&limit=100', token);
+  const workspaceFiles = useWorkspaceCollection<WorkspaceFile>(filePath, token);
   const members = useWorkspaceCollection<Member>(workspacePath + '/members', token);
   const projectsPath = workspacePath + '/projects';
-  const projects = useWorkspaceCollection<Project>(projectsPath, page === 'projects' || selectedTaskId ? token : null);
+  const projects = useWorkspaceCollection<Project>(projectsPath, page === 'projects' || page === 'home' || selectedTaskId ? token : null);
   const invitations = useWorkspaceCollection<TeamInvitation>(workspacePath + '/invitations', page === 'team' && workspace?.ownerId === profileId ? token : null);
   const recentActivity = useWorkspaceCollection<ActivityEvent>(workspacePath + '/activities?limit=5', token);
   const tasks = useMemo(() => (board?.tasks ?? []).map(task => {
@@ -186,7 +207,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   }, [boardAttempt]);
 
   useEffect(() => {
-    document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · ${workspaceName} · DevUP`;
+    document.title = `${navigation.find(item => item.key === page)?.label ?? 'Home'} · DevUP`;
     const onPop = () => {
       setPage(getPageFromUrl());
       setSettingsSection(location.hash);
@@ -196,7 +217,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [page, workspaceName]);
+  }, [page]);
 
   useEffect(() => {
     const preference = matchMedia('(prefers-color-scheme: dark)');
@@ -244,6 +265,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const taskFacets = <TaskFacets tasks={tasks} value={facets} onChange={setFacets} />;
 
   function navigate(next: PageKey, section = '') {
+    setMobileSidebarOpen(false);
     setPage(next);
     if (next === 'settings') setSettingsSection(section ? '#' + section : '');
     if (next === 'projects') setProjectSection(section);
@@ -254,7 +276,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     url.searchParams.delete('task');
     setSelectedTaskId(null);
     url.hash = section;
-    window.history.pushState({ page: next, ...(next === 'files' && selectedTaskId ? { fromTask: selectedTaskId } : {}) }, '', url);
+    workspaceHistory.push({ page: next, ...(next === 'files' && selectedTaskId ? { fromTask: selectedTaskId } : {}) }, url);
     if (next === 'chat') setChatThread(getChatThreadFromUrl());
   }
 
@@ -419,15 +441,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function addTaskButton(label = 'New task') {
     if (archived) return null;
-    return <button className="wu-button wu-button--primary" type="button" onClick={() => openTaskForm()}><Plus size={16} />{label}</button>;
+    return <button className="wu-button wu-button--primary wu-button--with-icon" type="button" onClick={() => openTaskForm()}><Plus size={15} aria-hidden="true" />{label}</button>;
   }
 
   function pageHeading(action?: ReactNode) {
     return <header className="wu-page-heading">
-      <h1>
-        {pageLabel}
-        {page === 'home' && <span className="wu-muted" style={{ fontWeight: 400, marginInlineStart: 8 }}>· {workspaceName}</span>}
-      </h1>
+      <div className="wu-page-heading-copy">
+        <h1>{pageLabel}</h1>
+      </div>
       {action && <div className="wu-page-action">{action}</div>}
     </header>;
   }
@@ -436,21 +457,21 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     const url = new URL(location.href);
     if (task) url.searchParams.set('task', task.taskKey ?? task.id);
     else url.searchParams.delete('task');
-    history.replaceState({ page }, '', url);
+    history.replaceState({ ...history.state, page }, '', url);
     setSelectedTaskId(task?.id ?? null);
   }
 
   function openRelatedTask(task: Task) {
     const url = new URL(location.href);
     url.searchParams.set('task', task.taskKey ?? task.id);
-    history.pushState({ page, fromTask: selectedTaskId }, '', url);
+    workspaceHistory.push({ page, fromTask: selectedTaskId }, url);
     setSelectedTaskId(task.id);
   }
 
   function openTaskById(id: string) {
     const url = new URL(location.href);
     url.searchParams.set('task', id);
-    history.replaceState({ page }, '', url);
+    history.replaceState({ ...history.state, page }, '', url);
     setSelectedTaskId(id);
   }
 
@@ -483,7 +504,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function renderPage() {
     if (!workspace) return <>{pageHeading()}{workspaceError
-      ? <p role="alert">{workspaceError} <button type="button" className="wu-text-button" onClick={() => { setWorkspaceError(''); setWorkspaceAttempt(value => value + 1); }}>Try again</button> <a href="/workspaces">Back to workspaces</a></p>
+      ? <IllustratedEmptyState kind={/access|private|permission/i.test(workspaceError) ? 'restricted' : /offline|connection/i.test(workspaceError) ? 'offline' : 'error'} title={/access|private|permission/i.test(workspaceError) ? 'This space is private' : /offline|connection/i.test(workspaceError) ? 'You’re offline' : 'Could not load this workspace'} detail={workspaceError} action={/access|private|permission/i.test(workspaceError) ? 'Back to workspaces' : 'Try again'} onAction={() => { if (/access|private|permission/i.test(workspaceError)) location.assign('/workspaces'); else { setWorkspaceError(''); setWorkspaceAttempt(value => value + 1); } }} />
       : <LoadingPanel label="Checking workspace access" />}</>;
     if (['home', 'board', 'backlog', 'analytics'].includes(page) && !board) {
       return <>{pageHeading()}{boardError
@@ -496,7 +517,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         return <ProjectsPage key={(projectId ?? 'list') + (archived ? '-archived' : '')}
           pageHeading={pageHeading} projects={projects.items} failed={projects.error} retry={projects.retry}
           projectId={projectId} onProject={id => navigate('projects', id ? 'project-' + id : '')}
-          onOpenTask={openTaskById} tasks={tasks} members={members.items ?? []} profileId={profileId}
+          onOpenTask={openTaskById} tasks={tasks} members={members.items ?? []} profileId={profileId} workspaceId={workspaceId}
           path={projectsPath} token={token} readOnly={archived} />;
       }
       case 'home': return (
@@ -505,11 +526,13 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           columns={columns}
           tasks={tasks}
           today={today}
+          reportingTimeZone={reportingTimeZone}
           profileId={profileId}
           members={members.items ?? []}
+          projects={projects.items}
           recentActivity={recentActivity}
           openActivityResource={openActivityResource}
-          githubPath={workspacePath + '/github'} token={token}
+          workspaceId={workspaceId} projectsError={projects.error} retryProjects={projects.retry}
           homeFilter={homeFilter}
           setHomeFilter={setHomeFilter}
           navigate={navigate}
@@ -587,7 +610,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'chat': return token && (
         <ChatPage
-          key={profileId + ':' + workspaceId} workspaceId={workspaceId} workspaceName={workspaceName} chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
+          key={profileId + ':' + workspaceId} workspaceId={workspaceId} chat={chat} selected={chatThread} setSelected={setChatThread} profileId={profileId}
           profileName={profileName} roster={members.items ?? []} workspaceArchived={archived}
         />
       );
@@ -631,8 +654,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       );
       case 'settings': return (
         <SettingsPage
-          key={settingsSection}
-          initialTab={settingsSection === '#profile' ? 'Profile' : settingsSection === '#archive' ? 'Archive' : settingsSection === '#board' ? 'Board settings' : 'General'}
+          initialTab={({ general: 'General', access: 'Access', board: 'Board settings', integrations: 'Integrations', archive: 'Archive', profile: 'Profile', security: 'Security', appearance: 'Appearance', notifications: 'Notifications' } as Record<string, string>)[settingsSection.slice(1)] ?? 'General'}
+          onSectionChange={section => setSettingsSection('#' + section)}
           pageHeading={pageHeading}
           workspace={workspace} ownerName={members.items?.find(member => member.isOwner)?.username}
           profile={profile} token={token} path={workspacePath}
@@ -645,37 +668,40 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  return <div className={page === 'chat' ? 'workspace-app workspace-app--chat' : 'workspace-app'} data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'} data-theme={theme === 'system' ? (browserDark ? 'dark' : 'light') : theme}>
+  return <div className={page === 'chat' ? 'workspace-app workspace-app--chat' : 'workspace-app'} data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'} data-mobile-sidebar={mobileSidebarOpen ? 'open' : 'closed'} data-theme={theme === 'system' ? (browserDark ? 'dark' : 'light') : theme}>
+    {mobileSidebarOpen && <button className="wu-sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileSidebarOpen(false)} />}
     <aside className="wu-sidebar" id="workspace-sidebar">
       <div className="wu-sidebar-header">
-        <WorkspaceSwitcher workspaceId={workspaceId} workspaceName={workspaceName} token={token} profileId={profileId} />
+        <a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a>
         <button className="wu-icon-button wu-sidebar-toggle" type="button" aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed}
-          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggleSidebar}>
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => { if (matchMedia('(max-width:680px)').matches) setMobileSidebarOpen(false); else toggleSidebar(); }}>
           {sidebarCollapsed ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
         </button>
       </div>
-      <nav className="wu-nav" aria-label="Workspace navigation">{navigation.slice(0, -1).map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.key === 'chat' && chat.unreadTotal > 0 ? 'Chat, ' + chat.unreadTotal + ' unread messages' : item.label} data-nav-tooltip={item.label} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && chat.unreadTotal > 0 && <b aria-hidden="true">{chat.unreadTotal > 99 ? '99+' : chat.unreadTotal}</b>}</button>; })}</nav>
-      <button type="button" aria-label="Workspace settings" data-nav-tooltip="Settings" className={`wu-nav-item wu-nav-settings${page === 'settings' ? ' is-active' : ''}`} aria-current={page === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><workspaceIcons.settings size={17} /><span>Settings</span></button>
+      <div className="wu-sidebar-search">
+        <WorkspaceCommand pages={navigation} tasks={allTasks}
+          disabled={!!(!workspace || (!archived && modal) || selectedTask)} onNavigate={navigate} onOpenTask={task => { setMobileSidebarOpen(false); setSelectedTask(task); }} />
+      </div>
+      <nav className="wu-nav" aria-label="Workspace navigation">{navigation.map(item => { const Icon = item.icon; return <button key={item.key} type="button" aria-label={item.key === 'chat' && chat.unreadTotal > 0 ? 'Chat, ' + chat.unreadTotal + ' unread messages' : item.label} data-nav-tooltip={item.label} className={`wu-nav-item${page === item.key ? ' is-active' : ''}`} aria-current={page === item.key ? 'page' : undefined} onClick={() => navigate(item.key)}><Icon size={17} /><span>{item.label}</span>{item.key === 'chat' && chat.unreadTotal > 0 && <b aria-hidden="true">{chat.unreadTotal > 99 ? '99+' : chat.unreadTotal}</b>}</button>; })}</nav>
+      <div className="wu-sidebar-workspace">
+        <WorkspaceSwitcher workspaceId={workspaceId} workspaceName={workspaceName} token={token} profileId={profileId} />
+      </div>
     </aside>
     <div className="wu-main">
       <header className="wu-topbar">
-        <a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a>
-        <WorkspaceCommand pages={navigation} tasks={allTasks}
-          disabled={!!(!workspace || (!archived && modal) || selectedTask)} onNavigate={navigate} onOpenTask={setSelectedTask} />
+        <div className="wu-page-navigation">
+          <button className="wu-icon-button wu-mobile-nav-toggle" type="button" aria-label="Open navigation" aria-controls="workspace-sidebar" aria-expanded={mobileSidebarOpen} onClick={() => setMobileSidebarOpen(true)}><PanelLeftOpen size={18} aria-hidden="true" /></button>
+          <div className="wu-history-controls" role="group" aria-label="Page history">
+            <button className="wu-icon-button" type="button" aria-label="Go back" title="Go back" disabled={!workspaceHistory.canBack} onClick={() => history.back()}><ArrowLeft size={17} aria-hidden="true" /></button>
+            <button className="wu-icon-button" type="button" aria-label="Go forward" title="Go forward" disabled={!workspaceHistory.canForward} onClick={() => history.forward()}><ArrowRight size={17} aria-hidden="true" /></button>
+          </div>
+          <nav className="wu-breadcrumbs" aria-label="Breadcrumb">
+            <button type="button" onClick={() => navigate('home')} title={workspaceName}>{workspaceName}</button>
+            <ChevronRight size={13} aria-hidden="true" />
+            {page === 'projects' && projectSection.startsWith('project-') ? <><button type="button" onClick={() => navigate('projects')}>Projects</button><ChevronRight size={13} aria-hidden="true" /><span aria-current="page">{projects.items?.find(project => project.id === projectSection.slice(8))?.name ?? 'Project'}</span></> : <span aria-current="page">{pageLabel}</span>}
+          </nav>
+        </div>
         <div className="wu-top-actions">
-          <button
-            className="wu-theme-button"
-            type="button"
-            aria-label={`Switch theme (currently ${theme === 'system' ? (browserDark ? 'dark (system)' : 'light (system)') : theme})`}
-            title={`Switch to ${theme === 'dark' || (theme === 'system' && browserDark) ? 'light' : 'dark'} mode`}
-            onClick={() => void saveTheme((theme === 'dark' || (theme === 'system' && browserDark)) ? 'light' : 'dark')}
-          >
-            {(theme === 'dark' || (theme === 'system' && browserDark)) ? (
-              <Sun size={17} aria-hidden="true" />
-            ) : (
-              <Moon size={17} aria-hidden="true" />
-            )}
-          </button>
           <NotificationInbox token={token} workspaceId={workspaceId} showBadge={profile.notificationBadge} />
           <button className="wu-user-button wu-profile-trigger" type="button" aria-label={'Account menu for ' + profileName} popoverTarget="wu-profile-menu">
             {profileAvatar ? <img className="wu-avatar" src={profileAvatar} alt="" /> : <Avatar initials={profileInitials} tone="blue" preview={false} />}
@@ -720,7 +746,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       files={(workspaceFiles.items ?? []).filter(file => file.taskId === selectedTask.id)} boardColumns={boardColumns}
       openTask={openRelatedTask} openFile={file => navigate('files', 'file-' + file.id)}
       onBack={history.state?.fromTask ? () => history.back() : undefined} />}
-    {!archived && modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !submittingModal.current) setModal(null); }}><section className="wu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" disabled={taskSaving} onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}>
+    {!archived && modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !submittingModal.current) setModal(null); }}><section className="wu-modal wu-workspace-form-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" disabled={taskSaving} onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}>
       <label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required maxLength={200} readOnly={taskSaving} /></label>
       <label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" readOnly={taskSaving} /></label>
       <div className="wu-task-create-fields">

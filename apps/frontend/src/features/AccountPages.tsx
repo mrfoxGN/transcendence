@@ -8,6 +8,7 @@ import { VerifiedUserBadge } from './auth/VerifiedUserBadge';
 import { Check, Eye, EyeOff, Lock, Mail, ArrowRight, ArrowLeft, AlertCircle, ShieldCheck } from 'lucide-react';
 import './landing/auth.css';
 import './account-onboarding.css';
+import { EntryThemeControl } from './auth/EntryAppearance';
 
 export interface AccountShellProps {
   title: string;
@@ -41,7 +42,7 @@ export function AccountShell({
           </svg>
           <span>DevUP</span>
         </a>
-        {backHref ? (
+        <div className="entry-header-actions"><EntryThemeControl />{backHref ? (
           <a href={backHref} className="auth-header-action" aria-label="Go back">
             <ArrowLeft size={18} aria-hidden="true" />
             <span>Back</span>
@@ -50,7 +51,7 @@ export function AccountShell({
           <a href="/" className="auth-close" aria-label="Back to home">
             <ArrowLeft size={18} aria-hidden="true" />
           </a>
-        )}
+        )}</div>
       </header>
 
       <section className="auth-shell" aria-labelledby="account-title">
@@ -729,6 +730,7 @@ export function FirstRun({ step }: { step: 'avatar' | 'email' }) {
           </div>
         ) : (
           <AvatarPicker
+            showPreview
             saving={saving}
             error={avatarError}
             onSave={(avatar) => void saveAvatar(avatar)}

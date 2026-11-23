@@ -32,9 +32,9 @@ async function prepareAvatar(file: File) {
   }
 }
 
-export function AvatarPicker({ onSave, onSkip, saving, error, saveLabel = 'Save and continue', skipLabel = 'Skip for now' }: {
+export function AvatarPicker({ onSave, onSkip, saving, error, saveLabel = 'Save and continue', skipLabel = 'Skip for now', showPreview = false }: {
   onSave: (avatar: AvatarSelection) => void; onSkip: () => void; saving: boolean; error: string;
-  saveLabel?: string; skipLabel?: string;
+  saveLabel?: string; skipLabel?: string; showPreview?: boolean;
 }) {
   const [selection, setSelection] = useState('');
   const [image, setImage] = useState('');
@@ -77,6 +77,10 @@ export function AvatarPicker({ onSave, onSkip, saving, error, saveLabel = 'Save 
   }
 
   return <form className="auth-form" onSubmit={submit}>
+    {showPreview && <div className="entry-avatar-preview" aria-live="polite">
+      <span className="entry-avatar-preview__image">{selection && !custom ? <img src={selection} alt="Selected avatar"/> : custom && (image || (previewUrl && !previewError)) ? <img src={image || previewUrl} alt="Selected avatar" onError={()=>setPreviewError(true)}/> : <span aria-hidden="true">You</span>}</span>
+      <span>{selection ? 'Your new look' : 'Make it yours'}<small>{selection ? 'Ready for your workspace' : 'Choose a portrait below'}</small></span>
+    </div>}
     <div className="avatar-picker-grid" role="group" aria-label="Avatar choices">
       {portraits.map(portrait => <button key={portrait.path} type="button" className="avatar-choice"
         aria-label={portrait.label} aria-pressed={selection === portrait.path} disabled={busy}

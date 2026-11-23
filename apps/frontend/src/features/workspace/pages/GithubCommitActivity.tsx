@@ -1,3 +1,4 @@
+import { ChartTooltipSurface } from '../../../shared/charts/ChartTooltipSurface';
 import { useId } from 'react';
 import './github-activity.css';
 
@@ -80,8 +81,8 @@ export function GithubCommitActivity({
     >
       <div className="wu-github-activity__heading">
         <div>
-          <h3>Repository Activity</h3>
-          <p>Commits over the last 7 days</p>
+          <h3>Commit activity</h3>
+          <p>Commits over the last {stats?.days ?? 7} days</p>
         </div>
 
         {stats && (
@@ -109,13 +110,12 @@ export function GithubCommitActivity({
         </p>
       ) : (
         <>
-          <svg
+          <ChartTooltipSurface><svg
             className="wu-github-activity__chart"
             viewBox="0 0 700 118"
             role="img"
-            aria-label="Daily commits over the last seven days"
+            aria-label={'Daily commits over the last '+(stats?.days ?? 7)+' days'}
           >
-            <title>GitHub commit activity</title>
             <desc>
               {items
                 .map(item => `${item.date}: ${item.commits} commits`)
@@ -133,7 +133,7 @@ export function GithubCommitActivity({
                 <stop
                   offset="0%"
                   stopColor="var(--wu-blue)"
-                  stopOpacity="0.25"
+                  className="wu-github-activity__area-stop" stopOpacity="0.25"
                 />
                 <stop
                   offset="100%"
@@ -153,30 +153,27 @@ export function GithubCommitActivity({
               className="wu-github-activity__line"
             />
 
-            {points.map(point => (
+            {points.map((point, index) => (
               <g key={point.date}>
                 <circle
                   cx={point.x}
                   cy={point.y}
-                  r="5"
+                  r="2.5" tabIndex={0} role="img" aria-label={`${point.date}: ${point.commits} commits`} data-chart-label={point.date} data-chart-detail={`${point.commits} ${point.commits === 1 ? 'commit' : 'commits'}`}
                   className="wu-github-activity__point"
                 >
-                  <title>
-                    {point.date}: {point.commits} commits
-                  </title>
                 </circle>
 
-                <text
+                {(index === 0 || index === points.length - 1 || (index % Math.ceil(points.length / 5) === 0 && index < points.length - 2)) && <text
                   x={point.x}
                   y="106"
                   textAnchor="middle"
                   className="wu-github-activity__label"
                 >
-                  {point.day}
-                </text>
+                  {points.length > 7 ? new Date(point.date+'T00:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}) : point.day}
+                </text>}
               </g>
             ))}
-          </svg>
+          </svg></ChartTooltipSurface>
 
           <p className="wu-github-activity__footnote">
             Based on synchronized default-branch commits · UTC

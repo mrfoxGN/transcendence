@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, Folder, Plus, LayoutDashboard, Bell } from 'lucide-react';
+import { ArrowRight, Folder, Plus } from 'lucide-react';
 import './workspace-picker.css';
+import { EntryThemeControl } from './auth/EntryAppearance';
 import { NotificationInbox } from './workspace/NotificationInbox';
 import { authRoute } from './auth-routing';
 import { canSearchWorkspaces } from './workspace/workspace-history';
@@ -92,26 +93,10 @@ function WorkspaceList({
               className="workspace-picker-card"
               href={'/workspaces/' + encodeURIComponent(item.id)}
             >
-              <div className="workspace-picker-card-header">
-                <span className="workspace-picker-card-icon">
-                  <Folder size={22} aria-hidden="true" />
-                </span>
-                <strong>{item.name}</strong>
-              </div>
-
-              <div className="workspace-picker-card-details">
-                <span className="workspace-picker-card-label">DESCRIPTION</span>
-                <p>
-                  {item.archivedAt
-                    ? 'Archived workspace'
-                    : item.description?.trim() || 'No description provided'}
-                </p>
-              </div>
-
-              <div className="workspace-picker-card-footer">
-                <span>Open workspace</span>
-                <ArrowRight size={16} aria-hidden="true" />
-              </div>
+              <span className="workspace-picker-card-icon"><Folder size={21} aria-hidden="true" /></span>
+              <span className="workspace-picker-card-copy"><strong>{item.name}</strong><small>{item.archivedAt ? 'Archived workspace' : item.description?.trim() || (isOwner ? 'Your workspace' : 'Team workspace')}</small></span>
+              <span className="workspace-picker-role">{item.archivedAt ? 'Archived' : isOwner ? 'Owner' : 'Member'}</span>
+              <ArrowRight className="workspace-picker-open" size={17} aria-hidden="true" />
             </a>
 
             <details className="workspace-picker-card-menu">
@@ -530,6 +515,29 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
     }
   }
 
+  const modalKind=creating?'create':deleteTarget?'delete':leaveTarget?'leave':transferTarget?'transfer':null;
+  const modalBusy=useRef(false);
+  modalBusy.current=pending||deletePending||leavePending||transferPending;
+  useEffect(()=>{
+    if(!modalKind)return;
+    const dialog=document.querySelector<HTMLElement>('.workspace-create-modal');
+    if(!dialog)return;
+    const active=document.activeElement as HTMLElement|null;
+    const previous=active&&!dialog.contains(active)?active:document.querySelector<HTMLElement>('.workspace-hub-heading button');
+    const controls=()=>Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')).filter(el=>el.getClientRects().length>0);
+    controls()[0]?.focus();
+    const handleKey=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'&&!modalBusy.current){event.preventDefault();setCreating(false);setDeleteTarget(null);setLeaveTarget(null);setTransferTarget(null);setFormError('');}
+      if(event.key==='Tab'){
+        const items=controls();const first=items[0],last=items[items.length-1];
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
+      }
+    };
+    document.addEventListener('keydown',handleKey);
+    return()=>{document.removeEventListener('keydown',handleKey);previous?.focus();};
+  },[modalKind]);
+
   if (!token) return null;
   const workspace = data?.workspaces.find(item => item.id === workspaceId);
   const allWorkspaces = data?.workspaces ?? [];
@@ -545,53 +553,19 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
       <header className="auth-header">
         <a href="/" className="brand" aria-label="DevUP home"><img src="/devup.svg" alt="" width="34" height="34" />DevUP</a>
         <div className="workspace-picker-actions workspace-picker-notifications">
+          <EntryThemeControl />
           <NotificationInbox token={token} workspaceId={allWorkspaces.find(item => !item.archivedAt)?.id} triggerRef={inboxButton} showBadge={data?.profile.notificationBadge} />
           <button className="button button--secondary" type="button" onClick={() => switchAccount()}>Switch account</button>
           <button className="button button--secondary" type="button" onClick={() => void logout().catch(() => {})} disabled={leaving}>Log out</button>
         </div>
       </header>
       <div className="workspace-dashboard-layout">
-        <aside className="workspace-dashboard-sidebar" aria-label="Dashboard navigation">
-          <div className="workspace-dashboard-sidebar-title">PERSONAL SPACE</div>
-          <nav className="workspace-dashboard-nav" aria-label="Personal space">
-            <a className="workspace-dashboard-nav-active" href="/workspaces">
-              <LayoutDashboard size={18} aria-hidden="true" />
-              Overview
-            </a>
-            <a href="#workspace-picker-title">
-              <Folder size={18} aria-hidden="true" />
-              Workspaces
-            </a>
-            <button type="button" onClick={() => inboxButton.current?.click()}>
-              <Bell size={18} aria-hidden="true" />
-              Invitations
-            </button>
-          </nav>
-          <div className="workspace-dashboard-sidebar-footer">
-            <span className="workspace-dashboard-online-dot" />
-            Your personal workspace
-          </div>
-        </aside>
-
         <div className="workspace-dashboard-main">
       <section className="auth-shell workspace-picker-shell" aria-labelledby="workspace-picker-title">
-        <h1 id="workspace-picker-title">{workspace ? workspace.name : 'Your workspaces'}</h1>
-        {!workspaceId && data && (
-          <div className="workspace-dashboard-hero">
-            <span className="workspace-dashboard-eyebrow">YOUR PERSONAL SPACE</span>
-            <h2>Welcome back, {data.profile.username} <span aria-hidden="true">👋</span></h2>
-            <p>Everything you need to keep your work moving, all in one place.</p>
-            <div className="workspace-dashboard-hero-actions">
-              <button type="button" className="button button--primary"
-                onClick={() => { setJoining(false); setCreating(true); }}>
-                <Plus size={17} aria-hidden="true" /> Create workspace
-              </button>
-              <a className="button button--secondary" href="#workspace-picker-title">
-                View workspaces <ArrowRight size={16} aria-hidden="true" />
-              </a>
-            </div>
-          </div>
-        )}
+        <div className="workspace-hub-heading">
+          <div><h1 id="workspace-picker-title">{workspace ? workspace.name : 'Choose a workspace'}</h1><p>{data ? `Welcome back, ${data.profile.username}.` : 'Your teams and projects, in one place.'}</p></div>
+          {!workspaceId && data && <button type="button" className="button button--primary" onClick={()=>{setJoining(false);setCreating(true);}}><Plus size={16} aria-hidden="true"/>Create workspace</button>}
+        </div>
         <div className="auth-panel workspace-picker-panel">
           {loadingError ? (
             <><p role="alert">{loadingError}</p><button type="button" className="button button--secondary" onClick={() => location.reload()}>Try again</button></>
@@ -605,9 +579,8 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
               {showSearch && <label className="workspace-picker-search">Search workspaces
                 <input type="search" placeholder="Search by workspace name" value={search} onChange={event => setSearch(event.target.value)} />
               </label>}
-              {!!activeWorkspaces.length && (
-                <h2>All Active Workspaces</h2>
-              )}
+              <div className="workspace-picker-results" tabIndex={0} role="region" aria-label="Workspace list">
+              {!!activeWorkspaces.length && <h2>Workspaces <span>{activeWorkspaces.length}</span></h2>}
               {!!activeWorkspaces.length && <WorkspaceList items={activeWorkspaces} currentUserId={data.profile.id} onLeave={setLeaveTarget} onTransfer={setTransferTarget} onDelete={setDeleteTarget} />}
               {!matches.length && query && <p role="status">No workspaces match your search.</p>}
               {!allWorkspaces.length && <p>Create a workspace for your team or join one by accepting an invitation.</p>}
@@ -615,6 +588,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                 <summary>Archived workspaces ({archivedWorkspaces.length})</summary>
                 <WorkspaceList items={archivedWorkspaces} currentUserId={data.profile.id} onLeave={setLeaveTarget} onTransfer={setTransferTarget} onDelete={setDeleteTarget} />
               </details>}
+              </div>
               {joining && <p role="status">Ask a workspace owner for an invitation, then open the link they send. You can also accept an in-app invitation from Notifications.</p>}
             </>
           )}
@@ -683,43 +657,11 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
             )}
           </section>
 
-          <section className="workspace-dashboard-profile" id="my-profile" aria-labelledby="profile-card-title">
-          <div className="workspace-dashboard-profile-heading">
-            <h2 id="profile-card-title">Your Profile</h2>
-            <span className="workspace-dashboard-profile-status">
-              {data.profile.emailVerified ? 'Verified' : 'Unverified'}
-            </span>
-          </div>
-
-          <div className="workspace-dashboard-profile-body">
-            <div className="workspace-dashboard-avatar">
-              {data.profile.avatarUrl ? (
-                <img src={data.profile.avatarUrl} alt="" />
-              ) : (
-                data.profile.username.charAt(0).toUpperCase()
-              )}
-            </div>
-
-            <div className="workspace-dashboard-profile-info">
-              <strong>{data.profile.username}</strong>
-              <span>{data.profile.email}</span>
-            </div>
-          </div>
-
-          <div className="workspace-dashboard-profile-footer">
-            <span>Member since</span>
-            <strong>
-              {new Date(data.profile.createdAt).toLocaleDateString(undefined, {
-                month: 'short',
-                year: 'numeric',
-              })}
-            </strong>
-          </div>
-        </section>
         </div>
       )}
         </div>
       </div>
+      {data && <footer className="workspace-hub-account"><span className="workspace-hub-account-avatar">{data.profile.avatarUrl ? <img src={data.profile.avatarUrl} alt=""/> : data.profile.username.charAt(0).toUpperCase()}</span><span><strong>{data.profile.username}</strong><small>{data.profile.email}</small></span><span className="workspace-hub-account-status">{data.profile.emailVerified ? 'Email verified' : <a href="/verify-email">Verify email</a>}</span></footer>}
 
       {deleteTarget && (
         <div className="workspace-create-overlay" role="presentation">

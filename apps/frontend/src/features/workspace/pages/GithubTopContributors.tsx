@@ -34,7 +34,7 @@ export function GithubTopContributors({
     <section className="wu-github-top-contributors">
       <header className="wu-github-top-contributors__heading">
         <div>
-          <h2>Top Contributors</h2>
+          <h2>Top contributors</h2>
           <p>Repository contribution activity</p>
         </div>
 

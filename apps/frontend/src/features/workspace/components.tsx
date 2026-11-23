@@ -1,6 +1,7 @@
+import { EmptyIllustration, type EmptyKind } from '../../shared/illustrations/EmptyIllustration';
 import { type CSSProperties, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
-import { activityItems } from './previewData';
+
 import { type Task } from './types';
 
 const portraitPositions: Record<string, string> = {
@@ -12,7 +13,7 @@ export function IconTile({ children, tone = 'blue' }: { children: ReactNode; ton
   return <span className={`wu-icon-tile wu-icon-tile--${tone}`} aria-hidden="true">{children}</span>;
 }
 
-export function Avatar({ initials, tone = 'blue', small = false, preview = true }: { initials: string; tone?: string; small?: boolean; preview?: boolean }) {
+export function Avatar({ initials, tone = 'blue', small = false, preview = false }: { initials: string; tone?: string; small?: boolean; preview?: boolean }) {
   const position = preview ? portraitPositions[initials] : undefined;
   return <span className={`wu-avatar wu-avatar--${tone}${small ? ' wu-avatar--small' : ''}`} aria-hidden="true">
     {initials}{position && <span className="wu-avatar-portrait" style={{ '--portrait-position': position } as CSSProperties} />}
@@ -33,8 +34,8 @@ export function FilterChips({ items, active, onChange }: { items: string[]; acti
   </div>;
 }
 
-export function EmptyState({ icon, title, detail, action, onAction }: { icon: ReactNode; title: string; detail: string; action: string; onAction: () => void }) {
-  return <div className="wu-empty"><div aria-hidden="true">{icon}</div><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}><Plus size={16} />{action}</button></div>;
+export function EmptyState({ icon, title, detail, action, onAction, illustration }: { icon: ReactNode; title: string; detail: string; action: string; onAction: () => void; illustration?: EmptyKind }) {
+  return <div className="wu-empty"><div aria-hidden="true"><EmptyIllustration kind={illustration ?? (/match|filter|search/i.test(title) ? 'search' : 'tasks')} /></div><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}>{action}</button></div>;
 }
 
 export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task: Task) => void }) {
@@ -49,10 +50,10 @@ export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task:
   </tbody></table>;
 }
 
-export function ActivityList({ items = activityItems, compact = false }: { items?: typeof activityItems; compact?: boolean }) {
+export function ActivityList({ items = [], compact = false }: { items?: {name:string;action:string;time:string;initials:string;color:string}[]; compact?: boolean }) {
   return <div className={`wu-activity-list${compact ? ' wu-activity-list--compact' : ''}`}>{items.map((item, index) => <div className="wu-activity-item" key={`${item.name}-${item.action}-${index}`}><Avatar initials={item.initials} tone={item.color} small /><div><strong>{item.name}</strong><p>{item.action}</p></div><time>{item.time}</time></div>)}</div>;
 }
 
 export function StatCard({ icon, label, value, note, tone, featured = false }: { icon: ReactNode; label: string; value: string; note: string; tone: string; featured?: boolean }) {
-  return <Panel className={`wu-stat${featured ? ' wu-stat--featured' : ''}`}><div className="wu-stat-top"><IconTile tone={tone}>{icon}</IconTile><span>{label}</span></div><div className="wu-stat-bottom"><strong>{value}</strong><Pill tone={tone}>{note}</Pill></div></Panel>;
+  return <Panel className={`wu-stat${featured ? ' wu-stat--featured' : ''}`}><div className="wu-stat-top"><span>{label}</span></div><div className="wu-stat-bottom"><strong>{value}</strong><Pill tone={tone}>{note}</Pill></div></Panel>;
 }

@@ -69,3 +69,102 @@
 @container (max-width: 560px) {
   .wu-files-table .wu-file-actions-cell { align-self: end; }
 }
+
+/* Distinct file-type accents stay within the blue, violet, and pink families. */
+.devup-design .wu-file-type[data-kind] {
+  --file-accent: hsl(245 55% 52%);
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: color-mix(in srgb, var(--file-accent) 82%, var(--wu-ink));
+  background: color-mix(in srgb, var(--file-accent) 10%, var(--wu-surface));
+}
+.devup-design .wu-file-type[data-kind='pdf'] { --file-accent: hsl(330 70% 48%); }
+.devup-design .wu-file-type[data-kind='design'] { --file-accent: hsl(278 66% 52%); }
+.devup-design .wu-file-type[data-kind='archive'] { --file-accent: hsl(258 62% 53%); }
+.devup-design .wu-file-type[data-kind='spreadsheet'] { --file-accent: hsl(215 72% 46%); }
+.devup-design .wu-file-type[data-kind='presentation'] { --file-accent: hsl(315 65% 47%); }
+.devup-design .wu-file-type[data-kind='image'] { --file-accent: hsl(290 57% 48%); }
+.devup-design .wu-file-type[data-kind='video'] { --file-accent: hsl(238 70% 57%); }
+.devup-design .wu-file-type[data-kind='audio'] { --file-accent: hsl(305 60% 45%); }
+.devup-design .wu-file-type[data-kind='code'] { --file-accent: hsl(228 68% 45%); }
+.devup-design .wu-file-type[data-kind='document'] { --file-accent: hsl(220 61% 56%); }
+.devup-design .workspace-app .wu-file-type[data-kind] > svg { width: 21px; height: 21px; flex: none; color: inherit; }
+
+/* Files workspace: neutral surfaces, compact controls, and color at the file icon. */
+.devup-design .workspace-app .wu-files-workbench { min-width: 0; }
+.devup-design .workspace-app .wu-file-upload-control { display: flex; align-items: center; gap: 12px; }
+.devup-design .workspace-app .wu-file-upload-control > span { font-size: 11px; }
+.devup-design .workspace-app .wu-files-workbench .wu-recent-files { margin: 8px 0 24px; }
+.devup-design .workspace-app .wu-files-workbench .wu-recent-file { background: var(--wu-surface); padding: 16px; gap: 12px; border-radius: 14px; box-shadow: 0 2px 8px #17244003; }
+.devup-design .workspace-app .wu-files-workbench .wu-recent-file strong { font-weight: 500; color: var(--wu-ink); font-size: 13px; }
+.devup-design .workspace-app .wu-files-workbench .wu-recent-file small { display: block; margin-top: 5px; font-size: 11px; }
+.devup-design .workspace-app .wu-files-workbench .wu-recent-file > span:last-child { min-width: 0; }
+.devup-design .workspace-app .wu-files-workbench .wu-files-toolbar { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px; border-bottom: 0; }
+.devup-design .workspace-app .wu-files-workbench .wu-files-toolbar h2 { font-size: 15px; margin-right: auto; }
+.devup-design .workspace-app .wu-files-workbench .wu-files-toolbar .wu-list-search { flex: 0 1 280px; width: 280px; }
+.devup-design .workspace-app .wu-files-workbench .wu-file-sort { font-size: 11px; }
+.devup-design .workspace-app .wu-files-workbench .wu-file-filters { display: flex; align-items: center; gap: 12px; padding: 0 16px 16px; }
+.devup-design .workspace-app .wu-files-workbench .wu-file-filters > label { width: auto; display: flex; align-items: center; gap: 8px; font-size: 11px; margin-left: auto; }
+.devup-design .workspace-app .wu-files-workbench .wu-file-filters select { width: 136px; }
+.devup-design .workspace-app .wu-file-type-tabs { display: flex; align-items: center; gap: 3px; padding: 3px; border-radius: 9px; background: var(--wu-surface-soft); max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.devup-design .workspace-app .wu-file-type-tabs::-webkit-scrollbar { display: none; }
+.devup-design .workspace-app .wu-file-type-tabs button { flex: none; border: 0; padding: 7px 10px; border-radius: 6px; background: transparent; color: var(--wu-muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.devup-design .workspace-app .wu-file-type-tabs button[aria-pressed='true'] { color: var(--wu-ink); background: var(--wu-surface); box-shadow: 0 1px 4px #17244012; }
+.devup-design .workspace-app .wu-file-view-toggle { display: flex; padding: 3px; border: 1px solid var(--wu-line); border-radius: 9px; gap: 2px; }
+.devup-design .workspace-app .wu-file-view-toggle button { display: grid; place-items: center; width: 30px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--wu-muted); cursor: pointer; }
+.devup-design .workspace-app .wu-file-view-toggle button[aria-pressed='true'] { background: var(--wu-blue-soft); color: var(--wu-blue); }
+
+.devup-design .workspace-app .wu-files-workbench .wu-files-table .wu-list-item-name { gap: 12px; font-size: 13px; font-weight: 500; }
+.devup-design .workspace-app .wu-file-person { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-size: 12px; color: var(--wu-muted); }
+.devup-design .workspace-app .wu-file-person > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.devup-design .workspace-app .wu-file-avatar { position: relative; display: inline-grid; place-items: center; flex: none; width: 25px; height: 25px; border-radius: 50%; background: var(--wu-violet-soft); color: var(--wu-violet); font-size: 9px; font-weight: 600; overflow: hidden; }
+.devup-design .workspace-app .wu-file-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.devup-design .workspace-app .wu-files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 0 16px 16px; margin: 0; list-style: none; }
+.devup-design .workspace-app .wu-file-card { min-width: 0; border: 1px solid var(--wu-line); border-radius: 12px; background: var(--wu-surface); overflow: visible; }
+.devup-design .workspace-app .wu-file-card:hover { border-color: color-mix(in srgb, var(--wu-blue) 40%, var(--wu-line)); }
+.devup-design .workspace-app .wu-file-card-open { display: flex; flex-direction: column; width: 100%; padding: 8px 8px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--wu-ink); text-align: left; cursor: pointer; }
+.devup-design .workspace-app .wu-file-card-visual { display: grid; place-items: center; width: 100%; height: 140px; border-radius: 8px; background: var(--wu-surface-soft); margin-bottom: 14px; overflow: hidden; }
+.devup-design .workspace-app .wu-file-thumbnail { display: grid; place-items: center; width: 100%; height: 100%; }
+.devup-design .workspace-app .wu-file-thumbnail > .wu-file-type { width: 52px; height: 58px; border-radius: 12px; }
+.devup-design .workspace-app .wu-file-thumbnail > .wu-file-type > svg { width: 30px; height: 30px; }
+.devup-design .workspace-app .wu-file-thumbnail .wu-file-preview { min-height: 0; height: 100%; width: 100%; border-radius: 0; }
+.devup-design .workspace-app .wu-file-thumbnail .wu-file-preview img { height: 140px; width: 100%; object-fit: contain; }
+.devup-design .workspace-app .wu-file-card-name { font-size: 13px; font-weight: 500; padding: 0 6px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.devup-design .workspace-app .wu-file-card-caption { font-size: 11px; color: var(--wu-muted); padding: 5px 6px 0; }
+.devup-design .workspace-app .wu-file-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--wu-line); padding: 8px 12px; }
+.devup-design .workspace-app .wu-file-detail-heading { display: flex; align-items: center; gap: 12px; }
+.devup-design .workspace-app .wu-file-detail-heading h3 { font-size: 16px; font-weight: 500; margin: 0; }
+.devup-design .workspace-app .wu-file-metadata { display: grid; gap: 14px; margin: 4px 0; padding: 16px 0; border-block: 1px solid var(--wu-line); }
+.devup-design .workspace-app .wu-file-metadata > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: 12px; font-size: 12px; }
+.devup-design .workspace-app .wu-file-metadata dt { color: var(--wu-muted); }
+.devup-design .workspace-app .wu-file-metadata dd { margin: 0; }
+
+@media (max-width: 700px) {
+  .devup-design .workspace-app .wu-file-upload-control { flex-direction: column-reverse; align-items: end; gap: 5px; }
+  .devup-design .workspace-app .wu-file-upload-control > span { font-size: 10px; }
+  .devup-design .workspace-app .wu-files-workbench .wu-recent-files ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .devup-design .workspace-app .wu-files-workbench .wu-recent-file { padding: 12px; gap: 8px; }
+  .devup-design .workspace-app .wu-files-workbench .wu-files-toolbar .wu-list-search { flex: 1 1 100%; width: 100%; }
+  .devup-design .workspace-app .wu-files-workbench .wu-file-filters { gap: 10px; }
+  .devup-design .workspace-app .wu-file-type-tabs { flex: 1 1 100%; }
+  .devup-design .workspace-app .wu-files-workbench .wu-file-filters > label { margin-left: 0; flex: 1; }
+  .devup-design .workspace-app .wu-files-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
+
+/* The signature fades from the top edge, matching the Notes cards. */
+.devup-design .workspace-app .wu-files-workbench .wu-recent-file {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.devup-design .workspace-app .wu-files-workbench .wu-recent-file::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -24px -12px auto;
+  height: 74px;
+  background: var(--wu-top-glow);
+  filter: blur(12px);
+  pointer-events: none;
+}
