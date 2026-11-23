@@ -1,0 +1,1126 @@
+{
+  "backendSourceTree": "13bd89ecb88de422feabd64a9f474ece71d65435",
+  "basis": "static source inspection; no runtime claims",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "handler": "getHello",
+      "status": 200,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/app.controller.ts",
+      "line": 8,
+      "signature": "getHello(): string"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "handler": "check",
+      "status": 200,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/health.controller.ts",
+      "line": 5,
+      "signature": "check()"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/activities",
+      "handler": "findAll",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/activities/controllers/activities.controller.ts",
+      "line": 32,
+      "signature": "async findAll(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n    @Query() query: ListActivitiesDto,\n  ): Promise<ActivityResponseDto[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/activities/page",
+      "handler": "findPage",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/activities/controllers/activities.controller.ts",
+      "line": 44,
+      "signature": "async findPage(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n    @Query() query: ListActivitiesDto,\n  )"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/activities/audit",
+      "handler": "findAudit",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/activities/controllers/activities.controller.ts",
+      "line": 55,
+      "signature": "async findAudit(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n    @Query() query: ListActivitiesDto,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/register",
+      "handler": "register",
+      "status": 201,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 36,
+      "signature": "register(@Body() dto: CreateUserDto): Promise<UserResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "handler": "login",
+      "status": 200,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 41,
+      "signature": "login(@Body() dto: LoginDto): Promise<LoginResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login/2fa",
+      "handler": "confirmTwoFactorLogin",
+      "status": 200,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 47,
+      "signature": "confirmTwoFactorLogin(\n    @Body() dto: ConfirmTwoFactorDto,\n  ): Promise<LoginResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login/2fa/resend",
+      "handler": "resendTwoFactorLogin",
+      "status": 204,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 55,
+      "signature": "resendTwoFactorLogin(@Body() dto: ResendTwoFactorDto): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/profile",
+      "handler": "getProfile",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 61,
+      "signature": "getProfile(@Req() request: AuthenticatedRequest): UserResponseDto"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "handler": "logout",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 68,
+      "signature": "async logout(@Req() request: AuthenticatedRequest)"
+    },
+    {
+      "method": "PATCH",
+      "path": "/auth/password",
+      "handler": "changePassword",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 81,
+      "signature": "changePassword(\n    @Req() request: AuthenticatedRequest,\n    @Body() dto: ChangePasswordDto,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/email-verification/request",
+      "handler": "requestEmailVerification",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 92,
+      "signature": "requestEmailVerification(\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/email-verification/confirm",
+      "handler": "confirmEmailVerification",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 102,
+      "signature": "confirmEmailVerification(\n    @Req() request: AuthenticatedRequest,\n    @Body() dto: ConfirmEmailVerificationDto,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/password-reset/request",
+      "handler": "requestPasswordReset",
+      "status": 204,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 113,
+      "signature": "requestPasswordReset(@Body() dto: RequestPasswordResetDto): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/password-reset/confirm",
+      "handler": "confirmPasswordReset",
+      "status": 204,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 119,
+      "signature": "confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/2fa/request-enable",
+      "handler": "requestEnableTwoFactor",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 129,
+      "signature": "requestEnableTwoFactor(\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/2fa/confirm-enable",
+      "handler": "confirmEnableTwoFactor",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 139,
+      "signature": "confirmEnableTwoFactor(\n    @Req() request: AuthenticatedRequest,\n    @Body() dto: ConfirmEnableTwoFactorDto,\n  ): Promise<UserResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/2fa/disable",
+      "handler": "disableTwoFactor",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/auth/controllers/auth.controller.ts",
+      "line": 150,
+      "signature": "disableTwoFactor(\n    @Req() request: AuthenticatedRequest,\n  ): Promise<UserResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/messages/unread-count",
+      "handler": "unreadCount",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/chat/controllers/chat.controller.ts",
+      "line": 35,
+      "signature": "async unreadCount(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<{ count: number }>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:workspaceId/messages/:messageId/read",
+      "handler": "markRead",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/chat/controllers/chat.controller.ts",
+      "line": 48,
+      "signature": "markRead(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Param('messageId', ParseUUIDPipe) messageId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/messages",
+      "handler": "listMessages",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/chat/controllers/chat.controller.ts",
+      "line": 62,
+      "signature": "listMessages(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Query() query: ListChatMessagesDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<ChatMessageResponseDto[]>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/messages",
+      "handler": "sendMessage",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/chat/controllers/chat.controller.ts",
+      "line": 75,
+      "signature": "sendMessage(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Body() dto: SendChatMessageDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<ChatMessageResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/files",
+      "handler": "upload",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/files/controllers/files.controller.ts",
+      "line": 43,
+      "signature": "async upload(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n\n    @UploadedFile()\n    file: Express.Multer.File | undefined,\n\n    @Body()\n    dto: UploadWorkspaceFileDto,\n  ): Promise<WorkspaceFileResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/files",
+      "handler": "findAll",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/files/controllers/files.controller.ts",
+      "line": 68,
+      "signature": "async findAll(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n\n    @Query()\n    query: ListWorkspaceFilesDto,\n  ): Promise<WorkspaceFileResponseDto[]>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:workspaceId/files/:fileId",
+      "handler": "remove",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/files/controllers/files.controller.ts",
+      "line": 81,
+      "signature": "async remove(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n\n    @Param('fileId', ParseUUIDPipe)\n    fileId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/files/:fileId/download",
+      "handler": "download",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/files/controllers/files.controller.ts",
+      "line": 96,
+      "signature": "async download(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n\n    @Param('fileId', ParseUUIDPipe)\n    fileId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n\n    @Res({ passthrough: true })\n    response: Response,\n  ): Promise<StreamableFile>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/files/:fileId",
+      "handler": "findOne",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/files/controllers/files.controller.ts",
+      "line": 131,
+      "signature": "async findOne(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n\n    @Param('fileId', ParseUUIDPipe)\n    fileId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n  ): Promise<WorkspaceFileResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:workspaceId/files/:fileId",
+      "handler": "rename",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/files/controllers/files.controller.ts",
+      "line": 145,
+      "signature": "async rename(\n    @Param('workspaceId', ParseUUIDPipe)\n    workspaceId: string,\n\n    @Param('fileId', ParseUUIDPipe)\n    fileId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n\n    @Body()\n    dto: RenameWorkspaceFileDto,\n  ): Promise<WorkspaceFileResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/github/connect",
+      "handler": "connect",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/github.controller.ts",
+      "line": 34,
+      "signature": "connect(\n    @Query('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<{ authorizationUrl: string }>"
+    },
+    {
+      "method": "GET",
+      "path": "/github/callback",
+      "handler": "callback",
+      "status": 200,
+      "auth": "Public / callback",
+      "source": "apps/backend/src/modules/github/controllers/github.controller.ts",
+      "line": 44,
+      "signature": "async callback(\n    @Query('code') code?: string,\n    @Query('state') state?: string,\n    @Res({ passthrough: true }) response?: Response,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/github/available-repositories",
+      "handler": "listAvailableRepositories",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/github.controller.ts",
+      "line": 66,
+      "signature": "listAvailableRepositories(\n    @Body() dto: ListAvailableRepositoriesDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<PublicGitHubRepository[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/github/repository",
+      "handler": "getWorkspaceRepository",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 43,
+      "signature": "async getWorkspaceRepository(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n    @Res({ passthrough: true }) response: Response,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/github/repository",
+      "handler": "connectRepository",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 57,
+      "signature": "connectRepository(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Body() dto: ConnectRepositoryDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<ConnectedRepositoryResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:workspaceId/github/repository",
+      "handler": "disconnectRepository",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 71,
+      "signature": "disconnectRepository(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/github/sync",
+      "handler": "syncRepository",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 82,
+      "signature": "syncRepository(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<GitHubSyncResult>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/github/statistics/commits",
+      "handler": "getDailyCommitStatistics",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 90,
+      "signature": "getDailyCommitStatistics(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  )"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/github/commits",
+      "handler": "listWorkspaceCommits",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 101,
+      "signature": "listWorkspaceCommits(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n    @Query('page') page?: string,\n    @Query('limit') limit?: string,\n  )"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/github/collaborators",
+      "handler": "listCollaborators",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 116,
+      "signature": "listCollaborators(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<PublicGitHubCollaborator[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/github/contributors",
+      "handler": "listContributors",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 127,
+      "signature": "listContributors(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<PublicGitHubContributor[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/github/branches",
+      "handler": "listBranches",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/github/controllers/workspace-github.controller.ts",
+      "line": 138,
+      "signature": "listBranches(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<PublicGitHubBranch[]>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/notes",
+      "handler": "create",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notes/controllers/notes.controller.ts",
+      "line": 36,
+      "signature": "create(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Body() dto: CreateNoteDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<NoteResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/notes",
+      "handler": "findAll",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notes/controllers/notes.controller.ts",
+      "line": 45,
+      "signature": "findAll(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Query() query: ListNotesDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<NoteResponseDto[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/notes/:noteId",
+      "handler": "findOne",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notes/controllers/notes.controller.ts",
+      "line": 54,
+      "signature": "findOne(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Param('noteId', ParseUUIDPipe) noteId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<NoteResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:workspaceId/notes/:noteId",
+      "handler": "update",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notes/controllers/notes.controller.ts",
+      "line": 62,
+      "signature": "update(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Param('noteId', ParseUUIDPipe) noteId: string,\n    @Body() dto: UpdateNoteDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<NoteResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:workspaceId/notes/:noteId",
+      "handler": "remove",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notes/controllers/notes.controller.ts",
+      "line": 72,
+      "signature": "remove(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Param('noteId', ParseUUIDPipe) noteId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "handler": "findAll",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notifications/controllers/notifications.controller.ts",
+      "line": 42,
+      "signature": "async findAll(\n    @Req()\n    request: AuthenticatedRequest,\n\n    @Query()\n    query: ListNotificationsDto,\n  ): Promise<NotificationResponseDto[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/notifications/preferences",
+      "handler": "getPreferences",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notifications/controllers/notifications.controller.ts",
+      "line": 53,
+      "signature": "getPreferences(@Req() request: AuthenticatedRequest)"
+    },
+    {
+      "method": "PATCH",
+      "path": "/notifications/preferences",
+      "handler": "setPreference",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notifications/controllers/notifications.controller.ts",
+      "line": 58,
+      "signature": "setPreference(@Req() request: AuthenticatedRequest, @Body() dto: NotificationPreferenceDto)"
+    },
+    {
+      "method": "GET",
+      "path": "/notifications/unread-count",
+      "handler": "countUnread",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notifications/controllers/notifications.controller.ts",
+      "line": 63,
+      "signature": "async countUnread(\n    @Req()\n    request: AuthenticatedRequest,\n  ): Promise<{ count: number }>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/notifications/read-all",
+      "handler": "markAllAsRead",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notifications/controllers/notifications.controller.ts",
+      "line": 71,
+      "signature": "async markAllAsRead(\n    @Req()\n    request: AuthenticatedRequest,\n  ): Promise<{ updated: number }>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/notifications/:id/read",
+      "handler": "markAsRead",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/notifications/controllers/notifications.controller.ts",
+      "line": 79,
+      "signature": "async markAsRead(\n    @Param('id', ParseUUIDPipe)\n    notificationId: string,\n\n    @Req()\n    request: AuthenticatedRequest,\n  ): Promise<NotificationResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/direct-conversations/unread-count",
+      "handler": "unreadCount",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/social/controllers/social.controller.ts",
+      "line": 35,
+      "signature": "async unreadCount(\n    @Req() request: AuthenticatedRequest\n  ): Promise<{ count: number }>"
+    },
+    {
+      "method": "GET",
+      "path": "/direct-conversations",
+      "handler": "listConversations",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/social/controllers/social.controller.ts",
+      "line": 42,
+      "signature": "listConversations(\n    @Query() query: ListDirectMessagesDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<DirectConversationResponseDto[]>"
+    },
+    {
+      "method": "POST",
+      "path": "/direct-conversations/:userId",
+      "handler": "openConversation",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/social/controllers/social.controller.ts",
+      "line": 50,
+      "signature": "openConversation(\n    @Param('userId', ParseUUIDPipe) userId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<DirectConversationResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/direct-conversations/:id/messages",
+      "handler": "sendMessage",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/social/controllers/social.controller.ts",
+      "line": 59,
+      "signature": "sendMessage(\n    @Param('id', ParseUUIDPipe) conversationId: string,\n    @Body() dto: SendDirectMessageDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<DirectMessageResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/direct-conversations/:id/messages",
+      "handler": "listMessages",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/social/controllers/social.controller.ts",
+      "line": 68,
+      "signature": "listMessages(\n    @Param('id', ParseUUIDPipe) conversationId: string,\n    @Query() query: ListDirectMessagesDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<DirectMessageResponseDto[]>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/direct-conversations/:id/read",
+      "handler": "markRead",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/social/controllers/social.controller.ts",
+      "line": 81,
+      "signature": "markRead(\n    @Param('id', ParseUUIDPipe) conversationId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/analytics",
+      "handler": "report",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/task-analytics.controller.ts",
+      "line": 29,
+      "signature": "report(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: Request & { user: { id: string } },\n    @Query() query: AnalyticsQuery,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/tasks",
+      "handler": "create",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 44,
+      "signature": "create(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Body() dto: CreateTaskDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/board",
+      "handler": "getBoard",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 53,
+      "signature": "getBoard(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskBoardResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id",
+      "handler": "findById",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 61,
+      "signature": "findById(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/tasks/:id",
+      "handler": "update",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 69,
+      "signature": "update(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Body() dto: UpdateTaskDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/transition",
+      "handler": "transition",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 78,
+      "signature": "transition(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Body() dto: TransitionTaskDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:id",
+      "handler": "remove",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 87,
+      "signature": "remove(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id/watch",
+      "handler": "getWatch",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 96,
+      "signature": "getWatch(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<{ watching: boolean }>"
+    },
+    {
+      "method": "PUT",
+      "path": "/tasks/:id/watch",
+      "handler": "watch",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 104,
+      "signature": "watch(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<{ watching: boolean }>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:id/watch",
+      "handler": "unwatch",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 112,
+      "signature": "unwatch(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<{ watching: boolean }>"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id/assignment",
+      "handler": "getAssignment",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 120,
+      "signature": "getAssignment(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskAssignmentResponseDto | null>"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/assignment",
+      "handler": "assign",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 128,
+      "signature": "assign(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Body() dto: AssignTaskDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskAssignmentResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:id/assignment",
+      "handler": "unassign",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 137,
+      "signature": "unassign(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/comments",
+      "handler": "addComment",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 146,
+      "signature": "addComment(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Body() dto: CreateTaskCommentDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskCommentResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id/comments",
+      "handler": "listComments",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 155,
+      "signature": "listComments(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskCommentResponseDto[]>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/tasks/:taskId/comments/:commentId",
+      "handler": "updateComment",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 163,
+      "signature": "updateComment(\n    @Param('taskId', ParseUUIDPipe) taskId: string,\n    @Param('commentId', ParseUUIDPipe) commentId: string,\n    @Body() dto: CreateTaskCommentDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskCommentResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:taskId/comments/:commentId",
+      "handler": "removeComment",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 178,
+      "signature": "removeComment(\n    @Param('taskId', ParseUUIDPipe) taskId: string,\n    @Param('commentId', ParseUUIDPipe) commentId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/dependencies",
+      "handler": "addDependency",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 188,
+      "signature": "addDependency(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Body() dto: CreateTaskDependencyDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskDependencyResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id/dependencies",
+      "handler": "listDependencies",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 197,
+      "signature": "listDependencies(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskDependencyResponseDto[]>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:id/dependencies/:dependencyId",
+      "handler": "removeDependency",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 205,
+      "signature": "removeDependency(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Param('dependencyId', ParseUUIDPipe) dependencyId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/block",
+      "handler": "block",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 219,
+      "signature": "block(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Body() dto: BlockTaskDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:id/block",
+      "handler": "unblock",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/tasks/controllers/tasks.controller.ts",
+      "line": 229,
+      "signature": "unblock(\n    @Param('id', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<TaskResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/users/:id",
+      "handler": "getUser",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/users/controllers/users.controller.ts",
+      "line": 28,
+      "signature": "getUser(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<UserResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/users/:id",
+      "handler": "updateProfile",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/users/controllers/users.controller.ts",
+      "line": 40,
+      "signature": "updateProfile(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Body() dto: UpdateProfileDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<UserResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:workspaceId/projects",
+      "handler": "list",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 15,
+      "signature": "list(@Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Req() request: AuthenticatedRequest)"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/projects",
+      "handler": "create",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 20,
+      "signature": "create(@Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Req() request: AuthenticatedRequest, @Body() dto: ProjectDto)"
+    },
+    {
+      "method": "PUT",
+      "path": "/workspaces/:workspaceId/projects/task-links/:taskId",
+      "handler": "linkTask",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 25,
+      "signature": "linkTask(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Param('taskId', ParseUUIDPipe) taskId: string,\n    @Req() request: AuthenticatedRequest, @Body() dto: TaskProjectDto,\n  )"
+    },
+    {
+      "method": "PUT",
+      "path": "/workspaces/:workspaceId/projects/:projectId",
+      "handler": "update",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 34,
+      "signature": "update(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Param('projectId', ParseUUIDPipe) projectId: string,\n    @Req() request: AuthenticatedRequest, @Body() dto: ProjectDto,\n  )"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:workspaceId/projects/:projectId",
+      "handler": "remove",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 42,
+      "signature": "remove(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Param('projectId', ParseUUIDPipe) projectId: string,\n    @Req() request: AuthenticatedRequest,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:workspaceId/projects/:projectId/milestones",
+      "handler": "addMilestone",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 51,
+      "signature": "addMilestone(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Param('projectId', ParseUUIDPipe) projectId: string,\n    @Req() request: AuthenticatedRequest, @Body() dto: MilestoneDto,\n  )"
+    },
+    {
+      "method": "PUT",
+      "path": "/workspaces/:workspaceId/projects/:projectId/milestones/:milestoneId",
+      "handler": "updateMilestone",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 59,
+      "signature": "updateMilestone(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Param('projectId', ParseUUIDPipe) projectId: string,\n    @Param('milestoneId', ParseUUIDPipe) milestoneId: string, @Req() request: AuthenticatedRequest, @Body() dto: MilestoneDto,\n  )"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:workspaceId/projects/:projectId/milestones/:milestoneId",
+      "handler": "removeMilestone",
+      "status": 204,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/projects.controller.ts",
+      "line": 67,
+      "signature": "removeMilestone(\n    @Param('workspaceId', ParseUUIDPipe) workspaceId: string, @Param('projectId', ParseUUIDPipe) projectId: string,\n    @Param('milestoneId', ParseUUIDPipe) milestoneId: string, @Req() request: AuthenticatedRequest,\n  )"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:id/membership",
+      "handler": "leaveWorkspace",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 38,
+      "signature": "leaveWorkspace(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest)"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/owner/:userId",
+      "handler": "transferOwnership",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 43,
+      "signature": "transferOwnership(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('userId', ParseUUIDPipe) userId: string,\n    @Req() request: AuthenticatedRequest,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:id/invitations/:invitationId/redeem",
+      "handler": "redeemInvitation",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 52,
+      "signature": "redeemInvitation(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('invitationId', ParseUUIDPipe) invitationId: string,\n    @Body() body: unknown,\n    @Req() request: AuthenticatedRequest,\n  )"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:id/invitations/:invitationId/resend",
+      "handler": "resendInvitation",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 66,
+      "signature": "resendInvitation(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('invitationId', ParseUUIDPipe) invitationId: string,\n    @Req() request: AuthenticatedRequest,\n  )"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces",
+      "handler": "getMyWorkspaces",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 75,
+      "signature": "getMyWorkspaces(\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceResponseDto[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:id/members",
+      "handler": "getWorkspaceMembers",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 82,
+      "signature": "getWorkspaceMembers(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceMemberResponseDto[]>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:id/backlog-views",
+      "handler": "getBacklogViews",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 90,
+      "signature": "getBacklogViews(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<SaveBacklogViewDto[]>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:id/backlog-views",
+      "handler": "saveBacklogView",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 98,
+      "signature": "saveBacklogView(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Body() dto: SaveBacklogViewDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<SaveBacklogViewDto[]>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/kanban-settings",
+      "handler": "updateWorkspaceKanbanSettings",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 107,
+      "signature": "updateWorkspaceKanbanSettings(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Body() dto: UpdateWorkspaceKanbanSettingsDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceKanbanSettingsResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:id/kanban-settings",
+      "handler": "getWorkspaceKanbanSettings",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 120,
+      "signature": "getWorkspaceKanbanSettings(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceKanbanSettingsResponseDto>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:id",
+      "handler": "getWorkspace",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 128,
+      "signature": "getWorkspace(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id",
+      "handler": "updateWorkspace",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 136,
+      "signature": "updateWorkspace(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Body() dto: UpdateWorkspaceDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/archive",
+      "handler": "archiveWorkspace",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 145,
+      "signature": "archiveWorkspace(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/unarchive",
+      "handler": "unarchiveWorkspace",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 153,
+      "signature": "unarchiveWorkspace(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceResponseDto>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:id/members/:userId",
+      "handler": "removeWorkspaceMember",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 161,
+      "signature": "removeWorkspaceMember(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('userId', ParseUUIDPipe) userId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "DELETE",
+      "path": "/workspaces/:id",
+      "handler": "deleteWorkspace",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 170,
+      "signature": "deleteWorkspace(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<void>"
+    },
+    {
+      "method": "GET",
+      "path": "/workspaces/:id/invitations",
+      "handler": "listWorkspaceInvitations",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 178,
+      "signature": "listWorkspaceInvitations(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceInvitationResponseDto[]>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/invitations/:invitationId/accept",
+      "handler": "acceptWorkspaceInvitation",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 186,
+      "signature": "acceptWorkspaceInvitation(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('invitationId', ParseUUIDPipe) invitationId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceInvitationResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/invitations/:invitationId/reject",
+      "handler": "rejectWorkspaceInvitation",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 199,
+      "signature": "rejectWorkspaceInvitation(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('invitationId', ParseUUIDPipe) invitationId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceInvitationResponseDto>"
+    },
+    {
+      "method": "PATCH",
+      "path": "/workspaces/:id/invitations/:invitationId/cancel",
+      "handler": "cancelWorkspaceInvitation",
+      "status": 200,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 212,
+      "signature": "cancelWorkspaceInvitation(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Param('invitationId', ParseUUIDPipe) invitationId: string,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceInvitationResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces/:id/invitations",
+      "handler": "createWorkspaceInvitation",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 225,
+      "signature": "createWorkspaceInvitation(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Body() dto: CreateWorkspaceInvitationDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceInvitationResponseDto>"
+    },
+    {
+      "method": "POST",
+      "path": "/workspaces",
+      "handler": "createWorkspace",
+      "status": 201,
+      "auth": "Bearer JWT",
+      "source": "apps/backend/src/modules/workspaces/controllers/workspaces.controller.ts",
+      "line": 234,
+      "signature": "createWorkspace(\n    @Body() dto: CreateWorkspaceDto,\n    @Req() request: AuthenticatedRequest,\n  ): Promise<WorkspaceResponseDto>"
+    }
+  ]
+}

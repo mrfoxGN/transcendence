@@ -1,3 +1,8 @@
+> Historical audit (2026-11-02). For the current `main` backend and frontend
+> migration, use [the 2026-11-23 backend audit](backend-audit/README.md).
+> Several absence/readiness claims below no longer describe current source.
+> Historical runtime/security results have not been rerun by the new audit.
+
 # Frontend handoff and API readiness
 
 Audit date: 2026-11-02. This repository contains a NestJS 11 / TypeScript backend, MySQL 8.4, TypeORM migrations, JWT authentication and Socket.IO. There is no frontend application yet. The root README and several architecture/development documents are empty; this guide describes the implementation inspected, not an external product specification.

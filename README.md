@@ -110,3 +110,12 @@ Additional features appear in the feature list. They do not add points here unle
 - **noureddine** built and integrated the workspace UI, implemented board placement and task editing, improved onboarding and project views, and added analytics, notification preferences, and chat collaboration. Preserving exact task placement and reconnecting without duplicate chat messages required changes across the API and frontend.
 - **mrfoxGN** established the NestJS and MySQL foundation and implemented workspace ownership and membership, file management, notifications, activity history, team chat, and GitHub integration. GitHub sync moved to a manual flow, and file deletion gained retry logging for storage failures.
 - **KHALEDHIHI** implemented direct conversations and real-time messaging, core task workflows and dependency rules, and workspace notes. Logout revokes tokens and disconnects chat sessions. Backend test and lint fixes support those changes.
+
+
+## Current backend and frontend integration audit
+
+See [Backend audit and API inventory](docs/backend-audit/README.md) for the
+2026-11-23 `main` snapshot: current features, 112 controller operations, DTOs,
+Socket.IO events, permissions and frontend migration notes. This supersedes the
+older handoff's feature-absence claims; it is a static source audit, not a new
+runtime test result.
