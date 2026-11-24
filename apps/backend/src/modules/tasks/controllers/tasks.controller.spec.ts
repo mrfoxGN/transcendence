@@ -323,7 +323,7 @@ describe('TasksController HTTP', () => {
       secret: testSecret,
       signOptions: { expiresIn: '1h' },
     });
-    token = jwt.sign({ sub: userId, tokenVersion: 0 });
+    token = jwt.sign({ sub: userId, tokenType: 'access', tokenVersion: 0 });
 
     const module = await Test.createTestingModule({
       controllers: [TasksController],

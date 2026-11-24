@@ -93,6 +93,7 @@ export class AuthService {
     return {
       accessToken: await this.jwtService.signAsync({
         sub: user.id,
+        tokenType: 'access',
         tokenVersion: user.tokenVersion,
       }),
     };
@@ -128,6 +129,7 @@ export class AuthService {
     return {
       accessToken: await this.jwtService.signAsync({
         sub: user.id,
+        tokenType: 'access',
         tokenVersion: user.tokenVersion,
       }),
     };
