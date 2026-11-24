@@ -57,6 +57,7 @@ describe('WorkspaceChatGateway', () => {
     jwtService = {
       verifyAsync: jest.fn().mockResolvedValue({
         sub: userId,
+        tokenType: 'access',
         tokenVersion: 0,
         exp: Math.floor(Date.now() / 1000) + 3600,
       }),
@@ -162,6 +163,21 @@ describe('WorkspaceChatGateway', () => {
     await gateway.handleConnection(client as never);
 
     expect(client.disconnect).toHaveBeenCalled();
+  });
+
+  it('disconnects when token is not an access token (e.g. 2FA token)', async () => {
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: userId,
+      purpose: '2fa_login',
+      tokenVersion: 0,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+
+    const client = makeClient();
+    await gateway.handleConnection(client as never);
+
+    expect(client.disconnect).toHaveBeenCalled();
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
   });
 
   it('allows a workspace member to join the workspace room', async () => {

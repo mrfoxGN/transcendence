@@ -78,6 +78,7 @@ describe('Chat endpoints', () => {
 
     token = await jwtService.signAsync({
       sub: userId,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 

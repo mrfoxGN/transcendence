@@ -31,12 +31,15 @@ export class DirectChatGateway implements OnGatewayConnection {
     try {
       const payload = await this.jwtService.verifyAsync<{
         sub?: unknown;
+        tokenType?: unknown;
         exp?: unknown;
         tokenVersion?: unknown;
       }>(token);
 
       if (
         typeof payload.sub !== 'string' ||
+        typeof payload.tokenType !== 'string' ||
+        payload.tokenType !== 'access' ||
         typeof payload.exp !== 'number' ||
         !Number.isInteger(payload.tokenVersion) ||
         (payload.tokenVersion as number) < 0

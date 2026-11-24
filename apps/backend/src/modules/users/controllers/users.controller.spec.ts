@@ -52,7 +52,7 @@ describe('Users endpoints', () => {
     }).compile();
 
     jwtService = module.get(JwtService);
-    token = await jwtService.signAsync({ sub: id, tokenVersion: 0 });
+    token = await jwtService.signAsync({ sub: id, tokenType: 'access', tokenVersion: 0 });
 
     app = module.createNestApplication();
     app.useGlobalPipes(

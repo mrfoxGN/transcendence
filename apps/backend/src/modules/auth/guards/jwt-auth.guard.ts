@@ -32,7 +32,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    let payload: { sub?: unknown; tokenVersion?: unknown };
+    let payload: { sub?: unknown; tokenType?: unknown; tokenVersion?: unknown };
 
     try {
       payload = await this.jwtService.verifyAsync(token);
@@ -42,6 +42,8 @@ export class JwtAuthGuard implements CanActivate {
 
     if (
       typeof payload.sub !== 'string' ||
+      typeof payload.tokenType !== 'string' ||
+      payload.tokenType !== 'access' ||
       !Number.isInteger(payload.tokenVersion) ||
       (payload.tokenVersion as number) < 0
     ) {

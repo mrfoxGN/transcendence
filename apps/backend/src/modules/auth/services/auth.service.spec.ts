@@ -50,7 +50,7 @@ describe('AuthService', () => {
     const result = await service.login({ email, password });
     expect(Object.keys(result)).toEqual(['accessToken']);
     const payload = await jwt.verifyAsync(result.accessToken);
-    expect(payload).toMatchObject({ sub: id, tokenVersion: 3 });
+    expect(payload).toMatchObject({ sub: id, tokenType: 'access', tokenVersion: 3 });
     expect(payload).not.toHaveProperty('passwordHash');
   });
 
@@ -177,7 +177,7 @@ describe('AuthService', () => {
       expect(result.accessToken).toBeDefined();
 
       const payload = await jwt.verifyAsync(result.accessToken!);
-      expect(payload).toMatchObject({ sub: id, tokenVersion: 1 });
+      expect(payload).toMatchObject({ sub: id, tokenType: 'access', tokenVersion: 1 });
     });
 
     it('rejects 2FA verification with an invalid token or wrong purpose', async () => {
