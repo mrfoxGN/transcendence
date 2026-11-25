@@ -73,3 +73,11 @@ See [local production](docs/LOCAL_PRODUCTION.md),
 [release/rollback](docs/RELEASE_AND_ROLLBACK.md).
 Dated progress and audit reports describe historical configurations; their old
 paths and features are not current operating instructions.
+
+## Localhost-only deployment
+
+Nginx binds its published ports only to `127.0.0.1`. Host/IP selection via
+`PUBLIC_HOST` or `BIND_IP` is no longer supported. TLS certificates identify
+localhost and 127.0.0.1. Grafana and Nginx redirects use localhost. You may still
+change `HTTP_PORT`, `HTTPS_PORT` and `GATUS_PORT` in the root `.env`.
+GitHub OAuth must use a matching localhost callback registered in the provider.

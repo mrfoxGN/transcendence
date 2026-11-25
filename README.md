@@ -16,8 +16,8 @@ cp -n devops/.env.example .env
 ```
 
 Set the database, JWT, Grafana and email settings in `.env`. Never commit secrets.
-`PUBLIC_HOST`, `BIND_IP`, `HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT` control
-host-facing addresses. The defaults publish Nginx on localhost ports 80, 443 and 8443.
+Deployment is restricted to localhost. `HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT`
+select the local ports (defaults: 80, 443 and 8443). Nginx binds only to `127.0.0.1`.
 MySQL and Backend have no published host ports.
 
 3. Build and start Production:
@@ -31,7 +31,7 @@ make status
 Open [DevUP](https://localhost) and accept or explicitly trust the local self-signed
 certificate. Create an account and workspace to start using the application.
 Grafana is available at `/grafana/`, and the status page at `https://localhost:8443/`.
-Use the configured host and ports if you changed `.env`.
+Use the configured local ports if you changed `.env`.
 
 4. Stop with `make down`. Named volumes and the root `backups/` directory are preserved.
 

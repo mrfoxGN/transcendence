@@ -1,9 +1,8 @@
 # Local production deployment
 
 This guide describes the current `devops/docker-compose.prod.yml` stack. Run commands
-from the repository root. Pass `--env-file .env` when using Compose directly. The same Compose file can be used on another host by
-setting the host and port values in `.env`; commands and URLs below use the
-localhost defaults unless stated otherwise.
+from the repository root. Pass `--env-file .env` when using Compose directly. This configuration publishes Nginx only on `127.0.0.1`;
+remote host/IP selection is not supported. Commands below use the default local ports.
 
 ## 1. Configure `.env`
 
@@ -16,8 +15,8 @@ cp -n devops/.env.example .env
 Set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `JWT_SECRET`,
 `GRAFANA_ADMIN_PASSWORD`, and `GRAFANA_SECRET_KEY`. Generate independent values
 for secrets, for example with `openssl rand -hex 32`. Never commit `.env`.
-`PUBLIC_HOST`, `BIND_IP`, `HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT` select the
-host-facing addresses; see `devops/docker-compose.prod.yml` for their defaults.
+`HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT` select the local ports.
+The bind address remains `127.0.0.1`; see `devops/docker-compose.prod.yml`.
 `BACKUP_TZ` selects the daily backup timezone and defaults to
 `Africa/Casablanca`. `BACKEND_IMAGE` selects the image shared by Backend and
 migrations.
@@ -45,7 +44,7 @@ installation, `make up` removes the obsolete Frontend container with
 `--remove-orphans`, preserving named volumes. The `backup` service also
 starts after migration and makes its first snapshot at startup.
 
-The `cert-init` service creates a self-signed certificate for `PUBLIC_HOST`, or
+The `cert-init` service creates a self-signed certificate for `localhost`, or
 keeps a matching certificate with at least 30 days remaining. The certificate
 and key live in the ignored `devops/nginx/certs/` directory. A self-signed certificate
 requires explicit trust in browsers and HTTPS clients. For a publicly trusted
@@ -59,8 +58,7 @@ curl -I http://localhost/health
 ```
 
 The first command should return `{"status":"ok","service":"backend"}`;
-HTTP redirects to HTTPS. Use the configured host and ports if you changed
-`.env`. `/health` is a Backend liveness check, not a database query. Verify a
+HTTP redirects to HTTPS. Use the configured local ports if you changed `.env`. `/health` is a Backend liveness check, not a database query. Verify a
 real application operation such as login when database connectivity matters.
 
 Nginx is the only service publishing host ports. Its application HTTPS port
@@ -100,7 +98,7 @@ backup is local only; snapshots older than seven days are removed after successf
 ## 4. Monitoring and alerts
 
 Open `https://localhost/grafana/` with the Grafana administrator credentials
-from `.env`. If the host or HTTPS port differs, use those configured values.
+from `.env`. If the HTTPS port differs, use the configured local port.
 The provisioned dashboard is **DevUP Monitoring** at
 `/grafana/d/devup-devops/monitoring/`. Its seven panels show host CPU, host RAM, host
 root disk usage, per-service container RAM, per-service container CPU, Docker
@@ -118,7 +116,7 @@ reachability; it does not prove Backend, Frontend, or MySQL application health.
 Gatus separately checks `http://backend:3000/health`, `https://nginx:443/`,
 and the MySQL TCP port every 30 seconds. The internal Frontend check skips
 certificate verification because its Docker hostname is `nginx` while the
-self-signed certificate identifies `PUBLIC_HOST`. External clients should
+self-signed certificate identifies `localhost`. External clients should
 still verify the certificate as shown above. A successful TCP connection does not
 prove that the Backend can execute a database query.
 

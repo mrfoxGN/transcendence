@@ -13,7 +13,7 @@ endpoints:
     group: DevUP
     url: "https://nginx:443/"
     client:
-      # Internal Docker hostname; the self-signed certificate uses PUBLIC_HOST.
+      # Internal Docker hostname; the self-signed certificate identifies localhost.
       insecure: true
     interval: 30s
     conditions:
