@@ -13,3 +13,6 @@
  .devup-design .workspace-app :is(.wu-button,.wu-icon-button,.wu-profile-trigger):active:not(:disabled) { transform:none; }
  .devup-design :is(.wu-profile-menu,.wu-select-popup,.wu-action-menu,.wu-workspace-popover,.wu-inbox):popover-open { animation:none; transform:none; }
 }
+
+.wu-profile-theme[open] .wu-theme-picker { animation: wu-menu-arrive var(--wu-motion-menu) var(--wu-motion-ease) both; --wu-menu-from: -3px; }
+@media (prefers-reduced-motion: reduce) { .wu-profile-theme[open] .wu-theme-picker { animation: none; } }

@@ -1,3 +1,4 @@
+import { useHoverPopover } from '../../shared/controls/useHoverPopover';
 import { useId, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { listActiveWorkspaces, SessionExpired, signOut, type Workspace } from '../WorkspacePicker';
@@ -41,6 +42,8 @@ export function WorkspaceSwitcher({ workspaceId, workspaceName, token, profileId
     }
   }
 
+  const menu = useHoverPopover<HTMLElement>(() => { void loadWorkspaces(); });
+
   function renderList(items: Workspace[]) {
     return <ul>{items.map(workspace => <li key={workspace.id}>
       {workspace.id === workspaceId ? <span className="wu-workspace-option" aria-current="true">
@@ -54,19 +57,18 @@ export function WorkspaceSwitcher({ workspaceId, workspaceName, token, profileId
 
   return (
     <>
-      <button
+      <button {...menu.triggerProps}
         className="wu-workspace-switcher"
         type="button"
         aria-label={`Switch workspace. Current workspace: ${workspaceName}`}
         title="Switch workspace"
         popoverTarget={popoverId}
-        onClick={() => { if (!document.getElementById(popoverId)?.matches(':popover-open')) void loadWorkspaces(); }}
       >
         <span className="wu-workspace-monogram" aria-hidden="true">{initials(workspaceName)}</span>
         <span><strong>{workspaceName}</strong><small>Developer workspace</small></span>
         <ChevronDown size={14} aria-hidden="true" />
       </button>
-      <nav id={popoverId} popover="auto" className="wu-workspace-popover" aria-label="Switch workspace">
+      <nav {...menu.panelProps} id={popoverId} popover="auto" className="wu-workspace-popover" aria-label="Switch workspace">
         <strong className="wu-workspace-popover-title">Your workspaces</strong>
         {loading && <p role="status">Loading workspaces…</p>}
         {failed && (

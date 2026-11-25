@@ -1,3 +1,4 @@
+import { useHoverDisclosure } from '../shared/controls/useHoverDisclosure';
 import { useHoverPopover } from '../shared/controls/useHoverPopover';
 import { Select } from '../shared/controls/Select';
 import { IllustratedEmptyState } from '../shared/illustrations/EmptyIllustration';
@@ -131,6 +132,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [modal, setModal] = useState<'task' | 'invite' | null>(null);
   const [toast, setToast] = useState('');
   const accountMenu = useHoverPopover();
+  const themeMenu = useHoverDisclosure();
   const [inviteDelivery, setInviteDelivery] = useState<TeamInvitation>();
   const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
   const filePath = workspacePath + '/files';
@@ -717,8 +719,8 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
             </div>
             <div className="wu-profile-actions">
               <button type="button" onClick={() => openSettings('profile')}><UserRound size={17} aria-hidden="true" />Personal settings</button>
-              <details className="wu-profile-theme">
-                <summary><Contrast size={17} aria-hidden="true" />Theme <ChevronRight className="wu-profile-chevron" size={15} aria-hidden="true" /></summary>
+              <details {...themeMenu.detailsProps} className="wu-profile-theme">
+                <summary {...themeMenu.summaryProps}><Contrast size={17} aria-hidden="true" />Theme <ChevronRight className="wu-profile-chevron" size={15} aria-hidden="true" /></summary>
                 <fieldset className="wu-theme-picker">
                   <legend className="wu-visually-hidden">Theme</legend>
                   {(['light', 'dark', 'system'] as const).map(mode => <label key={mode} className="wu-theme-option" data-selected={theme === mode}>

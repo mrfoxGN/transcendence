@@ -1,3 +1,4 @@
+import { useHoverPopover } from '../../shared/controls/useHoverPopover';
 import { Select } from '../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../shared/illustrations/EmptyIllustration';
 import { useEffect, useId, useState, type Ref } from 'react';
@@ -172,15 +173,11 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
     { label: 'Yesterday', items: displayedNotifications.filter(update => new Date(update.createdAt).toDateString() === yesterday) },
     { label: 'Earlier', items: displayedNotifications.filter(update => ![today, yesterday].includes(new Date(update.createdAt).toDateString())) },
   ];
+  const menu = useHoverPopover<HTMLElement>(trigger => { if (trigger) positionPanel(trigger); void refresh(); });
   return <>
-    <button ref={triggerRef} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={showBadge && count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
-      onClick={event => {
-        positionPanel(event.currentTarget);
-        if (!document.getElementById(id)?.matches(':popover-open')) {
-          void refresh();
-        }
-      }}><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
-    <section id={id} popover="auto" className="wu-inbox"
+    <button {...menu.triggerProps} ref={node => { menu.triggerProps.ref.current = node; if (typeof triggerRef === 'function') triggerRef(node); else if (triggerRef) triggerRef.current = node; }} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={showBadge && count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
+><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
+    <section {...menu.panelProps} id={id} popover="auto" className="wu-inbox"
       aria-label="Notifications"
       aria-busy={busy}
       style={{
