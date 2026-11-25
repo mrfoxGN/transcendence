@@ -15,6 +15,9 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  ParseFilePipe,
+  FileTypeValidator,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -56,8 +59,22 @@ export class FilesController {
     @Req()
     request: AuthenticatedRequest,
 
-    @UploadedFile()
-    file: Express.Multer.File | undefined,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: true,
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 10 * 1024 * 1024,
+          }),
+          new FileTypeValidator({
+            fileType: /^image\/(png|jpeg|webp)$/,
+            skipMagicNumbersValidation: false,
+            fallbackToMimetype: false,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
 
     @Body()
     dto: UploadWorkspaceFileDto,

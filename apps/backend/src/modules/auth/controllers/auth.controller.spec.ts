@@ -197,10 +197,12 @@ describe('Auth endpoints', () => {
 
     const payload = await jwtService.verifyAsync<{
       sub?: unknown;
+      tokenType?: unknown;
       tokenVersion?: unknown;
     }>(body.accessToken);
 
     expect(payload.sub).toBe(id);
+    expect(payload.tokenType).toBe('access');
     expect(payload.tokenVersion).toBe(0);
     expect(payload).not.toHaveProperty('passwordHash');
   });
@@ -261,6 +263,7 @@ describe('Auth endpoints', () => {
 
     const token = await jwtService.signAsync({
       sub: id,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 
@@ -294,7 +297,7 @@ describe('Auth endpoints', () => {
 
   it('rejects an expired token', async () => {
     const token = await jwtService.signAsync(
-      { sub: id, tokenVersion: 0 },
+      { sub: id, tokenType: 'access', tokenVersion: 0 },
       { expiresIn: -1 },
     );
 
@@ -307,11 +310,25 @@ describe('Auth endpoints', () => {
   });
 
   it('rejects an old token without a version', async () => {
-    const token = await jwtService.signAsync({ sub: id });
+    const token = await jwtService.signAsync({ sub: id, tokenType: 'access' });
 
     await request(httpServer())
       .get('/auth/profile')
       .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+
+    expect(usersService.findForAuth).not.toHaveBeenCalled();
+  });
+
+  it('rejects a 2FA token attempting to access protected endpoints', async () => {
+    const twoFactorToken = await jwtService.signAsync(
+      { sub: id, purpose: '2fa_login', tokenVersion: 0 },
+      { expiresIn: '10m' },
+    );
+
+    await request(httpServer())
+      .get('/auth/profile')
+      .set('Authorization', `Bearer ${twoFactorToken}`)
       .expect(401);
 
     expect(usersService.findForAuth).not.toHaveBeenCalled();
@@ -324,6 +341,7 @@ describe('Auth endpoints', () => {
 
     const token = await jwtService.signAsync({
       sub: id,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 
@@ -343,6 +361,7 @@ describe('Auth endpoints', () => {
 
     const token = await jwtService.signAsync({
       sub: id,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 
@@ -360,6 +379,7 @@ describe('Auth endpoints', () => {
 
     const token = await jwtService.signAsync({
       sub: id,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 
@@ -386,6 +406,7 @@ describe('Auth endpoints', () => {
 
     const token = await jwtService.signAsync({
       sub: id,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 
@@ -432,6 +453,7 @@ describe('Auth endpoints', () => {
 
     const token = await jwtService.signAsync({
       sub: id,
+      tokenType: 'access',
       tokenVersion: 0,
     });
 
@@ -453,7 +475,7 @@ describe('Auth endpoints', () => {
 
     beforeEach(async () => {
       usersService.findForAuth.mockResolvedValue({ user: profile, tokenVersion: 0 });
-      token = await jwtService.signAsync({ sub: id, tokenVersion: 0 });
+      token = await jwtService.signAsync({ sub: id, tokenType: 'access', tokenVersion: 0 });
     });
 
     it.each([
