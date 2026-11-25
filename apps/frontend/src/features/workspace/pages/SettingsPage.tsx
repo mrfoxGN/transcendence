@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { workspaceIcons } from '../workspace-icons';
 import { finishInputEdit, saveTextOnBlur } from '../autosave';
-import { Panel } from '../components';
 import { Drawer } from '../WorkspaceControls';
 import { jsonRequest, workspaceRequest } from '../workspace-api';
 import { PersonalSettings, type PersonalProfile, type Theme } from './PersonalSettings';
@@ -9,7 +8,7 @@ import type { PageHeading, PageKey } from '../types';
 import './settings.css';
 import './settings-design.css';
 import {BoardSettingsPreview,AccessPreview} from './SettingsVisuals';
-import {Building2,UsersRound,Columns3,Plug,Archive,UserRound,ShieldCheck,Palette,Bell,CheckCircle2} from 'lucide-react';
+import {Building2,UsersRound,Columns3,Plug,Archive,UserRound,ShieldCheck,Palette,Bell,CheckCircle2,ChevronDown} from 'lucide-react';
 
 export type WorkspaceProfile = { name: string; description: string | null; ownerId: string; archivedAt: string | null; reportingTimeZone?: string };
 type KanbanSettings = { activeWipLimit: number; definitionOfReady: unknown; definitionOfDone: unknown };
@@ -30,6 +29,20 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
 }) {
   const [tab, setTab] = useState<string>([...workspaceTabs,...personalTabs].includes(initialTab)?initialTab:'General');
   useEffect(() => { if ([...workspaceTabs, ...personalTabs].includes(initialTab)) setTab(initialTab); }, [initialTab]);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const contentPanel = useRef<HTMLElement>(null);
+  useLayoutEffect(() => { if (contentPanel.current) contentPanel.current.scrollTop = 0; }, [tab]);
+  useEffect(() => {
+    const desktop = matchMedia('(min-width: 901px)');
+    const closeOnDesktop = () => { if (desktop.matches) setNavigationOpen(false); };
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => desktop.removeEventListener('change', closeOnDesktop);
+  }, []);
+  function closeNavigation() {
+    setNavigationOpen(false);
+    requestAnimationFrame(() => navigationTrigger.current?.focus({ preventScroll: true }));
+  }
   const [settings, setSettings] = useState<KanbanSettings>();
   const [attempt, setAttempt] = useState(0);
   const [settingsError, setSettingsError] = useState('');
@@ -91,16 +104,18 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
     }
   }
 
-  function selectTab(value: string) { onSectionChange(value === 'Board settings' ? 'board' : value.toLowerCase()); setTab(value); setError(''); setNotice(''); const url=new URL(location.href);url.hash=value==='Board settings'?'board':value.toLowerCase();history.replaceState({...history.state},'',url); }
+  function selectTab(value: string) { if (navigationOpen) closeNavigation(); if (contentPanel.current) contentPanel.current.scrollTop = 0; onSectionChange(value === 'Board settings' ? 'board' : value.toLowerCase()); setTab(value); setError(''); setNotice(''); const url=new URL(location.href);url.hash=value==='Board settings'?'board':value.toLowerCase();history.replaceState({...history.state},'',url); }
+
+  const sectionNavigation = <nav className="wu-settings-section-nav" aria-label="Settings sections">
+        {[['Workspace',workspaceTabs],['Personal',personalTabs]].map(([group,items])=><section key={group as string}><h2>{group as string}</h2>{(items as string[]).map(name=>{const Icon=sectionIcons[name as keyof typeof sectionIcons];return <button key={name} type="button" aria-current={name===tab?'page':undefined} onClick={()=>selectTab(name)}><Icon size={16} aria-hidden="true"/>{name}</button>;})}</section>)}
+      </nav>;
 
   return <>
     {pageHeading((busy || notice) && <span className="wu-muted" role="status">{!busy&&<CheckCircle2 size={14} aria-hidden="true"/>}{busy ? 'Saving…' : notice}</span>)}
     <div className="wu-settings-layout">
-      <nav className="wu-settings-section-nav" aria-label="Settings sections">
-        {[['Workspace',workspaceTabs],['Personal',personalTabs]].map(([group,items])=><section key={group as string}><h2>{group as string}</h2>{(items as string[]).map(name=>{const Icon=sectionIcons[name as keyof typeof sectionIcons];return <button key={name} type="button" aria-current={name===tab?'page':undefined} onClick={()=>selectTab(name)}><Icon size={16} aria-hidden="true"/>{name}</button>;})}</section>)}
-      </nav>
-      <label className="wu-settings-mobile-nav">Settings section<select aria-label="Settings section" value={tab} onChange={event=>selectTab(event.target.value)}><optgroup label="Workspace">{workspaceTabs.map(name=><option key={name}>{name}</option>)}</optgroup><optgroup label="Personal">{personalTabs.map(name=><option key={name}>{name}</option>)}</optgroup></select></label>
-    <Panel className={'wu-settings-panel'+(tab==='Archive'?' wu-settings-panel--danger':'')}>
+      {sectionNavigation}
+      <button ref={navigationTrigger} type="button" className="wu-settings-mobile-trigger" aria-haspopup="dialog" aria-expanded={navigationOpen} aria-label={`Settings section: ${tab}`} onClick={() => setNavigationOpen(true)}><span><small>Settings section</small><strong>{tab}</strong></span><ChevronDown size={17} aria-hidden="true" /></button>
+    <section ref={contentPanel} tabIndex={0} aria-label={tab + ' settings'} className={'wu-panel wu-settings-panel'+(tab==='Archive'?' wu-settings-panel--danger':'')}>
       {error && !confirm && <p role="alert">{error}</p>}
       {personal ? <PersonalSettings key={tab} tab={tab} profile={profile} token={token} onProfile={onProfile} onTheme={onTheme} /> :
       <div key={tab} className="wu-settings-form">
@@ -146,8 +161,9 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
             onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</button>}
         </>}
       </div>}
-    </Panel>
+    </section>
     </div>
+    {navigationOpen && <Drawer title="Settings sections" className="wu-settings-navigation-drawer" closeLabel="Close settings navigation" onClose={closeNavigation}>{sectionNavigation}</Drawer>}
     {confirm && <Drawer title={workspace.archivedAt ? 'Restore workspace?' : 'Archive workspace?'} confirmation onClose={() => setConfirm(false)}>
       {error && <p role="alert">{error}</p>}
       <div className="wu-modal-actions"><button className="wu-button wu-button--secondary" autoFocus disabled={busy} onClick={() => setConfirm(false)}>Cancel</button>

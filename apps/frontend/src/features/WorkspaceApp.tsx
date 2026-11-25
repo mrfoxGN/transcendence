@@ -733,7 +733,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
           </div>
         </div>
       </header>
-      <main className={page === 'chat' ? 'wu-page wu-page--chat' : 'wu-page'} id="main" data-archived={archived || undefined} aria-label={page === 'chat' ? 'Chat' : undefined}>
+      <main className={page === 'chat' ? 'wu-page wu-page--chat' : page === 'settings' ? 'wu-page wu-page--settings' : 'wu-page'} id="main" data-archived={archived || undefined} aria-label={page === 'chat' ? 'Chat' : undefined}>
         {archived && <div className="wu-archive-banner" role="status"><Archive size={17} aria-hidden="true" /><span>Archived workspace</span>
           {workspace?.ownerId === profileId && (page !== 'settings' || settingsSection !== '#archive') && <button className="wu-text-button" type="button" onClick={() => navigate('settings', 'archive')}>Restore options</button>}</div>}
         {renderPage()}

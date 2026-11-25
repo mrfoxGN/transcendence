@@ -192,7 +192,7 @@ try{
     assert.ok(ratio(colors['--wu-ink'],colors['--wu-surface'])>=7,'Primary contrast');assert.ok(ratio(colors['--wu-muted'],colors['--wu-surface'])>=4.5,'Metadata contrast');assert.ok(ratio(colors['--wu-subtle'],colors['--wu-surface'])>=4.5,'Subtle contrast');
     await page.screenshot({path:'/tmp/devup-migration-artifacts/dark-refinement-'+name+'-'+width+'.png'});
    }
-   for(const name of sections){if(width<=900)await page.getByRole('combobox',{name:'Settings section',exact:true}).selectOption(name);else await page.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name,exact:true}).click();await page.screenshot({path:'/tmp/devup-migration-artifacts/dark-settings-'+name.replaceAll(' ','-')+'-'+width+'.png'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
+   for(const name of sections){if(width<=900){await page.getByRole('button',{name:/^Settings section:/}).click();await page.getByRole('dialog',{name:'Settings sections',exact:true}).getByRole('button',{name,exact:true}).click();}else await page.getByRole('navigation',{name:'Settings sections'}).getByRole('button',{name,exact:true}).click();await page.screenshot({path:'/tmp/devup-migration-artifacts/dark-settings-'+name.replaceAll(' ','-')+'-'+width+'.png'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
   }
   await page.setViewportSize({width:1440,height:950});
   const hoverColors=[];
@@ -227,13 +227,31 @@ try{
  }else if(process.env.SETTINGS_ONLY==='1'){
   const sections=['General','Access','Board settings','Integrations','Archive','Profile','Security','Appearance','Notifications'];
   async function select(name,width=1440){
-   if(width<=900)await page.getByRole('combobox',{name:'Settings section',exact:true}).selectOption(name);
+   if(width<=900){await page.getByRole('button',{name:/^Settings section:/}).click();await page.getByRole('dialog',{name:'Settings sections',exact:true}).getByRole('button',{name,exact:true}).click();}
    else await page.getByRole('navigation',{name:'Settings sections',exact:true}).getByRole('button',{name,exact:true}).click();
    assert.equal(await page.locator('.wu-settings-section-nav [aria-current=page]').innerText(),name);
   }
   if(!process.env.SETTINGS_SKIP_VIEWS)for(const [width,theme] of [[1440,'light'],[390,'light'],[1440,'dark']]){
-   profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'settings');await page.locator('.wu-settings-layout').waitFor();
+   profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'settings');await page.reload();await page.locator('.wu-settings-layout').waitFor();
    for(const name of sections){await select(name,width);await page.waitForTimeout(80);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,name+' overflow');await page.screenshot({path:'/tmp/devup-migration-artifacts/settings-'+name.replaceAll(' ','-')+'-'+width+'-'+theme+'.png'});}
+  }
+  for(const [width,theme] of [[1440,'light'],[390,'light'],[390,'dark']]){
+   profile.theme=theme;await page.setViewportSize({width,height:568});await page.goto(root+'settings#profile');await page.reload();await page.locator('.wu-settings-panel').waitFor();
+   const panel=page.locator('.wu-settings-panel');const heading=page.locator('.wu-page-heading');const headerY=(await heading.boundingBox()).y;
+   assert.ok(await panel.evaluate(e=>e.scrollHeight>e.clientHeight),'Short screen has scrollable settings content');
+   await panel.evaluate(e=>e.scrollTop=e.scrollHeight);assert.ok(await panel.evaluate(e=>e.scrollTop>0));assert.equal((await heading.boundingBox()).y,headerY,'Settings heading stays fixed');
+   assert.equal(await page.locator('.wu-page--settings').evaluate(e=>e.scrollTop),0,'Outer page does not scroll');assert.equal(await page.evaluate(()=>document.documentElement.scrollTop),0);
+   await select('Appearance',width);assert.equal(await panel.evaluate(e=>e.scrollTop),0,'Switching sections resets internal scroll');
+   await page.screenshot({path:`/tmp/devup-migration-artifacts/settings-fixed-${theme}-${width}.png`});
+   if(width===390){
+    const trigger=page.getByRole('button',{name:/^Settings section:/});await trigger.click();const drawer=page.getByRole('dialog',{name:'Settings sections',exact:true});await drawer.waitFor();await drawer.evaluate(e=>Promise.all(e.getAnimations().map(animation=>animation.finished)));const drawerBox=await drawer.boundingBox();assert.ok(drawerBox.x>=0&&drawerBox.x+drawerBox.width<=350,'Navigation drawer is fully visible and leaves a backdrop');
+    await page.screenshot({path:`/tmp/devup-migration-artifacts/settings-navigation-drawer-${theme}.png`});
+    for(let i=0;i<13;i++){await page.keyboard.press('Tab');assert.equal(await drawer.evaluate(e=>e.contains(document.activeElement)),true,'Keyboard focus stays in navigation drawer');}
+    await page.keyboard.press('Escape');await drawer.waitFor({state:'hidden'});assert.equal(await trigger.evaluate(e=>e===document.activeElement),true,'Escape returns focus to trigger');
+    await trigger.click();await page.mouse.click(385,300);await drawer.waitFor({state:'hidden'});
+    await trigger.click();await drawer.getByRole('button',{name:'Close settings navigation',exact:true}).click();await drawer.waitFor({state:'hidden'});
+    await trigger.click();await page.setViewportSize({width:1440,height:568});await drawer.waitFor({state:'hidden'});
+   }
   }
   profile.theme='light';await page.setViewportSize({width:1440,height:950});await page.goto(root+'settings#profile');await page.getByRole('textbox',{name:'Username',exact:true}).waitFor();
   await page.getByRole('textbox',{name:'Username',exact:true}).fill('Alex Updated');await page.getByRole('button',{name:'Save username',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.wu-settings-section-nav [aria-current=page]')?.textContent==='Profile');assert.equal(profile.username,'Alex Updated');
@@ -243,7 +261,7 @@ try{
   await select('Board settings');await page.getByRole('spinbutton',{name:/Active work limit/}).fill('7');await page.getByRole('heading',{name:'Board settings',exact:true}).click();await page.waitForTimeout(120);assert.equal(kanban.activeWipLimit,7);assert.equal(await page.locator('.wu-settings-section-nav [aria-current=page]').innerText(),'Board settings');
   await select('General');await page.getByRole('textbox',{name:'Name',exact:true}).fill('Updated workspace');await page.getByRole('heading',{name:'Workspace profile',exact:true}).click();await page.waitForTimeout(120);assert.equal(workspace.name,'Updated workspace');assert.equal(await page.locator('.wu-settings-section-nav [aria-current=page]').innerText(),'General');
   await select('Archive');await page.getByRole('button',{name:'Archive workspace',exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(writes.some(w=>w.path.endsWith('/archive')),false);
-  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Settings passed: 27 section/theme/mobile views, profile/theme/notification/workspace/board saves stay in section, direct links/reload, archive cancellation.');
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Settings passed: 27 section/theme/mobile views, short-screen internal scroll and section reset, fixed heading, mobile navigation drawer, focus trap/restoration, Escape/backdrop/close dismissal, resize recovery, profile/theme/notification/workspace/board saves stay in section, direct links/reload, archive cancellation.');
  }else{
  for(const [width,theme] of [[1440,'light'],[390,'light'],[1440,'dark']]){
   profile.theme=theme;await page.setViewportSize({width,height:950});
