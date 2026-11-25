@@ -80,7 +80,7 @@ export class NotesService {
       skip: (page - 1) * limit,
       take: limit,
     });
-
+    //array method
     return notes.map((note) => NoteMapper.toResponse(note));
   }
 

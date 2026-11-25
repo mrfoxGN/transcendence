@@ -59,6 +59,7 @@ export class NotesController {
   ): Promise<NoteResponseDto> {
     return this.notesService.findOne(workspaceId, noteId, request.user.id);
   }
+  
   @Patch(':noteId')
   update(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,

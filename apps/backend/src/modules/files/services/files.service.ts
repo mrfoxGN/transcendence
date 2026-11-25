@@ -49,7 +49,10 @@ export class FilesService {
     file: Express.Multer.File | undefined,
     dto: UploadWorkspaceFileDto,
   ): Promise<WorkspaceFileResponseDto> {
-    const workspace = await this.workspacesService.findOneForUser(workspaceId, userId);
+    const workspace = await this.workspacesService.findOneForUser(
+      workspaceId,
+      userId,
+    );
     assertWorkspaceWritable(workspace);
 
     if (!file) {
@@ -60,23 +63,22 @@ export class FilesService {
       const task = await this.tasksService.findById(dto.taskId, userId);
 
       if (task.workspaceId !== workspaceId) {
-        throw new BadRequestException('Task does not belong to this workspace');
+        throw new BadRequestException(
+          'Task does not belong to this workspace',
+        );
       }
     }
 
     const id = randomUUID();
     const storageFileName = randomUUID();
-
     const workspaceStorageDirectory = join(this.storageRoot, workspaceId);
-
     const storageKey = `${workspaceId}/${storageFileName}`;
+    const absolutePath = join(
+      workspaceStorageDirectory,
+      storageFileName,
+    );
 
-    const absolutePath = join(workspaceStorageDirectory, storageFileName);
-
-    await mkdir(workspaceStorageDirectory, {
-      recursive: true,
-    });
-
+    await mkdir(workspaceStorageDirectory, { recursive: true });
     await writeFile(absolutePath, file.buffer);
 
     const workspaceFile = this.workspaceFilesRepository.create({
@@ -98,6 +100,7 @@ export class FilesService {
     try {
       savedFile = await this.workspaceFilesRepository.save(workspaceFile);
     } catch (error) {
+      // Ignore the file deletion error
       await unlink(absolutePath).catch(() => undefined);
       throw error;
     }
