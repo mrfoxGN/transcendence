@@ -1,3 +1,4 @@
+import { Select } from '../../shared/controls/Select';
 import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { Drawer } from './WorkspaceControls';
 import { Pill } from './components';
@@ -239,9 +240,9 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         onBlur={event => saveFieldOnBlur(event, 'description', task.description, true)} /></label>
       <label className="wu-field-label">Acceptance criteria<textarea name="criteria" defaultValue={task.acceptanceCriteria ?? ''} placeholder="e.g. Invalid passwords show a helpful error" rows={3}
         onBlur={event => saveFieldOnBlur(event, 'acceptanceCriteria', task.acceptanceCriteria ?? '', true)} /></label>
-      <label className="wu-field-label">Priority<select name="priority" defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()} onChange={event => save('priority', event.currentTarget.value || null)}>
+      <label className="wu-field-label">Priority<Select name="priority" defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()} onChange={event => save('priority', event.currentTarget.value || null)}>
         <option value="">No priority</option>{Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
+      </Select></label>
       <label className="wu-field-label">Due date<input type="date" name="dueDate" min="1000-01-01" max="9999-12-31" defaultValue={task.dueDate ?? ''} onChange={event => {
         const field = event.currentTarget;
         if (field.validity.valid) save('dueDate', field.value || null);
@@ -254,26 +255,26 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     </section>}
     {!readOnly && !!destinations.length && <section className="wu-drawer-section">
       <h3>Move task</h3>
-        <label className="wu-field-label">Destination<select name="column" value="" disabled={busy} onChange={event => {
+        <label className="wu-field-label">Destination<Select name="column" value="" disabled={busy} onChange={event => {
           const column = destinations.find(item => item.id === event.currentTarget.value);
           if (column) void mutate('/transition', 'POST', { toStatus: column.status });
         }}>
           <option value="" disabled>Choose a column</option>
           {destinations.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}
-        </select></label>
+        </Select></label>
     </section>}
     <section className="wu-drawer-section">
       <h3>Assignee</h3>
       {readOnly ? <p>{members.find(member => member.userId === task.assigneeId)?.username ?? (task.assigneeId ? 'Former member' : 'Unassigned')}</p> :
       <label className="wu-field-label">Choose a member
-        <select name="member" value={assigneeDraft ?? task.assigneeId ?? ''} disabled={busy} onChange={event => {
+        <Select name="member" value={assigneeDraft ?? task.assigneeId ?? ''} disabled={busy} onChange={event => {
           void updateAssignee(event.currentTarget.value);
         }}>
           <option value="">Unassigned</option>
           {task.assigneeId && !members.some(member => member.userId === task.assigneeId) &&
             <option value={task.assigneeId}>Former member</option>}
           {members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-        </select>
+        </Select>
       </label>}
     </section>
     <section className="wu-drawer-section">
@@ -294,12 +295,12 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
             {!readOnly && <>{' '}<button className="wu-text-button" disabled={busy} onClick={() => void mutate('/dependencies/' + item.id, 'DELETE')}>Remove</button></>}
           </div>;
         })}
-      {!readOnly && <label className="wu-field-label">Depends on<select name="dependency" value="" disabled={busy}
+      {!readOnly && <label className="wu-field-label">Depends on<Select name="dependency" value="" disabled={busy}
         onChange={event => void mutate('/dependencies', 'POST', { dependsOnTaskId: event.currentTarget.value })}>
         <option value="" disabled>Select a task that must finish first</option>
         {tasks.filter(item => item.id !== task.id && !dependencies.items?.some(dep => dep.dependsOnTaskId === item.id))
           .map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-      </select></label>}
+      </Select></label>}
     </section>
     {!!files.length && <section className="wu-drawer-section">
       <h3>Related files</h3>

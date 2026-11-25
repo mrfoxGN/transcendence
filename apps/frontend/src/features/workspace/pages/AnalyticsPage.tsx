@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { ChartTooltipSurface } from '../../../shared/charts/ChartTooltipSurface';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useState } from 'react';
@@ -101,9 +102,9 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
       <div className="wu-analytics-heading">
         <div><h2 id="wu-analytics-report">Period report</h2><p className="wu-muted">Reporting time zone · {report.data?.timeZone ?? reportingTimeZone}</p></div>
         <div className="wu-analytics-controls"><div aria-label="Report display"><FilterChips items={['Charts', 'Data table']} active={view} onChange={setView} /></div>
-        <label className="wu-field-label">Date range<select aria-label="Analytics period" value={analyticsPeriod} onChange={event => { setDrill(undefined); setAnalyticsPeriod(event.target.value); }}>
+        <label className="wu-field-label">Date range<Select aria-label="Analytics period" value={analyticsPeriod} onChange={event => { setDrill(undefined); setAnalyticsPeriod(event.target.value); }}>
           <option>Last 30 days</option><option>Last 7 days</option>
-        </select></label></div>
+        </Select></label></div>
       </div>
       {report.error ? <Panel className="wu-content-panel"><p role="alert">Could not load the period report. <button className="wu-text-button" type="button" onClick={report.retry}>Try again</button></p></Panel>
         : !report.data ? <LoadingPanel label="Loading the period report" /> : !report.data.rows.length ? <Panel className="wu-content-panel"><IllustratedEmptyState kind="analytics" title="Your progress will appear here" detail="Reports will take shape as your team works on tasks." /></Panel> : <>

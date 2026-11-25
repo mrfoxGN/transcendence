@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal, X } from 'lucide-react';
 import { Avatar } from './components';
 import { documentPageSize } from './workspace-api';
@@ -66,21 +66,30 @@ export function Drawer({ title, children, onClose, confirmation = false, closeDi
 
 export function ActionMenu({ label, actions }: { label: string; actions: { label: string; run: () => void; disabled?: boolean }[] }) {
   const id = useId();
-  const menu = useRef<HTMLDivElement>(null);
+  const menu = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
+  const [menuOpen,setMenuOpen] = useState(false);
+  function close(restore = false) { menu.current?.hidePopover(); if (restore) trigger.current?.focus({ preventScroll: true }); }
+  function position() {
+    if (!menu.current || !trigger.current) return;
+    const anchor=trigger.current.getBoundingClientRect(),width=menu.current.offsetWidth,height=menu.current.offsetHeight;
+    if(anchor.bottom<0||anchor.top>innerHeight){close();return;}
+    menu.current.style.left=Math.max(8,Math.min(anchor.right-width,innerWidth-width-8))+'px';
+    menu.current.style.top=Math.max(8,anchor.bottom+height+6<innerHeight?anchor.bottom+6:anchor.top-height-6)+'px';
+  }
+  useEffect(()=>{if(!menuOpen)return;window.addEventListener('resize',position);window.addEventListener('scroll',position,true);return()=>{window.removeEventListener('resize',position);window.removeEventListener('scroll',position,true);};},[menuOpen]);
   return <>
-    <button type="button" className="wu-icon-button" aria-label={label} popoverTarget={id}
-      onClick={event => {
-        const anchor = event.currentTarget.getBoundingClientRect();
-        if (menu.current) {
-          menu.current.style.left = Math.max(8, Math.min(anchor.right - 192, window.innerWidth - 200)) + 'px';
-          menu.current.style.top = Math.min(anchor.bottom + 4, window.innerHeight - 48 - actions.length * 38) + 'px';
-        }
-      }}><MoreHorizontal size={17} /></button>
-    <div ref={menu} popover="auto" id={id} className="wu-action-menu" role="group" aria-label={label}>
-      {actions.map(action => <button type="button" key={action.label} disabled={action.disabled} onClick={() => {
-        menu.current?.hidePopover();
-        action.run();
-      }}>{action.label}</button>)}
+    <button ref={trigger} type="button" className="wu-icon-button" aria-label={label} popoverTarget={id}
+      onClick={() => requestAnimationFrame(position)} onKeyDown={event=>{if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();menu.current?.showPopover();position();const buttons=menu.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');(event.key==='ArrowUp'?buttons?.[buttons.length-1]:buttons?.[0])?.focus();}}}><MoreHorizontal size={17}/></button>
+    <div ref={menu} id={id} popover="auto" className="wu-action-menu" role="group" aria-label={label}
+      onToggle={event=>{const expanded=(event.nativeEvent as ToggleEvent).newState==='open';setMenuOpen(expanded);if(expanded){position();if(!menu.current?.contains(document.activeElement))menu.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();}}}
+      onKeyDown={event=>{
+        if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close(true);return;}
+        if(event.key==='Tab'){close(true);return;}
+        if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+        event.preventDefault();const buttons=Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')??[]),index=buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:event.key==='ArrowDown'?(index+1)%buttons.length:(index-1+buttons.length)%buttons.length;buttons[next]?.focus();
+      }}>
+      {actions.map((action,index)=><button key={action.label} type="button" disabled={action.disabled} data-destructive={/^(delete|remove|revoke|disconnect)\b/i.test(action.label)||undefined} data-separated={index>0&&/^(delete|remove|revoke|disconnect)\b/i.test(action.label)||undefined} onClick={()=>{close(true);action.run();}}>{action.label}</button>)}
     </div>
   </>;
 }

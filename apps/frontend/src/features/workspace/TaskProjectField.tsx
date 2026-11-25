@@ -1,3 +1,4 @@
+import { Select } from '../../shared/controls/Select';
 import { useRef, useState } from 'react';
 import { linkProjectTask, type Project } from './workspace-projects';
 
@@ -33,16 +34,16 @@ export function TaskProjectField({ taskId, projects, error, retry, path, token, 
       : !projects ? <p role="status">Loading projects…</p>
       : <>
         {!readOnly && !!projects.length && <label className="wu-field-label">Linked project
-          <select value={project?.id ?? ''} disabled={busy} onChange={event => void save(event.target.value || null)}>
+          <Select value={project?.id ?? ''} disabled={busy} onChange={event => void save(event.target.value || null)}>
             <option value="">No project</option>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </Select>
         </label>}
         {!project && (readOnly || !projects.length) && <p className="wu-muted">No linked project.</p>}
         {project && <>
           {!readOnly && !!project.milestones.length && <label className="wu-field-label">Milestone
-            <select value={milestoneId ?? ''} disabled={busy} onChange={event => void save(project.id, event.target.value || null)}>
+            <Select value={milestoneId ?? ''} disabled={busy} onChange={event => void save(project.id, event.target.value || null)}>
               <option value="">No milestone</option>{project.milestones.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            </Select>
           </label>}
           {readOnly && milestoneId && <p>{project.milestones.find(item => item.id === milestoneId)?.name}</p>}
           <button className="wu-text-button" type="button" onClick={() => openProject(project.id)}>Open {project.name}</button>

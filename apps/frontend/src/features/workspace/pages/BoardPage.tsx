@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
   DndContext, DragOverlay, KeyboardSensor, MeasuringStrategy, PointerSensor, closestCenter, pointerWithin,
@@ -248,17 +249,17 @@ export function BoardPage({
         if (await onMoveTask(moveTask.id, moveColumn, placement as Placement, anchor)) setMoveTask(undefined);
       }}>
         <label className="wu-field-label">Destination column
-          <select value={moveDestination} disabled={movingTask} onChange={event => { setMoveDestination(event.currentTarget.value); setMovePosition('end'); }}>
+          <Select value={moveDestination} disabled={movingTask} onChange={event => { setMoveDestination(event.currentTarget.value); setMovePosition('end'); }}>
             <option value="" disabled>Choose a column</option>
             {columns.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}
-          </select>
+          </Select>
         </label>
         <label className="wu-field-label">Position
-          <select value={movePosition} disabled={!moveColumn || movingTask} onChange={event => setMovePosition(event.currentTarget.value)}>
+          <Select value={movePosition} disabled={!moveColumn || movingTask} onChange={event => setMovePosition(event.currentTarget.value)}>
             <option value="end">Bottom of column</option>
             {moveColumn && tasksInColumn(moveColumn).filter(task => task.id !== moveTask.id)
               .map(task => <option key={task.id} value={'before:' + task.id}>Before {task.title}</option>)}
-          </select>
+          </Select>
         </label>
         {error && <p role="alert">{error}</p>}
         <div className="wu-modal-actions">
@@ -287,14 +288,14 @@ export function BoardPage({
           }
         }}>
           <label className="wu-field-label">Backlog task
-            <select value={selectedBacklogTaskId} disabled={movingTask} onChange={event => setSelectedBacklogTaskId(event.currentTarget.value)} required>
+            <Select value={selectedBacklogTaskId} disabled={movingTask} onChange={event => setSelectedBacklogTaskId(event.currentTarget.value)} required>
               <option value="" disabled>Choose a task</option>
               {backlogTasks.map(task => (
                 <option key={task.id} value={task.id}>
                   {task.taskKey ? `${task.taskKey}: ` : ''}{task.title}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="wu-board-cards" style={{ maxHeight: '240px', overflowY: 'auto' }} role="listbox" aria-label="Backlog tasks list">
             {backlogTasks.map(task => {

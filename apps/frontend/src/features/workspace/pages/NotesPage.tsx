@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link2, Pencil, Pin, Plus, Search, Trash2 } from 'lucide-react';
@@ -199,7 +200,7 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
     <div className="wu-notes-board">
       <div className="wu-notes-card-tools">
         <label className="wu-list-search"><Search size={16} aria-hidden="true"/><input type="search" aria-label="Search notes" placeholder="Search your notes" maxLength={200} value={search} onChange={event=>{setSearch(event.target.value);setPage(1);}}/></label>
-        <select className="wu-select" aria-label="Sort notes" value={sort} onChange={event=>{setSort(event.target.value);setPage(1);}}><option value="updated">Recently updated</option><option value="name">Title A–Z</option></select>
+        <Select className="wu-select" aria-label="Sort notes" value={sort} onChange={event=>{setSort(event.target.value);setPage(1);}}><option value="updated">Recently updated</option><option value="name">Title A–Z</option></Select>
         {list.items&&<span className="wu-notes-card-count">{filtered.length} {filtered.length===1?'note':'notes'}</span>}
       </div>
       {list.error&&<p role="alert">Could not load notes. <button className="wu-text-button" type="button" onClick={list.retry}>Try again</button></p>}

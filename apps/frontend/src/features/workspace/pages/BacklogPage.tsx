@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { WorkspaceIllustration } from '../WorkspaceIllustration';
@@ -98,21 +99,21 @@ export function BacklogPage({
     {pageHeading(addTaskButton())}
     <Panel className="wu-list-panel">
       <div className="wu-task-toolbar wu-list-toolbar">
-        <select className="wu-select" aria-label="Backlog view" value={activeView < 0 ? '' : activeView}
+        <Select className="wu-select" aria-label="Backlog view" value={activeView < 0 ? '' : activeView}
           onChange={event => update(views[Number(event.currentTarget.value)].view)}>
           <option value="" disabled>Custom view</option>
           {views.map((item, index) => <option key={index} value={index}>{item.name}</option>)}
-        </select>
+        </Select>
         <label className="wu-list-search">
           <Search size={16} aria-hidden="true" />
           <input type="search" aria-label="Search backlog tasks" placeholder="Search by title or task ID" maxLength={200} value={view.search} onChange={event => update({ search: event.currentTarget.value })} />
         </label>
-        <select className="wu-select" aria-label="Sort tasks" value={view.sort}
+        <Select className="wu-select" aria-label="Sort tasks" value={view.sort}
           onChange={event => update({ sort: event.currentTarget.value as BacklogView['sort'] })}>
           <option value="manual">Manual rank</option>
           <option value="priority">Highest priority</option>
           <option value="due">Earliest due date</option>
-        </select>
+        </Select>
         <TaskFacets tasks={tasks} value={view.facets} onChange={facets => update({ facets })} />
         {hasFilters && <button className="wu-text-button" type="button" onClick={clearFilters}>Clear filters</button>}
         <button className="wu-text-button" type="button" aria-expanded={showSaveForm} disabled={saving || !savedViews.items}

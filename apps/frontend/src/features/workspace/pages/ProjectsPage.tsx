@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Pin, Plus } from 'lucide-react';
@@ -130,12 +131,12 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
                 setTaskSelection('');
               });
             }}>
-              <label className="wu-field-label">Task<select required value={taskSelection} onChange={event => setTaskSelection(event.target.value)}>
+              <label className="wu-field-label">Task<Select required value={taskSelection} onChange={event => setTaskSelection(event.target.value)}>
                 <option value="">Choose an ungrouped task</option>{available.map(task => <option key={task.id} value={task.id}>{task.taskKey ? task.taskKey + ' · ' : ''}{task.title}</option>)}
-              </select></label>
-              {!!project.milestones.length && <label className="wu-field-label">Milestone<select value={milestoneSelection} onChange={event => setMilestoneSelection(event.target.value)}>
+              </Select></label>
+              {!!project.milestones.length && <label className="wu-field-label">Milestone<Select value={milestoneSelection} onChange={event => setMilestoneSelection(event.target.value)}>
                 <option value="">No milestone</option>{project.milestones.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select></label>}
+              </Select></label>}
               <button type="submit" className="wu-button wu-button--secondary" disabled={busy || !taskSelection}>Link task</button>
             </form>
           </Panel>}
@@ -175,12 +176,12 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
         <label className="wu-field-label">Name<input name="name" required maxLength={120} defaultValue={editor.item?.name} placeholder={editor.kind === 'project' ? 'e.g. Workspace onboarding' : 'e.g. Release candidate'} /></label>
         <label className="wu-field-label">Target date<input name="targetDate" type="date" min="1000-01-01" max="9999-12-31" defaultValue={editor.item?.targetDate ?? ''} /></label>
         {editor.kind === 'project' && <>
-          <label className="wu-field-label">Owner<select name="ownerId" defaultValue={editor.item ? editor.item.ownerId ?? '' : profileId}>
+          <label className="wu-field-label">Owner<Select name="ownerId" defaultValue={editor.item ? editor.item.ownerId ?? '' : profileId}>
             <option value="">Unassigned</option>{members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-          </select></label>
-          <label className="wu-field-label">Status<select name="status" defaultValue={editor.item?.status ?? 'planned'}>
+          </Select></label>
+          <label className="wu-field-label">Status<Select name="status" defaultValue={editor.item?.status ?? 'planned'}>
             {Object.entries(projectStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select></label>
+          </Select></label>
         </>}
         {error && <p role="alert">{error}</p>}
         <button type="submit" className="wu-button wu-button--primary" disabled={busy}>{busy ? 'Saving…' : editor.item ? 'Save changes' : 'Create ' + editor.kind}</button>

@@ -1,3 +1,4 @@
+import { Select } from '../../shared/controls/Select';
 import { useId, useRef } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { isDueInNextSevenDays, isOverdue, nextSevenDaysLabel } from './workspace-calendar';
@@ -46,10 +47,10 @@ export function TaskFacets({ tasks, value, onChange }: { tasks: Task[]; value: F
     })}
     <div ref={popover} id={id} popover="auto" className="wu-task-facets wu-task-filter-popover" role="group" aria-label="Filter tasks">
     {facets.map(({ key, label, options }) => <label key={key}>{label}
-      <select className="wu-select" value={value[key]} onChange={event => onChange({ ...value, [key]: event.target.value })}>
+      <Select className="wu-select" value={value[key]} onChange={event => onChange({ ...value, [key]: event.target.value })}>
         <option value="">Any</option>
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
+      </Select>
     </label>)}
     {Object.values(value).some(Boolean) && <button type="button" className="wu-button wu-button--secondary" onClick={() => onChange(emptyFacets)}>Clear filters</button>}
     </div>

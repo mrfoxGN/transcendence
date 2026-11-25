@@ -1,3 +1,4 @@
+import { Select } from '../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../shared/illustrations/EmptyIllustration';
 import { useEffect, useId, useState, type Ref } from 'react';
 import { Bell, Settings2, Users, Check, X, CheckCircle2 } from 'lucide-react';
@@ -209,7 +210,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
       </fieldset>}
       {showPreferences && (
 <div className="wu-inbox-filters">
-      <select aria-label="Notification category" value={category} disabled={busy} onChange={event => {
+      <Select aria-label="Notification category" value={category} disabled={busy} onChange={event => {
         const value = event.currentTarget.value;
         setCategory(value);
         void refresh(undefined, 1, unreadOnly, value);
@@ -218,7 +219,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
         <option value="assignments">Assignments</option><option value="mentions">Mentions</option>
         <option value="comments">Comments</option><option value="status">Status changes</option>
         <option value="invitations">Invitations</option><option value="messages">Messages</option>
-      </select>
+      </Select>
       <label className="wu-check-row"><input type="checkbox" checked={unreadOnly} disabled={busy} onChange={event => { const value = event.target.checked; setUnreadOnly(value); void refresh(undefined, 1, value); }} /> Unread only</label>
       </div>
 )}

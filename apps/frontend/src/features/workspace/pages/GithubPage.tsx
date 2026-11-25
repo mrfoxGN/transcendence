@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Panel } from '../components';
@@ -171,7 +172,7 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
     {setupId ? <Panel className="wu-content-panel">
       <h2>Choose a repository</h2>
       {!choices ? <p role="status">Loading eligible public repositories…</p> : !choices.length ? <p>No eligible public repositories found.</p>
-        : <form onSubmit={connect}><label className="wu-field-label">Repository<select name="repository" required defaultValue=""><option value="" disabled>Select a repository</option>{choices.map(repo => <option key={repo.githubRepositoryId} value={repo.githubRepositoryId}>{repo.fullName}</option>)}</select></label>
+        : <form onSubmit={connect}><label className="wu-field-label">Repository<Select name="repository" required defaultValue=""><option value="" disabled>Select a repository</option>{choices.map(repo => <option key={repo.githubRepositoryId} value={repo.githubRepositoryId}>{repo.fullName}</option>)}</Select></label>
           <button className="wu-button wu-button--primary" disabled={busy || !owner}>Connect repository</button></form>}
       <button type="button" className="wu-text-button" disabled={busy} onClick={() => setSetupId('')}>Cancel</button>
     </Panel> : repository === undefined ? !error && <p role="status">Loading repository…</p>

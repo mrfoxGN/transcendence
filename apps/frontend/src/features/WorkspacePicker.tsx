@@ -1,3 +1,4 @@
+import { Select } from '../shared/controls/Select';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Folder, Plus } from 'lucide-react';
 import './workspace-picker.css';
@@ -802,7 +803,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
             ) : (
               <label className="workspace-transfer-label">
                 New owner
-                <select
+                <Select
                   value={selectedNewOwner}
                   disabled={transferPending}
                   onChange={event => setSelectedNewOwner(event.target.value)}
@@ -813,7 +814,7 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
                       {member.username}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
 

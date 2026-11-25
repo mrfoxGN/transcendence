@@ -1,3 +1,4 @@
+import { Select } from '../shared/controls/Select';
 import { IllustratedEmptyState } from '../shared/illustrations/EmptyIllustration';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Archive, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Contrast, LogOut, PanelLeftClose, PanelLeftOpen, Plus, UserRound, UsersRound, X } from 'lucide-react';
@@ -751,14 +752,14 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       <label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required maxLength={200} readOnly={taskSaving} /></label>
       <label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" readOnly={taskSaving} /></label>
       <div className="wu-task-create-fields">
-      <label className="wu-field-label">Assignee<select name="assigneeId" disabled={taskSaving}>
+      <label className="wu-field-label">Assignee<Select name="assigneeId" disabled={taskSaving}>
         <option value="">Unassigned</option>
         {(members.items ?? []).map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-      </select></label>
-      <label className="wu-field-label">Priority<select name="priority" disabled={taskSaving}>
+      </Select></label>
+      <label className="wu-field-label">Priority<Select name="priority" disabled={taskSaving}>
         <option value="">No priority</option>
         {Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
+      </Select></label>
       <label className="wu-field-label">Due date<input name="dueDate" type="date" min="1000-01-01" max="9999-12-31" readOnly={taskSaving} /></label>
       </div>
       {taskError && <p role="alert">{taskError}</p>}

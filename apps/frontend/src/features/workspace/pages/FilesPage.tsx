@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useRef, useState } from 'react';
 import { Download, LayoutGrid, List, Link2, Pencil, Search, Upload } from 'lucide-react';
@@ -228,18 +229,18 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
             <input type="search" aria-label="Search files" placeholder="Search filenames" maxLength={200} value={search} onChange={event => { setSearch(event.currentTarget.value); setPage(1); }} />
           </label>
           <label className="wu-file-sort">Sort by
-            <select className="wu-select" value={sort} onChange={event => { setSort(event.currentTarget.value); setPage(1); }}>
+            <Select className="wu-select" value={sort} onChange={event => { setSort(event.currentTarget.value); setPage(1); }}>
               <option value="recent">Newest first</option><option value="name">Name A–Z</option><option value="size">Largest first</option>
-            </select>
+            </Select>
           </label>
         </div>
         <div className="wu-file-filters" role="group" aria-label="File filters">
           <div className="wu-file-type-tabs" role="group" aria-label="File type">
             {[['', 'All files'], ['image', 'Images'], ['document', 'Documents'], ['text', 'Text files'], ['other', 'Other']].map(([value, label]) => <button key={value} type="button" aria-pressed={kind === value} onClick={() => { setKind(value); setPage(1); }}>{label}</button>)}
           </div>
-          <label className="wu-field-label">Uploaded by<select value={uploader} onChange={event => { setUploader(event.target.value); setPage(1); }}>
+          <label className="wu-field-label">Uploaded by<Select value={uploader} onChange={event => { setUploader(event.target.value); setPage(1); }}>
             <option value="">Anyone</option>{members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-          </select></label>
+          </Select></label>
           {filtered && <button className="wu-text-button" type="button" onClick={() => { setKind(''); setUploader(''); setSearch(''); setPage(1); }}>Clear filters</button>}
           <div className="wu-file-view-toggle" role="group" aria-label="File view">
             <button type="button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => changeView('list')}><List size={17} aria-hidden="true" /></button>

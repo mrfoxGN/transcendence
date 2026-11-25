@@ -1,0 +1,27 @@
+.devup-design .wu-select-control { position:relative; display:inline-grid; min-width:0; max-width:100%; vertical-align:middle; }
+.devup-design .wu-field-label > .wu-select-control,.devup-design .workspace-picker-form label > .wu-select-control { width:100%; }
+.devup-design .wu-select-control .wu-select-native { position:absolute!important; width:1px!important; height:1px!important; min-height:0!important; padding:0!important; margin:0!important; opacity:0; pointer-events:none; clip-path:inset(50%); }
+.devup-design .wu-select-trigger { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-width:0; min-height:40px; padding:8px 11px; border:1px solid var(--wu-line,var(--entry-line)); border-radius:8px; background:var(--wu-surface,var(--entry-surface)); color:var(--wu-ink,var(--entry-ink)); font:inherit; font-size:13px; line-height:1.5; text-align:left; cursor:pointer; }
+.wu-select-trigger > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wu-select-trigger > svg { flex:none; color:var(--wu-muted,var(--entry-muted)); }
+.devup-design .wu-select-trigger:hover:not(:disabled) { border-color:var(--wu-hover-border,var(--entry-focus)); }
+.devup-design :is(.workspace-app,.entry-experience) .wu-select-trigger:focus-visible,.devup-design :is(.workspace-app,.entry-experience) .wu-select-trigger[aria-expanded=true] { outline:none; border-color:var(--wu-focus,var(--entry-focus)); box-shadow:0 0 0 3px color-mix(in srgb,var(--wu-focus,var(--entry-focus)) 22%,transparent); }
+.devup-design .wu-select-trigger:disabled { opacity:1; color:var(--wu-muted,var(--entry-muted)); background:var(--wu-surface-soft,var(--entry-soft)); cursor:not-allowed; }
+.devup-design .wu-select-trigger[aria-invalid=true] { border-color:var(--wu-red,#c74768); }
+.devup-design .wu-select-popup { position:fixed; inset:auto; box-sizing:border-box; margin:0; padding:6px; border:1px solid var(--wu-line,var(--entry-line)); border-radius:11px; background:var(--wu-surface,var(--entry-surface)); color:var(--wu-ink,var(--entry-ink)); box-shadow:0 10px 35px #15102526,0 2px 6px #1510250a; overflow:hidden; }
+.devup-design .wu-select-popup:popover-open { display:flex; flex-direction:column; }
+.devup-design .workspace-app[data-theme=dark] .wu-select-popup { background:var(--wu-raised); border-color:var(--wu-hover-border); box-shadow:0 12px 35px #0005,inset 0 1px #ffffff08; }
+.wu-select-options { min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+.devup-design .wu-select-option { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:36px; padding:8px 10px; border-radius:6px; color:inherit; font-size:12px; line-height:1.5; cursor:pointer; overflow-wrap:anywhere; }
+.wu-select-option > span { min-width:0; flex:1; }
+.wu-select-option > svg { flex:none; color:var(--wu-blue,var(--entry-accent)); }
+.devup-design .wu-select-option[data-active] { background:var(--wu-hover-row,var(--entry-hover)); }
+.devup-design .wu-select-option[aria-selected=true] { color:var(--wu-blue,var(--entry-accent)); background:var(--wu-blue-soft,var(--entry-tint)); }
+.devup-design .wu-select-option[aria-disabled=true] { color:var(--wu-muted,var(--entry-muted)); opacity:.65; cursor:not-allowed; }
+.wu-select-group { padding:10px 10px 5px; color:var(--wu-muted,var(--entry-muted)); font-size:10px; font-weight:550; }
+.devup-design .wu-select-search { display:flex; flex:none; align-items:center; gap:8px; padding:5px 8px 9px; margin-bottom:4px; border-bottom:1px solid var(--wu-line,var(--entry-line)); color:var(--wu-muted,var(--entry-muted)); }
+.devup-design .wu-select-search input { min-width:0; width:100%; min-height:34px; padding:4px; border:0!important; outline:none!important; background:transparent!important; box-shadow:none!important; color:var(--wu-ink,var(--entry-ink)); font:inherit; font-size:13px; }
+.wu-select-empty { margin:0; padding:18px 10px; color:var(--wu-muted,var(--entry-muted)); font-size:12px; }
+.wu-select-error { margin-top:6px; color:var(--wu-red,#c74768); font-size:12px; line-height:1.5; }
+.devup-design .wu-settings-layout .wu-settings-form > .wu-field-label > .wu-select-control { grid-column:2; grid-row:1; }
+@media(max-width:680px) { .devup-design .wu-select-option { min-height:42px; }.devup-design .wu-select-search input { font-size:16px; }.devup-design .wu-settings-layout .wu-settings-form > .wu-field-label > .wu-select-control { grid-column:1; grid-row:auto; } }

@@ -1,3 +1,4 @@
+import { pickOption } from './select-control.mjs';
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -58,6 +59,9 @@ await page.route('**/api/**',async route=>{
  if(path==='auth/2fa/request-enable')return route.fulfill({status:204});
  if(path==='auth/2fa/confirm-enable'){assert.equal(body.code,'123456');profile.isTwoFactorEnabled=true;return json(profile);}
  if(path==='auth/2fa/disable'){profile.isTwoFactorEnabled=false;return json(profile);}
+ if(process.env.DROPDOWNS_ONLY&&path.endsWith('/tasks')&&method==='POST'){
+  assert.equal(body.assigneeId,'member-15');assert.equal(body.priority,'URGENT');const task={...tasks[0],id:'dropdown-'+tasks.length,title:body.title};tasks.push(task);return json(task);
+ }
  if(path.endsWith('/board'))return json({columns:statuses.map(status=>({status,tasks:tasks.filter(t=>t.status===status)})),boardColumns:columns,activeCount:2,activeWipLimit:5,reportingTimeZone:'Africa/Casablanca',assigneesByTaskId:Object.fromEntries(tasks.map(t=>[t.id,uid]))});
  if(path.endsWith('/members'))return json(members);
  if(path.endsWith('/kanban-settings')){if(method==='PATCH')Object.assign(kanban,body);return json(kanban);}
@@ -129,13 +133,30 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.DROPDOWNS_ONLY==='1'){
+  members.push(...Array.from({length:18},(_,i)=>({userId:'member-'+i,username:'Casey Designer '+String(i).padStart(2,'0'),isOwner:false,avatarUrl:null,joinedAt:stamp})));
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:700});await page.goto(root+'board');await page.reload();await page.getByRole('button',{name:'Add task',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Create a task'});await dialog.waitFor();
+   await page.getByRole('textbox',{name:'Task title',exact:true}).fill(`Dropdown contract check ${theme} ${width}`);
+   const assignee=dialog.getByRole('combobox',{name:'Assignee',exact:true});await dialog.locator('select[name=assigneeId]').evaluate(element=>element.required=true);const beforeSubmit=writes.filter(write=>write.path.endsWith('/tasks')&&write.method==='POST').length;await dialog.getByRole('button',{name:'Create task',exact:true}).click();await dialog.getByRole('alert').filter({hasText:'Choose an option.'}).waitFor();assert.equal(writes.filter(write=>write.path.endsWith('/tasks')&&write.method==='POST').length,beforeSubmit,'Required select blocks incomplete submission');await assignee.click();const search=page.getByRole('searchbox',{name:'Search assignee',exact:true});await search.waitFor();await search.fill('no matching teammate');await page.getByText('No options found',{exact:true}).waitFor();await search.fill('Casey Designer 15');await search.press('ArrowDown');await search.press('Enter');assert.equal(await assignee.innerText(),'Casey Designer 15');assert.equal(await assignee.evaluate(e=>e===document.activeElement),true,'Selection restores trigger focus');
+   await assignee.click();await search.press('Escape');assert.equal(await dialog.isVisible(),true,'Escape closes options without closing parent dialog');assert.equal(await assignee.getAttribute('aria-expanded'),'false');
+   const priority=dialog.getByRole('combobox',{name:'Priority',exact:true});await assignee.click();await search.press('Tab');assert.equal(await priority.evaluate(e=>document.activeElement===e),true,'Tab leaves the popup for the next form field');await priority.focus();await priority.press('ArrowDown');await page.waitForFunction(()=>document.querySelector('.wu-workspace-form-modal button[role=combobox][aria-label=Priority]')?.getAttribute('aria-expanded')==='true');await priority.press('End');await priority.press('Enter');await page.waitForFunction(()=>document.querySelector('.wu-workspace-form-modal button[role=combobox][aria-label=Priority]')?.textContent?.includes('Urgent'));assert.equal(await priority.innerText(),'Urgent');
+   const values=await dialog.locator('form').evaluate(form=>Object.fromEntries(new FormData(form)));assert.equal(values.assigneeId,'member-15');assert.equal(values.priority,'URGENT');
+   await priority.click();const popup=page.locator('.wu-select-popup:popover-open');const box=await popup.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width&&box.y>=0&&box.y+box.height<=700,'Dropdown stays inside viewport');await page.screenshot({path:`/tmp/devup-migration-artifacts/dropdown-${theme}-${width}.png`});await priority.press('Escape');
+   await dialog.getByRole('button',{name:'Create task',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(writes.at(-1).body.priority,'URGENT');
+   await page.goto(root+'files');await page.getByRole('button',{name:'Actions for Design.pdf',exact:true}).waitFor();const action=page.getByRole('button',{name:'Actions for Design.pdf',exact:true});await action.focus();await action.press('ArrowDown');const menu=page.locator('.wu-action-menu:popover-open');await menu.waitFor();assert.equal(await menu.getByRole('button',{name:'Rename file',exact:true}).evaluate(e=>e===document.activeElement),true);await page.keyboard.press('ArrowDown');assert.equal(await menu.getByRole('button',{name:'Delete file',exact:true}).evaluate(e=>e===document.activeElement),true);assert.equal(await menu.getByRole('button',{name:'Delete file',exact:true}).getAttribute('data-destructive'),'true');await page.keyboard.press('Escape');assert.equal(await action.evaluate(e=>e===document.activeElement),true);
+   await action.click();await menu.getByRole('button',{name:'Rename file',exact:true}).click();await page.getByRole('textbox',{name:'Filename',exact:true}).waitFor();await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  }
+  await page.goto(root+'notes');await page.getByRole('button',{name:'New note',exact:true}).click();await page.getByRole('textbox',{name:'Note content',exact:true}).waitFor();await page.getByRole('textbox',{name:'Note content',exact:true}).fill('Formatting with custom menus');await pickOption(page,page.getByRole('combobox',{name:'Text style',exact:true}),'h2');await page.waitForFunction(()=>document.querySelector('[aria-label="Note content"]')?.contains(document.activeElement));assert.equal(await page.locator('.wu-note-prose h2').count(),1,'Formatting selection preserves editor focus and command');await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Dropdowns passed: searchable long lists/no results, keyboard selection, focus return, nested-dialog Escape, required validation, native FormData and API payloads, viewport containment, action navigation and destructive styling in both themes and mobile.');process.exit(0);
+ }
  if(process.env.ACTIVITY_ONLY==='1'){
   for(const theme of ['light','dark'])for(const width of [1440,390]){
    profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'activity');await page.reload();await page.locator('.wu-event-row').first().waitFor();assert.equal(await page.locator('.wu-event-row').count(),4);const firstEvent=page.locator('.wu-event-row').first();const avatarBox=await firstEvent.locator('.wu-event-avatar').boundingBox(),copyBox=await firstEvent.locator('.wu-event-copy').boundingBox(),timeBox=await firstEvent.locator('.wu-event-time').boundingBox(),actionBox=await firstEvent.locator('.wu-event-action').boundingBox();assert.ok(avatarBox.x+avatarBox.width<copyBox.x,'Avatar does not overlap event text');if(width===390){assert.ok(timeBox.y>=copyBox.y+copyBox.height-1,'Mobile timestamp follows event content');assert.ok(actionBox.y>=timeBox.y+timeBox.height-1,'Mobile action follows timestamp');}await page.getByRole('region',{name:'Today',exact:true}).waitFor();await page.getByRole('region',{name:'Yesterday',exact:true}).waitFor();assert.equal(await page.locator('.wu-event-transition .wu-pill').count(),2);assert.equal(await page.getByRole('button',{name:'Open task: Archived experiment',exact:true}).count(),0,'Deleted item is not actionable');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
    await page.screenshot({path:`/tmp/devup-migration-artifacts/activity-refined-${theme}-${width}.png`});
    await page.getByRole('button',{name:'Next',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.wu-activity-pagination')?.textContent?.includes('Page 2'));await page.getByRole('button',{name:'Previous',exact:true}).click();
    await page.getByRole('button',{name:'Files',exact:true}).last().click();await page.locator('.wu-event-row').first().waitFor();assert.equal(await page.locator('.wu-event-row').count(),2);assert.equal(activityRequests.at(-1).category,'files');await page.getByRole('button',{name:'Clear filters',exact:true}).click();
-   await page.getByRole('combobox',{name:'Actor',exact:true}).selectOption('u2');await page.waitForFunction(()=>document.querySelectorAll('.wu-event-row').length===1);assert.equal(activityRequests.at(-1).actorUserId,'u2');await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+   await pickOption(page, page.getByRole('combobox',{name:'Actor',exact:true}), 'u2');await page.waitForFunction(()=>document.querySelectorAll('.wu-event-row').length===1);assert.equal(activityRequests.at(-1).actorUserId,'u2');await page.getByRole('button',{name:'Clear filters',exact:true}).click();
   }
   await page.getByRole('button',{name:'Audit trail',exact:true}).click();await page.getByText('restored the workspace',{exact:false}).waitFor();await page.getByRole('button',{name:'Activity',exact:true}).last().click();
   await page.getByLabel('From',{exact:true}).fill('2026-11-26');await page.getByLabel('Through',{exact:true}).fill('2026-11-24');await page.getByRole('alert').filter({hasText:'Choose valid dates'}).waitFor();await page.getByRole('button',{name:'Clear filters',exact:true}).click();
@@ -147,7 +168,7 @@ try{
    profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'analytics');await page.reload();await page.locator('.wu-analytics-chart').first().waitFor();assert.equal(await page.locator('.wu-analytics-bar').count(),60);assert.equal(await page.locator('.wu-analytics-snapshot .wu-metric-card').count(),3);assert.equal(await page.locator('.wu-analytics-snapshot .wu-metric-card').nth(1).evaluate(e=>getComputedStyle(e).backgroundImage),'none');if(width===390)assert.equal(await page.locator('.wu-analytics-snapshot .wu-stat-grid').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length),1,'Mobile summaries stack');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
    await page.screenshot({path:`/tmp/devup-migration-artifacts/analytics-refined-${theme}-${width}.png`});
    const point=page.locator('.wu-analytics-bar').first();await point.focus();await page.getByRole('tooltip').waitFor();await point.press('Enter');await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');
-   await page.getByRole('button',{name:'Data table',exact:true}).click();assert.equal(await page.locator('.wu-analytics-table tbody tr').count(),30);await page.getByRole('combobox',{name:'Analytics period'}).selectOption('Last 7 days');await page.waitForFunction(()=>document.querySelectorAll('.wu-analytics-table tbody tr').length===7);await page.getByRole('button',{name:'Charts',exact:true}).click();assert.equal(await page.locator('.wu-analytics-bar').count(),14);
+   await page.getByRole('button',{name:'Data table',exact:true}).click();assert.equal(await page.locator('.wu-analytics-table tbody tr').count(),30);await pickOption(page, page.getByRole('combobox',{name:'Analytics period'}), 'Last 7 days');await page.waitForFunction(()=>document.querySelectorAll('.wu-analytics-table tbody tr').length===7);await page.getByRole('button',{name:'Charts',exact:true}).click();assert.equal(await page.locator('.wu-analytics-bar').count(),14);
   }
   reportFixtureMode='empty';await page.reload();await page.getByRole('heading',{name:'Your progress will appear here',exact:true}).waitFor();reportFixtureMode='error';await page.reload();await page.getByRole('alert').filter({hasText:'Could not load the period report'}).waitFor();reportFixtureMode='populated';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.wu-analytics-chart').first().waitFor();
   assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Analytics passed: populated light/dark desktop/mobile reports, current snapshot, keyboard tooltip/drill-down, data table, 7/30-day filtering, empty and recoverable error states.');process.exit(0);
@@ -262,9 +283,9 @@ try{
   await page.getByRole('searchbox',{name:'Search files'}).fill('');
   await page.getByRole('button',{name:'Documents',exact:true}).click();assert.equal(await page.locator('.wu-files-table tbody tr').count(),2);
   assert.equal(await page.locator('.wu-recent-file').count(),4,'Recent files remain independent of filters');
-  await page.getByRole('button',{name:'All files',exact:true}).click();await page.getByLabel('Sort by').selectOption('size');
+  await page.getByRole('button',{name:'All files',exact:true}).click();await pickOption(page, page.getByLabel('Sort by'), 'size');
   assert.match(await page.locator('.wu-files-table tbody tr').first().innerText(),/Beyond first hundred/);
-  await page.getByLabel('Uploaded by').selectOption('u2');assert.equal(await page.locator('.wu-files-table tbody tr').count(),1);
+  await pickOption(page, page.getByLabel('Uploaded by'), 'u2');assert.equal(await page.locator('.wu-files-table tbody tr').count(),1);
   await page.getByRole('button',{name:'Grid view',exact:true}).click();assert.equal(await page.locator('.wu-file-card').count(),1);
   await page.screenshot({path:'/tmp/devup-migration-artifacts/files-query-contract.png'});
   assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Files passed: strict page/limit API, 105 files across backend pages, local pagination, search beyond first 100, category/uploader filters, sorting, grid and independent recent files.');process.exit(0);
@@ -375,7 +396,7 @@ try{
  await page.getByRole('button',{name:'Done editing',exact:true}).click();
  await page.getByRole('button',{name:'Edit',exact:true}).waitFor();
  await page.goto(root+'board');await page.getByRole('button',{name:'Move to a position for Polish mobile layout',exact:true}).click();
- await page.getByRole('combobox',{name:'Destination column',exact:true}).selectOption('READY');
+ await pickOption(page, page.getByRole('combobox',{name:'Destination column',exact:true}), 'READY');
  await page.getByRole('button',{name:'Move task',exact:true}).click();
  await page.waitForTimeout(100);
  const transition=writes.find(w=>w.path==='tasks/t1/transition');assert.equal(transition.body.toStatus,'READY');assert.ok(!('boardColumnId' in transition.body));
@@ -392,4 +413,4 @@ try{
  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);
  console.log(JSON.stringify({views:36,errors,unknown,writes:writes.map(w=>({path:w.path,method:w.method})),checks:'current Notes DTO, Backlog/TODO workflow and transition payload, authenticated multipart upload, Files tabs/grid/recent files, GitHub stats/contributors/collaborators/sync/branches and disconnect cancellation'},null,2));
 }
-}catch(error){console.error('Failed view:',page.url(), 'Browser errors:',errors);throw error;}finally{await browser.close();}
+}catch(error){console.error('Failed view:',page.url(), 'Browser errors:',errors);if(process.env.DROPDOWNS_ONLY){console.error(await page.locator('.wu-select-trigger').evaluateAll(elements=>elements.map(e=>({label:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded'),text:e.textContent}))));await page.screenshot({path:'/tmp/devup-migration-artifacts/dropdown-failure.png'});}throw error;}finally{await browser.close();}

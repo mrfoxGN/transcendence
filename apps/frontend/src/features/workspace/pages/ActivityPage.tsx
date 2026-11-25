@@ -1,3 +1,4 @@
+import { Select } from '../../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useId, useState } from 'react';
 import { Activity, ArrowRight, ArrowRightLeft, CircleAlert, FileMinus, FilePenLine, FileUp, GitBranch, ListPlus, Settings, Shield, StickyNote, UserMinus, UserPlus, type LucideIcon } from 'lucide-react';
@@ -180,10 +181,10 @@ export function ActivityPage({ pageHeading, path, token, members, openResource, 
       {!audit && <FilterChips items={['All activity', ...Object.keys(categories)]} active={filter} onChange={value => { setFilter(value); setPage(1); }} />}
       <div className="wu-activity-fields">
         <label className="wu-field-label">Actor
-          <select value={actor} onChange={event => { setActor(event.currentTarget.value); setPage(1); }}>
+          <Select value={actor} onChange={event => { setActor(event.currentTarget.value); setPage(1); }}>
             <option value="">Anyone</option>
             {members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-          </select>
+          </Select>
         </label>
         <label className="wu-field-label">From
           <input type="date" value={fromDate} aria-invalid={!!invalidRange}
