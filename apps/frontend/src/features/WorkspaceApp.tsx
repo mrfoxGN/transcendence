@@ -13,6 +13,7 @@ import type { Project } from './workspace/workspace-projects';
 import { WorkspaceSwitcher } from './workspace/WorkspaceSwitcher';
 import { WorkspaceCommand } from './workspace/WorkspaceCommand';
 import { useWorkspaceHistory } from './workspace/useWorkspaceHistory';
+import { MessageToast } from './workspace/MessageToast';
 import { NotificationInbox } from './workspace/NotificationInbox';
 import { LoadingPanel } from './workspace/WorkspaceControls';
 import { TaskFacets, emptyFacets, matchesTaskFacets } from './workspace/TaskFacets';
@@ -777,6 +778,9 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <button className="wu-button wu-button--primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Sending…' : 'Invite member'}</button>
       </div>
     </form>}</section></div>}
+    {chat.notices[0] && <MessageToast key={chat.notices[0].threadId} notice={chat.notices[0]} members={members.items ?? []} workspaceName={workspaceName}
+      onOpen={() => { const notice = chat.notices[0]; chat.dismissNotice(notice.message.id); navigate('chat', notice.threadId === 'team' ? '' : 'dm-' + notice.threadId); }}
+      onDismiss={() => chat.dismissNotice(chat.notices[0].message.id)} />}
     {toast && <div className="wu-toast" role="status"><CheckCircle2 size={17} />{toast}<button type="button" aria-label="Dismiss notification" onClick={() => setToast('')}><X size={15} /></button></div>}
   </div>;
 }

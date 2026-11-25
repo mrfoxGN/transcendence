@@ -4,9 +4,11 @@ import { jsonRequest, workspaceRequest } from './workspace-api';
 
 type Conversation = { id: string; otherUserId: string; lastMessageAt: string | null; otherUsername?: string; unreadCount?: number };
 export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string; reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean } };
+export type MessageNotice = { threadId: string; message: ServerMessage; count: number; workspaceId: string };
 const pageSize = 30;
 
 export function useWorkspaceChat(workspaceId: string, token: string | null, selected: string | null, profileId: string) {
+  const [notices, setNotices] = useState<MessageNotice[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Record<string, ServerMessage[]>>({});
   const [workspaceUnread, setWorkspaceUnread] = useState(0);
@@ -108,12 +110,24 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   useEffect(() => {
     if (!token || !profileId) return;
     setConnection('connecting');
+    setNotices([]);
+    const seen = new Set<string>();
     const socket = io({ auth: { token }, autoConnect: false, upgrade: false });
     const connectTimer = window.setTimeout(() => socket.connect(), 0);
     const poll = () => { if (activeThread.current && document.visibilityState === 'visible') setAttempt(value => value + 1); };
     socketRef.current = socket;
     function incoming(id: string, message: ServerMessage) {
-      if (activeThread.current) merge(id, [message]);
+      if (seen.has(message.id)) return;
+      seen.add(message.id);
+      if (seen.size > 500) seen.delete(seen.values().next().value!);
+      merge(id, [message]);
+      if (message.senderId !== profileId && activeThread.current !== id && document.visibilityState === 'visible') {
+        setNotices(current => {
+          const existing = current.find(item => item.threadId === id);
+          const notice = { threadId: id, message, count: (existing?.count ?? 0) + 1, workspaceId };
+          return existing ? current.map(item => item.threadId === id ? notice : item) : [...current, notice].slice(-3);
+        });
+      }
       if (id !== 'team') {
         setConversations(current => {
           const target = current.find(item => item.id === id);
@@ -135,8 +149,7 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
       socketReady.current = true;
       socket.emit('workspace-chat.watch', workspaceId);
       refreshUnread();
-      if (activeThread.current) joinAndSync(socket);
-      else setConnection('connected');
+      joinAndSync(socket);
     });
     function reconnecting() {
       socketReady.current = false;
@@ -181,9 +194,9 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
 
   function joinAndSync(socket: ReturnType<typeof io>) {
     socket.timeout(5_000).emit('workspace-chat.join', workspaceId, (error: Error | null, joined: boolean) => {
-      if (socketRef.current !== socket || !socket.connected || !activeThread.current) return;
+      if (socketRef.current !== socket || !socket.connected) return;
       setConnection(!error && joined ? 'connected' : 'reconnecting');
-      setAttempt(value => value + 1);
+      if (activeThread.current) setAttempt(value => value + 1);
     });
   }
 
@@ -192,8 +205,12 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     const socket = socketRef.current;
     if (!socket || !socketReady.current) return;
     if (chatOpen) joinAndSync(socket);
-    else socket.emit('workspace-chat.leave', workspaceId);
+    // Keep the authorized workspace subscription for message toasts outside Chat.
   }, [chatOpen, workspaceId]);
+
+  useEffect(() => {
+    if (selected) setNotices(current => current.filter(item => item.threadId !== selected));
+  }, [selected]);
 
   async function openConversation(userId: string, username?: string) {
     const result: Conversation = await (await workspaceRequest('direct-conversations/' + userId, token, { method: 'POST' })).json();
@@ -259,6 +276,8 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   }
 
   return {
+    notices: notices.filter(item => item.workspaceId === workspaceId),
+    dismissNotice: (messageId: string) => setNotices(current => current.filter(item => item.message.id !== messageId)),
     conversations,
     messages,
     search: async (id: string, query: string, page: number, _signal: AbortSignal): Promise<ServerMessage[]> => {

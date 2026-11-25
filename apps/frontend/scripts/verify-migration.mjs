@@ -22,7 +22,22 @@ const chatMessages=Array.from({length:18},(_,i)=>({id:'message-'+i,senderId:i%4<
 const errors=[],unknown=[],writes=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>sessionStorage.setItem('devup.access-token','test-contract-token'));
-await page.route('**/socket.io/**',route=>route.fulfill({body:route.request().method()==='POST'?'ok':'0'+JSON.stringify({sid:'test',upgrades:[],pingInterval:25000,pingTimeout:20000}),contentType:'text/plain'}));
+const socketEvents=[];let joinedWorkspace=false;
+await page.route('**/socket.io/**',async route=>{
+ if(!process.env.TOAST_ONLY)return route.fulfill({body:route.request().method()==='POST'?'ok':'0'+JSON.stringify({sid:'test',upgrades:[],pingInterval:25000,pingTimeout:20000}),contentType:'text/plain'});
+ const req=route.request(),url=new URL(req.url());
+ if(req.method()==='POST'){
+  for(const packet of (req.postData()??'').split('\x1e')){
+   if(packet.startsWith('40'))socketEvents.push('40'+JSON.stringify({sid:'test'}),'42'+JSON.stringify(['workspace-chat.ready']));
+   const join=packet.match(/^42(\d+)\["workspace-chat.join"/);
+   if(join){joinedWorkspace=true;socketEvents.push('43'+join[1]+'[true]');}
+  }
+  return route.fulfill({body:'ok',contentType:'text/plain'});
+ }
+ if(!url.searchParams.has('sid'))return route.fulfill({body:'0'+JSON.stringify({sid:'test',upgrades:[],pingInterval:25000,pingTimeout:20000}),contentType:'text/plain'});
+ await new Promise(resolve=>setTimeout(resolve,100));
+ return route.fulfill({body:socketEvents.splice(0).join('\x1e')||'2',contentType:'text/plain'});
+});
 await page.route('**/api/**',async route=>{
  const request=route.request(),url=new URL(request.url()),path=url.pathname.slice(5),method=request.method();
  const multipart=request.headers()['content-type']?.includes('multipart/form-data');
@@ -55,7 +70,7 @@ await page.route('**/api/**',async route=>{
   if(method==='POST'){assert.deepEqual(Object.keys(body).sort(),['content','replyToId','requestId'].sort());const sent={id:'sent-message',senderId:uid,content:body.content,createdAt:new Date().toISOString()};chatMessages.push(sent);return json(sent);}
   return json(path.startsWith('direct-')?[]:chatMessages);
  }
- if(process.env.CHAT_ONLY && path.endsWith('/read'))return json({});
+ if((process.env.CHAT_ONLY||process.env.TOAST_ONLY) && path.endsWith('/read'))return json({});
  if(path.endsWith('/github/statistics/commits'))return json({days:30,timezone:'UTC',total:12,items:[{date:'2026-11-21',commits:4},{date:'2026-11-22',commits:8}]});
  if(path.endsWith('/github/contributors')||path.endsWith('/github/collaborators'))return json([{login:'alex-morgan',avatarUrl:'/devup.svg',profileUrl:'https://github.com/example',role:'admin',isOwner:true,contributions:12}]);
  if(path.endsWith('/github/repository'))return json({fullName:'example/devup',defaultBranch:'main',repositoryUrl:'https://github.com/example/devup',lastSyncedAt:stamp,githubRepositoryId:'1'});
@@ -96,6 +111,24 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.TOAST_ONLY==='1'){
+  const emit=(id,thread='team',senderId='u2')=>socketEvents.push('42'+JSON.stringify([thread==='team'?'workspace-message.created':'direct-message.created',{id,senderId,content:'A new project update is ready for review.',createdAt:new Date().toISOString(),...(thread==='team'?{workspaceId:wid}:{conversationId:thread})}]));
+  const toast=page.getByRole('region',{name:'New message notification'});
+  await page.goto(root+'home');await page.locator('.wu-page').waitFor();
+  for(let i=0;i<50&&!joinedWorkspace;i++)await page.waitForTimeout(100);
+  assert.ok(joinedWorkspace,'Workspace message subscription stays active outside Chat');
+  emit('self','team',uid);await page.waitForTimeout(350);assert.equal(await toast.count(),0,'Own messages stay quiet');
+  emit('notice-1');await toast.waitFor();emit('notice-1');await page.waitForTimeout(250);assert.equal(await toast.getByText('2 messages',{exact:true}).count(),0,'Duplicate events do not increment the toast');
+  emit('notice-2');await toast.getByText('2 messages',{exact:true}).waitFor();assert.match(await toast.locator('.wu-message-toast-progress').evaluate(e=>getComputedStyle(e).backgroundImage),/linear-gradient/);
+  await toast.hover();const before=await toast.locator('.wu-message-toast-progress').evaluate(e=>getComputedStyle(e).transform);await page.waitForTimeout(6200);assert.equal(await toast.count(),1,'Hover pauses expiry');assert.equal(await toast.locator('.wu-message-toast-progress').evaluate(e=>getComputedStyle(e).transform),before,'Hover pauses progress');
+  await toast.getByRole('button',{name:'Dismiss message notification'}).focus();await page.mouse.move(0,0);await page.waitForTimeout(6200);assert.equal(await toast.count(),1,'Keyboard focus pauses expiry');
+  await page.screenshot({path:'/tmp/devup-migration-artifacts/message-toast-light.png'});await toast.getByRole('button',{name:'Dismiss message notification'}).click();assert.equal(await toast.count(),0);
+  emit('direct-1','dm1');await toast.waitFor();await toast.getByRole('button',{name:'Open conversation with Sarah Kim'}).click();await page.waitForURL('**page=chat#dm-dm1');await page.locator('.wu-chat-thread').waitFor();emit('direct-2','dm1');await page.waitForTimeout(350);assert.equal(await toast.count(),0,'Active conversation stays quiet');
+  emit('team-while-direct');await toast.waitFor();await page.mouse.move(0,0);await toast.waitFor({state:'hidden',timeout:7500});
+  for(const width of [1440,390]){profile.theme='dark';await page.setViewportSize({width,height:850});await page.goto(root+'home');await page.locator('.wu-page').waitFor();await page.waitForTimeout(400);emit('dark-'+width);await toast.waitFor();await toast.hover();const box=await toast.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width,'Toast fits viewport');assert.ok(box.y>=50,'Toast is below app header');await page.screenshot({path:`/tmp/devup-migration-artifacts/message-toast-dark-${width}.png`});await toast.getByRole('button',{name:'Dismiss message notification'}).click();}
+  await page.emulateMedia({reducedMotion:'reduce'});emit('reduced-motion');await toast.waitFor();assert.equal(await toast.locator('.wu-message-toast-progress').evaluate(e=>getComputedStyle(e).animationName),'none');await toast.getByRole('button',{name:'Dismiss message notification'}).click();
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Message toasts passed: real Socket.IO fixture events, outside-Chat subscription, own/active suppression, duplicate handling, burst grouping, hover/focus pause, automatic/manual dismissal, DM navigation, themes, mobile and reduced motion.');process.exit(0);
+ }
  if(process.env.CHAT_ONLY==='1'){
   for(const theme of ['light','dark'])for(const width of [1440,1100,390]){
    profile.theme=theme;await page.setViewportSize({width,height:850});await page.goto(root+'chat');await page.locator('.wu-message').first().waitFor();
