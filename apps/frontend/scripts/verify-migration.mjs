@@ -111,6 +111,18 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.INPUTS_ONLY==='1'){
+  const check=async locator=>{await locator.focus();const styles=await locator.evaluate(e=>{const s=getComputedStyle(e);return {outline:s.outlineStyle,shadow:s.boxShadow,border:s.borderColor};});assert.equal(styles.outline,'none','No stacked outline');assert.notEqual(styles.shadow,'none','Field has one soft focus ring');return styles;};
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:850});await page.goto(root+'settings#profile');await page.reload();const username=page.getByRole('textbox',{name:'Username',exact:true});await username.waitFor();await check(username);
+   await username.evaluate(e=>e.setAttribute('aria-invalid','true'));const invalid=await check(username);assert.notEqual(invalid.border,await username.evaluate(e=>getComputedStyle(e).getPropertyValue('--field-state-line')));await username.evaluate(e=>e.removeAttribute('aria-invalid'));
+   await page.goto(root+'files');const search=page.getByRole('searchbox',{name:'Search files',exact:true});await search.focus();const inner=await search.evaluate(e=>({outline:getComputedStyle(e).outlineStyle,shadow:getComputedStyle(e).boxShadow}));assert.equal(inner.outline,'none');assert.equal(inner.shadow,'none');const owner=page.locator('.wu-list-search');assert.equal(await owner.evaluate(e=>getComputedStyle(e).outlineStyle),'none');assert.notEqual(await owner.evaluate(e=>getComputedStyle(e).boxShadow),'none');
+   await page.goto(root+'chat');const input=page.getByRole('textbox',{name:'Message',exact:true});await input.waitFor();await check(input);const send=page.getByRole('button',{name:'Send message',exact:true});const a=await input.boundingBox(),b=await send.boundingBox();assert.ok(b.x-a.x-a.width>=11&&b.x-a.x-a.width<=13,'Send is separated by 12px');assert.ok(Math.abs(a.y+a.height-b.y-b.height)<=1,'Send aligns with input bottom');assert.equal(await page.locator('.wu-chat-composer').evaluate(e=>getComputedStyle(e).boxShadow),'none');assert.equal(await page.locator('.wu-chat-composer').evaluate(e=>getComputedStyle(e).outlineStyle),'none');
+   await input.fill('First line\nSecond line\nThird line');const grown=await input.boundingBox(),button=await send.boundingBox();assert.ok(grown.height>a.height,'Composer grows');assert.ok(Math.abs(grown.y+grown.height-button.y-button.height)<=1);await page.screenshot({path:`/tmp/devup-migration-artifacts/input-chat-${theme}-${width}.png`});
+   await input.fill('');assert.equal(await send.isDisabled(),true);
+  }
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Inputs passed: regular/error focus, single-owner grouped search, separated composer spacing, growth and bottom alignment, disabled send, both themes and mobile.');process.exit(0);
+ }
  if(process.env.FORMS_ONLY==='1'){
   for(const theme of ['light','dark'])for(const width of [1440,390]){
    profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'settings#profile');await page.reload();const input=page.getByRole('textbox',{name:'Username',exact:true});await input.waitFor();await input.scrollIntoViewIfNeeded();
