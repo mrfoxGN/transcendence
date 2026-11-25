@@ -8,21 +8,8 @@ import { AuthPreview, LandingPage } from './features/landing/LandingPage';
 import { WorkspaceApp } from './features/WorkspaceApp';
 import { WorkspacePicker } from './features/WorkspacePicker';
 
-import './features/auth/entry-design.css';
-import './input-fields.css';
-import './shared/controls/menus.css';
-import './shared/controls/select.css';
-import './shared/design-system/tokens.css';
-import './shared/styles/approved-design.css';
-import './shared/styles/color-refinement.css';
-import './shared/styles/dark-mode.css';
-import './shared/styles/form-layout.css';
-import './shared/styles/input-states.css';
-import './shared/styles/interaction-motion.css';
-import './shared/styles/layout-quality.css';
-import './shared/styles/visual-system.css';
-import './styles.css';
-import './tokens.css';
+// Keep the global cascade after feature styles; its order is owned by app.css.
+import './app.css';
 
 document.body.classList.add('devup-design');
 

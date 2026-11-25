@@ -78,18 +78,19 @@ The scripts use Playwright and isolated HTTP fixtures; their mutations do not se
 
 ```sh
 npm run verify:migration
+THEME_CASCADE_ONLY=1 npm run verify:migration
 MOTION_ONLY=1 npm run verify:migration
 DROPDOWNS_ONLY=1 npm run verify:migration
 SETTINGS_ONLY=1 npm run verify:migration
 node scripts/verify-entry-pages.mjs
 ```
 
-The full migration check covers representative pages in both themes and desktop/mobile layouts, plus note editing, task transitions, file uploads and GitHub actions. Focused modes cover interaction details. Screenshots go to `/tmp/devup-migration-artifacts`.
+The full migration check covers representative pages in both themes and desktop/mobile layouts, plus note editing, task transitions, file uploads and GitHub actions. Focused modes cover interaction details. The theme-cascade check verifies rendered gradients, card surfaces, dark headers and navigation. To run against the local self-signed Docker frontend, set `DEVUP_APP_URL=https://localhost` and `DEVUP_ALLOW_SELF_SIGNED=1` for that test process. Screenshots go to `/tmp/devup-migration-artifacts`.
 
 ## Compatibility and further edits
 
 Existing imports from `workspace/components.tsx` and `WorkspaceControls.tsx` continue to work. They re-export shared components under older names: `Panel` is `Card`, `Pill` is `Badge`, and `Drawer` is `Dialog`. New code should use the names in `shared/ui`.
 
-The existing `wu-*` classes are intentional compatibility hooks for the approved design. They are not renamed during this cleanup. Feature styles still contain historical presentation rules; change them in small, visually checked steps rather than merging unrelated selectors or changing CSS load order.
+The existing `wu-*` classes are intentional compatibility hooks for the approved design. They are not renamed during this cleanup. Feature styles still contain historical presentation rules; change them in small, visually checked steps rather than merging unrelated selectors or changing the intentional CSS layer order in `src/app.css`.
 
 Large account and workspace pages still own their workflow state. Continue separating them when a specific feature changes; do not split a working form simply to reach a line-count target.

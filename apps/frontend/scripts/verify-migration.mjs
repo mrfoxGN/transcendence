@@ -8,7 +8,10 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || chromium.executablePath(),
   args: ['--no-sandbox'],
 });
-const page = await browser.newPage({ viewport: { width: 1440, height: 950 } });
+const page = await browser.newPage({
+  viewport: { width: 1440, height: 950 },
+  ignoreHTTPSErrors: process.env.DEVUP_ALLOW_SELF_SIGNED === '1',
+});
 const wid = '11111111-1111-4111-8111-111111111111',
   uid = '22222222-2222-4222-8222-222222222222';
 const stamp = '2026-11-22T12:00:00Z';
@@ -603,6 +606,71 @@ const root =
   (process.env.DEVUP_APP_URL || 'http://localhost:5182') + '/workspaces/' + wid + '?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts', { recursive: true });
 try {
+  if (process.env.THEME_CASCADE_ONLY === '1') {
+    for (const theme of ['light', 'dark']) {
+      profile.theme = theme;
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 950 });
+        await page.goto(root + 'files');
+        await page.locator('.wu-files-table tbody tr').first().waitFor();
+        await page.mouse.move(0, 400);
+        await page.waitForTimeout(220); // Let theme and navigation transitions settle.
+        const appearance = await page.locator('.workspace-app').evaluate((app) => {
+          const tokens = getComputedStyle(app);
+          const probe = document.createElement('span');
+          app.append(probe);
+          const color = (name) => {
+            probe.style.color = tokens.getPropertyValue(name);
+            return getComputedStyle(probe).color;
+          };
+          probe.style.backgroundImage =
+            'linear-gradient(135deg, var(--wu-primary-start), var(--wu-primary-end))';
+          const gradient = getComputedStyle(probe).backgroundImage;
+          const result = {
+            expectedGradient: gradient,
+            primaryGradient: getComputedStyle(app.querySelector('.wu-button--primary'))
+              .backgroundImage,
+            surface: color('--wu-surface'),
+            panel: getComputedStyle(app.querySelector('.wu-panel')).backgroundColor,
+            canvas: color('--wu-canvas'),
+            topbar: getComputedStyle(app.querySelector('.wu-topbar')).backgroundColor,
+            sidebar: getComputedStyle(app.querySelector('.wu-sidebar')).backgroundColor,
+            selectedNavigation: getComputedStyle(app.querySelector('.wu-nav-item.is-active')).color,
+          };
+          probe.remove();
+          return result;
+        });
+        assert.equal(
+          appearance.primaryGradient,
+          appearance.expectedGradient,
+          `${theme}: approved primary gradient wins over older rules`,
+        );
+        assert.equal(appearance.panel, appearance.surface, `${theme}: cards use the theme surface`);
+        if (theme === 'dark') {
+          assert.equal(appearance.topbar, appearance.canvas, 'Dark header uses the canvas layer');
+          assert.equal(
+            appearance.sidebar,
+            'rgb(23, 24, 32)',
+            'Dark sidebar keeps its approved mesh base',
+          );
+          assert.equal(
+            appearance.selectedNavigation,
+            'rgb(226, 214, 255)',
+            'Dark selection keeps its violet highlight',
+          );
+        }
+        await page.screenshot({
+          path: `/tmp/devup-migration-artifacts/theme-cascade-${theme}-${width}.png`,
+        });
+      }
+    }
+    assert.deepEqual(errors, []);
+    assert.deepEqual(unknown, []);
+    console.log(
+      'Theme cascade passed: approved primary gradients, card surfaces, dark header/sidebar/selection, both themes and desktop/mobile.',
+    );
+    process.exit(0);
+  }
   if (process.env.MOTION_ONLY === '1') {
     for (const theme of ['light', 'dark']) {
       profile.theme = theme;

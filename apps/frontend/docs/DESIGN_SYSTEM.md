@@ -121,6 +121,6 @@ Use `FilterChips` when narrowing the current collection. Use `Tabs` when switchi
 
 ## Styling ownership
 
-The palette and shared dimensions live in `design-system/tokens.css`; shared interaction rules live in `shared/styles`. Component-specific switch/select/menu rules stay with their controls. Page layout belongs to the owning feature. Preserve stylesheet order in `main.tsx` when editing the legacy layers. Do not add another global palette override or use `!important` to conceal an ownership conflict.
+The palette and shared dimensions live in `design-system/tokens.css`; shared interaction rules live in `shared/styles`. Component-specific switch/select/menu rules stay with their controls. Page layout belongs to the owning feature. The final global cascade is declared in `src/app.css`, imported after feature modules by `main.tsx`. `npm run check:styles` protects this entry point; do not alphabetize CSS layers. Do not add another global palette override or use `!important` to conceal an ownership conflict.
 
 The component APIs pass native props through. CSS classes are retained from the approved implementation so existing light/dark, responsive and focus rules continue to apply. A future visual change should update the component or token that owns it and be verified on its consumers.
