@@ -41,6 +41,7 @@ export function Select({children,value,defaultValue,onChange,onInvalid,className
   const below=innerHeight-rect.bottom-padding,above=rect.top-padding;
   const height=Math.min(340,Math.max(100,Math.max(below,above)-gap));
   const width=Math.min(Math.max(rect.width,220),innerWidth-padding*2);
+  popup.current.dataset.side=below>=Math.min(height,240)||below>=above?'below':'above';
   Object.assign(popup.current.style,{width:width+'px',maxHeight:height+'px',left:Math.max(padding,Math.min(rect.left,innerWidth-width-padding))+'px',top:(below>=Math.min(height,240)||below>=above?rect.bottom+gap:Math.max(padding,rect.top-Math.min(height,popup.current.scrollHeight)-gap))+'px'});
  }
  function show(initialQuery=''){

@@ -1,0 +1,15 @@
+/* Short, directional feedback. No continuous animation or row movement. */
+.devup-design { --wu-motion-fast:140ms; --wu-motion-menu:150ms; --wu-motion-ease:cubic-bezier(.2,.7,.2,1); }
+.devup-design .workspace-app :is(.wu-button,.wu-icon-button,.wu-profile-trigger,.wu-select-trigger) { transition:background-color var(--wu-motion-fast) ease,border-color var(--wu-motion-fast) ease,color var(--wu-motion-fast) ease,box-shadow var(--wu-motion-fast) ease,transform 100ms ease; }
+.devup-design .workspace-app :is(.wu-button,.wu-icon-button):active:not(:disabled) { transform:translateY(1px) scale(.99); }
+.devup-design .workspace-app .wu-profile-trigger:active { transform:scale(.97); }
+.devup-design .workspace-app .wu-profile-trigger[aria-expanded=true] { border-color:var(--wu-violet); background:var(--wu-blue-soft); }
+.devup-design .workspace-app :is(.wu-profile-actions button,.wu-profile-theme summary,.wu-select-option,.wu-action-menu button,.wu-home-task,.wu-project-task,.wu-event-row) { transition:background-color var(--wu-motion-fast) ease,color var(--wu-motion-fast) ease,border-color var(--wu-motion-fast) ease; }
+.devup-design :is(.wu-profile-menu,.wu-select-popup,.wu-action-menu,.wu-workspace-popover,.wu-inbox):popover-open { --wu-menu-from:-4px; animation:wu-menu-arrive var(--wu-motion-menu) var(--wu-motion-ease) both; }
+.devup-design :is(.wu-select-popup,.wu-action-menu)[data-side=above]:popover-open { --wu-menu-from:4px; }
+@keyframes wu-menu-arrive { from { opacity:0; transform:translateY(var(--wu-menu-from,-4px)); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) {
+ .devup-design .workspace-app :is(.wu-button,.wu-icon-button,.wu-profile-trigger,.wu-select-trigger,.wu-profile-actions button,.wu-profile-theme summary,.wu-select-option,.wu-action-menu button,.wu-home-task,.wu-project-task,.wu-event-row) { transition:none; }
+ .devup-design .workspace-app :is(.wu-button,.wu-icon-button,.wu-profile-trigger):active:not(:disabled) { transform:none; }
+ .devup-design :is(.wu-profile-menu,.wu-select-popup,.wu-action-menu,.wu-workspace-popover,.wu-inbox):popover-open { animation:none; transform:none; }
+}

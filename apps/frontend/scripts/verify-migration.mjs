@@ -41,7 +41,7 @@ await page.route('**/socket.io/**',async route=>{
  await new Promise(resolve=>setTimeout(resolve,100));
  return route.fulfill({body:socketEvents.splice(0).join('\x1e')||'2',contentType:'text/plain'});
 });
-await page.route('**/api/**',async route=>{
+const apiFixture=async route=>{
  const request=route.request(),url=new URL(request.url()),path=url.pathname.slice(5),method=request.method();
  const multipart=request.headers()['content-type']?.includes('multipart/form-data');
  const body=method==='GET'||multipart?{}:request.postDataJSON?.() ?? {};
@@ -129,10 +129,26 @@ await page.route('**/api/**',async route=>{
  if(path.startsWith('tasks/')&&method==='PATCH')return json({...tasks.find(t=>t.id===path.split('/')[1]),...body});
  if(path.startsWith('tasks/')&&method==='GET')return json(tasks.find(t=>t.id===path.split('/')[1]));
  unknown.push({path,method});return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'No test fixture: '+path})});
-});
+};
+await page.route('**/api/**',apiFixture);
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.MOTION_ONLY==='1'){
+  for(const theme of ['light','dark']){
+   profile.theme=theme;await page.setViewportSize({width:1440,height:950});await page.goto(root+'files');await page.reload();const field=page.getByRole('searchbox',{name:'Search files',exact:true});await field.waitFor();await field.focus();await page.mouse.move(0,400);
+   const trigger=page.getByRole('button',{name:'Account menu for Alex Morgan',exact:true}),menu=page.locator('#wu-profile-menu');
+   await trigger.hover();await page.waitForTimeout(80);assert.equal(await menu.isVisible(),false,'Brief hover does not open menu');await page.mouse.move(0,400);await page.waitForTimeout(250);assert.equal(await menu.isVisible(),false,'Passing pointer does not open menu');
+   await trigger.hover();await menu.waitFor({state:'visible'});assert.equal(await field.evaluate(e=>e===document.activeElement),true,'Hover does not steal keyboard focus');await menu.evaluate(e=>Promise.all(e.getAnimations().map(animation=>animation.finished)));
+   const a=await trigger.boundingBox(),b=await menu.boundingBox();await page.mouse.move(a.x+a.width/2,a.y+a.height+2);await page.waitForTimeout(100);await page.mouse.move(b.x+b.width/2,b.y+12);await page.waitForTimeout(260);assert.equal(await menu.isVisible(),true,'Pointer can cross gap into menu');await page.screenshot({path:`/tmp/devup-migration-artifacts/profile-hover-${theme}.png`});
+   await page.mouse.move(0,400);await menu.waitFor({state:'hidden'});await trigger.hover();await menu.waitFor({state:'visible'});await trigger.click();await page.mouse.move(0,400);await page.waitForTimeout(300);assert.equal(await menu.isVisible(),true,'Click pins hover-opened menu');await page.mouse.click(0,400);await menu.waitFor({state:'hidden'});
+   await trigger.focus();await trigger.press('ArrowDown');await menu.waitFor({state:'visible'});assert.equal(await menu.getByRole('button',{name:'Personal settings',exact:true}).evaluate(e=>e===document.activeElement),true);await page.keyboard.press('Escape');await menu.waitFor({state:'hidden'});assert.equal(await trigger.evaluate(e=>e===document.activeElement),true,'Escape restores focus');
+   const action=page.getByRole('button',{name:'Actions for Design.pdf',exact:true});await action.click();await page.locator('.wu-action-menu:popover-open').waitFor();await trigger.hover();await page.waitForTimeout(300);assert.equal(await menu.isVisible(),false,'Hover does not replace another open menu');await page.keyboard.press('Escape');await page.mouse.move(0,400);
+  }
+  await page.emulateMedia({reducedMotion:'reduce'});const trigger=page.getByRole('button',{name:'Account menu for Alex Morgan',exact:true});await trigger.hover();await page.locator('#wu-profile-menu').waitFor({state:'visible'});assert.equal(await page.locator('#wu-profile-menu').evaluate(e=>getComputedStyle(e).animationName),'none');assert.equal(await trigger.evaluate(e=>getComputedStyle(e).transitionDuration),'0s');await page.mouse.click(0,400);
+  const touch=await browser.newContext({viewport:{width:390,height:850},isMobile:true,hasTouch:true});const mobile=await touch.newPage();mobile.on('pageerror',error=>errors.push(error.message));await mobile.addInitScript(()=>sessionStorage.setItem('devup.access-token','test-contract-token'));await mobile.route('**/api/**',apiFixture);await mobile.route('**/socket.io/**',route=>route.fulfill({body:route.request().method()==='POST'?'ok':'0'+JSON.stringify({sid:'touch',upgrades:[],pingInterval:25000,pingTimeout:20000}),contentType:'text/plain'}));await mobile.goto(root+'files');const touchTrigger=mobile.getByRole('button',{name:'Account menu for Alex Morgan',exact:true});await touchTrigger.waitFor();await touchTrigger.hover();await mobile.waitForTimeout(300);assert.equal(await mobile.locator('#wu-profile-menu').isVisible(),false,'Touch layout does not hover-open');await touchTrigger.tap();await mobile.locator('#wu-profile-menu').waitFor({state:'visible'});await mobile.screenshot({path:'/tmp/devup-migration-artifacts/profile-touch.png'});await mobile.touchscreen.tap(5,450);await mobile.locator('#wu-profile-menu').waitFor({state:'hidden'});await touch.close();
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Motion passed: hover delay, gap tolerance, focus preservation, click pin/outside dismissal, keyboard/Escape, other-menu protection, reduced motion and real touch context.');process.exit(0);
+ }
  if(process.env.DROPDOWNS_ONLY==='1'){
   members.push(...Array.from({length:18},(_,i)=>({userId:'member-'+i,username:'Casey Designer '+String(i).padStart(2,'0'),isOwner:false,avatarUrl:null,joinedAt:stamp})));
   for(const theme of ['light','dark'])for(const width of [1440,390]){

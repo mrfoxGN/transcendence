@@ -1,3 +1,4 @@
+import { useHoverPopover } from '../shared/controls/useHoverPopover';
 import { Select } from '../shared/controls/Select';
 import { IllustratedEmptyState } from '../shared/illustrations/EmptyIllustration';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
@@ -129,6 +130,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [selectedTaskId, setSelectedTaskId] = useState(() => new URLSearchParams(location.search).get('task'));
   const [modal, setModal] = useState<'task' | 'invite' | null>(null);
   const [toast, setToast] = useState('');
+  const accountMenu = useHoverPopover();
   const [inviteDelivery, setInviteDelivery] = useState<TeamInvitation>();
   const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
   const filePath = workspacePath + '/files';
@@ -705,10 +707,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         </div>
         <div className="wu-top-actions">
           <NotificationInbox token={token} workspaceId={workspaceId} showBadge={profile.notificationBadge} />
-          <button className="wu-user-button wu-profile-trigger" type="button" aria-label={'Account menu for ' + profileName} popoverTarget="wu-profile-menu">
+          <button {...accountMenu.triggerProps} className="wu-user-button wu-profile-trigger" type="button" aria-label={'Account menu for ' + profileName} popoverTarget="wu-profile-menu">
             {profileAvatar ? <img className="wu-avatar" src={profileAvatar} alt="" /> : <Avatar initials={profileInitials} tone="blue" preview={false} />}
           </button>
-          <div id="wu-profile-menu" popover="auto" className="wu-profile-menu" aria-label="Account">
+          <div {...accountMenu.panelProps} id="wu-profile-menu" popover="auto" className="wu-profile-menu" aria-label="Account">
             <div className="wu-profile-identity">
               {profileAvatar ? <img className="wu-avatar" src={profileAvatar} alt="" /> : <Avatar initials={profileInitials} tone="blue" preview={false} />}
               <div><strong>{profileName}</strong>{profileEmail && <span>{profileEmail}</span>}</div>

@@ -73,6 +73,7 @@ export function ActionMenu({ label, actions }: { label: string; actions: { label
     if (!menu.current || !trigger.current) return;
     const anchor=trigger.current.getBoundingClientRect(),width=menu.current.offsetWidth,height=menu.current.offsetHeight;
     if(anchor.bottom<0||anchor.top>innerHeight){close();return;}
+    menu.current.dataset.side=anchor.bottom+height+6<innerHeight?'below':'above';
     menu.current.style.left=Math.max(8,Math.min(anchor.right-width,innerWidth-width-8))+'px';
     menu.current.style.top=Math.max(8,anchor.bottom+height+6<innerHeight?anchor.bottom+6:anchor.top-height-6)+'px';
   }
