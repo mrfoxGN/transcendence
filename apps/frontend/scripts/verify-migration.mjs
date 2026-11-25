@@ -111,6 +111,23 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.FORMS_ONLY==='1'){
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'settings#profile');await page.reload();const input=page.getByRole('textbox',{name:'Username',exact:true});await input.waitFor();await input.scrollIntoViewIfNeeded();
+   const field=page.locator('.wu-field-group--action');const label=field.locator('label'),hint=page.locator('#settings-username-hint'),button=field.getByRole('button',{name:'Save username',exact:true});
+   const l=await label.boundingBox(),i=await input.boundingBox(),h=await hint.boundingBox(),b=await button.boundingBox();
+   assert.ok(i.y-l.y-l.height>=7&&i.y-l.y-l.height<=9,'Label to input gap is 8px');
+   assert.ok(h.y-i.y-i.height>=7&&h.y-i.y-i.height<=9,'Helper stays 8px beneath input');
+   assert.equal(await input.getAttribute('aria-describedby'),'settings-username-hint');
+   if(width>600){assert.ok(Math.abs(b.height-i.height)<=1,'Inline action matches input height');assert.ok(b.x-i.x-i.width>=11,'Inline action has 12px gap');}
+   else{assert.ok(b.y>=h.y+h.height+11,'Mobile action sits after helper with a clear gap');assert.ok(b.x+b.width<=width,'Mobile action fits screen');}
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   await page.screenshot({path:`/tmp/devup-migration-artifacts/form-profile-${theme}-${width}.png`});
+  }
+  await page.setViewportSize({width:1440,height:950});await page.goto(root+'board');await page.getByRole('button',{name:'Add task',exact:true}).click();await page.locator('.wu-workspace-form-modal').waitFor();
+  assert.equal(await page.locator('.wu-workspace-form-modal .wu-field-label').first().evaluate(e=>getComputedStyle(e).rowGap),'8px');await page.screenshot({path:'/tmp/devup-migration-artifacts/form-create-task.png'});await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Forms passed: exact field/helper spacing, inline input/action height and gap, mobile helper/action ordering, helper association, theme views, overflow and task dialog field rhythm.');process.exit(0);
+ }
  if(process.env.TOAST_ONLY==='1'){
   const emit=(id,thread='team',senderId='u2')=>socketEvents.push('42'+JSON.stringify([thread==='team'?'workspace-message.created':'direct-message.created',{id,senderId,content:'A new project update is ready for review.',createdAt:new Date().toISOString(),...(thread==='team'?{workspaceId:wid}:{conversationId:thread})}]));
   const toast=page.getByRole('region',{name:'New message notification'});

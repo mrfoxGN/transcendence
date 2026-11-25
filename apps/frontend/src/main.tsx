@@ -34,3 +34,5 @@ import './shared/styles/visual-system.css';
 import './shared/styles/dark-mode.css';
 
 import './features/auth/entry-design.css';
+
+import './shared/styles/form-layout.css';

@@ -1,0 +1,36 @@
+/* Shared field rhythm. Container layouts retain their existing columns. */
+.devup-design { --wu-field-gap:8px; --wu-field-group-gap:20px; --wu-field-action-gap:12px; }
+.devup-design .workspace-app .wu-field-label { row-gap:var(--wu-field-gap); min-width:0; }
+.devup-design .workspace-app :is(.wu-workspace-form-modal,.wu-task-inspector) .wu-field-label { row-gap:var(--wu-field-gap); }
+.devup-design .wu-field-label > label { margin:0; line-height:1.5; }
+.devup-design .workspace-app .wu-field-hint { margin:0; max-width:65ch; color:var(--wu-muted); font-size:12px; font-weight:400; line-height:1.6; overflow-wrap:anywhere; }
+.devup-design .wu-field-label + .wu-field-hint { margin-top:var(--wu-field-gap); }
+.devup-design .wu-readonly-field { row-gap:var(--wu-field-gap); }
+.devup-design .wu-input-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:var(--wu-field-action-gap); min-width:0; }
+.devup-design .wu-input-row > input { width:100%; min-width:0; min-height:40px; height:40px; }
+.devup-design .wu-input-row > .wu-button { align-self:start; min-height:40px; height:40px; margin:0; }
+.devup-design .wu-form-stack { display:grid; gap:var(--wu-field-group-gap); }
+.devup-design .wu-modal form { row-gap:var(--wu-field-group-gap); }
+.devup-design .wu-workspace-form-modal .wu-task-create-fields { row-gap:var(--wu-field-group-gap); }
+.devup-design .wu-modal-actions { gap:var(--wu-field-action-gap); flex-wrap:wrap; }
+.devup-design .workspace-app .wu-workspace-form-modal .wu-modal-actions { gap:var(--wu-field-action-gap); }
+.devup-design form > [role=alert] { margin-block:0; line-height:1.5; overflow-wrap:anywhere; }
+.devup-design .entry-experience .auth-field { gap:var(--wu-field-gap); min-width:0; }
+.devup-design .entry-experience .auth-form { gap:18px; }
+.devup-design .entry-experience .auth-field > :is(p,.auth-field-hint) { margin:0; line-height:1.5; }
+.devup-design .workspace-picker-form { gap:var(--wu-field-group-gap); }
+.devup-design .workspace-picker-form > label { gap:var(--wu-field-gap); min-width:0; }
+.devup-design :is(.workspace-delete-label,.workspace-transfer-label) { row-gap:var(--wu-field-gap); }
+@media(max-width:600px) {
+ .devup-design .wu-input-row { grid-template-columns:minmax(0,1fr); }
+ .devup-design .wu-input-row > .wu-button { justify-self:start; min-height:44px; height:auto; }
+ .devup-design .wu-input-row > input { min-height:44px; height:44px; }
+ .devup-design .wu-field-group--action > .wu-input-row { display:contents; }
+ .devup-design .wu-field-group--action > label { grid-row:1; }
+ .devup-design .wu-field-group--action > .wu-input-row > input { grid-row:2; }
+ .devup-design .wu-field-group--action > .wu-field-hint { grid-row:3; }
+ .devup-design .wu-field-group--action > .wu-input-row > .wu-button { grid-row:4; margin-top:4px; }
+}
+@media(max-height:700px) {
+ .devup-design .entry-experience .auth-form { gap:14px; }
+}

@@ -125,10 +125,10 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
             onBlur={event => saveTextOnBlur(event, workspace.name, value => save('name', value))} onKeyDown={finishInputEdit} /></label>
           <label className="wu-field-label">Description<textarea name="description" defaultValue={workspace.description ?? ''} placeholder="What does this workspace organize?" rows={3} readOnly={!editable}
             onBlur={event => saveTextOnBlur(event, workspace.description ?? '', value => save('description', value))} /></label>
-          <label className="wu-field-label">Reporting time zone<input name="reportingTimeZone" list="wu-workspace-time-zones" maxLength={80}
+          <label className="wu-field-label">Reporting time zone<input name="reportingTimeZone" aria-describedby="settings-timezone-hint" list="wu-workspace-time-zones" maxLength={80}
             defaultValue={workspace.reportingTimeZone ?? 'Africa/Casablanca'} placeholder="e.g. Africa/Casablanca" readOnly={!editable}
             onBlur={event => saveTextOnBlur(event, workspace.reportingTimeZone ?? 'Africa/Casablanca', value => save('reportingTimeZone', value))} onKeyDown={finishInputEdit} />
-            <span className="wu-field-hint">Used for reporting periods and relative due-date filters.</span>
+            <span id="settings-timezone-hint" className="wu-field-hint">Used for reporting periods and relative due-date filters.</span>
           </label>
           <datalist id="wu-workspace-time-zones">{Array.from(new Set(['UTC', 'Africa/Casablanca', ...(Intl.supportedValuesOf?.('timeZone') ?? [])])).map(zone => <option key={zone} value={zone} />)}</datalist>
           <div className="wu-readonly-field"><span>Owner</span><strong>{ownerName ?? 'Workspace owner'}</strong></div>
@@ -139,8 +139,8 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
           {settingsError ? <p role="alert">{settingsError} <button type="button" onClick={() => { setSettingsError(''); setAttempt(value => value + 1); }}>Retry</button></p>
             : !settings ? <p role="status">Loading board settings…</p>
             : <>
-              <label className="wu-field-label">Active work limit<input name="limit" type="number" min={1} required defaultValue={settings.activeWipLimit} placeholder="e.g. 3" readOnly={!editable}
-                onBlur={event => saveTextOnBlur(event, String(settings.activeWipLimit), value => save('activeWipLimit', Number(value)))} onKeyDown={finishInputEdit} /><span className="wu-field-hint">The limit includes In progress and Review.</span></label>
+              <label className="wu-field-label">Active work limit<input name="limit" aria-describedby="settings-work-limit-hint" type="number" min={1} required defaultValue={settings.activeWipLimit} placeholder="e.g. 3" readOnly={!editable}
+                onBlur={event => saveTextOnBlur(event, String(settings.activeWipLimit), value => save('activeWipLimit', Number(value)))} onKeyDown={finishInputEdit} /><span id="settings-work-limit-hint" className="wu-field-hint">The limit includes In progress and Review.</span></label>
               <label className="wu-field-label">Definition of ready<textarea name="definitionOfReady" rows={3} defaultValue={definitionText(settings.definitionOfReady)} placeholder="e.g. Scope and acceptance criteria are clear" readOnly={!editable}
                 onBlur={event => saveTextOnBlur(event, definitionText(settings.definitionOfReady), value => save('definitionOfReady', value))} /></label>
               <label className="wu-field-label">Definition of done<textarea name="definitionOfDone" rows={3} defaultValue={definitionText(settings.definitionOfDone)} placeholder="e.g. Tests pass and the change has been reviewed" readOnly={!editable}

@@ -308,11 +308,12 @@ export function PersonalSettings({
               </div>
 
               <form onSubmit={handleUsernameSubmit}>
-                <div className="wu-field-label">
+                <div className="wu-field-label wu-field-group--action">
                   <label htmlFor="settings-username">Username</label>
                   <div className="wu-input-row">
                     <input
                       id="settings-username"
+                      aria-describedby="settings-username-hint"
                       value={usernameInput}
                       onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="e.g. nourdev"
@@ -329,11 +330,11 @@ export function PersonalSettings({
                       Save username
                     </button>
                   </div>
+                  <p id="settings-username-hint" className="wu-field-hint">
+                    Must be between 3 and 30 characters. Your handle is visible to teammates
+                    in task assignments and workspace discussions.
+                  </p>
                 </div>
-                <p className="wu-field-hint">
-                  Must be between 3 and 30 characters. Your handle is visible to teammates
-                  in task assignments and workspace discussions.
-                </p>
               </form>
 
               <div className="wu-readonly-field">
@@ -511,7 +512,7 @@ export function PersonalSettings({
                 Ensure your account uses a secure password of at least 8 characters.
               </p>
 
-              <form className="auth-form" onSubmit={changePassword} style={{ display: 'grid', gap: '14px' }}>
+              <form className="auth-form wu-form-stack" onSubmit={changePassword}>
                 <label className="wu-field-label">
                   Current password
                   <div className="wu-password-wrap">
