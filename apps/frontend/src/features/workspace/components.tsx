@@ -20,8 +20,8 @@ export function Avatar({ initials, tone = 'blue', small = false, preview = false
   </span>;
 }
 
-export function Pill({ children, tone = 'neutral' }: { children: ReactNode; tone?: string }) {
-  return <span className={`wu-pill wu-pill--${tone}`}>{children}</span>;
+export function Pill({ children, tone = 'neutral', status }: { children: ReactNode; tone?: string; status?: string }) {
+  return <span data-status={status?.replace(/[^a-z]/gi, '').toLowerCase()} className={`wu-pill wu-pill--${tone}`}>{children}</span>;
 }
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -42,7 +42,7 @@ export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task:
   return <table className="wu-table wu-list-table" role="table" aria-label="Backlog tasks"><thead role="rowgroup"><tr role="row"><th scope="col">Task</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Assignee</th><th scope="col">Due date</th></tr></thead><tbody role="rowgroup">
     {items.map(task => <tr role="row" className="wu-task-list-row" key={task.id} onClick={() => onSelect(task)}>
       <td role="cell"><button className="wu-list-item-name" type="button" onClick={event => { event.stopPropagation(); onSelect(task); }}>{task.title}</button></td>
-      <td role="cell" data-label="Status"><Pill tone={task.status === 'Done' ? 'mint' : task.status === 'Review' ? 'pink' : task.status === 'In progress' ? 'violet' : task.status === 'Ready' ? 'blue' : 'neutral'}>{task.status}</Pill></td>
+      <td role="cell" data-label="Status"><Pill status={task.status} tone={task.status === 'Done' ? 'mint' : task.status === 'Review' ? 'pink' : task.status === 'In progress' ? 'violet' : task.status === 'Ready' ? 'blue' : 'neutral'}>{task.status}</Pill></td>
       <td role="cell" data-label="Priority"><span className={`wu-priority wu-priority--${task.priority.toLowerCase()}`}><i />{task.priority}</span></td>
       <td role="cell" data-label="Assignee"><span className="wu-person">{task.assigneeId && <Avatar initials={task.initials} preview={false} small />}{task.person}</span></td>
       <td role="cell" data-label="Due date" className="wu-muted">{task.due}</td>

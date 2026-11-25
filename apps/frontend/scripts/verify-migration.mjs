@@ -111,6 +111,26 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.COLORS_ONLY==='1'){
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:950});
+   for(const name of ['home','board','projects','files','notes','team','chat','settings']){
+    await page.goto(root+name);await page.reload();await page.locator('.wu-page').waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,name+' overflow');
+    const ratios=await page.locator('.workspace-app').evaluate(e=>{
+     const style=getComputedStyle(e),canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=canvas.height=1;
+     const lum=color=>{context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);const rgb=[...context.getImageData(0,0,1,1).data].slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;};
+     const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+     const token=name=>style.getPropertyValue(name).trim();return {ink:ratio(token('--wu-ink'),token('--wu-surface')),muted:ratio(token('--wu-muted'),token('--wu-surface')),buttonA:ratio('#fff',token('--wu-primary-start')),buttonB:ratio('#fff',token('--wu-primary-end')),layers:token('--wu-canvas')!==token('--wu-surface')&&token('--wu-surface')!==token('--wu-surface-soft')};
+    });
+    assert.ok(ratios.ink>=7,name+' primary contrast');assert.ok(ratios.muted>=4.5,name+' secondary contrast');assert.ok(ratios.buttonA>=4.5&&ratios.buttonB>=4.5,name+' primary button contrast');assert.ok(ratios.layers);
+    await page.screenshot({path:`/tmp/devup-migration-artifacts/colors-${name}-${theme}-${width}.png`});
+    if(name==='board')assert.ok(await page.locator('.wu-board-column[data-status=inprogress]').count(),'Board has a semantic status color');
+    if(name==='home')assert.ok(await page.locator('.wu-pill[data-status]').count(),'Task statuses share semantic color tokens');
+   }
+  }
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Colors passed: 32 page/theme/viewport views, primary/secondary/button contrast, distinct surface layers, semantic status mapping, no horizontal overflow or browser errors.');process.exit(0);
+ }
  if(process.env.INPUTS_ONLY==='1'){
   const check=async locator=>{await locator.focus();const styles=await locator.evaluate(e=>{const s=getComputedStyle(e);return {outline:s.outlineStyle,shadow:s.boxShadow,border:s.borderColor};});assert.equal(styles.outline,'none','No stacked outline');assert.notEqual(styles.shadow,'none','Field has one soft focus ring');return styles;};
   for(const theme of ['light','dark'])for(const width of [1440,390]){

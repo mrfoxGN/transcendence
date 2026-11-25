@@ -124,7 +124,7 @@ function BoardColumn({ column, tasks, count, onOpenTask, onMoveTask, onAddTask, 
   const id = useId();
   const headingId = column.status === 'REVIEW' && column.id === 'REVIEW' ? 'board-review' : id;
   return (
-    <section ref={setNodeRef} className="wu-board-column" aria-label={column.label} data-drop-target={isOver}>
+    <section ref={setNodeRef} className="wu-board-column" data-status={column.status.replace(/[^a-z]/gi, '').toLowerCase()} aria-label={column.label} data-drop-target={isOver}>
       <div className="wu-column-head">
         <h2 id={headingId}>{column.label}</h2>
         <Pill>{count}</Pill>

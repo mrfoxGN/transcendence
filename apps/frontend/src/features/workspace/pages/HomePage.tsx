@@ -146,7 +146,7 @@ export function HomePage({
               {(task.taskKey || taskProjects.has(task.id)) && <small className="wu-home-task-context">{[task.taskKey, taskProjects.get(task.id)?.join(', ')].filter(Boolean).join(' · ')}</small>}
               {isAttentionView && <small className="wu-muted">{attentionReason(task, today)}</small>}
             </span>
-            <Pill tone={statusTones[task.status]}>{task.status}</Pill>
+            <Pill status={task.status} tone={statusTones[task.status]}>{task.status}</Pill>
             <span className="wu-home-task-assignee" title={task.person || 'Unassigned'}>
               {task.assigneeId ? <span aria-hidden="true"><Avatar initials={task.initials} small preview={false} /></span> : <span aria-hidden="true">—</span>}
               <span className="wu-visually-hidden">{task.assigneeId ? 'Assigned to ' + task.person : 'Unassigned'}</span>

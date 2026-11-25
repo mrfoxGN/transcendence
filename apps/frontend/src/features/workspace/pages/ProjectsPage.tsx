@@ -31,7 +31,7 @@ function TaskList({ tasks, onOpenTask }: { tasks: ProjectTask[]; onOpenTask: (id
   return <ul className="wu-project-task-list">{tasks.map(task => <li key={task.id}>
     <button type="button" className="wu-project-task" onClick={() => onOpenTask(task.id)}>
       <span>{task.taskNumber ? <small>TASK-{task.taskNumber}</small> : null}<strong>{task.title}</strong></span>
-      <Pill>{statusLabels[task.status]}</Pill>
+      <Pill status={task.status}>{statusLabels[task.status]}</Pill>
     </button>
   </li>)}</ul>;
 }

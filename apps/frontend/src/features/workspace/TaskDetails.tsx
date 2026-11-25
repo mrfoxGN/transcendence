@@ -215,7 +215,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     </label>}
     {onBack && <button className="wu-text-button" type="button" onClick={onBack}>Back to previous task</button>}
     <dl className="wu-task-summary">
-      <div><dt>Column</dt><dd><Pill tone={task.status === 'Done' ? 'mint' : 'neutral'}>{currentColumn?.label ?? task.status}</Pill>{task.isBlocked && <Pill tone="red">Blocked</Pill>}</dd></div>
+      <div><dt>Column</dt><dd><Pill status={task.status} tone={task.status === 'Done' ? 'mint' : 'neutral'}>{currentColumn?.label ?? task.status}</Pill>{task.isBlocked && <Pill tone="red">Blocked</Pill>}</dd></div>
       <div><dt>Assignee</dt><dd>{task.person}</dd></div>
       <div><dt>Priority</dt><dd>{task.priority === 'None' ? 'No priority' : task.priority}</dd></div>
       <div><dt>Due date</dt><dd>{task.dueDate ? task.due : 'No due date'}</dd></div>

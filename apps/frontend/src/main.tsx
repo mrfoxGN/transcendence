@@ -38,3 +38,5 @@ import './features/auth/entry-design.css';
 import './shared/styles/form-layout.css';
 
 import './shared/styles/input-states.css';
+
+import './shared/styles/color-refinement.css';
