@@ -8,6 +8,8 @@ type TabsProps<Value extends string> = {
   idPrefix: string;
   label: string;
   className?: string;
+  itemClassName?: string;
+  panelId?: string;
 };
 
 /** Manual activation: arrows move focus; Enter, Space or click selects a panel. */
@@ -18,6 +20,8 @@ export function Tabs<Value extends string>({
   idPrefix,
   label,
   className,
+  itemClassName,
+  panelId,
 }: TabsProps<Value>) {
   const [focused, setFocused] = useState<Value | null>(null);
   const buttons = useRef<Array<HTMLButtonElement | null>>([]);
@@ -48,9 +52,10 @@ export function Tabs<Value extends string>({
           key={tab.value}
           id={`${idPrefix}-tab-${tab.value}`}
           type="button"
+          className={itemClassName}
           role="tab"
           aria-selected={value === tab.value}
-          aria-controls={`${idPrefix}-panel-${tab.value}`}
+          aria-controls={panelId ?? `${idPrefix}-panel-${tab.value}`}
           tabIndex={(focused ?? value) === tab.value ? 0 : -1}
           ref={(node) => {
             buttons.current[index] = node;

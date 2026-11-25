@@ -13,17 +13,10 @@ interface GithubContributorsProps {
   contributors: Contributor[];
 }
 
-export function GithubContributors({
-  contributors,
-}: GithubContributorsProps) {
-  const sorted = [...contributors].sort(
-    (a, b) => b.contributions - a.contributions
-  );
+export function GithubContributors({ contributors }: GithubContributorsProps) {
+  const sorted = [...contributors].sort((a, b) => b.contributions - a.contributions);
 
-  const total = sorted.reduce(
-    (sum, contributor) => sum + contributor.contributions,
-    0
-  );
+  const total = sorted.reduce((sum, contributor) => sum + contributor.contributions, 0);
 
   return (
     <section className="wu-gcontributors">
@@ -59,21 +52,14 @@ export function GithubContributors({
       </header>
 
       {sorted.length === 0 ? (
-        <p className="wu-gcontributors__empty">
-          No contributors found.
-        </p>
+        <p className="wu-gcontributors__empty">No contributors found.</p>
       ) : (
         <div className="wu-gcontributors__list">
-          {sorted.map(contributor => {
-            const percentage = total > 0
-              ? (contributor.contributions / total) * 100
-              : 0;
+          {sorted.map((contributor) => {
+            const percentage = total > 0 ? (contributor.contributions / total) * 100 : 0;
 
             return (
-              <article
-                className="wu-gcontributors__row"
-                key={contributor.login}
-              >
+              <article className="wu-gcontributors__row" key={contributor.login}>
                 <div className="wu-gcontributors__identity">
                   <a
                     className="wu-gcontributors__avatar-link"
@@ -82,45 +68,25 @@ export function GithubContributors({
                     rel="noopener noreferrer"
                     aria-label={`View ${contributor.login} on GitHub`}
                   >
-                    <img
-                      src={contributor.avatarUrl}
-                      alt=""
-                      width={58}
-                      height={58}
-                      loading="lazy"
-                    />
+                    <img src={contributor.avatarUrl} alt="" width={58} height={58} loading="lazy" />
                   </a>
 
                   <div className="wu-gcontributors__person">
                     <div className="wu-gcontributors__name">
-                      <a
-                        href={contributor.profileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      <a href={contributor.profileUrl} target="_blank" rel="noopener noreferrer">
                         {contributor.login}
-                        <ArrowUpRight
-                          size={14}
-                          aria-hidden="true"
-                        />
+                        <ArrowUpRight size={14} aria-hidden="true" />
                       </a>
 
                       {contributor.isOwner && (
-                        <span className="wu-gcontributors__owner">
-                          Owner
-                        </span>
+                        <span className="wu-gcontributors__owner">Owner</span>
                       )}
                     </div>
 
                     <span className="wu-gcontributors__count">
-                      <GitCommitHorizontal
-                        size={15}
-                        aria-hidden="true"
-                      />
+                      <GitCommitHorizontal size={15} aria-hidden="true" />
                       {contributor.contributions} attributed
-                      {contributor.contributions === 1
-                        ? ' commit'
-                        : ' commits'}
+                      {contributor.contributions === 1 ? ' commit' : ' commits'}
                     </span>
                   </div>
                 </div>
@@ -139,10 +105,7 @@ export function GithubContributors({
                     aria-valuemin={0}
                     aria-valuemax={100}
                   >
-                    <div
-                      className="wu-gcontributors__fill"
-                      style={{ width: `${percentage}%` }}
-                    />
+                    <div className="wu-gcontributors__fill" style={{ width: `${percentage}%` }} />
                   </div>
                 </div>
               </article>
@@ -152,9 +115,8 @@ export function GithubContributors({
       )}
 
       <p className="wu-gcontributors__note">
-        Percentages represent each contributor's share of
-        commits attributed by GitHub. They do not measure
-        productivity or code quality.
+        Percentages represent each contributor's share of commits attributed by GitHub. They do not
+        measure productivity or code quality.
       </p>
     </section>
   );

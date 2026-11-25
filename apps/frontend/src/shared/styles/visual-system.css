@@ -45,7 +45,7 @@
   .devup-design .workspace-app .wu-project-task:hover { background: var(--wu-hover-row); }
   .devup-design .workspace-app .wu-sidebar .wu-nav-item:not(.is-active):hover { background: #ffffff80; color: var(--wu-ink) !important; }
   .devup-design .workspace-app[data-theme=dark] .wu-sidebar .wu-nav-item:not(.is-active):hover { background: #ffffff0d; }
-  .devup-design .workspace-app :is(.wu-chip:not(.is-active),.wu-github-tab[aria-pressed=false],.wu-file-type-tabs button[aria-pressed=false],.wu-file-view-toggle button[aria-pressed=false],.wu-note-formatbar button[aria-pressed=false],.wu-settings-section-nav button:not([aria-current])):hover:not(:disabled) { background: var(--wu-hover-control); color: var(--wu-ink); box-shadow: none; }
+  .devup-design .workspace-app :is(.wu-chip:not(.is-active),.wu-github-tab[aria-selected=false],.wu-file-type-tabs button[aria-pressed=false],.wu-file-view-toggle button[aria-pressed=false],.wu-note-formatbar button[aria-pressed=false],.wu-settings-section-nav button:not([aria-current])):hover:not(:disabled) { background: var(--wu-hover-control); color: var(--wu-ink); box-shadow: none; }
   .devup-design .workspace-app .wu-text-button:hover:not(:disabled),
   .devup-design .workspace-app a:not([class]):hover { color: var(--wu-blue); text-decoration: underline; text-underline-offset: 3px; }
   .devup-design .workspace-app :is(.wu-list-search,.wu-command-input,.wu-chat-search,.wu-note-rich-editor):hover:not(:focus-within),

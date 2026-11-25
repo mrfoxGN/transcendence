@@ -1,12 +1,26 @@
-import { IconButton, Input, Button, Textarea } from '../../../shared/ui';
-import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
+import {
+  ArrowLeft,
+  ArrowUp,
+  ChevronRight,
+  ExternalLink,
+  Info,
+  Link as LinkIcon,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Reply,
+  Search,
+  SquarePen,
+  X,
+} from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
-import { Reply, ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, SquarePen, Link as LinkIcon, ExternalLink, X } from 'lucide-react';
-import { workspaceIcons } from '../workspace-icons';
+import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
+import { Button, IconButton, Input, Textarea } from '../../../shared/ui';
 import { Avatar, IconTile, Panel } from '../components';
-import { Drawer } from '../WorkspaceControls';
-import type { Member } from '../workspace-tasks';
 import type { ServerMessage, useWorkspaceChat } from '../workspace-chat';
+import { workspaceIcons } from '../workspace-icons';
+import type { Member } from '../workspace-tasks';
+import { Drawer } from '../WorkspaceControls';
 import './chat.css';
 
 type Draft = { text: string; requestId?: string; reply?: { id: string; preview: string } };
@@ -36,18 +50,47 @@ function dayLabel(date: Date) {
 }
 
 function Portrait({ name, small, url }: { name: string; small?: boolean; url?: string | null }) {
-  const initials = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-  return <span className={`wu-chat-portrait${small ? ' is-small' : ''}`} aria-hidden="true">
-    <Avatar initials={initials} tone="violet" small={small} preview={false} />
-    {url && <img key={url} src={url} alt="" onError={event => { event.currentTarget.style.display = 'none'; }} />}
-  </span>;
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  return (
+    <span className={`wu-chat-portrait${small ? ' is-small' : ''}`} aria-hidden="true">
+      <Avatar initials={initials} tone="violet" small={small} preview={false} />
+      {url && (
+        <img
+          key={url}
+          src={url}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
+    </span>
+  );
 }
 
-export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelected, profileId, profileName, roster, workspaceArchived = false }: ChatPageProps) {
+export function ChatPage({
+  workspaceId,
+  workspaceName,
+  chat,
+  selected,
+  setSelected,
+  profileId,
+  profileName,
+  roster,
+  workspaceArchived = false,
+}: ChatPageProps) {
   const [sending, setSending] = useState(false);
   const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
   const [conversationError, setConversationError] = useState('');
-  const view = useRef<{ thread: string; atLatest: boolean; anchor?: { id: string; offset: number } } | undefined>(undefined);
+  const view = useRef<
+    { thread: string; atLatest: boolean; anchor?: { id: string; offset: number } } | undefined
+  >(undefined);
   const [showJump, setShowJump] = useState(false);
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -64,51 +107,104 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
   const [section, setSection] = useState<(typeof sections)[number]>('Details');
   const draftKey = `devup:chat-drafts:${profileId}:${workspaceId}`;
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() => {
-    try { return JSON.parse(sessionStorage.getItem(draftKey) ?? '{}') ?? {}; }
-    catch { return {}; }
+    try {
+      return JSON.parse(sessionStorage.getItem(draftKey) ?? '{}') ?? {};
+    } catch {
+      return {};
+    }
   });
   useEffect(() => {
-    try { sessionStorage.setItem(draftKey, JSON.stringify(drafts)); }
-    catch { /* Drafts remain available while this view is open. */ }
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify(drafts));
+    } catch {
+      /* Drafts remain available while this view is open. */
+    }
   }, [draftKey, drafts]);
   const [drawer, setDrawer] = useState<'details' | 'new'>();
   const [showList, setShowList] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(true);
   const messageList = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
-  const portraitUrl = (id: string | null | undefined) => roster.find(member => member.userId === id)?.avatarUrl;
-  const teammateName = (id: string | null) => roster.find(member => member.userId === id)?.username
-    ?? chat.conversations.find(item => item.otherUserId === id)?.otherUsername ?? 'DevUP member';
-  const threads = [{ id: 'team', title: workspaceName, member: undefined, lastMessageAt: null, unreadCount: chat.workspaceUnread },
-    ...chat.conversations.map(item => ({ ...item, title: teammateName(item.otherUserId), member: teammateName(item.otherUserId) }))].map(item => ({
-      ...item, unread: item.id === selected ? 0 : item.unreadCount ?? 0,
-      messages: (chat.messages[item.id] ?? []).map(message => ({
-        id: message.id, senderId: message.senderId, text: message.content, sentAt: message.createdAt,
-        reply: message.reply ? { ...message.reply, preview: message.reply.preview.slice(0, 100) } : undefined,
-        own: message.senderId === profileId, author: teammateName(message.senderId),
-      })),
-    }));
-  const thread = threads.find(item => item.id === selected) ?? { id: selected, title: 'Direct message', member: 'DevUP member', unread: 0, messages: [] };
+  const portraitUrl = (id: string | null | undefined) =>
+    roster.find((member) => member.userId === id)?.avatarUrl;
+  const teammateName = (id: string | null) =>
+    roster.find((member) => member.userId === id)?.username ??
+    chat.conversations.find((item) => item.otherUserId === id)?.otherUsername ??
+    'DevUP member';
+  const threads = [
+    {
+      id: 'team',
+      title: workspaceName,
+      member: undefined,
+      lastMessageAt: null,
+      unreadCount: chat.workspaceUnread,
+    },
+    ...chat.conversations.map((item) => ({
+      ...item,
+      title: teammateName(item.otherUserId),
+      member: teammateName(item.otherUserId),
+    })),
+  ].map((item) => ({
+    ...item,
+    unread: item.id === selected ? 0 : (item.unreadCount ?? 0),
+    messages: (chat.messages[item.id] ?? []).map((message) => ({
+      id: message.id,
+      senderId: message.senderId,
+      text: message.content,
+      sentAt: message.createdAt,
+      reply: message.reply
+        ? { ...message.reply, preview: message.reply.preview.slice(0, 100) }
+        : undefined,
+      own: message.senderId === profileId,
+      author: teammateName(message.senderId),
+    })),
+  }));
+  const thread = threads.find((item) => item.id === selected) ?? {
+    id: selected,
+    title: 'Direct message',
+    member: 'DevUP member',
+    unread: 0,
+    messages: [],
+  };
   const readOnly = workspaceArchived && thread.id === 'team';
   const isDirect = thread.id !== 'team';
   const draft = drafts[thread.id] ?? { text: '' };
   const sendError = sendErrors[thread.id];
   const canSend = !!draft.text.trim();
-  const teammates = roster.filter(member => member.userId !== profileId);
-  const direct = chat.conversations.find(item => item.id === thread.id);
-  const otherMember = isDirect && thread.member && !teammates.some(person => person.userId === direct?.otherUserId)
-    ? [{ id: direct?.otherUserId ?? 'other', name: thread.member, role: 'Member' }]
-    : [];
-  const members = [{ id: profileId, name: profileName, role: 'You' },
-    ...teammates.filter(person => !thread.member || person.userId === direct?.otherUserId)
-      .map(person => ({ id: person.userId, name: person.username, role: person.isOwner ? 'Workspace owner' : 'Member' })),
-    ...otherMember];
-  const links = [...new Set(thread.messages.flatMap(message => message.text.match(/https?:\/\/[^\s<>"']+/g) ?? []))].filter(link => { try { return ['https:', 'http:'].includes(new URL(link).protocol); } catch { return false; } });
-  const unreadCount = threads.filter(item => item.unread > 0).length;
+  const teammates = roster.filter((member) => member.userId !== profileId);
+  const direct = chat.conversations.find((item) => item.id === thread.id);
+  const otherMember =
+    isDirect && thread.member && !teammates.some((person) => person.userId === direct?.otherUserId)
+      ? [{ id: direct?.otherUserId ?? 'other', name: thread.member, role: 'Member' }]
+      : [];
+  const members = [
+    { id: profileId, name: profileName, role: 'You' },
+    ...teammates
+      .filter((person) => !thread.member || person.userId === direct?.otherUserId)
+      .map((person) => ({
+        id: person.userId,
+        name: person.username,
+        role: person.isOwner ? 'Workspace owner' : 'Member',
+      })),
+    ...otherMember,
+  ];
+  const links = [
+    ...new Set(
+      thread.messages.flatMap((message) => message.text.match(/https?:\/\/[^\s<>"']+/g) ?? []),
+    ),
+  ].filter((link) => {
+    try {
+      return ['https:', 'http:'].includes(new URL(link).protocol);
+    } catch {
+      return false;
+    }
+  });
+  const unreadCount = threads.filter((item) => item.unread > 0).length;
   const search = query.trim().toLowerCase();
-  const visibleThreads = threads.filter(item =>
-    (filter !== 'Unread' || item.unread > 0) &&
-    (!search || item.title.toLowerCase().includes(search))
+  const visibleThreads = threads.filter(
+    (item) =>
+      (filter !== 'Unread' || item.unread > 0) &&
+      (!search || item.title.toLowerCase().includes(search)),
   );
 
   function recordPosition() {
@@ -116,13 +212,20 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
     if (!list) return;
     const top = list.getBoundingClientRect().top;
     const atLatest = list.scrollHeight - list.clientHeight - list.scrollTop < 40;
-    const firstVisible = atLatest ? undefined : Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]'))
-      .find(row => row.getBoundingClientRect().bottom > top);
+    const firstVisible = atLatest
+      ? undefined
+      : Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]')).find(
+          (row) => row.getBoundingClientRect().bottom > top,
+        );
     view.current = {
-      thread: thread.id, atLatest,
-      anchor: firstVisible?.dataset.messageId ? {
-        id: firstVisible.dataset.messageId, offset: firstVisible.getBoundingClientRect().top - top,
-      } : undefined,
+      thread: thread.id,
+      atLatest,
+      anchor: firstVisible?.dataset.messageId
+        ? {
+            id: firstVisible.dataset.messageId,
+            offset: firstVisible.getBoundingClientRect().top - top,
+          }
+        : undefined,
     };
     setShowJump(!atLatest);
   }
@@ -134,8 +237,14 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
     if (!previous || previous.thread !== thread.id || previous.atLatest) {
       list.scrollTop = list.scrollHeight;
     } else if (previous.anchor) {
-      const row = list.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(previous.anchor.id)}"]`);
-      if (row) list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top - previous.anchor.offset;
+      const row = list.querySelector<HTMLElement>(
+        `[data-message-id="${CSS.escape(previous.anchor.id)}"]`,
+      );
+      if (row)
+        list.scrollTop +=
+          row.getBoundingClientRect().top -
+          list.getBoundingClientRect().top -
+          previous.anchor.offset;
     }
     recordPosition();
   });
@@ -164,11 +273,16 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
     try {
       const matches = await chat.search(thread.id, term, page, controller.signal);
       if (controller.signal.aborted) return;
-      setResults(current => page === 1 ? matches : [...new Map([...current, ...matches].map(item => [item.id, item])).values()]);
+      setResults((current) =>
+        page === 1
+          ? matches
+          : [...new Map([...current, ...matches].map((item) => [item.id, item])).values()],
+      );
       setSearchPage(page);
       setHasMoreResults(matches.length === 25);
     } catch {
-      if (!controller.signal.aborted) setSearchError('Could not search this conversation. Try again.');
+      if (!controller.signal.aborted)
+        setSearchError('Could not search this conversation. Try again.');
     } finally {
       if (!controller.signal.aborted) setSearching(false);
     }
@@ -204,7 +318,9 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
       selectThread(id);
       setDrawer(undefined);
     } catch (error) {
-      setConversationError(error instanceof Error ? error.message : 'Could not open the conversation.');
+      setConversationError(
+        error instanceof Error ? error.message : 'Could not open the conversation.',
+      );
     } finally {
       setSending(false);
     }
@@ -215,172 +331,644 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
     const body = draft.text.trim();
     if (!canSend || sending) return;
     setSending(true);
-    setSendErrors(current => ({ ...current, [thread.id]: '' }));
+    setSendErrors((current) => ({ ...current, [thread.id]: '' }));
     try {
       const requestId = draft.requestId ?? crypto.randomUUID();
-      setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId } }));
+      setDrafts((current) => ({ ...current, [thread.id]: { ...draft, requestId } }));
       await chat.send(thread.id, body, requestId, draft.reply?.id);
-      setDrafts(current => current[thread.id]?.requestId === requestId ? { ...current, [thread.id]: { text: '' } } : current);
+      setDrafts((current) =>
+        current[thread.id]?.requestId === requestId
+          ? { ...current, [thread.id]: { text: '' } }
+          : current,
+      );
       composer.current?.focus();
     } catch (error) {
-      setSendErrors(current => ({ ...current, [thread.id]: error instanceof Error ? error.message : 'Could not send the message.' }));
+      setSendErrors((current) => ({
+        ...current,
+        [thread.id]: error instanceof Error ? error.message : 'Could not send the message.',
+      }));
     } finally {
       setSending(false);
     }
   }
 
-  const details = <>
-    <div className="wu-chat-identity">
-      {thread.member ? <Portrait name={thread.member} url={portraitUrl(direct?.otherUserId)} /> : <IconTile tone="violet"><workspaceIcons.team size={22} /></IconTile>}
-      <h3>{thread.title}</h3><p>{isDirect ? 'Direct conversation' : 'Workspace conversation'}</p>
-    </div>
-    <div className="wu-chat-tabs" role="group" aria-label="Conversation details">
-      {sections.map(item => <button key={item} type="button" aria-pressed={section === item} onClick={() => setSection(item)}>{item}</button>)}
-    </div>
-    {section === 'Details' && <section className="wu-chat-description">
-      <h3>Description</h3><p>{thread.member ? 'Private conversation with ' + thread.member + '.' : 'Share project updates, ask questions, and keep the team in the loop.'}</p>
-    </section>}
-    {(section === 'Details' || section === 'Members') && <section>
-      <h3>Members ({members.length})</h3>
-      <ul className="wu-chat-members">
-        {members.map(member => <li key={member.id}><Portrait name={member.name} url={portraitUrl(member.id)} small /><span><strong>{member.name}</strong><small>{member.role}</small></span></li>)}
-      </ul>
-    </section>}
-    {section === 'Links' && <section><h3>Links in loaded messages</h3>
-      {links.length ? <ul className="wu-chat-links">{links.map(link => {
-        const address = new URL(link);
-        return <li key={link}><a href={link} target="_blank" rel="noreferrer" className="wu-chat-link-row"><span className="wu-chat-link-icon"><LinkIcon size={17} aria-hidden="true" /></span><span><strong>{address.hostname}</strong><small>{address.pathname + address.search + address.hash}</small></span><ExternalLink size={14} aria-hidden="true" /><span className="wu-sr-only"> (opens in a new tab)</span></a></li>;
-      })}</ul> : <p>No links in the loaded messages.</p>}
-    </section>}
-  </>;
+  const details = (
+    <>
+      <div className="wu-chat-identity">
+        {thread.member ? (
+          <Portrait name={thread.member} url={portraitUrl(direct?.otherUserId)} />
+        ) : (
+          <IconTile tone="violet">
+            <workspaceIcons.team size={22} />
+          </IconTile>
+        )}
+        <h3>{thread.title}</h3>
+        <p>{isDirect ? 'Direct conversation' : 'Workspace conversation'}</p>
+      </div>
+      <div className="wu-chat-tabs" role="group" aria-label="Conversation details">
+        {sections.map((item) => (
+          <button
+            key={item}
+            type="button"
+            aria-pressed={section === item}
+            onClick={() => setSection(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      {section === 'Details' && (
+        <section className="wu-chat-description">
+          <h3>Description</h3>
+          <p>
+            {thread.member
+              ? 'Private conversation with ' + thread.member + '.'
+              : 'Share project updates, ask questions, and keep the team in the loop.'}
+          </p>
+        </section>
+      )}
+      {(section === 'Details' || section === 'Members') && (
+        <section>
+          <h3>Members ({members.length})</h3>
+          <ul className="wu-chat-members">
+            {members.map((member) => (
+              <li key={member.id}>
+                <Portrait name={member.name} url={portraitUrl(member.id)} small />
+                <span>
+                  <strong>{member.name}</strong>
+                  <small>{member.role}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {section === 'Links' && (
+        <section>
+          <h3>Links in loaded messages</h3>
+          {links.length ? (
+            <ul className="wu-chat-links">
+              {links.map((link) => {
+                const address = new URL(link);
+                return (
+                  <li key={link}>
+                    <a href={link} target="_blank" rel="noreferrer" className="wu-chat-link-row">
+                      <span className="wu-chat-link-icon">
+                        <LinkIcon size={17} aria-hidden="true" />
+                      </span>
+                      <span>
+                        <strong>{address.hostname}</strong>
+                        <small>{address.pathname + address.search + address.hash}</small>
+                      </span>
+                      <ExternalLink size={14} aria-hidden="true" />
+                      <span className="wu-sr-only"> (opens in a new tab)</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p>No links in the loaded messages.</p>
+          )}
+        </section>
+      )}
+    </>
+  );
 
-  return <>
-    <div className={`wu-chat-layout${showList ? ' is-list-open' : ''}${detailsCollapsed ? ' is-details-collapsed' : ''}`}>
-      <Panel className="wu-conversation-panel">
-        <div className="wu-chat-list-heading"><h2>Messages</h2><span>{threads.length} conversations</span></div>
-        <div className="wu-chat-search-row">
-          <IconButton type="button" className="wu-chat-list-close" aria-label="Hide conversations" title="Hide conversations" onClick={() => setShowList(false)}><ArrowLeft size={19} /></IconButton>
-          <label className="wu-chat-search"><Search size={17} aria-hidden="true" /><Input type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} /></label>
-        </div>
-        <div className="wu-chat-tabs" role="group" aria-label="Filter conversations">
-          {filters.map(item => <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}>
-            {item}{item === 'Unread' && !!unreadCount && <span>{unreadCount}</span>}
-          </button>)}
-        </div>
-        <div className="wu-chat-conversations" aria-label="Conversations" tabIndex={0}>
-          {visibleThreads.map(item => {
-            const latest = item.messages.at(-1);
-            return <div key={item.id}>{(item.id === 'team' || visibleThreads.find(entry => entry.id !== 'team')?.id === item.id) && <p className="wu-chat-group-label">{item.id === 'team' ? 'Workspace' : 'Direct messages'}</p>}<button type="button" key={item.id} className={`wu-conversation${item.unread ? ' has-unread' : ''}`} aria-current={item.id === thread.id ? 'true' : undefined} onClick={() => selectThread(item.id)}>
-              {item.member ? <Portrait name={item.member} url={portraitUrl(chat.conversations.find(conversation => conversation.id === item.id)?.otherUserId)} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
-              <span className="wu-conversation-copy"><strong>{item.title}</strong><small>{latest ? (latest.own ? 'You: ' : !item.member ? latest.author.split(' ')[0] + ': ' : '') + latest.text : item.lastMessageAt ? 'Open conversation' : 'No messages yet'}</small></span>
-              <span className="wu-conversation-meta">{(latest?.sentAt || item.lastMessageAt) && <time dateTime={latest?.sentAt ?? item.lastMessageAt ?? undefined}>{new Date(latest?.sentAt ?? item.lastMessageAt!).toDateString() === new Date().toDateString() ? clock.format(new Date(latest?.sentAt ?? item.lastMessageAt!)) : calendar.format(new Date(latest?.sentAt ?? item.lastMessageAt!))}</time>}{!!item.unread && <span className="wu-chat-unread" aria-label={item.unread + ' unread'}>{item.unread}</span>}</span>
-            </button></div>;
-          })}
-          {!visibleThreads.length && <p className="wu-chat-empty">{search ? 'No conversations match your search.' : 'No ' + filter.toLowerCase() + ' conversations.'}</p>}
-        </div>
-        <footer className="wu-chat-list-footer">
-          <Button variant="primary" type="button" onClick={() => setDrawer('new')}><SquarePen size={17} />New message</Button>
-        </footer>
-      </Panel>
-
-      <Panel className="wu-chat-thread">
-        <header className="wu-chat-thread-head">
-          <IconButton type="button" className="wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></IconButton>
-          {thread.member ? <Portrait name={thread.member} url={portraitUrl(direct?.otherUserId)} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
-          <div className="wu-chat-heading"><h2>{thread.title}</h2><p>{thread.member ? 'Direct message' : members.length + ' members · General discussion'}</p></div>
-          <IconButton type="button" className="wu-chat-search-toggle" aria-label="Search loaded messages" title={searchOpen ? 'Close message search' : 'Search loaded messages'} aria-controls="chat-message-search" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>{searchOpen ? <X size={18} /> : <Search size={18} />}</IconButton>
-          <IconButton type="button" className="wu-chat-details-toggle"
-            aria-label={detailsCollapsed ? 'Show details' : 'Hide details'} title={detailsCollapsed ? 'Show details' : 'Hide details'} aria-controls="chat-details" aria-expanded={!detailsCollapsed} onClick={() => setDetailsCollapsed(value => !value)}>
-            {detailsCollapsed ? <PanelRightOpen size={17} aria-hidden="true" /> : <PanelRightClose size={17} aria-hidden="true" />}
-          </IconButton>
-          <IconButton type="button" className="wu-chat-info" aria-label="Show conversation details" title="Show conversation details" onClick={() => setDrawer('details')}><Info size={19} /></IconButton>
-        </header>
-        {searchOpen && <section id="chat-message-search" className="wu-chat-search-results" aria-label="Search conversation">
-          <p className="wu-chat-search-hint">Search messages loaded in this conversation. Load older messages to include more history.</p>
-          <form onSubmit={event => { event.preventDefault(); void searchHistory(); }}>
-            <Input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" autoFocus value={searchTerm} maxLength={200}
-              onChange={event => setSearchTerm(event.target.value)} />
-            <button className="wu-text-button" type="submit" disabled={searching || !searchTerm.trim()}>Search</button>
-          </form>
-          {searching && <p role="status">Searching…</p>}
-          {searchError && <p role="alert">{searchError}</p>}
-          {!searching && searchPage > 0 && !results.length && <IllustratedEmptyState compact kind="search" title="No matching messages" detail="Try a different word or phrase." />}
-          {results.map(message => <article key={message.id}>
-            <strong>{message.senderId === profileId ? 'You' : teammateName(message.senderId)}</strong>{' '}
-            <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
-            {message.reply && <blockquote>{message.reply.preview.slice(0, 100)}</blockquote>}
-            {message.content && <p>{message.content}</p>}
-            {!readOnly && <button className="wu-text-button" type="button" disabled={sending}
-              onClick={() => {
-                const preview = (message.content || 'Message').slice(0, 100);
-                setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview } } }));
-                composer.current?.focus();
-              }}>Reply</button>}
-          </article>)}
-          {hasMoreResults && <button className="wu-text-button" type="button" disabled={searching} onClick={() => void searchHistory(searchPage + 1)}>More results</button>}
-        </section>}
-        {chat.connection !== 'connected' && <div className="wu-chat-connection">
-          <span role="status">{chat.connection === 'connecting' ? 'Connecting to chat…' : 'Reconnecting to chat…'}</span>
-          {chat.connection === 'reconnecting' && <button className="wu-text-button" type="button" onClick={chat.reconnect}>Retry connection</button>}
-        </div>}
-        <div ref={messageList} onScroll={recordPosition} className="wu-messages" role="log" aria-label={thread.title + ' messages'} tabIndex={0}>
-          {chat.error && <p role="alert">{chat.error} <button className="wu-text-button" type="button" onClick={chat.retry}>Try again</button></p>}
-          {chat.hasOlder && <button className="wu-text-button" type="button" disabled={chat.loading || chat.loadingOlder} onClick={() => void chat.loadOlder()}>{chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}</button>}
-          {chat.loading && <p role="status">Loading messages…</p>}
-          {!chat.loading && !chat.error && !thread.messages.length && <div className="wu-chat-empty-conversation"><IllustratedEmptyState kind="messages" title={thread.title} detail={readOnly ? 'No messages in this conversation.' : isDirect ? 'Start with a hello or share an update.' : 'Your team conversation starts here. Share an update or ask a question.'} /></div>}
-          {thread.messages.map((message, index) => {
-            const date = new Date(message.sentAt);
-            const newDay = index === 0 || date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
-            const previous = thread.messages[index - 1];
-            const grouped = !newDay && message.senderId !== null && previous?.senderId === message.senderId
-              && date.getTime() - new Date(previous.sentAt).getTime() < 5 * 60 * 1000;
-            return <div key={message.id} data-message-id={message.id}>
-              {newDay && <div className="wu-chat-date"><span>{dayLabel(date)}</span></div>}
-              <article className={`wu-message${message.own ? ' is-own' : ''}${grouped ? ' is-grouped' : ''}`}>
-                {grouped ? <span className="wu-chat-avatar-spacer" aria-hidden="true" /> : <Portrait name={message.own ? profileName : message.author} url={portraitUrl(message.senderId)} small />}
-                <div className="wu-message-content">
-                  <div className="wu-message-meta">{!grouped && <strong>{message.own ? 'You' : message.author}</strong>}<time dateTime={message.sentAt}>{clock.format(date)}</time></div>
-                  <div className="wu-message-bubble">
-                    {message.reply && <blockquote className="wu-chat-quote"><strong>{message.reply.unavailable ? 'Original message' : message.reply.senderId === profileId ? 'You' : teammateName(message.reply.senderId)}</strong><p>{message.reply.preview.slice(0, 100)}</p></blockquote>}
-                    {message.text && <p>{message.text}</p>}
-                  </div>
-                  {!readOnly && <button className="wu-text-button wu-chat-reply" type="button" disabled={sending} onClick={() => {
-                    const preview = (message.text || 'Message').slice(0, 100);
-                    setDrafts(current => ({ ...current, [thread.id]: { ...draft, requestId: undefined, reply: { id: message.id, preview } } }));
-                    composer.current?.focus();
-                  }}><Reply size={14} /> Reply</button>}
-                </div>
-              </article>
-            </div>;
-          })}
-        </div>
-        {showJump && <button className="wu-text-button wu-chat-jump" type="button" onClick={() => {
-          if (messageList.current) messageList.current.scrollTop = messageList.current.scrollHeight;
-          recordPosition();
-        }}>Jump to latest</button>}
-        {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
-          {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !canSend}>Retry send</button></p>}
-          {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview.slice(0, 100)}</span><IconButton  type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></IconButton></div>}
-          <div className="wu-chat-composer">
-            <Textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
-              onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value, reply: draft.reply } }))}
-              onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <Button type="submit" variant="primary" className="wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></Button>
+  return (
+    <>
+      <div
+        className={`wu-chat-layout${showList ? ' is-list-open' : ''}${detailsCollapsed ? ' is-details-collapsed' : ''}`}
+      >
+        <Panel className="wu-conversation-panel">
+          <div className="wu-chat-list-heading">
+            <h2>Messages</h2>
+            <span>{threads.length} conversations</span>
           </div>
-          <p className="wu-chat-composer-hint">Enter to send <span>·</span> Shift + Enter for a new line</p>
-        </form>}
-      </Panel>
-      <section className="wu-panel wu-chat-details" id="chat-details" aria-label="Conversation details">{details}</section>
-    </div>
-    {drawer && <Drawer title={drawer === 'details' ? 'Conversation details' : 'New message'} onClose={() => setDrawer(undefined)}>
-      {drawer === 'details' && <div className="wu-chat-details-body">{details}</div>}
-      {drawer === 'new' && <div className="wu-chat-picker">
-        {conversationError && <p role="alert">{conversationError}</p>}
-        {!teammates.length && <IllustratedEmptyState compact kind="team" title="No teammates yet" detail="Invite someone from the Team page to start a direct conversation." />}
-        {teammates.map(person => <button key={person.userId} className="wu-conversation" type="button" disabled={sending} onClick={() => void startConversation(person.userId, person.username)}>
-          <Portrait name={person.username} url={person.avatarUrl} /><span className="wu-conversation-copy"><strong>{person.username}</strong></span><ChevronRight size={16} />
-        </button>)}
-      </div>}
-    </Drawer>}
-  </>;
+          <div className="wu-chat-search-row">
+            <IconButton
+              type="button"
+              className="wu-chat-list-close"
+              aria-label="Hide conversations"
+              title="Hide conversations"
+              onClick={() => setShowList(false)}
+            >
+              <ArrowLeft size={19} />
+            </IconButton>
+            <label className="wu-chat-search">
+              <Search size={17} aria-hidden="true" />
+              <Input
+                type="search"
+                aria-label="Search conversations"
+                placeholder="Search conversations"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="wu-chat-tabs" role="group" aria-label="Filter conversations">
+            {filters.map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={filter === item}
+                onClick={() => setFilter(item)}
+              >
+                {item}
+                {item === 'Unread' && !!unreadCount && <span>{unreadCount}</span>}
+              </button>
+            ))}
+          </div>
+          <div className="wu-chat-conversations" aria-label="Conversations" tabIndex={0}>
+            {visibleThreads.map((item) => {
+              const latest = item.messages.at(-1);
+              return (
+                <div key={item.id}>
+                  {(item.id === 'team' ||
+                    visibleThreads.find((entry) => entry.id !== 'team')?.id === item.id) && (
+                    <p className="wu-chat-group-label">
+                      {item.id === 'team' ? 'Workspace' : 'Direct messages'}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`wu-conversation${item.unread ? ' has-unread' : ''}`}
+                    aria-current={item.id === thread.id ? 'true' : undefined}
+                    onClick={() => selectThread(item.id)}
+                  >
+                    {item.member ? (
+                      <Portrait
+                        name={item.member}
+                        url={portraitUrl(
+                          chat.conversations.find((conversation) => conversation.id === item.id)
+                            ?.otherUserId,
+                        )}
+                      />
+                    ) : (
+                      <IconTile>
+                        <workspaceIcons.team size={18} />
+                      </IconTile>
+                    )}
+                    <span className="wu-conversation-copy">
+                      <strong>{item.title}</strong>
+                      <small>
+                        {latest
+                          ? (latest.own
+                              ? 'You: '
+                              : !item.member
+                                ? latest.author.split(' ')[0] + ': '
+                                : '') + latest.text
+                          : item.lastMessageAt
+                            ? 'Open conversation'
+                            : 'No messages yet'}
+                      </small>
+                    </span>
+                    <span className="wu-conversation-meta">
+                      {(latest?.sentAt || item.lastMessageAt) && (
+                        <time dateTime={latest?.sentAt ?? item.lastMessageAt ?? undefined}>
+                          {new Date(latest?.sentAt ?? item.lastMessageAt!).toDateString() ===
+                          new Date().toDateString()
+                            ? clock.format(new Date(latest?.sentAt ?? item.lastMessageAt!))
+                            : calendar.format(new Date(latest?.sentAt ?? item.lastMessageAt!))}
+                        </time>
+                      )}
+                      {!!item.unread && (
+                        <span className="wu-chat-unread" aria-label={item.unread + ' unread'}>
+                          {item.unread}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
+            {!visibleThreads.length && (
+              <p className="wu-chat-empty">
+                {search
+                  ? 'No conversations match your search.'
+                  : 'No ' + filter.toLowerCase() + ' conversations.'}
+              </p>
+            )}
+          </div>
+          <footer className="wu-chat-list-footer">
+            <Button variant="primary" type="button" onClick={() => setDrawer('new')}>
+              <SquarePen size={17} />
+              New message
+            </Button>
+          </footer>
+        </Panel>
+
+        <Panel className="wu-chat-thread">
+          <header className="wu-chat-thread-head">
+            <IconButton
+              type="button"
+              className="wu-chat-back"
+              aria-label="Show conversations"
+              onClick={() => setShowList(true)}
+            >
+              <PanelLeftOpen size={19} />
+            </IconButton>
+            {thread.member ? (
+              <Portrait name={thread.member} url={portraitUrl(direct?.otherUserId)} />
+            ) : (
+              <IconTile>
+                <workspaceIcons.team size={18} />
+              </IconTile>
+            )}
+            <div className="wu-chat-heading">
+              <h2>{thread.title}</h2>
+              <p>
+                {thread.member
+                  ? 'Direct message'
+                  : members.length + ' members · General discussion'}
+              </p>
+            </div>
+            <IconButton
+              type="button"
+              className="wu-chat-search-toggle"
+              aria-label="Search loaded messages"
+              title={searchOpen ? 'Close message search' : 'Search loaded messages'}
+              aria-controls="chat-message-search"
+              aria-expanded={searchOpen}
+              onClick={() => setSearchOpen((value) => !value)}
+            >
+              {searchOpen ? <X size={18} /> : <Search size={18} />}
+            </IconButton>
+            <IconButton
+              type="button"
+              className="wu-chat-details-toggle"
+              aria-label={detailsCollapsed ? 'Show details' : 'Hide details'}
+              title={detailsCollapsed ? 'Show details' : 'Hide details'}
+              aria-controls="chat-details"
+              aria-expanded={!detailsCollapsed}
+              onClick={() => setDetailsCollapsed((value) => !value)}
+            >
+              {detailsCollapsed ? (
+                <PanelRightOpen size={17} aria-hidden="true" />
+              ) : (
+                <PanelRightClose size={17} aria-hidden="true" />
+              )}
+            </IconButton>
+            <IconButton
+              type="button"
+              className="wu-chat-info"
+              aria-label="Show conversation details"
+              title="Show conversation details"
+              onClick={() => setDrawer('details')}
+            >
+              <Info size={19} />
+            </IconButton>
+          </header>
+          {searchOpen && (
+            <section
+              id="chat-message-search"
+              className="wu-chat-search-results"
+              aria-label="Search conversation"
+            >
+              <p className="wu-chat-search-hint">
+                Search messages loaded in this conversation. Load older messages to include more
+                history.
+              </p>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void searchHistory();
+                }}
+              >
+                <Input
+                  type="search"
+                  aria-label="Search this conversation"
+                  placeholder="Search this conversation…"
+                  autoFocus
+                  value={searchTerm}
+                  maxLength={200}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+                <button
+                  className="wu-text-button"
+                  type="submit"
+                  disabled={searching || !searchTerm.trim()}
+                >
+                  Search
+                </button>
+              </form>
+              {searching && <p role="status">Searching…</p>}
+              {searchError && <p role="alert">{searchError}</p>}
+              {!searching && searchPage > 0 && !results.length && (
+                <IllustratedEmptyState
+                  compact
+                  kind="search"
+                  title="No matching messages"
+                  detail="Try a different word or phrase."
+                />
+              )}
+              {results.map((message) => (
+                <article key={message.id}>
+                  <strong>
+                    {message.senderId === profileId ? 'You' : teammateName(message.senderId)}
+                  </strong>{' '}
+                  <time dateTime={message.createdAt}>
+                    {new Date(message.createdAt).toLocaleString()}
+                  </time>
+                  {message.reply && <blockquote>{message.reply.preview.slice(0, 100)}</blockquote>}
+                  {message.content && <p>{message.content}</p>}
+                  {!readOnly && (
+                    <button
+                      className="wu-text-button"
+                      type="button"
+                      disabled={sending}
+                      onClick={() => {
+                        const preview = (message.content || 'Message').slice(0, 100);
+                        setDrafts((current) => ({
+                          ...current,
+                          [thread.id]: {
+                            ...draft,
+                            requestId: undefined,
+                            reply: { id: message.id, preview },
+                          },
+                        }));
+                        composer.current?.focus();
+                      }}
+                    >
+                      Reply
+                    </button>
+                  )}
+                </article>
+              ))}
+              {hasMoreResults && (
+                <button
+                  className="wu-text-button"
+                  type="button"
+                  disabled={searching}
+                  onClick={() => void searchHistory(searchPage + 1)}
+                >
+                  More results
+                </button>
+              )}
+            </section>
+          )}
+          {chat.connection !== 'connected' && (
+            <div className="wu-chat-connection">
+              <span role="status">
+                {chat.connection === 'connecting' ? 'Connecting to chat…' : 'Reconnecting to chat…'}
+              </span>
+              {chat.connection === 'reconnecting' && (
+                <button className="wu-text-button" type="button" onClick={chat.reconnect}>
+                  Retry connection
+                </button>
+              )}
+            </div>
+          )}
+          <div
+            ref={messageList}
+            onScroll={recordPosition}
+            className="wu-messages"
+            role="log"
+            aria-label={thread.title + ' messages'}
+            tabIndex={0}
+          >
+            {chat.error && (
+              <p role="alert">
+                {chat.error}{' '}
+                <button className="wu-text-button" type="button" onClick={chat.retry}>
+                  Try again
+                </button>
+              </p>
+            )}
+            {chat.hasOlder && (
+              <button
+                className="wu-text-button"
+                type="button"
+                disabled={chat.loading || chat.loadingOlder}
+                onClick={() => void chat.loadOlder()}
+              >
+                {chat.loadingOlder ? 'Loading older messages…' : 'Load older messages'}
+              </button>
+            )}
+            {chat.loading && <p role="status">Loading messages…</p>}
+            {!chat.loading && !chat.error && !thread.messages.length && (
+              <div className="wu-chat-empty-conversation">
+                <IllustratedEmptyState
+                  kind="messages"
+                  title={thread.title}
+                  detail={
+                    readOnly
+                      ? 'No messages in this conversation.'
+                      : isDirect
+                        ? 'Start with a hello or share an update.'
+                        : 'Your team conversation starts here. Share an update or ask a question.'
+                  }
+                />
+              </div>
+            )}
+            {thread.messages.map((message, index) => {
+              const date = new Date(message.sentAt);
+              const newDay =
+                index === 0 ||
+                date.toDateString() !== new Date(thread.messages[index - 1].sentAt).toDateString();
+              const previous = thread.messages[index - 1];
+              const grouped =
+                !newDay &&
+                message.senderId !== null &&
+                previous?.senderId === message.senderId &&
+                date.getTime() - new Date(previous.sentAt).getTime() < 5 * 60 * 1000;
+              return (
+                <div key={message.id} data-message-id={message.id}>
+                  {newDay && (
+                    <div className="wu-chat-date">
+                      <span>{dayLabel(date)}</span>
+                    </div>
+                  )}
+                  <article
+                    className={`wu-message${message.own ? ' is-own' : ''}${grouped ? ' is-grouped' : ''}`}
+                  >
+                    {grouped ? (
+                      <span className="wu-chat-avatar-spacer" aria-hidden="true" />
+                    ) : (
+                      <Portrait
+                        name={message.own ? profileName : message.author}
+                        url={portraitUrl(message.senderId)}
+                        small
+                      />
+                    )}
+                    <div className="wu-message-content">
+                      <div className="wu-message-meta">
+                        {!grouped && <strong>{message.own ? 'You' : message.author}</strong>}
+                        <time dateTime={message.sentAt}>{clock.format(date)}</time>
+                      </div>
+                      <div className="wu-message-bubble">
+                        {message.reply && (
+                          <blockquote className="wu-chat-quote">
+                            <strong>
+                              {message.reply.unavailable
+                                ? 'Original message'
+                                : message.reply.senderId === profileId
+                                  ? 'You'
+                                  : teammateName(message.reply.senderId)}
+                            </strong>
+                            <p>{message.reply.preview.slice(0, 100)}</p>
+                          </blockquote>
+                        )}
+                        {message.text && <p>{message.text}</p>}
+                      </div>
+                      {!readOnly && (
+                        <button
+                          className="wu-text-button wu-chat-reply"
+                          type="button"
+                          disabled={sending}
+                          onClick={() => {
+                            const preview = (message.text || 'Message').slice(0, 100);
+                            setDrafts((current) => ({
+                              ...current,
+                              [thread.id]: {
+                                ...draft,
+                                requestId: undefined,
+                                reply: { id: message.id, preview },
+                              },
+                            }));
+                            composer.current?.focus();
+                          }}
+                        >
+                          <Reply size={14} /> Reply
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                </div>
+              );
+            })}
+          </div>
+          {showJump && (
+            <button
+              className="wu-text-button wu-chat-jump"
+              type="button"
+              onClick={() => {
+                if (messageList.current)
+                  messageList.current.scrollTop = messageList.current.scrollHeight;
+                recordPosition();
+              }}
+            >
+              Jump to latest
+            </button>
+          )}
+          {readOnly ? (
+            <p className="wu-chat-archive-note">
+              Team chat is read-only while this workspace is archived.
+            </p>
+          ) : (
+            <form className="wu-message-form" onSubmit={submitMessage}>
+              {sendError && (
+                <p role="alert">
+                  {sendError}{' '}
+                  <button className="wu-text-button" type="submit" disabled={sending || !canSend}>
+                    Retry send
+                  </button>
+                </p>
+              )}
+              {draft.reply && (
+                <div className="wu-chat-draft-chip">
+                  <span>Replying to {draft.reply.preview.slice(0, 100)}</span>
+                  <IconButton
+                    type="button"
+                    aria-label="Remove reply"
+                    disabled={sending}
+                    onClick={() =>
+                      setDrafts((current) => ({ ...current, [thread.id]: { text: draft.text } }))
+                    }
+                  >
+                    <X size={16} />
+                  </IconButton>
+                </div>
+              )}
+              <div className="wu-chat-composer">
+                <Textarea
+                  ref={composer}
+                  rows={1}
+                  aria-label="Message"
+                  placeholder={
+                    thread.id === 'team' ? 'Message the team…' : `Message ${thread.title}…`
+                  }
+                  value={draft.text}
+                  disabled={sending}
+                  onChange={(event) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [thread.id]: { text: event.target.value, reply: draft.reply },
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="wu-chat-square"
+                  aria-label="Send message"
+                  title="Send message"
+                  disabled={sending || !canSend}
+                >
+                  <ArrowUp size={20} />
+                </Button>
+              </div>
+              <p className="wu-chat-composer-hint">
+                Enter to send <span>·</span> Shift + Enter for a new line
+              </p>
+            </form>
+          )}
+        </Panel>
+        <section
+          className="wu-panel wu-chat-details"
+          id="chat-details"
+          aria-label="Conversation details"
+        >
+          {details}
+        </section>
+      </div>
+      {drawer && (
+        <Drawer
+          title={drawer === 'details' ? 'Conversation details' : 'New message'}
+          onClose={() => setDrawer(undefined)}
+        >
+          {drawer === 'details' && <div className="wu-chat-details-body">{details}</div>}
+          {drawer === 'new' && (
+            <div className="wu-chat-picker">
+              {conversationError && <p role="alert">{conversationError}</p>}
+              {!teammates.length && (
+                <IllustratedEmptyState
+                  compact
+                  kind="team"
+                  title="No teammates yet"
+                  detail="Invite someone from the Team page to start a direct conversation."
+                />
+              )}
+              {teammates.map((person) => (
+                <button
+                  key={person.userId}
+                  className="wu-conversation"
+                  type="button"
+                  disabled={sending}
+                  onClick={() => void startConversation(person.userId, person.username)}
+                >
+                  <Portrait name={person.username} url={person.avatarUrl} />
+                  <span className="wu-conversation-copy">
+                    <strong>{person.username}</strong>
+                  </span>
+                  <ChevronRight size={16} />
+                </button>
+              ))}
+            </div>
+          )}
+        </Drawer>
+      )}
+    </>
+  );
 }

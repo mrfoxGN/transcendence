@@ -1,3 +1,4 @@
+import { Check, ChevronDown, Search } from 'lucide-react';
 import {
   Children,
   Fragment,
@@ -7,11 +8,10 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
   type SelectHTMLAttributes,
-  type KeyboardEvent,
 } from 'react';
-import { Check, ChevronDown, Search } from 'lucide-react';
 import './select.css';
 
 type Option = { value: string; label: string; disabled: boolean; group?: string };

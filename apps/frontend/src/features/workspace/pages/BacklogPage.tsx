@@ -1,14 +1,13 @@
-import { Input, Button } from '../../../shared/ui';
-import { Select } from '../../../shared/controls/Select';
-import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { WorkspaceIllustration } from '../WorkspaceIllustration';
+import { useEffect, useState } from 'react';
+import { Select } from '../../../shared/controls/Select';
+import { Button, Input } from '../../../shared/ui';
 import { EmptyState, Panel, TaskTable } from '../components';
 import { TaskFacets, emptyFacets, matchesTaskFacets, type Facets } from '../TaskFacets';
+import type { AddTaskButton, PageHeading, Task } from '../types';
 import { jsonRequest, useWorkspaceCollection, workspaceRequest } from '../workspace-api';
 import { isOpenTask } from '../workspace-calendar';
 import { statusCodes } from '../workspace-tasks';
-import type { PageHeading, Task, AddTaskButton } from '../types';
 
 type BacklogView = {
   sort: 'manual' | 'priority' | 'due';
@@ -18,7 +17,13 @@ type BacklogView = {
   facets: Facets;
 };
 type SavedView = { name: string; view: BacklogView };
-const defaultView: BacklogView = { sort: 'manual', mine: false, blocked: false, search: '', facets: emptyFacets };
+const defaultView: BacklogView = {
+  sort: 'manual',
+  mine: false,
+  blocked: false,
+  search: '',
+  facets: emptyFacets,
+};
 const presets: SavedView[] = [
   { name: 'All backlog tasks', view: defaultView },
   { name: 'My work', view: { ...defaultView, mine: true } },
@@ -51,7 +56,18 @@ type BacklogPageProps = {
 };
 
 export function BacklogPage({
-  pageHeading, storageKey, viewsPath, token, tasks, profileId, today, nextSevenDaysEnd, setSelectedTask, onAddTask, addTaskButton, readOnly = false,
+  pageHeading,
+  storageKey,
+  viewsPath,
+  token,
+  tasks,
+  profileId,
+  today,
+  nextSevenDaysEnd,
+  setSelectedTask,
+  onAddTask,
+  addTaskButton,
+  readOnly = false,
 }: BacklogPageProps) {
   const [view, setView] = useState(() => readView(storageKey));
   const savedViews = useWorkspaceCollection<SavedView>(viewsPath, token);
@@ -60,7 +76,7 @@ export function BacklogPage({
   const [saveError, setSaveError] = useState('');
   const [viewName, setViewName] = useState('');
   const [storageError, setStorageError] = useState(false);
-  const update = (patch: Partial<BacklogView>) => setView(current => ({ ...current, ...patch }));
+  const update = (patch: Partial<BacklogView>) => setView((current) => ({ ...current, ...patch }));
 
   useEffect(() => {
     if (!profileId) return;
@@ -73,83 +89,176 @@ export function BacklogPage({
   }, [profileId, storageKey, view]);
 
   const query = view.search.trim().toLowerCase();
-  const backlogTasks = tasks.filter(task =>
-    (task.status === 'Backlog' || statusCodes[task.status] === 'BACKLOG') &&
-    (!view.mine || (task.assigneeId === profileId && isOpenTask(task))) &&
-    (!view.blocked || (task.isBlocked && isOpenTask(task))) &&
-    (task.title.toLowerCase().includes(query) || task.taskKey?.toLowerCase().includes(query)) &&
-    matchesTaskFacets(task, view.facets, today, nextSevenDaysEnd)
-  ).sort((a, b) => {
-    if (view.sort === 'priority') return (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
-    if (view.sort === 'due') return (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99');
-    return (a.position ?? 0) - (b.position ?? 0);
-  });
+  const backlogTasks = tasks
+    .filter(
+      (task) =>
+        (task.status === 'Backlog' || statusCodes[task.status] === 'BACKLOG') &&
+        (!view.mine || (task.assigneeId === profileId && isOpenTask(task))) &&
+        (!view.blocked || (task.isBlocked && isOpenTask(task))) &&
+        (task.title.toLowerCase().includes(query) || task.taskKey?.toLowerCase().includes(query)) &&
+        matchesTaskFacets(task, view.facets, today, nextSevenDaysEnd),
+    )
+    .sort((a, b) => {
+      if (view.sort === 'priority')
+        return (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
+      if (view.sort === 'due')
+        return (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99');
+      return (a.position ?? 0) - (b.position ?? 0);
+    });
   const views = [...(savedViews.items ?? []), ...presets];
-  const activeView = views.findIndex(item => {
+  const activeView = views.findIndex((item) => {
     const { facets, ...configuration } = item.view;
-    return Object.entries(configuration).every(([key, value]) => view[key as keyof BacklogView] === value)
-      && facets.assignee === view.facets.assignee && facets.priority === view.facets.priority && facets.due === view.facets.due;
+    return (
+      Object.entries(configuration).every(
+        ([key, value]) => view[key as keyof BacklogView] === value,
+      ) &&
+      facets.assignee === view.facets.assignee &&
+      facets.priority === view.facets.priority &&
+      facets.due === view.facets.due
+    );
   });
-  const hasFilters = !!(view.search || view.mine || view.blocked || Object.values(view.facets).some(Boolean));
+  const hasFilters = !!(
+    view.search ||
+    view.mine ||
+    view.blocked ||
+    Object.values(view.facets).some(Boolean)
+  );
 
   function clearFilters() {
     update({ ...defaultView, sort: view.sort });
   }
 
-  return <>
-    {pageHeading(addTaskButton())}
-    <Panel className="wu-list-panel">
-      <div className="wu-task-toolbar wu-list-toolbar">
-        <Select className="wu-select" aria-label="Backlog view" value={activeView < 0 ? '' : activeView}
-          onChange={event => update(views[Number(event.currentTarget.value)].view)}>
-          <option value="" disabled>Custom view</option>
-          {views.map((item, index) => <option key={index} value={index}>{item.name}</option>)}
-        </Select>
-        <label className="wu-list-search">
-          <Search size={16} aria-hidden="true" />
-          <Input type="search" aria-label="Search backlog tasks" placeholder="Search by title or task ID" maxLength={200} value={view.search} onChange={event => update({ search: event.currentTarget.value })} />
-        </label>
-        <Select className="wu-select" aria-label="Sort tasks" value={view.sort}
-          onChange={event => update({ sort: event.currentTarget.value as BacklogView['sort'] })}>
-          <option value="manual">Manual rank</option>
-          <option value="priority">Highest priority</option>
-          <option value="due">Earliest due date</option>
-        </Select>
-        <TaskFacets tasks={tasks} value={view.facets} onChange={facets => update({ facets })} />
-        {hasFilters && <button className="wu-text-button" type="button" onClick={clearFilters}>Clear filters</button>}
-        <button className="wu-text-button" type="button" aria-expanded={showSaveForm} disabled={saving || !savedViews.items}
-          onClick={() => { setSaveError(''); setShowSaveForm(value => !value); }}>Save view</button>
-        <span className="wu-task-toolbar-counts" role="status">{backlogTasks.length} {backlogTasks.length === 1 ? 'task' : 'tasks'}</span>
-      </div>
-      {showSaveForm && <form className="wu-list-toolbar" onSubmit={async event => {
-        event.preventDefault();
-        const name = viewName.trim();
-        if (!name || saving || !token) return;
-        setSaving(true);
-        setSaveError('');
-        try {
-          const response = await workspaceRequest(viewsPath, token, jsonRequest('POST', { name, view }));
-          savedViews.setItems(await response.json() as SavedView[]);
-          setViewName('');
-          setShowSaveForm(false);
-        } catch (error) {
-          setSaveError(error instanceof Error ? error.message : 'Could not save the view. Try again.');
-        } finally {
-          setSaving(false);
-        }
-      }}>
-        <label className="wu-list-search"><Input aria-label="View name" placeholder="View name" maxLength={60} required autoFocus
-          value={viewName} onChange={event => setViewName(event.currentTarget.value)} /></label>
-        <Button variant="secondary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
-      </form>}
-      {saveError && <p role="alert">{saveError}</p>}
-      {savedViews.error && <p role="alert">Could not load saved views. <button className="wu-text-button" type="button" onClick={savedViews.retry}>Try again</button></p>}
-      {storageError && <p role="alert">This browser could not remember your current filters.</p>}
-      {backlogTasks.length > 0 ? <TaskTable items={backlogTasks} onSelect={setSelectedTask} />
-        : readOnly && !hasFilters ? <p className="wu-muted">No tasks in this backlog.</p>
-        : <EmptyState icon={<WorkspaceIllustration kind="checklist" />} title="No matching tasks"
-          detail={hasFilters ? 'Change your filters to see more tasks.' : 'Add a task to your backlog.'}
-          action={hasFilters ? 'Clear filters' : 'Add a task'} onAction={hasFilters ? clearFilters : onAddTask} />}
-    </Panel>
-  </>;
+  return (
+    <>
+      {pageHeading(addTaskButton())}
+      <Panel className="wu-list-panel">
+        <div className="wu-task-toolbar wu-list-toolbar">
+          <Select
+            className="wu-select"
+            aria-label="Backlog view"
+            value={activeView < 0 ? '' : activeView}
+            onChange={(event) => update(views[Number(event.currentTarget.value)].view)}
+          >
+            <option value="" disabled>
+              Custom view
+            </option>
+            {views.map((item, index) => (
+              <option key={index} value={index}>
+                {item.name}
+              </option>
+            ))}
+          </Select>
+          <label className="wu-list-search">
+            <Search size={16} aria-hidden="true" />
+            <Input
+              type="search"
+              aria-label="Search backlog tasks"
+              placeholder="Search by title or task ID"
+              maxLength={200}
+              value={view.search}
+              onChange={(event) => update({ search: event.currentTarget.value })}
+            />
+          </label>
+          <Select
+            className="wu-select"
+            aria-label="Sort tasks"
+            value={view.sort}
+            onChange={(event) => update({ sort: event.currentTarget.value as BacklogView['sort'] })}
+          >
+            <option value="manual">Manual rank</option>
+            <option value="priority">Highest priority</option>
+            <option value="due">Earliest due date</option>
+          </Select>
+          <TaskFacets tasks={tasks} value={view.facets} onChange={(facets) => update({ facets })} />
+          {hasFilters && (
+            <button className="wu-text-button" type="button" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
+          <button
+            className="wu-text-button"
+            type="button"
+            aria-expanded={showSaveForm}
+            disabled={saving || !savedViews.items}
+            onClick={() => {
+              setSaveError('');
+              setShowSaveForm((value) => !value);
+            }}
+          >
+            Save view
+          </button>
+          <span className="wu-task-toolbar-counts" role="status">
+            {backlogTasks.length} {backlogTasks.length === 1 ? 'task' : 'tasks'}
+          </span>
+        </div>
+        {showSaveForm && (
+          <form
+            className="wu-list-toolbar"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const name = viewName.trim();
+              if (!name || saving || !token) return;
+              setSaving(true);
+              setSaveError('');
+              try {
+                const response = await workspaceRequest(
+                  viewsPath,
+                  token,
+                  jsonRequest('POST', { name, view }),
+                );
+                savedViews.setItems((await response.json()) as SavedView[]);
+                setViewName('');
+                setShowSaveForm(false);
+              } catch (error) {
+                setSaveError(
+                  error instanceof Error ? error.message : 'Could not save the view. Try again.',
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            <label className="wu-list-search">
+              <Input
+                aria-label="View name"
+                placeholder="View name"
+                maxLength={60}
+                required
+                autoFocus
+                value={viewName}
+                onChange={(event) => setViewName(event.currentTarget.value)}
+              />
+            </label>
+            <Button variant="secondary" type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </form>
+        )}
+        {saveError && <p role="alert">{saveError}</p>}
+        {savedViews.error && (
+          <p role="alert">
+            Could not load saved views.{' '}
+            <button className="wu-text-button" type="button" onClick={savedViews.retry}>
+              Try again
+            </button>
+          </p>
+        )}
+        {storageError && <p role="alert">This browser could not remember your current filters.</p>}
+        {backlogTasks.length > 0 ? (
+          <TaskTable items={backlogTasks} onSelect={setSelectedTask} />
+        ) : readOnly && !hasFilters ? (
+          <p className="wu-muted">No tasks in this backlog.</p>
+        ) : (
+          <EmptyState
+            title="No matching tasks"
+            detail={
+              hasFilters ? 'Change your filters to see more tasks.' : 'Add a task to your backlog.'
+            }
+            action={hasFilters ? 'Clear filters' : 'Add a task'}
+            onAction={hasFilters ? clearFilters : onAddTask}
+          />
+        )}
+      </Panel>
+    </>
+  );
 }

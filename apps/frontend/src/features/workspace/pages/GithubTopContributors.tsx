@@ -38,11 +38,7 @@ export function GithubTopContributors({
           <p>Repository contribution activity</p>
         </div>
 
-        <button
-          type="button"
-          className="wu-text-button"
-          onClick={onViewAll}
-        >
+        <button type="button" className="wu-text-button" onClick={onViewAll}>
           View all
           <ArrowRight size={15} aria-hidden="true" />
         </button>
@@ -60,37 +56,24 @@ export function GithubTopContributors({
           Loading contributors…
         </p>
       ) : rankedContributors.length === 0 ? (
-        <p className="wu-github-top-contributors__state">
-          No contributors found.
-        </p>
+        <p className="wu-github-top-contributors__state">No contributors found.</p>
       ) : (
         <ol className="wu-github-top-contributors__list">
-          {rankedContributors.map(contributor => {
+          {rankedContributors.map((contributor) => {
             const percentage =
               totalContributions > 0
-                ? Math.round(
-                    (contributor.contributions / totalContributions) * 100,
-                  )
+                ? Math.round((contributor.contributions / totalContributions) * 100)
                 : 0;
 
             return (
-              <li
-                key={contributor.login}
-                className="wu-github-top-contributors__item"
-              >
+              <li key={contributor.login} className="wu-github-top-contributors__item">
                 <a
                   href={contributor.profileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`View ${contributor.login} on GitHub`}
                 >
-                  <img
-                    src={contributor.avatarUrl}
-                    alt=""
-                    width={40}
-                    height={40}
-                    loading="lazy"
-                  />
+                  <img src={contributor.avatarUrl} alt="" width={40} height={40} loading="lazy" />
                 </a>
 
                 <div className="wu-github-top-contributors__details">
@@ -119,18 +102,14 @@ export function GithubTopContributors({
                   </div>
                 </div>
 
-                <strong className="wu-github-top-contributors__percentage">
-                  {percentage}%
-                </strong>
+                <strong className="wu-github-top-contributors__percentage">{percentage}%</strong>
               </li>
             );
           })}
         </ol>
       )}
 
-      <p className="wu-github-top-contributors__note">
-        Based on contributions reported by GitHub.
-      </p>
+      <p className="wu-github-top-contributors__note">Based on contributions reported by GitHub.</p>
     </section>
   );
 }

@@ -1,54 +1,128 @@
-import { FormField } from '../../../shared/ui';
-import { IconButton, Button, Input } from '../../../shared/ui';
-import { Select } from '../../../shared/controls/Select';
-import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
+import { ArrowLeft, Pin, Plus } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Pin, Plus } from 'lucide-react';
+import { Select } from '../../../shared/controls/Select';
+import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
+import { Button, FormField, IconButton, Input } from '../../../shared/ui';
 import { Panel, Pill } from '../components';
-import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
+import { projectAppearance } from '../project-appearance';
+import type { PageHeading, Task } from '../types';
+import { useProjectPins } from '../useProjectPins';
 import { jsonRequest, workspaceRequest } from '../workspace-api';
 import { formatCalendarDate } from '../workspace-calendar';
+import {
+  linkProjectTask,
+  projectStatusLabels,
+  type Milestone,
+  type Project,
+  type ProjectProgress,
+  type ProjectTask,
+} from '../workspace-projects';
 import { statusLabels, type Member } from '../workspace-tasks';
-import { linkProjectTask, projectStatusLabels, type Milestone, type Project, type ProjectProgress, type ProjectTask } from '../workspace-projects';
-import type { PageHeading, Task } from '../types';
+import { ActionMenu, Drawer, LoadingPanel } from '../WorkspaceControls';
 import './projects.css';
-import { useProjectPins } from '../useProjectPins';
-import { projectAppearance } from '../project-appearance';
 
 type Editor = { kind: 'project'; item?: Project } | { kind: 'milestone'; item?: Milestone };
 type Removal = { name: string; path: string; project: boolean };
 
 function targetLabel(date: string | null) {
-  return date ? formatCalendarDate(date, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No target date';
+  return date
+    ? formatCalendarDate(date, { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'No target date';
 }
 
 function Progress({ progress, label }: { progress: ProjectProgress; label: string }) {
-  return <span className="wu-project-progress">
-    <progress aria-label={label} max={progress.total || 1} value={progress.done} />
-    <span>{progress.total ? progress.done + ' of ' + progress.total + ' tasks done' : 'No tasks counted toward progress'}</span>
-  </span>;
+  return (
+    <span className="wu-project-progress">
+      <progress aria-label={label} max={progress.total || 1} value={progress.done} />
+      <span>
+        {progress.total
+          ? progress.done + ' of ' + progress.total + ' tasks done'
+          : 'No tasks counted toward progress'}
+      </span>
+    </span>
+  );
 }
 
-function TaskList({ tasks, onOpenTask }: { tasks: ProjectTask[]; onOpenTask: (id: string) => void }) {
-  if (!tasks.length) return <p className="wu-muted">No linked tasks.</p>;
-  return <ul className="wu-project-task-list">{tasks.map(task => <li key={task.id}>
-    <button type="button" className="wu-project-task" onClick={() => onOpenTask(task.id)}>
-      <span>{task.taskNumber ? <small>TASK-{task.taskNumber}</small> : null}<strong>{task.title}</strong></span>
-      <Pill status={task.status}>{statusLabels[task.status]}</Pill>
-    </button>
-  </li>)}</ul>;
-}
-
-export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, onProject, onOpenTask, tasks, members, profileId, workspaceId, path, token, readOnly }: {
-  pageHeading: PageHeading; projects?: Project[]; failed: boolean; retry: () => void;
-  projectId: string | null; onProject: (id?: string) => void; onOpenTask: (id: string) => void;
-  tasks: Task[]; members: Member[]; profileId: string; workspaceId: string; path: string; token: string | null; readOnly: boolean;
+function TaskList({
+  tasks,
+  onOpenTask,
+}: {
+  tasks: ProjectTask[];
+  onOpenTask: (id: string) => void;
 }) {
-  const {pinnedIds,togglePin}=useProjectPins(workspaceId,profileId);
-  const [pinNotice,setPinNotice]=useState('');
-  function pinButton(item:Project){
-    const pinned=pinnedIds.includes(item.id);
-    return <IconButton type="button" className="wu-project-pin-toggle" aria-label={(pinned?'Unpin ':'Pin ')+item.name} aria-pressed={pinned} title={pinned?'Unpin from Home':'Pin to Home'} onClick={()=>{togglePin(item.id);setPinNotice(item.name+(pinned?' unpinned.':' pinned to Home.'));}}><Pin size={16} strokeWidth={1.75} fill={pinned?'currentColor':'none'} aria-hidden="true"/></IconButton>;
+  if (!tasks.length) return <p className="wu-muted">No linked tasks.</p>;
+  return (
+    <ul className="wu-project-task-list">
+      {tasks.map((task) => (
+        <li key={task.id}>
+          <button type="button" className="wu-project-task" onClick={() => onOpenTask(task.id)}>
+            <span>
+              {task.taskNumber ? <small>TASK-{task.taskNumber}</small> : null}
+              <strong>{task.title}</strong>
+            </span>
+            <Pill status={task.status}>{statusLabels[task.status]}</Pill>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ProjectsPage({
+  pageHeading,
+  projects,
+  failed,
+  retry,
+  projectId,
+  onProject,
+  onOpenTask,
+  tasks,
+  members,
+  profileId,
+  workspaceId,
+  path,
+  token,
+  readOnly,
+}: {
+  pageHeading: PageHeading;
+  projects?: Project[];
+  failed: boolean;
+  retry: () => void;
+  projectId: string | null;
+  onProject: (id?: string) => void;
+  onOpenTask: (id: string) => void;
+  tasks: Task[];
+  members: Member[];
+  profileId: string;
+  workspaceId: string;
+  path: string;
+  token: string | null;
+  readOnly: boolean;
+}) {
+  const { pinnedIds, togglePin } = useProjectPins(workspaceId, profileId);
+  const [pinNotice, setPinNotice] = useState('');
+  function pinButton(item: Project) {
+    const pinned = pinnedIds.includes(item.id);
+    return (
+      <IconButton
+        type="button"
+        className="wu-project-pin-toggle"
+        aria-label={(pinned ? 'Unpin ' : 'Pin ') + item.name}
+        aria-pressed={pinned}
+        title={pinned ? 'Unpin from Home' : 'Pin to Home'}
+        onClick={() => {
+          togglePin(item.id);
+          setPinNotice(item.name + (pinned ? ' unpinned.' : ' pinned to Home.'));
+        }}
+      >
+        <Pin
+          size={16}
+          strokeWidth={1.75}
+          fill={pinned ? 'currentColor' : 'none'}
+          aria-hidden="true"
+        />
+      </IconButton>
+    );
   }
   const [editor, setEditor] = useState<Editor>();
   const [removal, setRemoval] = useState<Removal>();
@@ -57,10 +131,12 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
   const [taskSelection, setTaskSelection] = useState('');
   const [milestoneSelection, setMilestoneSelection] = useState('');
   const saving = useRef(false);
-  const project = projects?.find(item => item.id === projectId);
-  const linked = new Set(projects?.flatMap(item => item.tasks.map(task => task.id)));
-  const available = tasks.filter(task => !linked.has(task.id));
-  const owner = (id: string | null) => members.find(member => member.userId === id)?.username ?? (id ? 'Workspace member' : 'Unassigned');
+  const project = projects?.find((item) => item.id === projectId);
+  const linked = new Set(projects?.flatMap((item) => item.tasks.map((task) => task.id)));
+  const available = tasks.filter((task) => !linked.has(task.id));
+  const owner = (id: string | null) =>
+    members.find((member) => member.userId === id)?.username ??
+    (id ? 'Workspace member' : 'Unassigned');
 
   async function perform(action: () => Promise<void>) {
     if (readOnly || saving.current || !token) return;
@@ -78,128 +154,408 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
     }
   }
 
-  function edit(next: Editor) { setError(''); setEditor(next); }
-  function remove(next: Removal) { setError(''); setRemoval(next); }
+  function edit(next: Editor) {
+    setError('');
+    setEditor(next);
+  }
+  function remove(next: Removal) {
+    setError('');
+    setRemoval(next);
+  }
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editor) return;
     const fields = new FormData(event.currentTarget);
     const name = String(fields.get('name') ?? '').trim();
-    if (!name) { setError('Enter a name.'); return; }
+    if (!name) {
+      setError('Enter a name.');
+      return;
+    }
     const common = { name, targetDate: fields.get('targetDate') || null };
     const isProject = editor.kind === 'project';
     if (!isProject && !project) return;
     const route = isProject ? path : path + '/' + project?.id + '/milestones';
-    const body = isProject ? { ...common, status: fields.get('status'), ownerId: fields.get('ownerId') || null } : common;
+    const body = isProject
+      ? { ...common, status: fields.get('status'), ownerId: fields.get('ownerId') || null }
+      : common;
     void perform(async () => {
-      await workspaceRequest(route + (editor.item ? '/' + editor.item.id : ''), token, jsonRequest(editor.item ? 'PUT' : 'POST', body));
+      await workspaceRequest(
+        route + (editor.item ? '/' + editor.item.id : ''),
+        token,
+        jsonRequest(editor.item ? 'PUT' : 'POST', body),
+      );
       setEditor(undefined);
     });
   }
 
-  return <>
-    <span className="wu-visually-hidden" role="status">{pinNotice}</span>
-    {pageHeading(!readOnly && (!projectId || project) && <Button type="button" variant="primary" className="wu-button--with-icon" disabled={busy} onClick={() => edit({ kind: project ? 'milestone' : 'project' })}>
-      <Plus size={16} aria-hidden="true" />{project ? 'New milestone' : 'New project'}
-    </Button>)}
-    {failed ? <Panel className="wu-project-panel"><p role="alert">Could not load projects. <button className="wu-text-button" type="button" onClick={retry}>Try again</button></p></Panel>
-      : !projects ? <LoadingPanel label="Loading projects" />
-      : projectId ? <>
-        <button className="wu-text-button wu-project-back" type="button" onClick={() => onProject()}><ArrowLeft size={15} aria-hidden="true" />All projects</button>
-        {project ? <>
-          <Panel className="wu-project-panel wu-project-overview">
-            <div className="wu-panel-heading">
-              <h2>{project.name}</h2>
-              <div className="wu-project-actions">{pinButton(project)}<Pill tone={project.status === 'completed' ? 'green' : 'blue'}>{projectStatusLabels[project.status]}</Pill>
-                {!readOnly && <ActionMenu label="Project actions" actions={[
-                  { label: 'Edit project', disabled: busy, run: () => edit({ kind: 'project', item: project }) },
-                  { label: 'Delete project', disabled: busy, run: () => remove({ name: project.name, path: path + '/' + project.id, project: true }) },
-                ]} />}
-              </div>
-            </div>
-            <p className="wu-muted">Owner {owner(project.ownerId)} · {targetLabel(project.targetDate)}</p>
-            <Progress progress={project.progress} label="Project progress" />
-            <p className="wu-muted">Progress counts linked tasks and excludes cancelled tasks.</p>
-          </Panel>
-          {!readOnly && !!available.length && <Panel className="wu-project-panel">
-            <h2>Link a task</h2>
-            <form className="wu-project-link-form" onSubmit={event => {
-              event.preventDefault();
-              if (!taskSelection) return;
-              void perform(async () => {
-                const milestoneId = project.milestones.find(item => item.id === milestoneSelection)?.id ?? null;
-                await linkProjectTask(path, token, taskSelection, project.id, milestoneId, true);
-                setTaskSelection('');
-              });
-            }}>
-              <label className="wu-field-label">Task<Select required value={taskSelection} onChange={event => setTaskSelection(event.target.value)}>
-                <option value="">Choose an ungrouped task</option>{available.map(task => <option key={task.id} value={task.id}>{task.taskKey ? task.taskKey + ' · ' : ''}{task.title}</option>)}
-              </Select></label>
-              {!!project.milestones.length && <label className="wu-field-label">Milestone<Select value={milestoneSelection} onChange={event => setMilestoneSelection(event.target.value)}>
-                <option value="">No milestone</option>{project.milestones.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </Select></label>}
-              <Button type="submit" variant="secondary" disabled={busy || !taskSelection}>Link task</Button>
-            </form>
-          </Panel>}
-          {!editor && !removal && error && <p role="alert">{error}</p>}
-          <Panel className="wu-project-panel">
-            <h2>Milestones</h2>
-            {!project.milestones.length && <IllustratedEmptyState compact kind="calendar" title="No milestones yet" detail="Set a target date for the next stage of this project." />}
-            {project.milestones.map(item => <section key={item.id} className="wu-project-milestone">
-              <div className="wu-panel-heading"><div><h3>{item.name}</h3><p>{targetLabel(item.targetDate)}</p></div>
-                {!readOnly && <ActionMenu label={'Actions for ' + item.name} actions={[
-                  { label: 'Edit milestone', disabled: busy, run: () => edit({ kind: 'milestone', item }) },
-                  { label: 'Delete milestone', disabled: busy, run: () => remove({ name: item.name, path: path + '/' + project.id + '/milestones/' + item.id, project: false }) },
-                ]} />}
-              </div>
-              <Progress progress={item.progress} label={item.name + ' progress'} />
-              <TaskList tasks={project.tasks.filter(task => task.milestoneId === item.id)} onOpenTask={onOpenTask} />
-            </section>)}
-          </Panel>
-          <Panel className="wu-project-panel"><h2>Tasks without a milestone</h2>
-            <TaskList tasks={project.tasks.filter(task => !task.milestoneId)} onOpenTask={onOpenTask} />
-          </Panel>
-        </> : <Panel className="wu-project-panel"><p role="status">This project is unavailable.</p></Panel>}
-      </> : projects.length ? <ul className="wu-project-grid">{projects.map(item => <li key={item.id}>
-        <button type="button" className="wu-panel wu-project-card wu-project-folder" style={projectAppearance(item.id)} onClick={() => onProject(item.id)}>
-          <span className="wu-folder-cover" aria-hidden="true"/>
-          <span className="wu-folder-front">
-            <span className="wu-project-card-heading"><strong>{item.name}</strong></span>
-            <span className="wu-folder-subtitle">{projectStatusLabels[item.status]} · {item.milestones.length} {item.milestones.length===1?'milestone':'milestones'}</span>
-            <span className="wu-folder-stats"><span><strong>{item.progress.total.toString().padStart(2,'0')}</strong><span>tasks</span></span><span><strong>{item.progress.total?Math.round(item.progress.done/item.progress.total*100):0}%</strong><span>complete</span></span></span>
-            <progress value={item.progress.done} max={item.progress.total||1} aria-label={item.name+' completion'} aria-valuetext={item.progress.done+' of '+item.progress.total+' tasks done'}/>
-          </span>
-        </button>
-        {pinButton(item)}
-      </li>)}</ul> : <Panel className="wu-project-panel"><IllustratedEmptyState kind="projects" title="No projects yet" detail="Group related tasks and milestones in a project." action={!readOnly ? 'Create project' : undefined} onAction={() => edit({kind:'project'})} /></Panel>}
-    {!readOnly && editor && <Drawer title={(editor.item ? 'Edit ' : 'New ') + editor.kind} closeDisabled={busy} onClose={() => setEditor(undefined)}>
-      <form className="wu-project-form" onSubmit={save}>
-        <FormField label="Name" htmlFor="project-name"><Input name="name" required maxLength={120} defaultValue={editor.item?.name} placeholder={editor.kind === 'project' ? 'e.g. Workspace onboarding' : 'e.g. Release candidate'} /></FormField>
-        <FormField label="Target date" htmlFor="project-target-date"><Input name="targetDate" type="date" min="1000-01-01" max="9999-12-31" defaultValue={editor.item?.targetDate ?? ''} /></FormField>
-        {editor.kind === 'project' && <>
-          <label className="wu-field-label">Owner<Select name="ownerId" defaultValue={editor.item ? editor.item.ownerId ?? '' : profileId}>
-            <option value="">Unassigned</option>{members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-          </Select></label>
-          <label className="wu-field-label">Status<Select name="status" defaultValue={editor.item?.status ?? 'planned'}>
-            {Object.entries(projectStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </Select></label>
-        </>}
-        {error && <p role="alert">{error}</p>}
-        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Saving…' : editor.item ? 'Save changes' : 'Create ' + editor.kind}</Button>
-      </form>
-    </Drawer>}
-    {!readOnly && removal && <Drawer title={'Delete ' + removal.name + '?'} confirmation closeDisabled={busy} onClose={() => setRemoval(undefined)}>
-      <p>{removal.project ? 'Its tasks will remain in the workspace as ungrouped tasks.' : 'Its tasks will stay in the project without a milestone.'}</p>
-      {error && <p role="alert">{error}</p>}
-      <div className="wu-modal-actions">
-        <Button type="button" variant="secondary" disabled={busy} onClick={() => setRemoval(undefined)}>Cancel</Button>
-        <Button type="button" variant="primary" disabled={busy} onClick={() => void perform(async () => {
-          await workspaceRequest(removal.path, token, { method: 'DELETE' });
-          setRemoval(undefined);
-          if (removal.project) onProject();
-        })}>Delete</Button>
-      </div>
-    </Drawer>}
-  </>;
+  return (
+    <>
+      <span className="wu-visually-hidden" role="status">
+        {pinNotice}
+      </span>
+      {pageHeading(
+        !readOnly && (!projectId || project) && (
+          <Button
+            type="button"
+            variant="primary"
+            className="wu-button--with-icon"
+            disabled={busy}
+            onClick={() => edit({ kind: project ? 'milestone' : 'project' })}
+          >
+            <Plus size={16} aria-hidden="true" />
+            {project ? 'New milestone' : 'New project'}
+          </Button>
+        ),
+      )}
+      {failed ? (
+        <Panel className="wu-project-panel">
+          <p role="alert">
+            Could not load projects.{' '}
+            <button className="wu-text-button" type="button" onClick={retry}>
+              Try again
+            </button>
+          </p>
+        </Panel>
+      ) : !projects ? (
+        <LoadingPanel label="Loading projects" />
+      ) : projectId ? (
+        <>
+          <button
+            className="wu-text-button wu-project-back"
+            type="button"
+            onClick={() => onProject()}
+          >
+            <ArrowLeft size={15} aria-hidden="true" />
+            All projects
+          </button>
+          {project ? (
+            <>
+              <Panel className="wu-project-panel wu-project-overview">
+                <div className="wu-panel-heading">
+                  <h2>{project.name}</h2>
+                  <div className="wu-project-actions">
+                    {pinButton(project)}
+                    <Pill tone={project.status === 'completed' ? 'green' : 'blue'}>
+                      {projectStatusLabels[project.status]}
+                    </Pill>
+                    {!readOnly && (
+                      <ActionMenu
+                        label="Project actions"
+                        actions={[
+                          {
+                            label: 'Edit project',
+                            disabled: busy,
+                            run: () => edit({ kind: 'project', item: project }),
+                          },
+                          {
+                            label: 'Delete project',
+                            disabled: busy,
+                            run: () =>
+                              remove({
+                                name: project.name,
+                                path: path + '/' + project.id,
+                                project: true,
+                              }),
+                          },
+                        ]}
+                      />
+                    )}
+                  </div>
+                </div>
+                <p className="wu-muted">
+                  Owner {owner(project.ownerId)} · {targetLabel(project.targetDate)}
+                </p>
+                <Progress progress={project.progress} label="Project progress" />
+                <p className="wu-muted">
+                  Progress counts linked tasks and excludes cancelled tasks.
+                </p>
+              </Panel>
+              {!readOnly && !!available.length && (
+                <Panel className="wu-project-panel">
+                  <h2>Link a task</h2>
+                  <form
+                    className="wu-project-link-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (!taskSelection) return;
+                      void perform(async () => {
+                        const milestoneId =
+                          project.milestones.find((item) => item.id === milestoneSelection)?.id ??
+                          null;
+                        await linkProjectTask(
+                          path,
+                          token,
+                          taskSelection,
+                          project.id,
+                          milestoneId,
+                          true,
+                        );
+                        setTaskSelection('');
+                      });
+                    }}
+                  >
+                    <label className="wu-field-label">
+                      Task
+                      <Select
+                        required
+                        value={taskSelection}
+                        onChange={(event) => setTaskSelection(event.target.value)}
+                      >
+                        <option value="">Choose an ungrouped task</option>
+                        {available.map((task) => (
+                          <option key={task.id} value={task.id}>
+                            {task.taskKey ? task.taskKey + ' · ' : ''}
+                            {task.title}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    {!!project.milestones.length && (
+                      <label className="wu-field-label">
+                        Milestone
+                        <Select
+                          value={milestoneSelection}
+                          onChange={(event) => setMilestoneSelection(event.target.value)}
+                        >
+                          <option value="">No milestone</option>
+                          {project.milestones.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                    )}
+                    <Button type="submit" variant="secondary" disabled={busy || !taskSelection}>
+                      Link task
+                    </Button>
+                  </form>
+                </Panel>
+              )}
+              {!editor && !removal && error && <p role="alert">{error}</p>}
+              <Panel className="wu-project-panel">
+                <h2>Milestones</h2>
+                {!project.milestones.length && (
+                  <IllustratedEmptyState
+                    compact
+                    kind="calendar"
+                    title="No milestones yet"
+                    detail="Set a target date for the next stage of this project."
+                  />
+                )}
+                {project.milestones.map((item) => (
+                  <section key={item.id} className="wu-project-milestone">
+                    <div className="wu-panel-heading">
+                      <div>
+                        <h3>{item.name}</h3>
+                        <p>{targetLabel(item.targetDate)}</p>
+                      </div>
+                      {!readOnly && (
+                        <ActionMenu
+                          label={'Actions for ' + item.name}
+                          actions={[
+                            {
+                              label: 'Edit milestone',
+                              disabled: busy,
+                              run: () => edit({ kind: 'milestone', item }),
+                            },
+                            {
+                              label: 'Delete milestone',
+                              disabled: busy,
+                              run: () =>
+                                remove({
+                                  name: item.name,
+                                  path: path + '/' + project.id + '/milestones/' + item.id,
+                                  project: false,
+                                }),
+                            },
+                          ]}
+                        />
+                      )}
+                    </div>
+                    <Progress progress={item.progress} label={item.name + ' progress'} />
+                    <TaskList
+                      tasks={project.tasks.filter((task) => task.milestoneId === item.id)}
+                      onOpenTask={onOpenTask}
+                    />
+                  </section>
+                ))}
+              </Panel>
+              <Panel className="wu-project-panel">
+                <h2>Tasks without a milestone</h2>
+                <TaskList
+                  tasks={project.tasks.filter((task) => !task.milestoneId)}
+                  onOpenTask={onOpenTask}
+                />
+              </Panel>
+            </>
+          ) : (
+            <Panel className="wu-project-panel">
+              <p role="status">This project is unavailable.</p>
+            </Panel>
+          )}
+        </>
+      ) : projects.length ? (
+        <ul className="wu-project-grid">
+          {projects.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                className="wu-panel wu-project-card wu-project-folder"
+                style={projectAppearance(item.id)}
+                onClick={() => onProject(item.id)}
+              >
+                <span className="wu-folder-cover" aria-hidden="true" />
+                <span className="wu-folder-front">
+                  <span className="wu-project-card-heading">
+                    <strong>{item.name}</strong>
+                  </span>
+                  <span className="wu-folder-subtitle">
+                    {projectStatusLabels[item.status]} · {item.milestones.length}{' '}
+                    {item.milestones.length === 1 ? 'milestone' : 'milestones'}
+                  </span>
+                  <span className="wu-folder-stats">
+                    <span>
+                      <strong>{item.progress.total.toString().padStart(2, '0')}</strong>
+                      <span>tasks</span>
+                    </span>
+                    <span>
+                      <strong>
+                        {item.progress.total
+                          ? Math.round((item.progress.done / item.progress.total) * 100)
+                          : 0}
+                        %
+                      </strong>
+                      <span>complete</span>
+                    </span>
+                  </span>
+                  <progress
+                    value={item.progress.done}
+                    max={item.progress.total || 1}
+                    aria-label={item.name + ' completion'}
+                    aria-valuetext={
+                      item.progress.done + ' of ' + item.progress.total + ' tasks done'
+                    }
+                  />
+                </span>
+              </button>
+              {pinButton(item)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Panel className="wu-project-panel">
+          <IllustratedEmptyState
+            kind="projects"
+            title="No projects yet"
+            detail="Group related tasks and milestones in a project."
+            action={!readOnly ? 'Create project' : undefined}
+            onAction={() => edit({ kind: 'project' })}
+          />
+        </Panel>
+      )}
+      {!readOnly && editor && (
+        <Drawer
+          title={(editor.item ? 'Edit ' : 'New ') + editor.kind}
+          closeDisabled={busy}
+          onClose={() => setEditor(undefined)}
+        >
+          <form className="wu-project-form" onSubmit={save}>
+            <FormField label="Name" htmlFor="project-name">
+              <Input
+                name="name"
+                required
+                maxLength={120}
+                defaultValue={editor.item?.name}
+                placeholder={
+                  editor.kind === 'project' ? 'e.g. Workspace onboarding' : 'e.g. Release candidate'
+                }
+              />
+            </FormField>
+            <FormField label="Target date" htmlFor="project-target-date">
+              <Input
+                name="targetDate"
+                type="date"
+                min="1000-01-01"
+                max="9999-12-31"
+                defaultValue={editor.item?.targetDate ?? ''}
+              />
+            </FormField>
+            {editor.kind === 'project' && (
+              <>
+                <label className="wu-field-label">
+                  Owner
+                  <Select
+                    name="ownerId"
+                    defaultValue={editor.item ? (editor.item.ownerId ?? '') : profileId}
+                  >
+                    <option value="">Unassigned</option>
+                    {members.map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.username}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="wu-field-label">
+                  Status
+                  <Select name="status" defaultValue={editor.item?.status ?? 'planned'}>
+                    {Object.entries(projectStatusLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              </>
+            )}
+            {error && <p role="alert">{error}</p>}
+            <Button type="submit" variant="primary" disabled={busy}>
+              {busy ? 'Saving…' : editor.item ? 'Save changes' : 'Create ' + editor.kind}
+            </Button>
+          </form>
+        </Drawer>
+      )}
+      {!readOnly && removal && (
+        <Drawer
+          title={'Delete ' + removal.name + '?'}
+          confirmation
+          closeDisabled={busy}
+          onClose={() => setRemoval(undefined)}
+        >
+          <p>
+            {removal.project
+              ? 'Its tasks will remain in the workspace as ungrouped tasks.'
+              : 'Its tasks will stay in the project without a milestone.'}
+          </p>
+          {error && <p role="alert">{error}</p>}
+          <div className="wu-modal-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setRemoval(undefined)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={busy}
+              onClick={() =>
+                void perform(async () => {
+                  await workspaceRequest(removal.path, token, { method: 'DELETE' });
+                  setRemoval(undefined);
+                  if (removal.project) onProject();
+                })
+              }
+            >
+              Delete
+            </Button>
+          </div>
+        </Drawer>
+      )}
+    </>
+  );
 }

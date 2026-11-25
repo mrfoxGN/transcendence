@@ -1,6 +1,6 @@
-import { Icon } from './Icon';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { Icon } from './Icon';
 export function Dialog({
   title,
   children,

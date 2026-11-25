@@ -363,7 +363,7 @@
   background: var(--wu-surface-soft);
 }
 
-.wu-github-tab[aria-pressed="true"] {
+.wu-github-tab[aria-selected="true"] {
   border-color: color-mix(
     in srgb,
     var(--wu-blue) 70%,
@@ -380,7 +380,7 @@
     color-mix(in srgb, var(--wu-blue) 14%, transparent);
 }
 
-.wu-github-tab[aria-pressed="true"] svg {
+.wu-github-tab[aria-selected="true"] svg {
   color: var(--wu-blue);
 }
 

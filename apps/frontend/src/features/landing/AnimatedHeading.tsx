@@ -1,7 +1,11 @@
 import type { CSSProperties } from 'react';
 
 // GodUI Text Animate's staggered word entrance on a native heading element.
-export function AnimatedHeading({ as: Heading, id, lines }: {
+export function AnimatedHeading({
+  as: Heading,
+  id,
+  lines,
+}: {
   as: 'h1' | 'h3';
   id?: string;
   lines: string[];
@@ -14,7 +18,11 @@ export function AnimatedHeading({ as: Heading, id, lines }: {
         {lines.map((line, lineIndex) => (
           <span key={line} className="animated-heading-line">
             {line.split(' ').map((word, wordIndex) => (
-              <span key={wordIndex} className="animated-heading-word" style={{ '--word-index': index++ } as CSSProperties}>
+              <span
+                key={wordIndex}
+                className="animated-heading-word"
+                style={{ '--word-index': index++ } as CSSProperties}
+              >
                 {word}{' '}
               </span>
             ))}

@@ -4,7 +4,7 @@
 .devup-design .workspace-app .wu-github-workbench .wu-github-tabs { width: fit-content; max-width: 100%; gap: 3px; margin: 8px 0 20px; padding: 3px; border: 0; border-radius: 9px; background: var(--wu-surface-soft); scrollbar-width: none; }
 .devup-design .workspace-app .wu-github-workbench .wu-github-tabs::-webkit-scrollbar { display: none; }
 .devup-design .workspace-app .wu-github-workbench .wu-github-tab { min-height: 33px; padding: 0 12px; border: 0; border-radius: 6px; font-size: 12px; font-weight: 400; box-shadow: none; }
-.devup-design .workspace-app .wu-github-workbench .wu-github-tab[aria-pressed='true'] { background: var(--wu-surface); color: var(--wu-ink); box-shadow: 0 1px 4px #17244012; font-weight: 500; }
+.devup-design .workspace-app .wu-github-workbench .wu-github-tab[aria-selected='true'] { background: var(--wu-surface); color: var(--wu-ink); box-shadow: 0 1px 4px #17244012; font-weight: 500; }
 .devup-design .workspace-app .wu-github-workbench .wu-github-overview-shell { padding: 0; border: 0; background: transparent; box-shadow: none; }
 .devup-design .workspace-app .wu-github-workbench .wu-github-overview { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.35fr); align-items: stretch; gap: 16px; }
 .devup-design .workspace-app .wu-github-workbench .wu-github-repository,

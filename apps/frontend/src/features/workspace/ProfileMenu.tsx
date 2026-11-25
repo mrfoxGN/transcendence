@@ -1,8 +1,8 @@
 import { ChevronRight, Contrast, LogOut, UserRound, UsersRound } from 'lucide-react';
 import { useHoverDisclosure } from '../../shared/controls/useHoverDisclosure';
 import { useHoverPopover } from '../../shared/controls/useHoverPopover';
-import { Avatar } from '../../shared/ui/Avatar';
 import type { ThemePreference } from '../../shared/design-system/theme';
+import { Avatar } from '../../shared/ui/Avatar';
 
 type ProfileMenuProps = {
   profileId: string;

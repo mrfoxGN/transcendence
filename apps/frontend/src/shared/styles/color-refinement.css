@@ -14,7 +14,7 @@
 .devup-design .workspace-app[data-theme=dark] .wu-topbar { background:var(--wu-canvas); border-color:var(--wu-line); }
 .devup-design .workspace-app[data-theme=dark] .wu-sidebar .wu-nav-item.is-active { background:#342a4b; color:#e2d6ff!important; box-shadow:inset 0 1px 0 #ffffff08; }
 .devup-design .workspace-app[data-theme=dark] .wu-sidebar .wu-nav-item.is-active > svg { color:#c3b2ff; }
-.devup-design .workspace-app :is(.wu-chip.is-active,.wu-github-tab[aria-pressed=true],.wu-file-type-tabs button[aria-pressed=true],.wu-chat-tabs button[aria-pressed=true],.wu-settings-section-nav button[aria-current=page]) { background:var(--wu-blue-soft); color:var(--wu-blue); }
+.devup-design .workspace-app :is(.wu-chip.is-active,.wu-github-tab[aria-selected=true],.wu-file-type-tabs button[aria-pressed=true],.wu-chat-tabs button[aria-pressed=true],.wu-settings-section-nav button[aria-current=page]) { background:var(--wu-blue-soft); color:var(--wu-blue); }
 .devup-design .workspace-app .wu-conversation[aria-current] { background:var(--wu-blue-soft); border-inline-start-color:var(--wu-violet); }
 .devup-design .workspace-app [data-status=backlog] { --status-ink:var(--wu-status-backlog); }
 .devup-design .workspace-app [data-status=todo] { --status-ink:var(--wu-status-todo); }

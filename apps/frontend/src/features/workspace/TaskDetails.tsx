@@ -1,22 +1,55 @@
-import { Input, Textarea, Button } from '../../shared/ui';
-import { Select } from '../../shared/controls/Select';
 import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
+import { Select } from '../../shared/controls/Select';
+import { Button, Input, Textarea } from '../../shared/ui';
 import { Drawer } from './WorkspaceControls';
-import { Pill } from './components';
-import { jsonRequest, useWorkspaceCollection, workspaceRequest, WorkspaceRequestError, type WorkspaceFile } from './workspace-api';
-import { allTaskColumns, canTransition, statusCodes, statusLabels, taskPriorities, type BoardColumnConfig, type Member } from './workspace-tasks';
-import type { Task } from './types';
 import { finishInputEdit, saveTextOnBlur } from './autosave';
+import { Pill } from './components';
+import type { Task } from './types';
+import {
+  jsonRequest,
+  useWorkspaceCollection,
+  workspaceRequest,
+  WorkspaceRequestError,
+  type WorkspaceFile,
+} from './workspace-api';
+import {
+  allTaskColumns,
+  canTransition,
+  statusCodes,
+  taskPriorities,
+  type Member,
+} from './workspace-tasks';
 
 type Comment = { id: string; authorId: string | null; content: string; createdAt: string };
 type Dependency = { id: string; dependsOnTaskId: string };
 type TaskEdit = { suffix: string; method: string; body?: Record<string, unknown> };
 
-export function TaskDetails({ task, tasks, members, token, profileId, onClose, onChange, files, openTask, openFile, onBack, boardColumns, projectSection, readOnly = false }: {
-  task: Task; tasks: Task[]; members: Member[]; token: string | null; profileId: string;
-  onClose: () => void; onChange: () => void;
-  files: WorkspaceFile[]; openTask: (task: Task) => void; openFile: (file: WorkspaceFile) => void; onBack?: () => void;
-  boardColumns: BoardColumnConfig[];
+export function TaskDetails({
+  task,
+  tasks,
+  members,
+  token,
+  profileId,
+  onClose,
+  onChange,
+  files,
+  openTask,
+  openFile,
+  onBack,
+  projectSection,
+  readOnly = false,
+}: {
+  task: Task;
+  tasks: Task[];
+  members: Member[];
+  token: string | null;
+  profileId: string;
+  onClose: () => void;
+  onChange: () => void;
+  files: WorkspaceFile[];
+  openTask: (task: Task) => void;
+  openFile: (file: WorkspaceFile) => void;
+  onBack?: () => void;
   projectSection?: ReactNode;
   readOnly?: boolean;
 }) {
@@ -30,9 +63,13 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     const controller = new AbortController();
     setWatchError('');
     void workspaceRequest(path + '/watch', token, { signal: controller.signal })
-      .then(response => response.json())
-      .then((result: { watching: boolean }) => { if (!controller.signal.aborted) setWatching(result.watching); })
-      .catch(() => { if (!controller.signal.aborted) setWatchError('Could not load watch status.'); });
+      .then((response) => response.json())
+      .then((result: { watching: boolean }) => {
+        if (!controller.signal.aborted) setWatching(result.watching);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setWatchError('Could not load watch status.');
+      });
     return () => controller.abort();
   }, [path, token, watchRetry]);
 
@@ -41,7 +78,9 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     setWatchBusy(true);
     setWatchError('');
     try {
-      const response = await workspaceRequest(path + '/watch', token, { method: watching ? 'DELETE' : 'PUT' });
+      const response = await workspaceRequest(path + '/watch', token, {
+        method: watching ? 'DELETE' : 'PUT',
+      });
       const result: { watching: boolean } = await response.json();
       setWatching(result.watching);
     } catch {
@@ -59,14 +98,21 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   const [editingComment, setEditingComment] = useState<string>();
   const [editingTask, setEditingTask] = useState(false);
   const [assigneeDraft, setAssigneeDraft] = useState<string>();
-  const [failedEdits, setFailedEdits] = useState<Record<string, { edit: TaskEdit; message: string }>>({});
+  const [failedEdits, setFailedEdits] = useState<
+    Record<string, { edit: TaskEdit; message: string }>
+  >({});
   const [linkToCopy, setLinkToCopy] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const latestEdits = useRef<Record<string, TaskEdit>>({});
   const queue = useRef(Promise.resolve());
   const pending = useRef(0);
 
-  function mutate(suffix: string, method: string, body?: Record<string, unknown>, editKey?: string) {
+  function mutate(
+    suffix: string,
+    method: string,
+    body?: Record<string, unknown>,
+    editKey?: string,
+  ) {
     if (!token || readOnly) return Promise.resolve(false);
     const edit = { suffix, method, body };
     if (editKey) latestEdits.current[editKey] = edit;
@@ -81,7 +127,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         else if (suffix.startsWith('/dependencies')) dependencies.retry();
         else onChange();
         if (editKey && latestEdits.current[editKey] === edit) {
-          setFailedEdits(current => {
+          setFailedEdits((current) => {
             if (!current[editKey]) return current;
             const next = { ...current };
             delete next[editKey];
@@ -94,7 +140,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         const message = error instanceof Error ? error.message : 'Try again.';
         if (!editKey) setError(message);
         else if (latestEdits.current[editKey] === edit) {
-          setFailedEdits(current => ({ ...current, [editKey]: { edit, message } }));
+          setFailedEdits((current) => ({ ...current, [editKey]: { edit, message } }));
         }
         return false;
       } finally {
@@ -133,11 +179,15 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
           }
         }
         if (targetUserId) {
-          await workspaceRequest(path + '/assignment', token, jsonRequest('POST', { userId: targetUserId }));
+          await workspaceRequest(
+            path + '/assignment',
+            token,
+            jsonRequest('POST', { userId: targetUserId }),
+          );
         }
         onChange();
         if (latestEdits.current[editKey] === edit) {
-          setFailedEdits(current => {
+          setFailedEdits((current) => {
             if (!current[editKey]) return current;
             const next = { ...current };
             delete next[editKey];
@@ -149,7 +199,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Try again.';
         if (latestEdits.current[editKey] === edit) {
-          setFailedEdits(current => ({ ...current, [editKey]: { edit, message } }));
+          setFailedEdits((current) => ({ ...current, [editKey]: { edit, message } }));
         }
         return false;
       } finally {
@@ -162,12 +212,18 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     return request;
   }
 
-  const save = (key: string, value: string | null) => void mutate('', 'PATCH', { [key]: value }, key);
+  const save = (key: string, value: string | null) =>
+    void mutate('', 'PATCH', { [key]: value }, key);
 
-  function saveFieldOnBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>, key: string, saved: string, nullable = false) {
+  function saveFieldOnBlur(
+    event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
+    key: string,
+    saved: string,
+    nullable = false,
+  ) {
     const lastValue = latestEdits.current[key]?.body?.[key];
     const previous = lastValue === null ? '' : typeof lastValue === 'string' ? lastValue : saved;
-    saveTextOnBlur(event, previous, value => save(key, nullable && !value ? null : value));
+    saveTextOnBlur(event, previous, (value) => save(key, nullable && !value ? null : value));
   }
 
   function retryEdits() {
@@ -197,156 +253,496 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
   }
 
   const currentStatusCode = statusCodes[task.status];
-  const currentColumn = allTaskColumns.find(column => column.status === currentStatusCode);
-  const destinations = allTaskColumns.filter(column => column.status !== currentStatusCode && canTransition(task.status, column.label));
+  const currentColumn = allTaskColumns.find((column) => column.status === currentStatusCode);
+  const destinations = allTaskColumns.filter(
+    (column) => column.status !== currentStatusCode && canTransition(task.status, column.label),
+  );
   const hasFailedEdits = Object.keys(failedEdits).length > 0;
 
-  return <Drawer title={task.title} onClose={onClose}>
-    <div className="wu-task-inspector">
-    <div className="wu-panel-heading">
-      {task.taskKey && <Pill>{task.taskKey}</Pill>}
-      <button className="wu-text-button" type="button" onClick={() => void copyTaskLink()}>Copy link</button>
-      {watching !== undefined && <button className="wu-text-button" type="button" disabled={watchBusy}
-        onClick={() => void toggleWatch()}>{watchBusy ? 'Updating…' : watching ? 'Unwatch task' : 'Watch task'}</button>}
-      {linkCopied && <span className="wu-muted" role="status">Link copied.</span>}
-    </div>
-    {watchError && <p role="alert">{watchError} {watching === undefined && <button className="wu-text-button" type="button"
-      onClick={() => setWatchRetry(value => value + 1)}>Retry</button>}</p>}
-    {linkToCopy && <label className="wu-field-label">Task link
-      <Input value={linkToCopy} readOnly autoFocus onFocus={event => event.currentTarget.select()} />
-    </label>}
-    {onBack && <button className="wu-text-button" type="button" onClick={onBack}>Back to previous task</button>}
-    <dl className="wu-task-summary">
-      <div><dt>Column</dt><dd><Pill status={task.status} tone={task.status === 'Done' ? 'mint' : 'neutral'}>{currentColumn?.label ?? task.status}</Pill>{task.isBlocked && <Pill tone="red">Blocked</Pill>}</dd></div>
-      <div><dt>Assignee</dt><dd>{task.person}</dd></div>
-      <div><dt>Priority</dt><dd>{task.priority === 'None' ? 'No priority' : task.priority}</dd></div>
-      <div><dt>Due date</dt><dd>{task.dueDate ? task.due : 'No due date'}</dd></div>
-    </dl>
-    {projectSection}
-    {error && <p role="alert">{error}</p>}
-    {hasFailedEdits && !busy && <div role="alert">
-      <p>Couldn’t save your changes. {Object.values(failedEdits)[0].message}</p>
-      <button className="wu-text-button" type="button" onClick={retryEdits}>Retry save</button>
-    </div>}
-    {(busy || (notice && !hasFailedEdits)) && <p role="status">{busy ? 'Saving changes…' : notice}</p>}
-    {editingTask && !readOnly ? <section className="wu-column-form wu-task-editor">
-      <div className="wu-panel-heading"><h3>Edit task</h3><button className="wu-text-button" type="button" disabled={busy || hasFailedEdits} onClick={() => {
-        if (pending.current) return;
-        latestEdits.current = {};
-        setEditingTask(false);
-      }}>Done editing</button></div>
-      <label className="wu-field-label">Title<Input name="title" defaultValue={task.title} placeholder="e.g. Fix login form validation" required maxLength={200}
-        onBlur={event => saveFieldOnBlur(event, 'title', task.title)} onKeyDown={finishInputEdit} /></label>
-      <label className="wu-field-label">Description<Textarea name="description" defaultValue={task.description} placeholder="Describe what needs to change and why" rows={3}
-        onBlur={event => saveFieldOnBlur(event, 'description', task.description, true)} /></label>
-      <label className="wu-field-label">Acceptance criteria<Textarea name="criteria" defaultValue={task.acceptanceCriteria ?? ''} placeholder="e.g. Invalid passwords show a helpful error" rows={3}
-        onBlur={event => saveFieldOnBlur(event, 'acceptanceCriteria', task.acceptanceCriteria ?? '', true)} /></label>
-      <label className="wu-field-label">Priority<Select name="priority" defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()} onChange={event => save('priority', event.currentTarget.value || null)}>
-        <option value="">No priority</option>{Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </Select></label>
-      <label className="wu-field-label">Due date<Input type="date" name="dueDate" min="1000-01-01" max="9999-12-31" defaultValue={task.dueDate ?? ''} onChange={event => {
-        const field = event.currentTarget;
-        if (field.validity.valid) save('dueDate', field.value || null);
-      }} /></label>
-    </section> : <section className="wu-drawer-section">
-      <div className="wu-panel-heading"><h3>Description</h3>{!readOnly && <button className="wu-text-button" type="button" onClick={() => setEditingTask(true)}>Edit task</button>}</div>
-      <p className="wu-task-copy">{task.description || 'No description yet.'}</p>
-      <h3>Acceptance criteria</h3>
-      <p className="wu-task-copy">{task.acceptanceCriteria || 'No acceptance criteria yet.'}</p>
-    </section>}
-    {!readOnly && !!destinations.length && <section className="wu-drawer-section">
-      <h3>Move task</h3>
-        <label className="wu-field-label">Destination<Select name="column" value="" disabled={busy} onChange={event => {
-          const column = destinations.find(item => item.id === event.currentTarget.value);
-          if (column) void mutate('/transition', 'POST', { toStatus: column.status });
-        }}>
-          <option value="" disabled>Choose a column</option>
-          {destinations.map(column => <option key={column.id} value={column.id}>{column.label}</option>)}
-        </Select></label>
-    </section>}
-    <section className="wu-drawer-section">
-      <h3>Assignee</h3>
-      {readOnly ? <p>{members.find(member => member.userId === task.assigneeId)?.username ?? (task.assigneeId ? 'Former member' : 'Unassigned')}</p> :
-      <label className="wu-field-label">Choose a member
-        <Select name="member" value={assigneeDraft ?? task.assigneeId ?? ''} disabled={busy} onChange={event => {
-          void updateAssignee(event.currentTarget.value);
-        }}>
-          <option value="">Unassigned</option>
-          {task.assigneeId && !members.some(member => member.userId === task.assigneeId) &&
-            <option value={task.assigneeId}>Former member</option>}
-          {members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
-        </Select>
-      </label>}
-    </section>
-    <section className="wu-drawer-section">
-      <h3>Blocker</h3>
-      {readOnly ? <p>{task.isBlocked ? task.blockedReason || 'Blocked' : 'No blocker'}</p>
-        : task.isBlocked ? <><p>{task.blockedReason}</p><button className="wu-button wu-button--secondary" disabled={busy} onClick={() => void mutate('/block', 'DELETE')}>Unblock task</button></>
-        : <label className="wu-field-label">Reason<Input name="reason" placeholder="e.g. Waiting for API access"
-          onBlur={event => saveTextOnBlur(event, '', reason => void mutate('/block', 'POST', { reason }))} onKeyDown={finishInputEdit} /></label>}
-    </section>
-    <section className="wu-drawer-section">
-      <h3>Dependencies</h3>
-      {dependencies.error ? <p role="alert">Could not load dependencies. <button type="button" onClick={dependencies.retry}>Retry</button></p>
-        : !dependencies.items ? <p role="status">Loading dependencies…</p>
-        : dependencies.items.map(item => {
-          const related = tasks.find(candidate => candidate.id === item.dependsOnTaskId);
-          return <div key={item.id}>
-            {related ? <button className="wu-text-button" type="button" onClick={() => openTask(related)}>{related.title}</button> : 'Unavailable task'}
-            {!readOnly && <>{' '}<button className="wu-text-button" disabled={busy} onClick={() => void mutate('/dependencies/' + item.id, 'DELETE')}>Remove</button></>}
-          </div>;
-        })}
-      {!readOnly && <label className="wu-field-label">Depends on<Select name="dependency" value="" disabled={busy}
-        onChange={event => void mutate('/dependencies', 'POST', { dependsOnTaskId: event.currentTarget.value })}>
-        <option value="" disabled>Select a task that must finish first</option>
-        {tasks.filter(item => item.id !== task.id && !dependencies.items?.some(dep => dep.dependsOnTaskId === item.id))
-          .map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-      </Select></label>}
-    </section>
-    {!!files.length && <section className="wu-drawer-section">
-      <h3>Related files</h3>
-      <ul className="wu-document-list">{files.map(file => <li key={file.id}><button className="wu-text-button" type="button" onClick={() => openFile(file)}>{file.displayName}</button></li>)}</ul>
-    </section>}
-    <section className="wu-drawer-section">
-      <h3>Comments</h3>
-      {comments.error ? <p role="alert">Could not load comments. <button type="button" onClick={comments.retry}>Retry</button></p>
-        : !comments.items ? <p role="status">Loading comments…</p>
-        : comments.items.map(comment => <div key={comment.id}>
-          <strong>{members.find(member => member.userId === comment.authorId)?.username ?? 'Former member'}</strong>
-          {!readOnly && editingComment === comment.id ? <label className="wu-field-label">Edit comment<Textarea autoFocus name="content"
-            defaultValue={comment.content} placeholder="Update your comment" required onBlur={event => {
-              const value = event.currentTarget.value.trim();
-              if (value === comment.content.trim()) setEditingComment(undefined);
-              else saveTextOnBlur(event, comment.content, async content => {
-                if (await mutate('/comments/' + comment.id, 'PATCH', { content })) setEditingComment(undefined);
-              });
-            }} /></label> : <p>{comment.content}</p>}
-          <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time>
-          {!readOnly && profileId === comment.authorId && editingComment !== comment.id && <>
-            <button className="wu-text-button" type="button" disabled={busy} onClick={() => setEditingComment(comment.id)}>Edit comment</button>
-            <button className="wu-text-button" type="button" disabled={busy} onClick={() => void mutate('/comments/' + comment.id, 'DELETE')}>Delete comment</button>
-          </>}
-        </div>)}
-      {!readOnly && <form className="wu-comment-form" onSubmit={async event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const content = String(new FormData(form).get('content')).trim();
-        if (!content || pending.current) return;
-        if (await mutate('/comments', 'POST', { content })) {
-          form.reset();
-        }
-      }}>
-        <label className="wu-field-label">Add a comment<Textarea name="content" rows={2} placeholder="Share an update" required /></label>
-        <button className="wu-button wu-button--secondary" disabled={busy}>Post comment</button>
-      </form>}
-    </section>
-    {!readOnly && (confirmDelete ? <section className="wu-drawer-section" aria-label="Confirm deletion">
-      <h3>Delete “{task.title}”?</h3>
-      <p>This removes the task from the workspace board and backlog.</p>
-      <div className="wu-modal-actions">
-      <Button variant="secondary" type="button" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-      <Button variant="primary" type="button" disabled={busy} onClick={async () => { if (await mutate('', 'DELETE')) onClose(); }}>Confirm task deletion</Button>
-    </div></section> : <button className="wu-text-button" type="button" onClick={() => setConfirmDelete(true)}>Delete task</button>)}
-    </div>
-  </Drawer>;
+  return (
+    <Drawer title={task.title} onClose={onClose}>
+      <div className="wu-task-inspector">
+        <div className="wu-panel-heading">
+          {task.taskKey && <Pill>{task.taskKey}</Pill>}
+          <button className="wu-text-button" type="button" onClick={() => void copyTaskLink()}>
+            Copy link
+          </button>
+          {watching !== undefined && (
+            <button
+              className="wu-text-button"
+              type="button"
+              disabled={watchBusy}
+              onClick={() => void toggleWatch()}
+            >
+              {watchBusy ? 'Updating…' : watching ? 'Unwatch task' : 'Watch task'}
+            </button>
+          )}
+          {linkCopied && (
+            <span className="wu-muted" role="status">
+              Link copied.
+            </span>
+          )}
+        </div>
+        {watchError && (
+          <p role="alert">
+            {watchError}{' '}
+            {watching === undefined && (
+              <button
+                className="wu-text-button"
+                type="button"
+                onClick={() => setWatchRetry((value) => value + 1)}
+              >
+                Retry
+              </button>
+            )}
+          </p>
+        )}
+        {linkToCopy && (
+          <label className="wu-field-label">
+            Task link
+            <Input
+              value={linkToCopy}
+              readOnly
+              autoFocus
+              onFocus={(event) => event.currentTarget.select()}
+            />
+          </label>
+        )}
+        {onBack && (
+          <button className="wu-text-button" type="button" onClick={onBack}>
+            Back to previous task
+          </button>
+        )}
+        <dl className="wu-task-summary">
+          <div>
+            <dt>Column</dt>
+            <dd>
+              <Pill status={task.status} tone={task.status === 'Done' ? 'mint' : 'neutral'}>
+                {currentColumn?.label ?? task.status}
+              </Pill>
+              {task.isBlocked && <Pill tone="red">Blocked</Pill>}
+            </dd>
+          </div>
+          <div>
+            <dt>Assignee</dt>
+            <dd>{task.person}</dd>
+          </div>
+          <div>
+            <dt>Priority</dt>
+            <dd>{task.priority === 'None' ? 'No priority' : task.priority}</dd>
+          </div>
+          <div>
+            <dt>Due date</dt>
+            <dd>{task.dueDate ? task.due : 'No due date'}</dd>
+          </div>
+        </dl>
+        {projectSection}
+        {error && <p role="alert">{error}</p>}
+        {hasFailedEdits && !busy && (
+          <div role="alert">
+            <p>Couldn’t save your changes. {Object.values(failedEdits)[0].message}</p>
+            <button className="wu-text-button" type="button" onClick={retryEdits}>
+              Retry save
+            </button>
+          </div>
+        )}
+        {(busy || (notice && !hasFailedEdits)) && (
+          <p role="status">{busy ? 'Saving changes…' : notice}</p>
+        )}
+        {editingTask && !readOnly ? (
+          <section className="wu-column-form wu-task-editor">
+            <div className="wu-panel-heading">
+              <h3>Edit task</h3>
+              <button
+                className="wu-text-button"
+                type="button"
+                disabled={busy || hasFailedEdits}
+                onClick={() => {
+                  if (pending.current) return;
+                  latestEdits.current = {};
+                  setEditingTask(false);
+                }}
+              >
+                Done editing
+              </button>
+            </div>
+            <label className="wu-field-label">
+              Title
+              <Input
+                name="title"
+                defaultValue={task.title}
+                placeholder="e.g. Fix login form validation"
+                required
+                maxLength={200}
+                onBlur={(event) => saveFieldOnBlur(event, 'title', task.title)}
+                onKeyDown={finishInputEdit}
+              />
+            </label>
+            <label className="wu-field-label">
+              Description
+              <Textarea
+                name="description"
+                defaultValue={task.description}
+                placeholder="Describe what needs to change and why"
+                rows={3}
+                onBlur={(event) => saveFieldOnBlur(event, 'description', task.description, true)}
+              />
+            </label>
+            <label className="wu-field-label">
+              Acceptance criteria
+              <Textarea
+                name="criteria"
+                defaultValue={task.acceptanceCriteria ?? ''}
+                placeholder="e.g. Invalid passwords show a helpful error"
+                rows={3}
+                onBlur={(event) =>
+                  saveFieldOnBlur(event, 'acceptanceCriteria', task.acceptanceCriteria ?? '', true)
+                }
+              />
+            </label>
+            <label className="wu-field-label">
+              Priority
+              <Select
+                name="priority"
+                defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()}
+                onChange={(event) => save('priority', event.currentTarget.value || null)}
+              >
+                <option value="">No priority</option>
+                {Object.entries(taskPriorities).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="wu-field-label">
+              Due date
+              <Input
+                type="date"
+                name="dueDate"
+                min="1000-01-01"
+                max="9999-12-31"
+                defaultValue={task.dueDate ?? ''}
+                onChange={(event) => {
+                  const field = event.currentTarget;
+                  if (field.validity.valid) save('dueDate', field.value || null);
+                }}
+              />
+            </label>
+          </section>
+        ) : (
+          <section className="wu-drawer-section">
+            <div className="wu-panel-heading">
+              <h3>Description</h3>
+              {!readOnly && (
+                <button
+                  className="wu-text-button"
+                  type="button"
+                  onClick={() => setEditingTask(true)}
+                >
+                  Edit task
+                </button>
+              )}
+            </div>
+            <p className="wu-task-copy">{task.description || 'No description yet.'}</p>
+            <h3>Acceptance criteria</h3>
+            <p className="wu-task-copy">
+              {task.acceptanceCriteria || 'No acceptance criteria yet.'}
+            </p>
+          </section>
+        )}
+        {!readOnly && !!destinations.length && (
+          <section className="wu-drawer-section">
+            <h3>Move task</h3>
+            <label className="wu-field-label">
+              Destination
+              <Select
+                name="column"
+                value=""
+                disabled={busy}
+                onChange={(event) => {
+                  const column = destinations.find((item) => item.id === event.currentTarget.value);
+                  if (column) void mutate('/transition', 'POST', { toStatus: column.status });
+                }}
+              >
+                <option value="" disabled>
+                  Choose a column
+                </option>
+                {destinations.map((column) => (
+                  <option key={column.id} value={column.id}>
+                    {column.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </section>
+        )}
+        <section className="wu-drawer-section">
+          <h3>Assignee</h3>
+          {readOnly ? (
+            <p>
+              {members.find((member) => member.userId === task.assigneeId)?.username ??
+                (task.assigneeId ? 'Former member' : 'Unassigned')}
+            </p>
+          ) : (
+            <label className="wu-field-label">
+              Choose a member
+              <Select
+                name="member"
+                value={assigneeDraft ?? task.assigneeId ?? ''}
+                disabled={busy}
+                onChange={(event) => {
+                  void updateAssignee(event.currentTarget.value);
+                }}
+              >
+                <option value="">Unassigned</option>
+                {task.assigneeId &&
+                  !members.some((member) => member.userId === task.assigneeId) && (
+                    <option value={task.assigneeId}>Former member</option>
+                  )}
+                {members.map((member) => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.username}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
+        </section>
+        <section className="wu-drawer-section">
+          <h3>Blocker</h3>
+          {readOnly ? (
+            <p>{task.isBlocked ? task.blockedReason || 'Blocked' : 'No blocker'}</p>
+          ) : task.isBlocked ? (
+            <>
+              <p>{task.blockedReason}</p>
+              <button
+                className="wu-button wu-button--secondary"
+                disabled={busy}
+                onClick={() => void mutate('/block', 'DELETE')}
+              >
+                Unblock task
+              </button>
+            </>
+          ) : (
+            <label className="wu-field-label">
+              Reason
+              <Input
+                name="reason"
+                placeholder="e.g. Waiting for API access"
+                onBlur={(event) =>
+                  saveTextOnBlur(event, '', (reason) => void mutate('/block', 'POST', { reason }))
+                }
+                onKeyDown={finishInputEdit}
+              />
+            </label>
+          )}
+        </section>
+        <section className="wu-drawer-section">
+          <h3>Dependencies</h3>
+          {dependencies.error ? (
+            <p role="alert">
+              Could not load dependencies.{' '}
+              <button type="button" onClick={dependencies.retry}>
+                Retry
+              </button>
+            </p>
+          ) : !dependencies.items ? (
+            <p role="status">Loading dependencies…</p>
+          ) : (
+            dependencies.items.map((item) => {
+              const related = tasks.find((candidate) => candidate.id === item.dependsOnTaskId);
+              return (
+                <div key={item.id}>
+                  {related ? (
+                    <button
+                      className="wu-text-button"
+                      type="button"
+                      onClick={() => openTask(related)}
+                    >
+                      {related.title}
+                    </button>
+                  ) : (
+                    'Unavailable task'
+                  )}
+                  {!readOnly && (
+                    <>
+                      {' '}
+                      <button
+                        className="wu-text-button"
+                        disabled={busy}
+                        onClick={() => void mutate('/dependencies/' + item.id, 'DELETE')}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })
+          )}
+          {!readOnly && (
+            <label className="wu-field-label">
+              Depends on
+              <Select
+                name="dependency"
+                value=""
+                disabled={busy}
+                onChange={(event) =>
+                  void mutate('/dependencies', 'POST', {
+                    dependsOnTaskId: event.currentTarget.value,
+                  })
+                }
+              >
+                <option value="" disabled>
+                  Select a task that must finish first
+                </option>
+                {tasks
+                  .filter(
+                    (item) =>
+                      item.id !== task.id &&
+                      !dependencies.items?.some((dep) => dep.dependsOnTaskId === item.id),
+                  )
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title}
+                    </option>
+                  ))}
+              </Select>
+            </label>
+          )}
+        </section>
+        {!!files.length && (
+          <section className="wu-drawer-section">
+            <h3>Related files</h3>
+            <ul className="wu-document-list">
+              {files.map((file) => (
+                <li key={file.id}>
+                  <button className="wu-text-button" type="button" onClick={() => openFile(file)}>
+                    {file.displayName}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <section className="wu-drawer-section">
+          <h3>Comments</h3>
+          {comments.error ? (
+            <p role="alert">
+              Could not load comments.{' '}
+              <button type="button" onClick={comments.retry}>
+                Retry
+              </button>
+            </p>
+          ) : !comments.items ? (
+            <p role="status">Loading comments…</p>
+          ) : (
+            comments.items.map((comment) => (
+              <div key={comment.id}>
+                <strong>
+                  {members.find((member) => member.userId === comment.authorId)?.username ??
+                    'Former member'}
+                </strong>
+                {!readOnly && editingComment === comment.id ? (
+                  <label className="wu-field-label">
+                    Edit comment
+                    <Textarea
+                      autoFocus
+                      name="content"
+                      defaultValue={comment.content}
+                      placeholder="Update your comment"
+                      required
+                      onBlur={(event) => {
+                        const value = event.currentTarget.value.trim();
+                        if (value === comment.content.trim()) setEditingComment(undefined);
+                        else
+                          saveTextOnBlur(event, comment.content, async (content) => {
+                            if (await mutate('/comments/' + comment.id, 'PATCH', { content }))
+                              setEditingComment(undefined);
+                          });
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <p>{comment.content}</p>
+                )}
+                <time dateTime={comment.createdAt}>
+                  {new Date(comment.createdAt).toLocaleString()}
+                </time>
+                {!readOnly && profileId === comment.authorId && editingComment !== comment.id && (
+                  <>
+                    <button
+                      className="wu-text-button"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setEditingComment(comment.id)}
+                    >
+                      Edit comment
+                    </button>
+                    <button
+                      className="wu-text-button"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void mutate('/comments/' + comment.id, 'DELETE')}
+                    >
+                      Delete comment
+                    </button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+          {!readOnly && (
+            <form
+              className="wu-comment-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const content = String(new FormData(form).get('content')).trim();
+                if (!content || pending.current) return;
+                if (await mutate('/comments', 'POST', { content })) {
+                  form.reset();
+                }
+              }}
+            >
+              <label className="wu-field-label">
+                Add a comment
+                <Textarea name="content" rows={2} placeholder="Share an update" required />
+              </label>
+              <button className="wu-button wu-button--secondary" disabled={busy}>
+                Post comment
+              </button>
+            </form>
+          )}
+        </section>
+        {!readOnly &&
+          (confirmDelete ? (
+            <section className="wu-drawer-section" aria-label="Confirm deletion">
+              <h3>Delete “{task.title}”?</h3>
+              <p>This removes the task from the workspace board and backlog.</p>
+              <div className="wu-modal-actions">
+                <Button variant="secondary" type="button" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await mutate('', 'DELETE')) onClose();
+                  }}
+                >
+                  Confirm task deletion
+                </Button>
+              </div>
+            </section>
+          ) : (
+            <button className="wu-text-button" type="button" onClick={() => setConfirmDelete(true)}>
+              Delete task
+            </button>
+          ))}
+      </div>
+    </Drawer>
+  );
 }

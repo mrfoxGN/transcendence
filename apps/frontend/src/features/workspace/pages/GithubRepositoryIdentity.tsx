@@ -14,18 +14,13 @@ export function GithubRepositoryIdentity({
   lastSyncedAt,
 }: GithubRepositoryIdentityProps) {
   return (
-    <section
-      className="wu-github-repository"
-      aria-label="Connected GitHub repository"
-    >
+    <section className="wu-github-repository" aria-label="Connected GitHub repository">
       <div className="wu-github-repository__content">
-        <div className="wu-github-repository__eyebrow">Connected repository<span className="wu-github-repository__connected">Connected</span></div>
+        <div className="wu-github-repository__eyebrow">
+          Connected repository<span className="wu-github-repository__connected">Connected</span>
+        </div>
         <h2>
-          <a
-            href={repositoryUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href={repositoryUrl} target="_blank" rel="noopener noreferrer">
             {fullName}
             <ArrowUpRight size={19} aria-hidden="true" />
           </a>
@@ -48,8 +43,7 @@ export function GithubRepositoryIdentity({
 
           {lastSyncedAt ? (
             <time dateTime={lastSyncedAt}>
-              Last synced:{' '}
-              {new Date(lastSyncedAt).toLocaleString()}
+              Last synced: {new Date(lastSyncedAt).toLocaleString()}
             </time>
           ) : (
             <span>Not synchronized yet</span>

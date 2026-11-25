@@ -1,15 +1,12 @@
-import { Button } from './Button';
-import type { ReactNode } from 'react';
 import { EmptyIllustration, type EmptyKind } from '../illustrations/EmptyIllustration';
+import { Button } from './Button';
 export function EmptyState({
-  icon,
   title,
   detail,
   action,
   onAction,
   illustration,
 }: {
-  icon: ReactNode;
   title: string;
   detail: string;
   action: string;

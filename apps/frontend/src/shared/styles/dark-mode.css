@@ -89,7 +89,7 @@
 .devup-design .workspace-app[data-theme=dark] :is(input,textarea,select):disabled { opacity: 1; color: var(--wu-disabled-ink); background: var(--wu-disabled-surface); border-color: #373b43; cursor: not-allowed; }
 .devup-design .workspace-app[data-theme=dark] :is(.wu-table,.wu-gbranches__table) tbody tr:is(.is-row-selected,[aria-selected=true]) { background: #302b40; box-shadow: inset 2px 0 0 #b29bea; }
 .devup-design .workspace-app[data-theme=dark] :is(.wu-table,.wu-gbranches__table) tbody tr:is(.is-row-selected,[aria-selected=true]) td { background: transparent; }
-.devup-design .workspace-app[data-theme=dark] :is(.wu-chip.is-active,.wu-github-tab[aria-pressed=true],.wu-file-type-tabs button[aria-pressed=true],.wu-file-view-toggle button[aria-pressed=true]) { background: #35313f; color: var(--wu-ink); box-shadow: inset 0 1px 0 #ffffff0b,0 1px 3px #00000018; }
+.devup-design .workspace-app[data-theme=dark] :is(.wu-chip.is-active,.wu-github-tab[aria-selected=true],.wu-file-type-tabs button[aria-pressed=true],.wu-file-view-toggle button[aria-pressed=true]) { background: #35313f; color: var(--wu-ink); box-shadow: inset 0 1px 0 #ffffff0b,0 1px 3px #00000018; }
 .devup-design .workspace-app[data-theme=dark] :is(input[type=checkbox],input[type=radio]) { accent-color: #a58de6; }
 .devup-design .workspace-app[data-theme=dark] .wu-switch-slider { background: #444954; box-shadow: inset 0 1px 2px #00000025; }
 .devup-design .workspace-app[data-theme=dark] .wu-switch-slider::before { background: #f1eff7; }

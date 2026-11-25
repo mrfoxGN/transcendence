@@ -1,6 +1,6 @@
-import './switch.css';
 import type { CheckboxProps } from './Checkbox';
 import { Checkbox } from './Checkbox';
+import './switch.css';
 
 export function Switch({ className, ...props }: CheckboxProps) {
   return (

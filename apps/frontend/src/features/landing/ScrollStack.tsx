@@ -5,8 +5,8 @@ import {
   useReducedMotion,
   useScroll,
   useTransform,
-} from "framer-motion";
-import * as React from "react";
+} from 'framer-motion';
+import * as React from 'react';
 
 export type ScrollStackProps = React.HTMLAttributes<HTMLDivElement> & {
   /** The cards to stack. Provide 2–6 for the best effect. */
@@ -68,25 +68,26 @@ const Card: React.FC<CardProps> = ({
     progress,
     [0, segmentEnd, 1],
     [
-      "brightness(1) blur(0px)",
-      "brightness(1) blur(0px)",
+      'brightness(1) blur(0px)',
+      'brightness(1) blur(0px)',
       `brightness(${buriedBrightness}) blur(${buriedBlur}px)`,
     ],
   );
 
   return (
-    <div
-      className={`godui-stack-track ${trackClass}`}
-      style={{ top: pinTop }}
-    >
+    <div className={`godui-stack-track ${trackClass}`} style={{ top: pinTop }}>
       <motion.div
         className="godui-stack-card"
-        style={reduceMotion ? undefined : {
-          scale,
-          filter,
-          translateY: index * peek,
-          transformOrigin: "center top",
-        }}
+        style={
+          reduceMotion
+            ? undefined
+            : {
+                scale,
+                filter,
+                translateY: index * peek,
+                transformOrigin: 'center top',
+              }
+        }
       >
         {children}
       </motion.div>
@@ -102,7 +103,7 @@ const ScrollStack = React.forwardRef<HTMLDivElement, ScrollStackProps>(
       baseScale = 0.86,
       peek = 16,
       blur = true,
-      pinTop = "12vh",
+      pinTop = '12vh',
       onStepChange,
       className,
       style,
@@ -111,33 +112,28 @@ const ScrollStack = React.forwardRef<HTMLDivElement, ScrollStackProps>(
     forwardedRef,
   ) => {
     const ref = React.useRef<HTMLDivElement>(null);
-    React.useImperativeHandle(
-      forwardedRef,
-      () => ref.current as HTMLDivElement,
-    );
+    React.useImperativeHandle(forwardedRef, () => ref.current as HTMLDivElement);
     const reduce = useReducedMotion();
     const selfScroll = height != null;
 
     // Container-scroll when self-contained, otherwise track the page scroll.
     const { scrollYProgress } = useScroll(
-      selfScroll
-        ? { container: ref }
-        : { target: ref, offset: ["start start", "end end"] },
+      selfScroll ? { container: ref } : { target: ref, offset: ['start start', 'end end'] },
     );
 
     const items = React.Children.toArray(children);
     const total = items.length;
-    useMotionValueEvent(scrollYProgress, 'change', progress => {
+    useMotionValueEvent(scrollYProgress, 'change', (progress) => {
       onStepChange?.(Math.round(progress * Math.max(0, total - 1)));
     });
 
-    const trackClass = selfScroll ? "godui-stack-contained" : "godui-stack-page";
+    const trackClass = selfScroll ? 'godui-stack-contained' : 'godui-stack-page';
 
     return (
       <div
         ref={ref}
         data-slot="scroll-stack"
-        className={`godui-stack ${selfScroll ? "godui-stack-overflow" : ""} ${className ?? ""}`}
+        className={`godui-stack ${selfScroll ? 'godui-stack-overflow' : ''} ${className ?? ''}`}
         style={height ? { height, ...style } : style}
         {...props}
       >
@@ -162,6 +158,6 @@ const ScrollStack = React.forwardRef<HTMLDivElement, ScrollStackProps>(
     );
   },
 );
-ScrollStack.displayName = "ScrollStack";
+ScrollStack.displayName = 'ScrollStack';
 
 export { ScrollStack };

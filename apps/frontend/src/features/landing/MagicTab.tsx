@@ -7,9 +7,24 @@ const tabs = [
   { value: 'changes', label: 'Code changes' },
 ] as const;
 
-export type GitHubTab = typeof tabs[number]['value'];
+export type GitHubTab = (typeof tabs)[number]['value'];
 export { tabs as githubTabs };
 
-export function MagicTab({ value, onChange }: { value: GitHubTab; onChange: (value: GitHubTab) => void }) {
- return <Tabs items={tabs} value={value} onChange={onChange} idPrefix="github" label="GitHub preview" className="github-tabs" />;
+export function MagicTab({
+  value,
+  onChange,
+}: {
+  value: GitHubTab;
+  onChange: (value: GitHubTab) => void;
+}) {
+  return (
+    <Tabs
+      items={tabs}
+      value={value}
+      onChange={onChange}
+      idPrefix="github"
+      label="GitHub preview"
+      className="github-tabs"
+    />
+  );
 }

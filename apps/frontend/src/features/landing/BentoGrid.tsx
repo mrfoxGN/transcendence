@@ -13,11 +13,18 @@ export function BentoGrid({ children }: { children: ReactNode }) {
       viewport={{ once: true, amount: 0.15 }}
       variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
     >
-      {Children.map(children, child => (
-        <motion.div data-slot="bento-card" variants={{
-          hidden: reduced ? {} : { opacity: 0, y: 20 },
-          visible: { opacity: 1, y: 0, transition: { type: 'spring', damping: 32, stiffness: 320, mass: 0.9 } },
-        }}>
+      {Children.map(children, (child) => (
+        <motion.div
+          data-slot="bento-card"
+          variants={{
+            hidden: reduced ? {} : { opacity: 0, y: 20 },
+            visible: {
+              opacity: 1,
+              y: 0,
+              transition: { type: 'spring', damping: 32, stiffness: 320, mass: 0.9 },
+            },
+          }}
+        >
           {child}
         </motion.div>
       ))}

@@ -1,5 +1,5 @@
-import { HOVER_OPEN_DELAY, HOVER_CLOSE_DELAY, supportsHover } from './hover-intent';
-import { useEffect, useRef, type PointerEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { HOVER_CLOSE_DELAY, HOVER_OPEN_DELAY, supportsHover } from './hover-intent';
 
 /** An inline disclosure keeps the same intent delay as the surrounding menus. */
 export function useHoverDisclosure() {

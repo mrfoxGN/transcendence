@@ -1,10 +1,22 @@
-import { useState, type FormEvent, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Lock, Mail, ShieldCheck, User, X, AlertCircle } from 'lucide-react';
-import { sessionKey } from './session';
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  ShieldCheck,
+  User,
+  X,
+} from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { authRoute, requestedWorkspace } from '../auth-routing';
 import { EntryThemeControl } from './EntryAppearance';
 import { OtpCodeInput } from './OtpCodeInput';
 import { ResendCodeButton } from './ResendCodeButton';
+import { sessionKey } from './session';
 
 export interface AuthPreviewProps {
   mode: 'login' | 'register';
@@ -63,9 +75,15 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('passwordChanged') === '1') {
-      setNotice({ type: 'success', text: 'Your password has been changed. Please sign in with your new password.' });
+      setNotice({
+        type: 'success',
+        text: 'Your password has been changed. Please sign in with your new password.',
+      });
     } else if (params.get('resetSuccess') === '1') {
-      setNotice({ type: 'success', text: 'Password reset successful! Sign in with your new password.' });
+      setNotice({
+        type: 'success',
+        text: 'Password reset successful! Sign in with your new password.',
+      });
     } else if (params.get('verified') === '1') {
       setNotice({ type: 'success', text: 'Email verified! Sign in to access your workspace.' });
     }
@@ -153,14 +171,18 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
 
       const result = await response.json().catch(() => null);
 
-      if (!response.ok || (signingUp ? !result?.id : (!result?.accessToken && !result?.twoFactorRequired))) {
+      if (
+        !response.ok ||
+        (signingUp ? !result?.id : !result?.accessToken && !result?.twoFactorRequired)
+      ) {
         const detail = result?.message;
         setErrorMessage(
           response.status >= 500
             ? 'Authentication is temporarily unavailable. Please try again later.'
             : Array.isArray(detail)
-            ? detail.join(' ')
-            : detail || (signingUp ? 'Unable to create your account.' : 'Invalid email or password.'),
+              ? detail.join(' ')
+              : detail ||
+                (signingUp ? 'Unable to create your account.' : 'Invalid email or password.'),
         );
         return;
       }
@@ -225,9 +247,12 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
     <main className="auth-page">
       <header className="auth-header">
         <Brand />
-        <div className="entry-header-actions"><EntryThemeControl /><a className="auth-close" href="/" aria-label="Back to DevUP home">
-          <X size={20} aria-hidden="true" />
-        </a></div>
+        <div className="entry-header-actions">
+          <EntryThemeControl />
+          <a className="auth-close" href="/" aria-label="Back to DevUP home">
+            <X size={20} aria-hidden="true" />
+          </a>
+        </div>
       </header>
 
       <section className="auth-shell" aria-labelledby="auth-title">
@@ -236,10 +261,10 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
             {twoFactorStep
               ? 'Verify your sign-in'
               : complete
-              ? 'Account created!'
-              : signingUp
-              ? 'Join DevUP'
-              : 'Welcome back'}
+                ? 'Account created!'
+                : signingUp
+                  ? 'Join DevUP'
+                  : 'Welcome back'}
           </h1>
           {twoFactorStep ? (
             <p className="auth-description">
@@ -458,13 +483,19 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
-                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                    {showPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
                   </button>
                 </div>
 
                 {signingUp && (
                   <div className="auth-password-requirements">
-                    <span className={`requirement-pill ${isPasswordValid ? 'requirement-pill--valid' : ''}`}>
+                    <span
+                      className={`requirement-pill ${isPasswordValid ? 'requirement-pill--valid' : ''}`}
+                    >
                       <Check size={12} aria-hidden="true" />
                       At least 8 characters
                     </span>
@@ -483,9 +514,7 @@ export function AuthPreview({ mode: initialMode }: AuthPreviewProps) {
                     <span>{signingUp ? 'Creating account…' : 'Signing in…'}</span>
                   </span>
                 ) : (
-                  <span>
-                    {signingUp ? 'Create account' : 'Sign in'}
-                  </span>
+                  <span>{signingUp ? 'Create account' : 'Sign in'}</span>
                 )}
               </button>
             </form>

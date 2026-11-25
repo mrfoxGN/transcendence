@@ -1,4 +1,3 @@
-import { HOVER_OPEN_DELAY, HOVER_CLOSE_DELAY, supportsHover } from './hover-intent';
 import {
   useEffect,
   useRef,
@@ -8,6 +7,7 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from 'react';
+import { HOVER_CLOSE_DELAY, HOVER_OPEN_DELAY, supportsHover } from './hover-intent';
 
 /** Pointer intent enhances an ordinary clickable, keyboard-accessible popover. */
 export function useHoverPopover<T extends HTMLElement = HTMLDivElement>(
