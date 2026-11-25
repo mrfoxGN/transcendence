@@ -49,48 +49,48 @@
   .wu-analytics-section .wu-stat-grid, .wu-analytics-totals { grid-template-columns: minmax(0, 1fr); }
 }
 
-.devup-design .wu-analytics-workbench .wu-analytics-section { gap:18px; margin-bottom:28px; }
-.devup-design .wu-analytics-workbench .wu-analytics-heading h2 { font-size:15px; font-weight:600; }
-.devup-design .wu-analytics-controls { display:flex; align-items:end; gap:16px; flex-wrap:wrap; }
-.devup-design .wu-analytics-controls .wu-field-label { min-width:150px; font-size:11px; }
-.devup-design .wu-analytics-snapshot .wu-stat-grid { gap:16px; }
-.devup-design .wu-analytics-snapshot .wu-metric-card { display:block; min-height:146px; padding:22px; background:var(--wu-surface); border:1px solid var(--wu-line); box-shadow:var(--wu-card-shadow); }
-.devup-design .wu-analytics-snapshot .wu-metric-card:first-child { background:radial-gradient(ellipse at 0 0,color-mix(in srgb,var(--wu-glow-blue) 22%,transparent),transparent 65%),radial-gradient(ellipse at 90% 0,color-mix(in srgb,var(--wu-glow-pink) 20%,transparent),transparent 65%),var(--wu-surface); }
-.devup-design .wu-analytics-snapshot .wu-metric-card-copy { gap:9px; }
-.devup-design .wu-analytics-snapshot .wu-metric-card-copy strong { color:var(--wu-ink); font-size:34px; font-weight:600; letter-spacing:-1px; }
-.devup-design .wu-analytics-snapshot .wu-metric-card-copy > span { color:var(--wu-ink); font-size:13px; font-weight:550; }
-.devup-design .wu-analytics-snapshot .wu-metric-card-copy small { color:var(--wu-muted); font-size:11px; font-weight:400; line-height:1.5; }
-.devup-design .wu-analytics-workbench .wu-analytics-totals { gap:16px; }
-.devup-design .wu-analytics-workbench .wu-analytics-total { padding:18px 20px; border:1px solid var(--wu-line); background:var(--wu-surface); border-radius:12px; box-shadow:var(--wu-card-shadow); }
-.devup-design .wu-analytics-workbench .wu-analytics-total strong { font-size:25px; font-weight:600; color:var(--wu-ink); }
-.devup-design .wu-analytics-workbench .wu-analytics-grid { grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:18px; }
-.devup-design .wu-analytics-workbench .wu-analytics-chart { min-width:0; padding:22px; background:var(--wu-surface); }
-.devup-design .wu-analytics-chart-head { display:flex; justify-content:space-between; align-items:start; gap:16px; margin-bottom:22px; }
-.devup-design .wu-analytics-chart-head h3 { margin:0 0 6px; font-size:14px; font-weight:600; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-section { gap:18px; margin-bottom:28px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-heading h2 { font-size:15px; font-weight:600; }
+.devup-design .workspace-app[data-theme] .wu-analytics-controls { display:flex; align-items:end; gap:16px; flex-wrap:wrap; }
+.devup-design .workspace-app[data-theme] .wu-analytics-controls .wu-field-label { min-width:150px; font-size:11px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-stat-grid { gap:16px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card { display:block; min-height:146px; padding:22px; background:var(--wu-surface); border:1px solid var(--wu-line); box-shadow:var(--wu-card-shadow); }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card:first-child { background:radial-gradient(ellipse at 0 0,color-mix(in srgb,var(--wu-glow-blue) 22%,transparent),transparent 65%),radial-gradient(ellipse at 90% 0,color-mix(in srgb,var(--wu-glow-pink) 20%,transparent),transparent 65%),var(--wu-surface); }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy { gap:9px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy strong { color:var(--wu-ink); font-size:34px; font-weight:600; letter-spacing:-1px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy > span { color:var(--wu-ink); font-size:13px; font-weight:550; }
+.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy small { color:var(--wu-muted); font-size:11px; font-weight:400; line-height:1.5; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-totals { gap:16px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-total { padding:18px 20px; border:1px solid var(--wu-line); background:var(--wu-surface); border-radius:12px; box-shadow:var(--wu-card-shadow); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-total strong { font-size:25px; font-weight:600; color:var(--wu-ink); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-grid { grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:18px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-chart { min-width:0; padding:22px; background:var(--wu-surface); }
+.devup-design .workspace-app[data-theme] .wu-analytics-chart-head { display:flex; justify-content:space-between; align-items:start; gap:16px; margin-bottom:22px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-chart-head h3 { margin:0 0 6px; font-size:14px; font-weight:600; }
 .wu-analytics-chart-head p { margin:0; color:var(--wu-muted); font-size:11px; line-height:1.5; }
 .wu-analytics-chart-head > strong { font-size:28px; font-weight:600; color:var(--wu-ink); line-height:1; }
 .wu-analytics-chart-head > strong small { display:block; color:var(--wu-muted); margin-top:6px; font-size:10px; font-weight:400; }
-.devup-design .wu-analytics-workbench .wu-analytics-bars { height:230px; background:repeating-linear-gradient(to top,transparent 0 calc(25% - 1px),color-mix(in srgb,var(--wu-line) 55%,transparent) calc(25% - 1px) 25%); }
-.devup-design .wu-analytics-workbench .wu-analytics-bar:not(.wu-analytics-bar--stack) > span { background:linear-gradient(180deg,var(--chart-progress),color-mix(in srgb,var(--chart-progress) 70%,var(--wu-surface))); }
-.devup-design .wu-analytics-workbench [data-status=BACKLOG] { --wu-flow-color:var(--chart-todo); }
-.devup-design .wu-analytics-workbench [data-status=TODO] { --wu-flow-color:var(--chart-todo); }
-.devup-design .wu-analytics-workbench [data-status=READY] { --wu-flow-color:var(--chart-ready); }
-.devup-design .wu-analytics-workbench [data-status=IN_PROGRESS] { --wu-flow-color:var(--chart-progress); }
-.devup-design .wu-analytics-workbench [data-status=REVIEW] { --wu-flow-color:var(--chart-review); }
-.devup-design .wu-analytics-workbench [data-status=DONE] { --wu-flow-color:var(--chart-done); }
-.devup-design .wu-analytics-workbench [data-status=CANCELLED] { --wu-flow-color:var(--chart-cancelled); }
-.devup-design .wu-analytics-workbench .wu-analytics-axis { margin-top:10px; font-size:11px; }
-.devup-design .wu-analytics-workbench .wu-analytics-legend { margin-top:18px; gap:10px 14px; }
-.devup-design .wu-analytics-workbench :is(.wu-metric-card,.wu-analytics-total):hover { border-color:var(--wu-hover-border); box-shadow:var(--wu-hover-shadow); }
-@media(max-width:1000px) { .devup-design .wu-analytics-workbench .wu-analytics-grid { grid-template-columns:minmax(0,1fr); } }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-bars { height:230px; background:repeating-linear-gradient(to top,transparent 0 calc(25% - 1px),color-mix(in srgb,var(--wu-line) 55%,transparent) calc(25% - 1px) 25%); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-bar:not(.wu-analytics-bar--stack) > span { background:linear-gradient(180deg,var(--chart-progress),color-mix(in srgb,var(--chart-progress) 70%,var(--wu-surface))); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=BACKLOG] { --wu-flow-color:var(--chart-todo); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=TODO] { --wu-flow-color:var(--chart-todo); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=READY] { --wu-flow-color:var(--chart-ready); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=IN_PROGRESS] { --wu-flow-color:var(--chart-progress); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=REVIEW] { --wu-flow-color:var(--chart-review); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=DONE] { --wu-flow-color:var(--chart-done); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench [data-status=CANCELLED] { --wu-flow-color:var(--chart-cancelled); }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-axis { margin-top:10px; font-size:11px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-legend { margin-top:18px; gap:10px 14px; }
+.devup-design .workspace-app[data-theme] .wu-analytics-workbench :is(.wu-metric-card,.wu-analytics-total):hover { border-color:var(--wu-hover-border); box-shadow:var(--wu-hover-shadow); }
+@media(max-width:1000px) { .devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-grid { grid-template-columns:minmax(0,1fr); } }
 @media(max-width:600px) {
- .devup-design .wu-analytics-workbench .wu-stat-grid { grid-template-columns:minmax(0,1fr); }
- .devup-design .wu-analytics-snapshot .wu-metric-card { min-height:0; padding:18px; }
- .devup-design .wu-analytics-snapshot .wu-metric-card-copy { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 12px; }
- .devup-design .wu-analytics-snapshot .wu-metric-card-copy strong { grid-column:2; grid-row:1 / span 2; font-size:30px; }
- .devup-design .wu-analytics-snapshot .wu-metric-card-copy > span,.devup-design .wu-analytics-snapshot .wu-metric-card-copy small { grid-column:1; }
- .devup-design .wu-analytics-controls { width:100%; justify-content:space-between; gap:12px; }
- .devup-design .wu-analytics-controls .wu-field-label { min-width:135px; }
- .devup-design .wu-analytics-workbench .wu-analytics-chart { padding:18px; }
- .devup-design .wu-analytics-workbench .wu-analytics-bars { height:190px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-stat-grid { grid-template-columns:minmax(0,1fr); }
+ .devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card { min-height:0; padding:18px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 12px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy strong { grid-column:2; grid-row:1 / span 2; font-size:30px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy > span,.devup-design .workspace-app[data-theme] .wu-analytics-snapshot .wu-metric-card-copy small { grid-column:1; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-controls { width:100%; justify-content:space-between; gap:12px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-controls .wu-field-label { min-width:135px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-chart { padding:18px; }
+ .devup-design .workspace-app[data-theme] .wu-analytics-workbench .wu-analytics-bars { height:190px; }
 }
