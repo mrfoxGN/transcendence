@@ -1,5 +1,5 @@
 :root {
-  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-family: var(--font-family-ui);
   color: #111c37;
   background: #fbfcff;
   font-synthesis: none;

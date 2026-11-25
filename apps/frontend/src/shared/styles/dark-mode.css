@@ -1,39 +1,39 @@
 /* Dark mode is a charcoal material system, not an inversion of light surfaces. */
 .devup-design .workspace-app[data-theme=dark] {
   color-scheme: dark;
-  --wu-canvas: #111214;
-  --wu-surface: #1b1c20;
-  --wu-surface-soft: #24262b;
-  --wu-raised: #282a30;
-  --wu-recessed: #151619;
-  --wu-ink: #f0f1f3;
-  --wu-muted: #b3b6bf;
-  --wu-subtle: #969ba6;
-  --wu-line: #34363d;
-  --wu-blue: #b7a7f4;
-  --wu-blue-hover: #c9bbff;
-  --wu-blue-soft: #302a42;
-  --wu-violet: #b29bea;
-  --wu-violet-soft: #30283f;
-  --wu-pink: #dfa3ca;
-  --wu-pink-soft: #3b2936;
-  --wu-hover-row: #282a2f;
-  --wu-hover-control: #33353c;
-  --wu-hover-border: #626775;
-  --wu-focus: #b3a0f4;
-  --wu-card-shadow: inset 0 1px 0 #ffffff05, 0 3px 12px #00000018;
-  --wu-hover-shadow: inset 0 1px 0 #ffffff09, 0 5px 18px #0000002b;
-  --wu-glow-blue: #335ba6;
-  --wu-glow-pink: #863a74;
-  --wu-glow-violet: #5c3897;
-  --wu-glow-opacity: .68;
-  --wu-top-glow: radial-gradient(ellipse at 12% 0%,#335ba66b,transparent 65%),radial-gradient(ellipse at 85% 0%,#863a7459,transparent 65%),radial-gradient(ellipse at 50% 0%,#5c389766,transparent 70%);
-  --chart-todo: #8fa2bd;
-  --chart-ready: #7097ff;
-  --chart-progress: #ae87ed;
-  --chart-review: #e9b56b;
-  --chart-done: #61c7a5;
-  --chart-cancelled: #e391b0;
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   --chart-grid: #ffffff0b;
   --input-rest: var(--wu-recessed);
   --input-hover: #202226;
@@ -83,12 +83,12 @@
 
 /* Semantic accents remain readable without fluorescent fills. */
 .devup-design .workspace-app[data-theme=dark] {
-  --wu-mint: #98cdb8;
-  --wu-mint-soft: #26362f;
-  --wu-orange: #e4bd83;
-  --wu-orange-soft: #3b3024;
-  --wu-red: #eda4b6;
-  --wu-red-soft: #3b2730;
+  
+  
+  
+  
+  
+  
 }
 .devup-design .workspace-app[data-theme=dark] .wu-pill--red { background: var(--wu-red-soft); color: var(--wu-red); }
 .devup-design .workspace-app[data-theme=dark] .wu-priority--high i,

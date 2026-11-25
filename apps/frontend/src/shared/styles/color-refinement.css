@@ -1,24 +1,3 @@
-.devup-design .workspace-app {
- --wu-canvas:#f2f3f7; --wu-surface:#ffffff; --wu-surface-soft:#eff1f6; --wu-raised:#ffffff; --wu-recessed:#f7f8fb;
- --wu-ink:#151821; --wu-muted:#525b6c; --wu-subtle:#626c7d; --wu-line:#dce0e8;
- --wu-blue:#6442c2; --wu-blue-hover:#5332aa; --wu-blue-soft:#eee8fb; --wu-violet:#6442c2; --wu-violet-soft:#eee8fb; --wu-focus:#7954d4;
- --wu-pink:#a53c7b; --wu-pink-soft:#faeaf4; --wu-hover-row:#eceef5; --wu-hover-control:#e9ebf3; --wu-hover-border:#aeb7c8;
- --wu-glow-blue:#8aaef0; --wu-glow-violet:#ad91e5; --wu-glow-pink:#dfa0cf; --wu-glow-opacity:.5;
- --wu-primary-start:#6748c8; --wu-primary-end:#7550bd; --wu-primary-edge:#6441b4;
- --wu-status-backlog:#626b7c; --wu-status-todo:#596d88; --wu-status-ready:#2b65bd; --wu-status-inprogress:#7350c3; --wu-status-review:#936116; --wu-status-done:#147751; --wu-status-cancelled:#ae3557;
- --chart-todo:#8c9db7; --chart-ready:#5f8de5; --chart-progress:#9a72df; --chart-review:#e5aa51; --chart-done:#39ad85; --chart-cancelled:#d77499;
-}
-.devup-design .workspace-app[data-theme=dark] {
- --wu-canvas:#111216; --wu-surface:#1d1f25; --wu-surface-soft:#282b33; --wu-raised:#30343d; --wu-recessed:#15171c;
- --wu-ink:#f3f4f8; --wu-muted:#bbc1ce; --wu-subtle:#a2abbc; --wu-line:#3a3f49;
- --wu-blue:#c3b2ff; --wu-blue-hover:#d5c8ff; --wu-blue-soft:#352b4f; --wu-violet:#c3b2ff; --wu-violet-soft:#352b4f; --wu-focus:#bea5fa;
- --wu-pink:#e5add3; --wu-pink-soft:#402d3d; --wu-hover-row:#2c3039; --wu-hover-control:#373c47; --wu-hover-border:#6f788b;
- --wu-glow-blue:#3e5da3; --wu-glow-violet:#684599; --wu-glow-pink:#8e4b7d; --wu-glow-opacity:.5;
- --wu-top-glow:radial-gradient(ellipse at 12% 0%,#3e5da352,transparent 65%),radial-gradient(ellipse at 85% 0%,#8e4b7d45,transparent 65%),radial-gradient(ellipse at 50% 0%,#68459950,transparent 70%);
- --wu-primary-start:#7253c7; --wu-primary-end:#7950b9; --wu-primary-edge:#9b80d8;
- --wu-status-backlog:#bbc1ce; --wu-status-todo:#adbed8; --wu-status-ready:#a0beff; --wu-status-inprogress:#ccb2ff; --wu-status-review:#edc17d; --wu-status-done:#8bd9b8; --wu-status-cancelled:#eda1bb;
- --chart-todo:#95a8c4; --chart-ready:#80a6ff; --chart-progress:#b88cf5; --chart-review:#efbb70; --chart-done:#67cfaa; --chart-cancelled:#e896b7;
-}
 .devup-design .workspace-app .wu-button.wu-button--primary,
 .devup-design .workspace-app[data-theme=dark] .wu-button.wu-button--primary,
 .devup-design .workspace-app .wu-chat-layout .wu-chat-composer .wu-chat-square,

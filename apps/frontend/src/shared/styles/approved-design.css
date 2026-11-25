@@ -4,59 +4,59 @@ body.devup-design {
   --devup-brand:linear-gradient(125deg,#4f7be8 0%,#936cdd 52%,#d682b9 100%);
   --devup-sidebar:radial-gradient(ellipse at 5% 8%,#dce8f080 0%,transparent 53%),radial-gradient(ellipse at 88% 28%,#ded5ed90 0%,transparent 58%),radial-gradient(ellipse at 15% 58%,#efdae780 0%,transparent 51%),radial-gradient(ellipse at 90% 92%,#dae4f048 0%,transparent 46%),#f8f8fa;
   --devup-shadow:0 3px 14px #25324a05;
-  --devup-radius:16px;
+  --devup-radius:var(--radius-panel);
   background:#f5f6f9;
   color:#252938;
   -webkit-font-smoothing:antialiased;
 }
 
 .devup-design .workspace-app {
-  --wu-canvas:#f6f7fa;
-  --wu-surface:#fff;
-  --wu-surface-soft:#f4f4f8;
-  --wu-ink:#252938;
-  --wu-muted:#657080;
-  --wu-subtle:#768190;
-  --wu-line:#e7e8ef;
-  --wu-blue:#6251b5;
-  --wu-blue-hover:#51419f;
-  --wu-blue-soft:#efecfb;
-  --wu-violet:#7861b7;
-  --wu-violet-soft:#f1ecfa;
-  --wu-pink:#a65586;
-  --wu-pink-soft:#faeef5;
-  --wu-mint:#347c68;
-  --wu-mint-soft:#eaf6ef;
-  --wu-orange:#9c6a34;
-  --wu-orange-soft:#fbf3e8;
-  --wu-red:#b54161;
-  --wu-red-soft:#fbecf0;
-  font-size:13px;
-  line-height:1.6;
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  font-size:var(--font-size-body);
+  line-height:var(--line-height-body);
 }
 
 .devup-design .workspace-app[data-theme=dark] {
-  --wu-canvas:#171923;
-  --wu-surface:#20222e;
-  --wu-surface-soft:#292b39;
-  --wu-ink:#f1f0f6;
-  --wu-muted:#b1b2c3;
-  --wu-subtle:#9c9eb3;
-  --wu-line:#343646;
-  --wu-blue:#b7a9ef;
-  --wu-blue-hover:#ccbefc;
+  
+  
+  
+  
+  
+  
+  
+  
+  
   --wu-on-blue:#20202d;
-  --wu-blue-soft:#323047;
-  --wu-violet:#bdacf0;
-  --wu-violet-soft:#343047;
-  --wu-pink:#e3accd;
-  --wu-pink-soft:#3d2d3c;
-  --wu-mint:#9bd5c1;
-  --wu-mint-soft:#263c37;
-  --wu-orange:#e3bc8d;
-  --wu-orange-soft:#403629;
-  --wu-red:#efa4b9;
-  --wu-red-soft:#422b3a;
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 }
 
 .devup-design .workspace-app .wu-main {
@@ -196,9 +196,9 @@ body.devup-design {
 .devup-design .wu-button {
   min-height:36px;
   padding:0 14px;
-  border-radius:8px;
-  font-size:12px;
-  font-weight:550;
+  border-radius:var(--radius-control);
+  font-size:var(--font-size-label);
+  font-weight:var(--font-weight-medium);
   box-shadow:0 1px 2px #25293805;
 }
 
