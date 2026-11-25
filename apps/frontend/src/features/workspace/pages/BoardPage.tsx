@@ -1,3 +1,4 @@
+import { IconButton, Button } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
@@ -197,7 +198,7 @@ export function BoardPage({
     <div className="wu-task-toolbar">
       <FilterChips items={['All tasks', 'My tasks', 'Next 7 days', 'Blocked']} active={filter} onChange={setFilter} />
       {facets}
-      <button className="wu-icon-button" type="button" aria-label="Board keyboard shortcuts" title="Board keyboard shortcuts" aria-expanded={showShortcuts} onClick={() => setShowShortcuts(value => !value)}><Keyboard size={18} /></button>
+      <IconButton  type="button" aria-label="Board keyboard shortcuts" title="Board keyboard shortcuts" aria-expanded={showShortcuts} onClick={() => setShowShortcuts(value => !value)}><Keyboard size={18} /></IconButton>
       <div className="wu-task-toolbar-counts"><span>{filteredTasks.length} tasks</span><span>Active work {activeCount} / {activeWipLimit}</span></div>
     </div>
     {showShortcuts && <p className="wu-board-help">Use <strong>Move to</strong> on a card to choose a column and position. You can also focus the drag handle, press <kbd>Space</kbd>, use <kbd>←</kbd> or <kbd>→</kbd> to choose a column, and press <kbd>Space</kbd> to place the card at the bottom.</p>}
@@ -263,8 +264,8 @@ export function BoardPage({
         </label>
         {error && <p role="alert">{error}</p>}
         <div className="wu-modal-actions">
-          <button className="wu-button wu-button--secondary" type="button" disabled={movingTask} onClick={() => setMoveTask(undefined)}>Cancel</button>
-          <button className="wu-button wu-button--primary" type="submit" disabled={movingTask || !moveColumn}>Move task</button>
+          <Button variant="secondary" type="button" disabled={movingTask} onClick={() => setMoveTask(undefined)}>Cancel</Button>
+          <Button variant="primary" type="submit" disabled={movingTask || !moveColumn}>Move task</Button>
         </div>
       </form>
     </Drawer>}
@@ -273,7 +274,7 @@ export function BoardPage({
         <div className="wu-column-form">
           <p className="wu-muted">No tasks in the backlog.</p>
           <div className="wu-modal-actions">
-            <button className="wu-button wu-button--secondary" type="button" onClick={() => setPickingFromBacklog(false)}>Close</button>
+            <Button variant="secondary" type="button" onClick={() => setPickingFromBacklog(false)}>Close</Button>
           </div>
         </div>
       ) : (
@@ -329,8 +330,8 @@ export function BoardPage({
           </div>
           {error && <p role="alert">{error}</p>}
           <div className="wu-modal-actions">
-            <button className="wu-button wu-button--secondary" type="button" disabled={movingTask} onClick={() => { setPickingFromBacklog(false); setSelectedBacklogTaskId(''); }}>Cancel</button>
-            <button className="wu-button wu-button--primary" type="submit" disabled={movingTask || !selectedBacklogTaskId}>Move to To do</button>
+            <Button variant="secondary" type="button" disabled={movingTask} onClick={() => { setPickingFromBacklog(false); setSelectedBacklogTaskId(''); }}>Cancel</Button>
+            <Button variant="primary" type="submit" disabled={movingTask || !selectedBacklogTaskId}>Move to To do</Button>
           </div>
         </form>
       )}

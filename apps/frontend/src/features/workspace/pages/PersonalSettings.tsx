@@ -1,3 +1,5 @@
+import { Button } from '../../../shared/ui';
+import { FormField, Input, Switch } from '../../../shared/ui';
 import {EmptyIllustration} from '../../../shared/illustrations/EmptyIllustration';
 import {ThemePreview,NotificationPreview} from './SettingsVisuals';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -25,7 +27,7 @@ import {
   User,
 } from 'lucide-react';
 import { EmailVerificationForm } from '../../AccountPages';
-import { sessionKey } from '../../WorkspacePicker';
+import { sessionKey } from '../../auth/session';
 import { AvatarPicker, type AvatarSelection } from '../../AvatarPicker';
 import { accountRequest, authRoute } from '../../auth-routing';
 import { Drawer } from '../WorkspaceControls';
@@ -33,7 +35,8 @@ import { jsonRequest, workspaceRequest } from '../workspace-api';
 import { OtpCodeInput } from '../../auth/OtpCodeInput';
 import { ResendCodeButton } from '../../auth/ResendCodeButton';
 
-export type Theme = 'system' | 'light' | 'dark';
+import type { ThemePreference as Theme } from '../../../shared/design-system/theme';
+export type { ThemePreference as Theme } from '../../../shared/design-system/theme';
 export type PersonalProfile = {
   id: string;
   username: string;
@@ -274,8 +277,8 @@ export function PersonalSettings({
                   )}
                 </div>
                 <div className="wu-profile-hero-actions">
-                  <button
-                    className="wu-button wu-button--primary"
+                  <Button
+                    variant="primary"
                     type="button"
                     disabled={busy || !profile.id}
                     onClick={() => {
@@ -284,16 +287,16 @@ export function PersonalSettings({
                     }}
                   >
                     <Camera size={14} /> Change avatar
-                  </button>
+                  </Button>
                   {profile.avatarUrl && (
-                    <button
-                      className="wu-button wu-button--secondary"
+                    <Button
+                      variant="secondary"
                       type="button"
                       disabled={busy}
                       onClick={() => void save({ avatarUrl: null })}
                     >
                       <Trash2 size={14} /> Remove avatar
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -311,7 +314,7 @@ export function PersonalSettings({
                 <div className="wu-field-label wu-field-group--action">
                   <label htmlFor="settings-username">Username</label>
                   <div className="wu-input-row">
-                    <input
+                    <Input
                       id="settings-username"
                       aria-describedby="settings-username-hint"
                       value={usernameInput}
@@ -322,13 +325,13 @@ export function PersonalSettings({
                       required
                       disabled={busy || !profile.id}
                     />
-                    <button
+                    <Button
                       type="submit"
-                      className="wu-button wu-button--secondary"
+                      variant="secondary"
                       disabled={busy || !profile.id || !isUsernameDirty}
                     >
                       Save username
-                    </button>
+                    </Button>
                   </div>
                   <p id="settings-username-hint" className="wu-field-hint">
                     Must be between 3 and 30 characters. Your handle is visible to teammates
@@ -418,15 +421,15 @@ export function PersonalSettings({
                   <p className="wu-field-hint" style={{ color: 'var(--wu-mint)' }}>
                     ✓ Two-factor authentication is active on <strong>{profile.email}</strong>.
                   </p>
-                  <button
-                    className="wu-button wu-button--secondary"
+                  <Button
+                    variant="secondary"
                     type="button"
                     disabled={busy || !token}
                     onClick={() => void disableTwoFactor()}
                     style={{ justifySelf: 'start' }}
                   >
                     <ShieldAlert size={15} /> Disable 2FA
-                  </button>
+                  </Button>
                 </div>
               ) : !profile.emailVerified ? (
                 <p className="wu-muted" style={{ fontStyle: 'italic', fontSize: '13px' }}>
@@ -459,14 +462,14 @@ export function PersonalSettings({
                       flexWrap: 'wrap',
                     }}
                   >
-                    <button
-                      className="wu-button wu-button--primary"
+                    <Button
+                      variant="primary"
                       type="button"
                       disabled={twoFactorBusy || twoFactorCode.length !== 6}
                       onClick={() => void confirmEnableTwoFactor(twoFactorCode)}
                     >
                       {twoFactorBusy ? 'Verifying…' : 'Confirm & Enable 2FA'}
-                    </button>
+                    </Button>
                     <ResendCodeButton
                       cooldownSeconds={60}
                       storageKey={`devup_2fa_enable_resend_${profile.id}`}
@@ -489,15 +492,15 @@ export function PersonalSettings({
                   </div>
                 </div>
               ) : (
-                <button
-                  className="wu-button wu-button--primary"
+                <Button
+                  variant="primary"
                   type="button"
                   disabled={busy || !token}
                   onClick={() => void requestEnableTwoFactor()}
                   style={{ justifySelf: 'start' }}
                 >
                   <ShieldCheck size={15} /> Enable 2FA
-                </button>
+                </Button>
               )}
             </div>
 
@@ -583,9 +586,9 @@ export function PersonalSettings({
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <button className="wu-button wu-button--primary" type="submit" disabled={busy || !token}>
+                  <Button variant="primary" type="submit" disabled={busy || !token}>
                     <Lock size={14} /> Update password
-                  </button>
+                  </Button>
                   <a
                     className="wu-text-button"
                     href={authRoute(
@@ -656,17 +659,11 @@ export function PersonalSettings({
                     Display a numerical badge with your unread count on the notification bell in the top navigation bar.
                   </p>
                 </div>
-                <label className="wu-switch" aria-label="Toggle unread notification badge">
-                  <input aria-label="Show unread notification badge"
-                    type="checkbox"
-                    checked={profile.notificationBadge ?? true}
-                    disabled={busy || !profile.id}
-                    onChange={(event) =>
-                      void save({ notificationBadge: event.target.checked })
-                    }
-                  />
-                  <span className="wu-switch-slider" />
-                </label>
+                <Switch aria-label="Show unread notification badge"
+                  checked={profile.notificationBadge ?? true}
+                  disabled={busy || !profile.id}
+                  onChange={event => void save({ notificationBadge: event.target.checked })}
+                />
               </div>
             </div>
           </>

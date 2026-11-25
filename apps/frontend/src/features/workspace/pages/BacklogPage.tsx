@@ -1,3 +1,4 @@
+import { Input, Button } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
@@ -106,7 +107,7 @@ export function BacklogPage({
         </Select>
         <label className="wu-list-search">
           <Search size={16} aria-hidden="true" />
-          <input type="search" aria-label="Search backlog tasks" placeholder="Search by title or task ID" maxLength={200} value={view.search} onChange={event => update({ search: event.currentTarget.value })} />
+          <Input type="search" aria-label="Search backlog tasks" placeholder="Search by title or task ID" maxLength={200} value={view.search} onChange={event => update({ search: event.currentTarget.value })} />
         </label>
         <Select className="wu-select" aria-label="Sort tasks" value={view.sort}
           onChange={event => update({ sort: event.currentTarget.value as BacklogView['sort'] })}>
@@ -137,9 +138,9 @@ export function BacklogPage({
           setSaving(false);
         }
       }}>
-        <label className="wu-list-search"><input aria-label="View name" placeholder="View name" maxLength={60} required autoFocus
+        <label className="wu-list-search"><Input aria-label="View name" placeholder="View name" maxLength={60} required autoFocus
           value={viewName} onChange={event => setViewName(event.currentTarget.value)} /></label>
-        <button className="wu-button wu-button--secondary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+        <Button variant="secondary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
       </form>}
       {saveError && <p role="alert">{saveError}</p>}
       {savedViews.error && <p role="alert">Could not load saved views. <button className="wu-text-button" type="button" onClick={savedViews.retry}>Try again</button></p>}

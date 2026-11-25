@@ -1,3 +1,4 @@
+import { IconButton, Input, Button, Textarea } from '../../../shared/ui';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { Reply, ArrowLeft, ArrowUp, ChevronRight, Info, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, SquarePen, Link as LinkIcon, ExternalLink, X } from 'lucide-react';
@@ -258,8 +259,8 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
       <Panel className="wu-conversation-panel">
         <div className="wu-chat-list-heading"><h2>Messages</h2><span>{threads.length} conversations</span></div>
         <div className="wu-chat-search-row">
-          <button type="button" className="wu-icon-button wu-chat-list-close" aria-label="Hide conversations" title="Hide conversations" onClick={() => setShowList(false)}><ArrowLeft size={19} /></button>
-          <label className="wu-chat-search"><Search size={17} aria-hidden="true" /><input type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} /></label>
+          <IconButton type="button" className="wu-chat-list-close" aria-label="Hide conversations" title="Hide conversations" onClick={() => setShowList(false)}><ArrowLeft size={19} /></IconButton>
+          <label className="wu-chat-search"><Search size={17} aria-hidden="true" /><Input type="search" aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} /></label>
         </div>
         <div className="wu-chat-tabs" role="group" aria-label="Filter conversations">
           {filters.map(item => <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}>
@@ -278,26 +279,26 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
           {!visibleThreads.length && <p className="wu-chat-empty">{search ? 'No conversations match your search.' : 'No ' + filter.toLowerCase() + ' conversations.'}</p>}
         </div>
         <footer className="wu-chat-list-footer">
-          <button className="wu-button wu-button--primary" type="button" onClick={() => setDrawer('new')}><SquarePen size={17} />New message</button>
+          <Button variant="primary" type="button" onClick={() => setDrawer('new')}><SquarePen size={17} />New message</Button>
         </footer>
       </Panel>
 
       <Panel className="wu-chat-thread">
         <header className="wu-chat-thread-head">
-          <button type="button" className="wu-icon-button wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></button>
+          <IconButton type="button" className="wu-chat-back" aria-label="Show conversations" onClick={() => setShowList(true)}><PanelLeftOpen size={19} /></IconButton>
           {thread.member ? <Portrait name={thread.member} url={portraitUrl(direct?.otherUserId)} /> : <IconTile><workspaceIcons.team size={18} /></IconTile>}
           <div className="wu-chat-heading"><h2>{thread.title}</h2><p>{thread.member ? 'Direct message' : members.length + ' members · General discussion'}</p></div>
-          <button type="button" className="wu-icon-button wu-chat-search-toggle" aria-label="Search loaded messages" title={searchOpen ? 'Close message search' : 'Search loaded messages'} aria-controls="chat-message-search" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>{searchOpen ? <X size={18} /> : <Search size={18} />}</button>
-          <button type="button" className="wu-icon-button wu-chat-details-toggle"
+          <IconButton type="button" className="wu-chat-search-toggle" aria-label="Search loaded messages" title={searchOpen ? 'Close message search' : 'Search loaded messages'} aria-controls="chat-message-search" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>{searchOpen ? <X size={18} /> : <Search size={18} />}</IconButton>
+          <IconButton type="button" className="wu-chat-details-toggle"
             aria-label={detailsCollapsed ? 'Show details' : 'Hide details'} title={detailsCollapsed ? 'Show details' : 'Hide details'} aria-controls="chat-details" aria-expanded={!detailsCollapsed} onClick={() => setDetailsCollapsed(value => !value)}>
             {detailsCollapsed ? <PanelRightOpen size={17} aria-hidden="true" /> : <PanelRightClose size={17} aria-hidden="true" />}
-          </button>
-          <button type="button" className="wu-icon-button wu-chat-info" aria-label="Show conversation details" title="Show conversation details" onClick={() => setDrawer('details')}><Info size={19} /></button>
+          </IconButton>
+          <IconButton type="button" className="wu-chat-info" aria-label="Show conversation details" title="Show conversation details" onClick={() => setDrawer('details')}><Info size={19} /></IconButton>
         </header>
         {searchOpen && <section id="chat-message-search" className="wu-chat-search-results" aria-label="Search conversation">
           <p className="wu-chat-search-hint">Search messages loaded in this conversation. Load older messages to include more history.</p>
           <form onSubmit={event => { event.preventDefault(); void searchHistory(); }}>
-            <input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" autoFocus value={searchTerm} maxLength={200}
+            <Input type="search" aria-label="Search this conversation" placeholder="Search this conversation…" autoFocus value={searchTerm} maxLength={200}
               onChange={event => setSearchTerm(event.target.value)} />
             <button className="wu-text-button" type="submit" disabled={searching || !searchTerm.trim()}>Search</button>
           </form>
@@ -359,12 +360,12 @@ export function ChatPage({ workspaceId, workspaceName, chat, selected, setSelect
         }}>Jump to latest</button>}
         {readOnly ? <p className="wu-chat-archive-note">Team chat is read-only while this workspace is archived.</p> : <form className="wu-message-form" onSubmit={submitMessage}>
           {sendError && <p role="alert">{sendError} <button className="wu-text-button" type="submit" disabled={sending || !canSend}>Retry send</button></p>}
-          {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview.slice(0, 100)}</span><button className="wu-icon-button" type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></button></div>}
+          {draft.reply && <div className="wu-chat-draft-chip"><span>Replying to {draft.reply.preview.slice(0, 100)}</span><IconButton  type="button" aria-label="Remove reply" disabled={sending} onClick={() => setDrafts(current => ({ ...current, [thread.id]: { text: draft.text } }))}><X size={16} /></IconButton></div>}
           <div className="wu-chat-composer">
-            <textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
+            <Textarea ref={composer} rows={1} aria-label="Message" placeholder={thread.id === 'team' ? 'Message the team…' : `Message ${thread.title}…`} value={draft.text} disabled={sending}
               onChange={event => setDrafts(current => ({ ...current, [thread.id]: { text: event.target.value, reply: draft.reply } }))}
               onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <button type="submit" className="wu-button wu-button--primary wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></button>
+            <Button type="submit" variant="primary" className="wu-chat-square" aria-label="Send message" title="Send message" disabled={sending || !canSend}><ArrowUp size={20} /></Button>
           </div>
           <p className="wu-chat-composer-hint">Enter to send <span>·</span> Shift + Enter for a new line</p>
         </form>}

@@ -11,52 +11,15 @@ body.devup-design {
 }
 
 .devup-design .workspace-app {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   font-size:var(--font-size-body);
   line-height:var(--line-height-body);
 }
 
 .devup-design .workspace-app[data-theme=dark] {
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --wu-on-blue:#20202d;
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
 }
 
 .devup-design .workspace-app .wu-main {
@@ -569,8 +532,6 @@ body.devup-design {
   padding:15px 16px;
   border-color:var(--wu-line);
 }
-
-
 
 .devup-design .wu-list-item-name {
   font-size:12px;

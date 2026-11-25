@@ -1,3 +1,4 @@
+import { Button } from '../ui/Button';
 import './empty-states.css';
 export const emptyKinds=['tasks','projects','files','notes','messages','notifications','search','analytics','team','integrations','activity','calendar','invitations','restricted','offline','error'] as const;
 export type EmptyKind=typeof emptyKinds[number];
@@ -9,6 +10,6 @@ export function EmptyIllustration({kind,size=152}:{kind:EmptyKind;size?:number})
 }
 export function IllustratedEmptyState({kind,title,detail,action,onAction,compact=false}:{kind:EmptyKind;title:string;detail?:string;action?:string;onAction?:()=>void;compact?:boolean}){
  return <section className={'devup-empty-state'+(compact?' devup-empty-state--compact':'')} data-empty-kind={kind}>
- <EmptyIllustration kind={kind} size={compact?104:144}/><h3>{title}</h3>{detail&&<p>{detail}</p>}{action&&onAction&&<button type="button" className="wu-button wu-button--primary" onClick={onAction}>{action}</button>}
+ <EmptyIllustration kind={kind} size={compact?104:144}/><h3>{title}</h3>{detail&&<p>{detail}</p>}{action&&onAction&&<Button variant="primary" onClick={onAction}>{action}</Button>}
  </section>;
 }

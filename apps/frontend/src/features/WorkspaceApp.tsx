@@ -1,11 +1,11 @@
-import { useHoverDisclosure } from '../shared/controls/useHoverDisclosure';
-import { useHoverPopover } from '../shared/controls/useHoverPopover';
+import { Button, IconButton, Input, Textarea } from '../shared/ui';
+import { ProfileMenu } from './workspace/ProfileMenu';
 import { Select } from '../shared/controls/Select';
 import { IllustratedEmptyState } from '../shared/illustrations/EmptyIllustration';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Archive, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Contrast, LogOut, PanelLeftClose, PanelLeftOpen, Plus, UserRound, UsersRound, X } from 'lucide-react';
 import { workspaceIcons } from './workspace/workspace-icons';
-import { sessionKey, signOut, switchAccount } from './WorkspacePicker';
+import { sessionKey, signOut, switchAccount } from './auth/session';
 import './workspace-app.css';
 import { Avatar } from './workspace/components';
 import { rememberWorkspace } from './workspace/workspace-history';
@@ -113,7 +113,6 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const workspaceName = workspace?.name ?? 'Workspace';
   const [profile, setProfile] = useState<PersonalProfile>({ id: '', username: 'Workspace member', email: '' });
   const { id: profileId, username: profileName, email: profileEmail, avatarUrl: profileAvatar, theme = 'system' } = profile;
-  const profileInitials = profileName.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
   const archived = !!workspace?.archivedAt;
   const [chatThread, setChatThread] = useState(getChatThreadFromUrl);
   const chat = useWorkspaceChat(workspaceId, workspace ? token : null, page === 'chat' ? chatThread : null, profileId);
@@ -131,8 +130,6 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
   const [selectedTaskId, setSelectedTaskId] = useState(() => new URLSearchParams(location.search).get('task'));
   const [modal, setModal] = useState<'task' | 'invite' | null>(null);
   const [toast, setToast] = useState('');
-  const accountMenu = useHoverPopover();
-  const themeMenu = useHoverDisclosure();
   const [inviteDelivery, setInviteDelivery] = useState<TeamInvitation>();
   const workspacePath = 'workspaces/' + encodeURIComponent(workspaceId);
   const filePath = workspacePath + '/files';
@@ -447,7 +444,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
 
   function addTaskButton(label = 'New task') {
     if (archived) return null;
-    return <button className="wu-button wu-button--primary wu-button--with-icon" type="button" onClick={() => openTaskForm()}><Plus size={15} aria-hidden="true" />{label}</button>;
+    return <Button variant="primary" className="wu-button--with-icon" type="button" onClick={() => openTaskForm()}><Plus size={15} aria-hidden="true" />{label}</Button>;
   }
 
   function pageHeading(action?: ReactNode) {
@@ -679,10 +676,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     <aside className="wu-sidebar" id="workspace-sidebar">
       <div className="wu-sidebar-header">
         <a className="wu-brand" href="/" aria-label="DevUP home"><img src="/devup.svg" alt="" width="30" height="30" /><strong>DevUP</strong></a>
-        <button className="wu-icon-button wu-sidebar-toggle" type="button" aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed}
+        <IconButton className="wu-sidebar-toggle" type="button" aria-controls="workspace-sidebar" aria-expanded={!sidebarCollapsed}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => { if (matchMedia('(max-width:680px)').matches) setMobileSidebarOpen(false); else toggleSidebar(); }}>
           {sidebarCollapsed ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
-        </button>
+        </IconButton>
       </div>
       <div className="wu-sidebar-search">
         <WorkspaceCommand pages={navigation} tasks={allTasks}
@@ -696,10 +693,10 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
     <div className="wu-main">
       <header className="wu-topbar">
         <div className="wu-page-navigation">
-          <button className="wu-icon-button wu-mobile-nav-toggle" type="button" aria-label="Open navigation" aria-controls="workspace-sidebar" aria-expanded={mobileSidebarOpen} onClick={() => setMobileSidebarOpen(true)}><PanelLeftOpen size={18} aria-hidden="true" /></button>
+          <IconButton className="wu-mobile-nav-toggle" type="button" aria-label="Open navigation" aria-controls="workspace-sidebar" aria-expanded={mobileSidebarOpen} onClick={() => setMobileSidebarOpen(true)}><PanelLeftOpen size={18} aria-hidden="true" /></IconButton>
           <div className="wu-history-controls" role="group" aria-label="Page history">
-            <button className="wu-icon-button" type="button" aria-label="Go back" title="Go back" disabled={!workspaceHistory.canBack} onClick={() => history.back()}><ArrowLeft size={17} aria-hidden="true" /></button>
-            <button className="wu-icon-button" type="button" aria-label="Go forward" title="Go forward" disabled={!workspaceHistory.canForward} onClick={() => history.forward()}><ArrowRight size={17} aria-hidden="true" /></button>
+            <IconButton  type="button" aria-label="Go back" title="Go back" disabled={!workspaceHistory.canBack} onClick={() => history.back()}><ArrowLeft size={17} aria-hidden="true" /></IconButton>
+            <IconButton  type="button" aria-label="Go forward" title="Go forward" disabled={!workspaceHistory.canForward} onClick={() => history.forward()}><ArrowRight size={17} aria-hidden="true" /></IconButton>
           </div>
           <nav className="wu-breadcrumbs" aria-label="Breadcrumb">
             <button type="button" onClick={() => navigate('home')} title={workspaceName}>{workspaceName}</button>
@@ -709,33 +706,9 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         </div>
         <div className="wu-top-actions">
           <NotificationInbox token={token} workspaceId={workspaceId} showBadge={profile.notificationBadge} />
-          <button {...accountMenu.triggerProps} className="wu-user-button wu-profile-trigger" type="button" aria-label={'Account menu for ' + profileName} popoverTarget="wu-profile-menu">
-            {profileAvatar ? <img className="wu-avatar" src={profileAvatar} alt="" /> : <Avatar initials={profileInitials} tone="blue" preview={false} />}
-          </button>
-          <div {...accountMenu.panelProps} id="wu-profile-menu" popover="auto" className="wu-profile-menu" aria-label="Account">
-            <div className="wu-profile-identity">
-              {profileAvatar ? <img className="wu-avatar" src={profileAvatar} alt="" /> : <Avatar initials={profileInitials} tone="blue" preview={false} />}
-              <div><strong>{profileName}</strong>{profileEmail && <span>{profileEmail}</span>}</div>
-            </div>
-            <div className="wu-profile-actions">
-              <button type="button" onClick={() => openSettings('profile')}><UserRound size={17} aria-hidden="true" />Personal settings</button>
-              <details {...themeMenu.detailsProps} className="wu-profile-theme">
-                <summary {...themeMenu.summaryProps}><Contrast size={17} aria-hidden="true" />Theme <ChevronRight className="wu-profile-chevron" size={15} aria-hidden="true" /></summary>
-                <fieldset className="wu-theme-picker">
-                  <legend className="wu-visually-hidden">Theme</legend>
-                  {(['light', 'dark', 'system'] as const).map(mode => <label key={mode} className="wu-theme-option" data-selected={theme === mode}>
-                    <input type="radio" name="workspace-theme" checked={theme === mode} disabled={!profileId} onChange={() => void saveTheme(mode)} />
-                    <span className={`wu-theme-preview wu-theme-preview--${mode}`} aria-hidden="true"><i /><b /></span>
-                    <span>{mode === 'light' ? 'Light' : mode === 'dark' ? 'Dark' : 'Match browser'}</span>
-                  </label>)}
-                </fieldset>
-              </details>
-            </div>
-            <div className="wu-profile-actions wu-profile-footer">
-              <button type="button" onClick={() => switchAccount()}><UsersRound size={17} aria-hidden="true" />Switch account</button>
-              <button type="button" disabled={loggingOut} onClick={() => void logout()}><LogOut size={17} aria-hidden="true" />{loggingOut ? 'Logging out…' : 'Log out'}</button>
-            </div>
-          </div>
+          <ProfileMenu profileId={profileId} profileName={profileName} profileEmail={profileEmail} profileAvatar={profileAvatar}
+            theme={theme} loggingOut={loggingOut} onSettings={() => openSettings('profile')} onSwitchAccount={switchAccount}
+            onLogout={logout} onTheme={saveTheme} />
         </div>
       </header>
       <main className={page === 'chat' ? 'wu-page wu-page--chat' : page === 'settings' ? 'wu-page wu-page--settings' : 'wu-page'} id="main" data-archived={archived || undefined} aria-label={page === 'chat' ? 'Chat' : undefined}>
@@ -752,9 +725,9 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
       files={(workspaceFiles.items ?? []).filter(file => file.taskId === selectedTask.id)} boardColumns={boardColumns}
       openTask={openRelatedTask} openFile={file => navigate('files', 'file-' + file.id)}
       onBack={history.state?.fromTask ? () => history.back() : undefined} />}
-    {!archived && modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !submittingModal.current) setModal(null); }}><section className="wu-modal wu-workspace-form-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><button className="wu-icon-button" type="button" aria-label="Close dialog" disabled={taskSaving} onClick={() => setModal(null)}><X size={18} /></button></div>{modal === 'task' ? <form onSubmit={submitTask}>
-      <label className="wu-field-label">Task title<input autoFocus name="title" placeholder="What needs to get done?" required maxLength={200} readOnly={taskSaving} /></label>
-      <label className="wu-field-label">Description<textarea name="description" rows={3} placeholder="Add details for your team" readOnly={taskSaving} /></label>
+    {!archived && modal && <div className="wu-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !submittingModal.current) setModal(null); }}><section className="wu-modal wu-workspace-form-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="wu-modal-head"><div><h2 id="modal-title">{modal === 'task' ? 'Create a task' : 'Invite a team member'}</h2><p>{modal === 'task' ? 'Add a piece of work to the workspace backlog.' : 'Send an invitation to collaborate in this workspace.'}</p></div><IconButton  type="button" aria-label="Close dialog" disabled={taskSaving} onClick={() => setModal(null)}><X size={18} /></IconButton></div>{modal === 'task' ? <form onSubmit={submitTask}>
+      <label className="wu-field-label">Task title<Input autoFocus name="title" placeholder="What needs to get done?" required maxLength={200} readOnly={taskSaving} /></label>
+      <label className="wu-field-label">Description<Textarea name="description" rows={3} placeholder="Add details for your team" readOnly={taskSaving} /></label>
       <div className="wu-task-create-fields">
       <label className="wu-field-label">Assignee<Select name="assigneeId" disabled={taskSaving}>
         <option value="">Unassigned</option>
@@ -764,23 +737,23 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <option value="">No priority</option>
         {Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </Select></label>
-      <label className="wu-field-label">Due date<input name="dueDate" type="date" min="1000-01-01" max="9999-12-31" readOnly={taskSaving} /></label>
+      <label className="wu-field-label">Due date<Input name="dueDate" type="date" min="1000-01-01" max="9999-12-31" readOnly={taskSaving} /></label>
       </div>
       {taskError && <p role="alert">{taskError}</p>}
       <div className="wu-modal-actions">
-        <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>
-        <button className="wu-button wu-button--primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Creating…' : 'Create task'}</button>
+        <Button variant="secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</Button>
+        <Button variant="primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Creating…' : 'Create task'}</Button>
       </div>
     </form> : <form onSubmit={submitInvite}>
       <label className="wu-field-label">Username or email address
-        <input autoFocus name="identifier" type="text" placeholder="Enter username or email" required readOnly={taskSaving}
+        <Input autoFocus name="identifier" type="text" placeholder="Enter username or email" required readOnly={taskSaving}
           aria-describedby="invite-email-help" />
       </label>
       <p id="invite-email-help" className="wu-muted">Enter the email of an existing DevUP user. They'll receive an in-app invitation and can accept or decline.</p>
       {taskError && <p role="alert">{taskError}</p>}
       <div className="wu-modal-actions">
-        <button className="wu-button wu-button--secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</button>
-        <button className="wu-button wu-button--primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Sending…' : 'Invite member'}</button>
+        <Button variant="secondary" type="button" disabled={taskSaving} onClick={() => setModal(null)}>Cancel</Button>
+        <Button variant="primary" type="submit" disabled={taskSaving}><Plus size={15} />{taskSaving ? 'Sending…' : 'Invite member'}</Button>
       </div>
     </form>}</section></div>}
     {chat.notices[0] && <MessageToast key={chat.notices[0].threadId} notice={chat.notices[0]} members={members.items ?? []} workspaceName={workspaceName}

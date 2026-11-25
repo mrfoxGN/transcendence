@@ -1,4 +1,4 @@
-import { sessionKey } from '../WorkspacePicker';
+import { sessionKey } from '../auth/session';
 import { AnimatedHeading } from './AnimatedHeading';
 import { useEffect, useState, type PointerEvent } from 'react';
 import { ArrowUp } from 'lucide-react';

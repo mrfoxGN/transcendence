@@ -1,4 +1,4 @@
-import { signOut } from '../WorkspacePicker';
+import { signOut } from '../auth/session';
 import { WorkspaceRequestError, type WorkspaceFile } from './workspace-api';
 
 export const uploadLimit = 10 * 1024 * 1024;

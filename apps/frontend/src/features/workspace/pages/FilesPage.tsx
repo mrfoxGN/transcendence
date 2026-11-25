@@ -1,3 +1,4 @@
+import { IconButton, Button, Input } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useRef, useState } from 'react';
@@ -86,7 +87,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
 
   function actions(item: WorkspaceFile) {
     return <div className="wu-file-actions">
-      <button className="wu-icon-button" type="button" aria-label={`Download ${item.displayName}`} title="Download file" onClick={() => void download(item)}><Download size={16} aria-hidden="true" /></button>
+      <IconButton  type="button" aria-label={`Download ${item.displayName}`} title="Download file" onClick={() => void download(item)}><Download size={16} aria-hidden="true" /></IconButton>
       {!readOnly && (owner || item.uploaderId === profileId) && <ActionMenu label={'Actions for ' + item.displayName} actions={[
         { label: 'Rename file', run: () => { setError(''); setRenaming(item); } },
         { label: 'Delete file', run: () => { setError(''); setRemoving(item); } },
@@ -189,16 +190,16 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
         <div><dt>Uploaded by</dt><dd>{person(item)}</dd></div>
       </dl>
       <div className="wu-file-detail-actions">
-        <button className="wu-button wu-button--secondary wu-button--with-icon" type="button" onClick={() => void download(item)}><Download size={15} aria-hidden="true" />Download</button>
-        {item.taskId && <button className="wu-button wu-button--secondary" type="button" onClick={() => { setDrawerOpen(false); onOpenTask(item.taskId!); }}><Link2 size={16} />Open linked task</button>}
-        {!readOnly && (owner || item.uploaderId === profileId) && <button className="wu-button wu-button--secondary" type="button"
-          onClick={() => { setError(''); setRenaming(item); }}><Pencil size={16} />Rename</button>}
+        <Button variant="secondary" className="wu-button--with-icon" type="button" onClick={() => void download(item)}><Download size={15} aria-hidden="true" />Download</Button>
+        {item.taskId && <Button variant="secondary" type="button" onClick={() => { setDrawerOpen(false); onOpenTask(item.taskId!); }}><Link2 size={16} />Open linked task</Button>}
+        {!readOnly && (owner || item.uploaderId === profileId) && <Button variant="secondary" type="button"
+          onClick={() => { setError(''); setRenaming(item); }}><Pencil size={16} />Rename</Button>}
       </div>
     </>;
   }
 
   return <div className="wu-files-workbench">
-    {pageHeading(!readOnly && <div className="wu-file-upload-control"><span className="wu-muted">Up to 10 MiB per file</span><button className="wu-button wu-button--primary wu-button--with-icon" type="button" disabled={uploading || !token} onClick={() => input.current?.click()}><Upload size={15} aria-hidden="true" />{uploading ? 'Uploading…' : 'Upload file'}</button></div>)}
+    {pageHeading(!readOnly && <div className="wu-file-upload-control"><span className="wu-muted">Up to 10 MiB per file</span><Button variant="primary" className="wu-button--with-icon" type="button" disabled={uploading || !token} onClick={() => input.current?.click()}><Upload size={15} aria-hidden="true" />{uploading ? 'Uploading…' : 'Upload file'}</Button></div>)}
     {onBackToTask && <button className="wu-text-button" type="button" onClick={onBackToTask}>Back to task</button>}
     <input ref={input} type="file" hidden onChange={event => {
       const chosen = event.currentTarget.files?.[0];
@@ -226,7 +227,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
         <div className="wu-list-toolbar wu-files-toolbar">
           <h2>All files</h2>
           <label className="wu-list-search"><Search size={16} aria-hidden="true" />
-            <input type="search" aria-label="Search files" placeholder="Search filenames" maxLength={200} value={search} onChange={event => { setSearch(event.currentTarget.value); setPage(1); }} />
+            <Input type="search" aria-label="Search files" placeholder="Search filenames" maxLength={200} value={search} onChange={event => { setSearch(event.currentTarget.value); setPage(1); }} />
           </label>
           <label className="wu-file-sort">Sort by
             <Select className="wu-select" value={sort} onChange={event => { setSort(event.currentTarget.value); setPage(1); }}>
@@ -280,7 +281,7 @@ export function FilesPage({ pageHeading, path, token, files, members, onUpload, 
     </Drawer>}
     {renaming && <Drawer title="Rename file" closeDisabled={renameBusy} onClose={() => { setRenaming(undefined); setError(''); }}>
       <form className="wu-file-rename" onSubmit={event => { event.preventDefault(); void renameFile(String(new FormData(event.currentTarget).get('name') ?? '')); }}>
-        <label className="wu-field-label">Filename<input name="name" required maxLength={255} defaultValue={renaming.displayName} autoFocus /></label>
+        <label className="wu-field-label">Filename<Input name="name" required maxLength={255} defaultValue={renaming.displayName} autoFocus /></label>
         {error && <p role="alert">{error}</p>}
         <button className="wu-button wu-button--primary" disabled={renameBusy}>{renameBusy ? 'Renaming…' : 'Rename file'}</button>
       </form>

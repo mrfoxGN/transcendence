@@ -1,3 +1,5 @@
+import { FormField } from '../../../shared/ui';
+import { Button, Input, IconButton } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
@@ -196,10 +198,10 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
   const referencedTasks = tasks.filter(task => task.taskKey && referenceKeys.has(task.taskKey.toUpperCase()));
 
   return <>
-    {pageHeading(!readOnly && <button className="wu-button wu-button--primary wu-button--with-icon" type="button" disabled={busy || !!editing} onClick={() => start()}><Plus size={15} aria-hidden="true"/>New note</button>)}
+    {pageHeading(!readOnly && <Button variant="primary" className="wu-button--with-icon" type="button" disabled={busy || !!editing} onClick={() => start()}><Plus size={15} aria-hidden="true"/>New note</Button>)}
     <div className="wu-notes-board">
       <div className="wu-notes-card-tools">
-        <label className="wu-list-search"><Search size={16} aria-hidden="true"/><input type="search" aria-label="Search notes" placeholder="Search your notes" maxLength={200} value={search} onChange={event=>{setSearch(event.target.value);setPage(1);}}/></label>
+        <label className="wu-list-search"><Search size={16} aria-hidden="true"/><Input type="search" aria-label="Search notes" placeholder="Search your notes" maxLength={200} value={search} onChange={event=>{setSearch(event.target.value);setPage(1);}}/></label>
         <Select className="wu-select" aria-label="Sort notes" value={sort} onChange={event=>{setSort(event.target.value);setPage(1);}}><option value="updated">Recently updated</option><option value="name">Title A–Z</option></Select>
         {list.items&&<span className="wu-notes-card-count">{filtered.length} {filtered.length===1?'note':'notes'}</span>}
       </div>
@@ -211,9 +213,9 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
         <article className="wu-note-gradient-card" data-note-id={note.id} style={projectAppearance('note:'+note.id)}>
           <div className="wu-note-card-actions">
             {canEdit(note)?<>
-              <button type="button" className="wu-icon-button" aria-label={(note.pinnedAt?'Unpin note: ':'Pin note: ')+note.title} title={note.pinnedAt?'Unpin note':'Pin note'} aria-pressed={!!note.pinnedAt} disabled={busy} onClick={()=>pin(note)}><Pin size={15} fill={note.pinnedAt?'currentColor':'none'} aria-hidden="true"/></button>
-              <button type="button" className="wu-icon-button" aria-label={'Edit note: '+note.title} title="Edit note" disabled={busy} onClick={()=>start(note)}><Pencil size={15} aria-hidden="true"/></button>
-              <button type="button" className="wu-icon-button wu-note-delete" aria-label={'Delete note: '+note.title} title="Delete note" disabled={busy} onClick={()=>{setError('');setRemoving(note);}}><Trash2 size={15} aria-hidden="true"/></button>
+              <IconButton type="button"  aria-label={(note.pinnedAt?'Unpin note: ':'Pin note: ')+note.title} title={note.pinnedAt?'Unpin note':'Pin note'} aria-pressed={!!note.pinnedAt} disabled={busy} onClick={()=>pin(note)}><Pin size={15} fill={note.pinnedAt?'currentColor':'none'} aria-hidden="true"/></IconButton>
+              <IconButton type="button"  aria-label={'Edit note: '+note.title} title="Edit note" disabled={busy} onClick={()=>start(note)}><Pencil size={15} aria-hidden="true"/></IconButton>
+              <IconButton type="button" className="wu-note-delete" aria-label={'Delete note: '+note.title} title="Delete note" disabled={busy} onClick={()=>{setError('');setRemoving(note);}}><Trash2 size={15} aria-hidden="true"/></IconButton>
             </>:<span className="wu-note-readonly">Read only</span>}
           </div>
           <h2><button type="button" onClick={()=>showNote(note.id)}>{note.title}</button></h2>
@@ -221,21 +223,21 @@ export function NotesPage({ pageHeading, path, token, owner, profileId, members,
           <footer><span>{authorName(note)}</span><time dateTime={note.updatedAt} title={formatTime(note.updatedAt)}>{new Date(note.updatedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</time></footer>
         </article>
       </li>)}</ul>}
-      {(page>1||hasNext)&&<nav className="wu-document-pagination" aria-label="Document pages"><button className="wu-button wu-button--secondary" type="button" disabled={page===1} onClick={()=>setPage(page-1)}>Previous</button><span aria-live="polite">Page {page}</span><button className="wu-button wu-button--secondary" type="button" disabled={!hasNext} onClick={()=>setPage(page+1)}>Next</button></nav>}
+      {(page>1||hasNext)&&<nav className="wu-document-pagination" aria-label="Document pages"><Button variant="secondary" type="button" disabled={page===1} onClick={()=>setPage(page-1)}>Previous</Button><span aria-live="polite">Page {page}</span><Button variant="secondary" type="button" disabled={!hasNext} onClick={()=>setPage(page+1)}>Next</Button></nav>}
     </div>
     {(editing||activeId)&&<Drawer title={editing==='new'?'New note':editing==='edit'?'Edit note':selected?.title??'Note'} closeDisabled={busy||!!editing} onClose={()=>{setEditing(undefined);showNote('');}}>
       <div className="wu-note-workbench"><Suspense fallback={<LoadingPanel label="Loading note editor"/>}>
         {editing?<form className="wu-note-writing-form" onKeyDown={event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();if(!busy){if(editing==='edit')void saveDraft();else event.currentTarget.requestSubmit();}}}} onSubmit={editing==='new'?create:event=>{event.preventDefault();void saveDraft(true);}}>
-          <label className="wu-field-label">Title<input value={draft.title} onChange={event=>updateDraft({...draftRef.current,title:event.target.value})} required maxLength={200} autoFocus placeholder="Give your note a title"/></label>
+          <FormField label="Title" htmlFor="note-title"><Input value={draft.title} onChange={event=>updateDraft({...draftRef.current,title:event.target.value})} required maxLength={200} autoFocus placeholder="Give your note a title"/></FormField>
           <NoteRichEditor key={editing==='new'?'new':baseline.current?.id} value={draft.content} onChange={content=>updateDraft({...draftRef.current,content})}/>
           <p className="wu-note-writing-hint">Reference a task by its ID to keep your notes connected to your work.</p>
           {error&&<p role="alert">{error}</p>}
           <div className="wu-note-writing-actions">
             <span className="wu-muted" role="status">{busy?'Saving…':editing==='new'?'Unsaved draft':(draft.title.trim()!==baseline.current?.title||draft.content!==(baseline.current?.content??''))?'Unsaved changes':notice||'Changes save automatically'}</span>
-            {editing==='new'?<><button className="wu-button wu-button--secondary" type="button" disabled={busy} onClick={()=>{setEditing(undefined);showNote('');}}>Cancel</button><button className="wu-button wu-button--primary" type="submit" disabled={busy}>{busy?'Creating…':'Create note'}</button></>:<button className="wu-button wu-button--primary" type="submit" disabled={busy}>Done editing</button>}
+            {editing==='new'?<><Button variant="secondary" type="button" disabled={busy} onClick={()=>{setEditing(undefined);showNote('');}}>Cancel</Button><Button variant="primary" type="submit" disabled={busy}>{busy?'Creating…':'Create note'}</Button></>:<Button variant="primary" type="submit" disabled={busy}>Done editing</Button>}
           </div>
         </form>:detail.error?<p role="alert">This note could not be opened. <button className="wu-text-button" type="button" onClick={detail.retry}>Try again</button></p>:selected?<>
-          <div className="wu-note-reading-meta"><span>{authorName(selected)} · Updated {formatTime(selected.updatedAt)}{!canEdit(selected)&&' · Read only'}</span><div>{canEdit(selected)&&<button className="wu-button wu-button--secondary wu-button--with-icon" type="button" disabled={busy} onClick={()=>start(selected)}><Pencil size={15} aria-hidden="true"/>Edit</button>}<button className="wu-icon-button" type="button" aria-label="Copy note link" title="Copy note link" onClick={()=>void copyLink()}><Link2 size={16} aria-hidden="true"/></button></div></div>
+          <div className="wu-note-reading-meta"><span>{authorName(selected)} · Updated {formatTime(selected.updatedAt)}{!canEdit(selected)&&' · Read only'}</span><div>{canEdit(selected)&&<Button variant="secondary" className="wu-button--with-icon" type="button" disabled={busy} onClick={()=>start(selected)}><Pencil size={15} aria-hidden="true"/>Edit</Button>}<IconButton  type="button" aria-label="Copy note link" title="Copy note link" onClick={()=>void copyLink()}><Link2 size={16} aria-hidden="true"/></IconButton></div></div>
           {error&&!removing&&<p role="alert">{error}</p>}{notice&&<p className="wu-muted" role="status">{notice}</p>}
           <NoteRichEditor key={'read-'+selected.id+'-'+selected.updatedAt} value={selected.content||'This note is empty.'} editable={false}/>
           {!!referencedTasks.length&&<section className="wu-note-linked"><h3>Referenced tasks</h3>{referencedTasks.map(task=><button key={task.id} type="button" className="wu-task-link" onClick={()=>onOpenTask(task.id)}><Link2 size={15} aria-hidden="true"/><span>{task.taskKey} · {task.title}</span></button>)}</section>}

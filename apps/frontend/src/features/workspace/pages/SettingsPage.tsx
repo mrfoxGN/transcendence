@@ -1,3 +1,4 @@
+import { Input, Textarea, Button } from '../../../shared/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { workspaceIcons } from '../workspace-icons';
 import { finishInputEdit, saveTextOnBlur } from '../autosave';
@@ -121,11 +122,11 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
       <div key={tab} className="wu-settings-form">
         {tab === 'General' && <>
           <div className="wu-settings-workspace-identity"><span aria-hidden="true">{workspace.name.split(/\s+/).slice(0,2).map(word=>word[0]).join('').toUpperCase()}</span><div><h2>Workspace profile</h2><p>Workspace details and reporting preferences.</p></div></div>
-          <label className="wu-field-label">Name<input name="name" defaultValue={workspace.name} placeholder="e.g. Platform engineering" required maxLength={120} readOnly={!editable}
+          <label className="wu-field-label">Name<Input name="name" defaultValue={workspace.name} placeholder="e.g. Platform engineering" required maxLength={120} readOnly={!editable}
             onBlur={event => saveTextOnBlur(event, workspace.name, value => save('name', value))} onKeyDown={finishInputEdit} /></label>
-          <label className="wu-field-label">Description<textarea name="description" defaultValue={workspace.description ?? ''} placeholder="What does this workspace organize?" rows={3} readOnly={!editable}
+          <label className="wu-field-label">Description<Textarea name="description" defaultValue={workspace.description ?? ''} placeholder="What does this workspace organize?" rows={3} readOnly={!editable}
             onBlur={event => saveTextOnBlur(event, workspace.description ?? '', value => save('description', value))} /></label>
-          <label className="wu-field-label">Reporting time zone<input name="reportingTimeZone" aria-describedby="settings-timezone-hint" list="wu-workspace-time-zones" maxLength={80}
+          <label className="wu-field-label">Reporting time zone<Input name="reportingTimeZone" aria-describedby="settings-timezone-hint" list="wu-workspace-time-zones" maxLength={80}
             defaultValue={workspace.reportingTimeZone ?? 'Africa/Casablanca'} placeholder="e.g. Africa/Casablanca" readOnly={!editable}
             onBlur={event => saveTextOnBlur(event, workspace.reportingTimeZone ?? 'Africa/Casablanca', value => save('reportingTimeZone', value))} onKeyDown={finishInputEdit} />
             <span id="settings-timezone-hint" className="wu-field-hint">Used for reporting periods and relative due-date filters.</span>
@@ -139,26 +140,26 @@ export function SettingsPage({ pageHeading, workspace, ownerName, profile, token
           {settingsError ? <p role="alert">{settingsError} <button type="button" onClick={() => { setSettingsError(''); setAttempt(value => value + 1); }}>Retry</button></p>
             : !settings ? <p role="status">Loading board settings…</p>
             : <>
-              <label className="wu-field-label">Active work limit<input name="limit" aria-describedby="settings-work-limit-hint" type="number" min={1} required defaultValue={settings.activeWipLimit} placeholder="e.g. 3" readOnly={!editable}
+              <label className="wu-field-label">Active work limit<Input name="limit" aria-describedby="settings-work-limit-hint" type="number" min={1} required defaultValue={settings.activeWipLimit} placeholder="e.g. 3" readOnly={!editable}
                 onBlur={event => saveTextOnBlur(event, String(settings.activeWipLimit), value => save('activeWipLimit', Number(value)))} onKeyDown={finishInputEdit} /><span id="settings-work-limit-hint" className="wu-field-hint">The limit includes In progress and Review.</span></label>
-              <label className="wu-field-label">Definition of ready<textarea name="definitionOfReady" rows={3} defaultValue={definitionText(settings.definitionOfReady)} placeholder="e.g. Scope and acceptance criteria are clear" readOnly={!editable}
+              <label className="wu-field-label">Definition of ready<Textarea name="definitionOfReady" rows={3} defaultValue={definitionText(settings.definitionOfReady)} placeholder="e.g. Scope and acceptance criteria are clear" readOnly={!editable}
                 onBlur={event => saveTextOnBlur(event, definitionText(settings.definitionOfReady), value => save('definitionOfReady', value))} /></label>
-              <label className="wu-field-label">Definition of done<textarea name="definitionOfDone" rows={3} defaultValue={definitionText(settings.definitionOfDone)} placeholder="e.g. Tests pass and the change has been reviewed" readOnly={!editable}
+              <label className="wu-field-label">Definition of done<Textarea name="definitionOfDone" rows={3} defaultValue={definitionText(settings.definitionOfDone)} placeholder="e.g. Tests pass and the change has been reviewed" readOnly={!editable}
                 onBlur={event => saveTextOnBlur(event, definitionText(settings.definitionOfDone), value => save('definitionOfDone', value))} /></label>
             </>}
         </>}
         {tab === 'Access' && <><h2>Workspace access</h2>
           <AccessPreview ownerName={ownerName}/>
           <div className="wu-readonly-field"><span>Your role</span><strong>{isOwner ? 'Owner' : 'Member'}</strong></div>
-          <button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('team')}><workspaceIcons.team size={15} />{editable ? 'Manage members' : 'View team'}</button>
+          <Button variant="secondary" type="button" onClick={() => navigate('team')}><workspaceIcons.team size={15} />{editable ? 'Manage members' : 'View team'}</Button>
         </>}
         {tab === 'Integrations' && <><h2>Integrations</h2>
-          <button className="wu-button wu-button--secondary" type="button" onClick={() => navigate('github')}><workspaceIcons.github size={15} />View GitHub integration</button>
+          <Button variant="secondary" type="button" onClick={() => navigate('github')}><workspaceIcons.github size={15} />View GitHub integration</Button>
         </>}
         {tab === 'Archive' && <><h2>{workspace.archivedAt ? 'Workspace archived' : 'Archive workspace'}</h2>
           <p className="wu-muted">Archiving pauses changes to shared work. The workspace owner can restore it at any time.</p>
-          {isOwner && <button className="wu-button wu-button--secondary" type="button" disabled={busy}
-            onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</button>}
+          {isOwner && <Button variant="secondary" type="button" disabled={busy}
+            onClick={() => { setError(''); setConfirm(true); }}>{workspace.archivedAt ? 'Restore workspace' : 'Archive workspace'}</Button>}
         </>}
       </div>}
     </section>

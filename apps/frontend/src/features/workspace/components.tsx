@@ -1,42 +1,8 @@
-import { EmptyIllustration, type EmptyKind } from '../../shared/illustrations/EmptyIllustration';
-import { type CSSProperties, type ReactNode } from 'react';
-import { Plus } from 'lucide-react';
-
-import { type Task } from './types';
-
-const portraitPositions: Record<string, string> = {
-  AM: '1.6% 22.2%', LN: '34% 22.2%', SK: '66.4% 22.2%',
-  OI: '98.7% 22.2%', MR: '34% 75.3%', JC: '66.4% 75.3%',
-};
-
-export function IconTile({ children, tone = 'blue' }: { children: ReactNode; tone?: string }) {
-  return <span className={`wu-icon-tile wu-icon-tile--${tone}`} aria-hidden="true">{children}</span>;
-}
-
-export function Avatar({ initials, tone = 'blue', small = false, preview = false }: { initials: string; tone?: string; small?: boolean; preview?: boolean }) {
-  const position = preview ? portraitPositions[initials] : undefined;
-  return <span className={`wu-avatar wu-avatar--${tone}${small ? ' wu-avatar--small' : ''}`} aria-hidden="true">
-    {initials}{position && <span className="wu-avatar-portrait" style={{ '--portrait-position': position } as CSSProperties} />}
-  </span>;
-}
-
-export function Pill({ children, tone = 'neutral', status }: { children: ReactNode; tone?: string; status?: string }) {
-  return <span data-status={status?.replace(/[^a-z]/gi, '').toLowerCase()} className={`wu-pill wu-pill--${tone}`}>{children}</span>;
-}
-
-export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`wu-panel ${className}`}>{children}</section>;
-}
-
-export function FilterChips({ items, active, onChange }: { items: string[]; active: string; onChange: (value: string) => void }) {
-  return <div className="wu-chips" role="group" aria-label="Filter items">
-    {items.map(item => <button key={item} type="button" className={`wu-chip${active === item ? ' is-active' : ''}`} aria-pressed={active === item} onClick={() => onChange(item)}>{item}</button>)}
-  </div>;
-}
-
-export function EmptyState({ icon, title, detail, action, onAction, illustration }: { icon: ReactNode; title: string; detail: string; action: string; onAction: () => void; illustration?: EmptyKind }) {
-  return <div className="wu-empty"><div aria-hidden="true"><EmptyIllustration kind={illustration ?? (/match|filter|search/i.test(title) ? 'search' : 'tasks')} /></div><h3>{title}</h3><p>{detail}</p><button className="wu-button wu-button--primary" type="button" onClick={onAction}>{action}</button></div>;
-}
+// Compatibility exports keep existing page imports stable during migration.
+export { IconTile, Avatar, Badge as Pill, Card as Panel, FilterChips, EmptyState } from '../../shared/ui';
+import { Avatar, Badge as Pill, Card as Panel } from '../../shared/ui';
+import type { ReactNode } from 'react';
+import type { Task } from './types';
 
 export function TaskTable({ items, onSelect }: { items: Task[]; onSelect: (task: Task) => void }) {
   return <table className="wu-table wu-list-table" role="table" aria-label="Backlog tasks"><thead role="rowgroup"><tr role="row"><th scope="col">Task</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Assignee</th><th scope="col">Due date</th></tr></thead><tbody role="rowgroup">

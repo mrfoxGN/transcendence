@@ -1,3 +1,4 @@
+import { IconButton } from '../../shared/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Command } from 'cmdk';
 import { ArrowRight, ListTodo, Search, X, type LucideIcon } from 'lucide-react';
@@ -63,7 +64,7 @@ export function WorkspaceCommand({ pages, tasks, disabled, onNavigate, onOpenTas
           <div className="wu-command-input">
             <Search size={18} aria-hidden="true" />
             <Command.Input autoFocus value={query} onValueChange={setQuery} placeholder="Search tasks and pages…" />
-            <button type="button" className="wu-icon-button" aria-label="Close search" onClick={() => dialog.current?.close()}><X size={18} /></button>
+            <IconButton type="button"  aria-label="Close search" onClick={() => dialog.current?.close()}><X size={18} /></IconButton>
           </div>
           <Command.List className="wu-command-results">
             <Command.Empty>No tasks or pages match your search.</Command.Empty>

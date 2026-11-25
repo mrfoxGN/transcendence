@@ -1,3 +1,4 @@
+import { IconButton, Checkbox } from '../../shared/ui';
 import { useHoverPopover } from '../../shared/controls/useHoverPopover';
 import { Select } from '../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../shared/illustrations/EmptyIllustration';
@@ -175,8 +176,8 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
   ];
   const menu = useHoverPopover<HTMLElement>(trigger => { if (trigger) positionPanel(trigger); void refresh(); });
   return <>
-    <button {...menu.triggerProps} ref={node => { menu.triggerProps.ref.current = node; if (typeof triggerRef === 'function') triggerRef(node); else if (triggerRef) triggerRef.current = node; }} type="button" className="wu-icon-button wu-inbox-trigger" aria-label={showBadge && count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
-><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</button>
+    <IconButton {...menu.triggerProps} ref={node => { menu.triggerProps.ref.current = node; if (typeof triggerRef === 'function') triggerRef(node); else if (triggerRef) triggerRef.current = node; }} type="button" className="wu-inbox-trigger" aria-label={showBadge && count ? `Notifications, ${count} unread` : 'Notifications'} popoverTarget={id}
+><Bell size={18} />{showBadge && !!count && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}</IconButton>
     <section {...menu.panelProps} id={id} popover="auto" className="wu-inbox"
       aria-label="Notifications"
       aria-busy={busy}
@@ -193,8 +194,8 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
         </div>
         <div className="wu-inbox-actions">
           <button className="wu-text-button" type="button" disabled={busy || !count} onClick={() => void refresh('all')}>Mark all as read</button>
-          <button className="wu-icon-button" type="button" aria-label="Notification preferences" aria-expanded={showPreferences}
-            onClick={() => { setShowPreferences(!showPreferences); if (!showPreferences && !preferences) void loadPreferences(); }}><Settings2 size={17} /></button>
+          <IconButton  type="button" aria-label="Notification preferences" aria-expanded={showPreferences}
+            onClick={() => { setShowPreferences(!showPreferences); if (!showPreferences && !preferences) void loadPreferences(); }}><Settings2 size={17} /></IconButton>
         </div>
       </div>
       {showPreferences && <fieldset className="wu-inbox-preferences" disabled={preferenceBusy}>
@@ -202,7 +203,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
         {preferenceBusy && !preferences && <p role="status">Loading preferences…</p>}
         {preferenceError && <p role="alert">{preferenceError} {!preferences && <button className="wu-text-button" type="button" onClick={() => void loadPreferences()}>Retry</button>}</p>}
         {preferences && (Object.keys(preferenceLabels) as (keyof Preferences)[]).map(key => <label className="wu-check-row" key={key}>
-          <input type="checkbox" checked={preferences[key]} onChange={event => void savePreference(key, event.currentTarget.checked)} /> {preferenceLabels[key]}
+          <Checkbox checked={preferences[key]} onChange={event => void savePreference(key, event.currentTarget.checked)} /> {preferenceLabels[key]}
         </label>)}
       </fieldset>}
       {showPreferences && (
@@ -217,7 +218,7 @@ export function NotificationInbox({ token, workspaceId, triggerRef, showBadge = 
         <option value="comments">Comments</option><option value="status">Status changes</option>
         <option value="invitations">Invitations</option><option value="messages">Messages</option>
       </Select>
-      <label className="wu-check-row"><input type="checkbox" checked={unreadOnly} disabled={busy} onChange={event => { const value = event.target.checked; setUnreadOnly(value); void refresh(undefined, 1, value); }} /> Unread only</label>
+      <label className="wu-check-row"><Checkbox checked={unreadOnly} disabled={busy} onChange={event => { const value = event.target.checked; setUnreadOnly(value); void refresh(undefined, 1, value); }} /> Unread only</label>
       </div>
 )}
       {error && <p role="alert">{error} <button className="wu-text-button" type="button" onClick={() => void refresh()}>Refresh</button></p>}

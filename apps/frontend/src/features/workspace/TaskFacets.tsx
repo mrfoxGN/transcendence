@@ -1,3 +1,4 @@
+import { Button } from '../../shared/ui';
 import { Select } from '../../shared/controls/Select';
 import { useId, useRef } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
@@ -32,12 +33,12 @@ export function TaskFacets({ tasks, value, onChange }: { tasks: Task[]; value: F
   ] as const;
   const applied = facets.filter(({ key }) => value[key]);
   return <>
-    <button className="wu-button wu-button--secondary wu-button--with-icon" type="button" popoverTarget={id} onClick={event => {
+    <Button variant="secondary" className="wu-button--with-icon" type="button" popoverTarget={id} onClick={event => {
       const anchor = event.currentTarget.getBoundingClientRect();
       if (!popover.current) return;
       popover.current.style.left = Math.max(8, Math.min(anchor.left, window.innerWidth - 288)) + 'px';
       popover.current.style.top = Math.min(anchor.bottom + 6, Math.max(8, window.innerHeight - 288)) + 'px';
-    }}><SlidersHorizontal size={16} aria-hidden="true" />Filter{applied.length > 0 && ' (' + applied.length + ')'}</button>
+    }}><SlidersHorizontal size={16} aria-hidden="true" />Filter{applied.length > 0 && ' (' + applied.length + ')'}</Button>
     {applied.map(({ key, label, options }) => {
       const selected = options.find(option => option.value === value[key])?.label ?? label;
       return <button key={key} type="button" className="wu-task-filter-tag"
@@ -52,7 +53,7 @@ export function TaskFacets({ tasks, value, onChange }: { tasks: Task[]; value: F
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </Select>
     </label>)}
-    {Object.values(value).some(Boolean) && <button type="button" className="wu-button wu-button--secondary" onClick={() => onChange(emptyFacets)}>Clear filters</button>}
+    {Object.values(value).some(Boolean) && <Button type="button" variant="secondary" onClick={() => onChange(emptyFacets)}>Clear filters</Button>}
     </div>
   </>;
 }

@@ -345,56 +345,6 @@
   color: var(--wu-muted);
   margin: 0;
 }
-.wu-switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-  flex-shrink: 0;
-}
-.wu-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.wu-switch-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--wu-line);
-  transition: 200ms ease;
-  border-radius: 24px;
-}
-.wu-switch-slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 200ms ease;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-}
-.wu-switch input:checked + .wu-switch-slider {
-  background-color: var(--wu-blue);
-}
-.wu-switch input:checked + .wu-switch-slider:before {
-  transform: translateX(20px);
-}
-.wu-switch input:focus-visible + .wu-switch-slider {
-  outline: 2px solid var(--wu-blue);
-  outline-offset: 2px;
-}
-.wu-switch input:disabled + .wu-switch-slider {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* Two factor setup box */
 .two-factor-setup-box {
   background: var(--wu-surface-soft);

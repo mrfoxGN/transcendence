@@ -1,3 +1,4 @@
+import { Button } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -287,9 +288,9 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
                 className="wu-gcommits-pagination"
                 aria-label="Commit pagination"
               >
-                <button
+                <Button
                   type="button"
-                  className="wu-button wu-button--secondary"
+                  variant="secondary"
                   disabled={
                     page <= 1 ||
                     commitPage?.page !== page
@@ -297,13 +298,13 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
                   onClick={() => setPage(value => value - 1)}
                 >
                   Previous
-                </button>
+                </Button>
 
                 <span>Page {page}</span>
 
-                <button
+                <Button
                   type="button"
-                  className="wu-button wu-button--secondary"
+                  variant="secondary"
                   disabled={
                     !commitPage ||
                     commitPage.page !== page ||
@@ -312,7 +313,7 @@ export function GithubPage({ pageHeading, path, workspaceId, token, owner }: {
                   onClick={() => setPage(value => value + 1)}
                 >
                   Next
-                </button>
+                </Button>
               </nav>
             </>
           )}

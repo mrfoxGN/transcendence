@@ -1,3 +1,7 @@
+import { WorkspaceList } from './workspace/WorkspaceList';
+import { sessionKey, SessionExpired, signOut, switchAccount } from './auth/session';
+import { workspacePickerRequest as request, type Workspace } from './workspace/workspace-picker-api';
+
 import { Select } from '../shared/controls/Select';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Folder, Plus } from 'lucide-react';
@@ -7,7 +11,7 @@ import { NotificationInbox } from './workspace/NotificationInbox';
 import { authRoute } from './auth-routing';
 import { canSearchWorkspaces } from './workspace/workspace-history';
 
-export const sessionKey = 'devup.access-token';
+
 
 type Profile = {
   id: string;
@@ -17,13 +21,6 @@ type Profile = {
   avatarUrl: string | null;
   createdAt: string;
   notificationBadge?: boolean;
-};
-export type Workspace = {
-  id: string;
-  ownerId: string;
-  name: string;
-  description: string | null;
-  archivedAt: string | null;
 };
 
 type WorkspaceMember = {
@@ -43,113 +40,11 @@ type WorkspaceInvitationNotification = {
   createdAt: string;
 };
 
-export class SessionExpired extends Error {}
 
-async function request<T>(path: string, token: string, method = 'GET', body?: object): Promise<T> {
-  const response = await fetch('/api/' + path, {
-    method,
-    headers: { Authorization: 'Bearer ' + token, ...(body && { 'Content-Type': 'application/json' }) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (response.status === 401) throw new SessionExpired();
-  if (!response.ok) {
-    const result = await response.json().catch(() => null);
-    throw new Error(Array.isArray(result?.message) ? result.message.join(' ') :
-      result?.message || 'Something went wrong. Please try again.');
-  }
-  return response.json();
-}
 
-export function signOut(restoreDestination = false) {
-  sessionStorage.removeItem(sessionKey);
-  window.location.replace(restoreDestination ? authRoute('/login', location.pathname + location.search + location.hash) : '/login');
-}
 
-export function switchAccount(destination = '/workspaces') {
-  sessionStorage.removeItem(sessionKey);
-  location.assign(authRoute('/login', destination));
-}
 
-function WorkspaceList({
-  items,
-  currentUserId,
-  onLeave,
-  onTransfer,
-  onDelete,
-}: {
-  items: Workspace[];
-  currentUserId: string;
-  onLeave: (workspace: Workspace) => void;
-  onTransfer: (workspace: Workspace) => void;
-  onDelete: (workspace: Workspace) => void;
-}) {
-  return (
-    <ul className="workspace-picker-list">
-      {items.map(item => {
-        const isOwner = item.ownerId === currentUserId;
 
-        return (
-          <li key={item.id} className="workspace-picker-card-wrapper">
-            <a
-              className="workspace-picker-card"
-              href={'/workspaces/' + encodeURIComponent(item.id)}
-            >
-              <span className="workspace-picker-card-icon"><Folder size={21} aria-hidden="true" /></span>
-              <span className="workspace-picker-card-copy"><strong>{item.name}</strong><small>{item.archivedAt ? 'Archived workspace' : item.description?.trim() || (isOwner ? 'Your workspace' : 'Team workspace')}</small></span>
-              <span className="workspace-picker-role">{item.archivedAt ? 'Archived' : isOwner ? 'Owner' : 'Member'}</span>
-              <ArrowRight className="workspace-picker-open" size={17} aria-hidden="true" />
-            </a>
-
-            <details className="workspace-picker-card-menu">
-              <summary aria-label={'Options for ' + item.name}>
-                <span aria-hidden="true">⋯</span>
-              </summary>
-
-              <div className="workspace-picker-card-menu-popover">
-                {isOwner && (
-                  <button type="button" onClick={() => onTransfer(item)}>
-                    Transfer ownership
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="workspace-picker-leave-option"
-                  disabled={isOwner}
-                  title={isOwner ? 'Transfer ownership before leaving' : undefined}
-                  onClick={() => onLeave(item)}
-                >
-                  Leave workspace
-                </button>
-
-                {isOwner && (
-                  <>
-                    <p className="workspace-picker-owner-hint">
-                      Transfer ownership before leaving.
-                    </p>
-                    <hr />
-                    <button
-                      type="button"
-                      className="workspace-picker-leave-option"
-                      onClick={() => onDelete(item)}
-                    >
-                      Delete workspace
-                    </button>
-                  </>
-                )}
-              </div>
-            </details>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-export async function listActiveWorkspaces(token: string) {
-  const workspaces = await request<Workspace[]>('workspaces', token);
-  return workspaces.filter(workspace => !workspace.archivedAt);
-}
 
 export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
   const token = sessionStorage.getItem(sessionKey);
@@ -945,3 +840,6 @@ export function WorkspacePicker({ workspaceId }: { workspaceId?: string }) {
     </main>
   );
 }
+
+export { sessionKey, SessionExpired, signOut, switchAccount } from './auth/session';
+export { listActiveWorkspaces, type Workspace } from './workspace/workspace-picker-api';

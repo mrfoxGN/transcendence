@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { accountRequest, authRoute, requestedWorkspace } from './auth-routing';
-import { sessionKey } from './WorkspacePicker';
+import { sessionKey } from './auth/session';
 import { AvatarPicker, type AvatarSelection } from './AvatarPicker';
 import { OtpCodeInput } from './auth/OtpCodeInput';
 import { ResendCodeButton } from './auth/ResendCodeButton';

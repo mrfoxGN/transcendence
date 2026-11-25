@@ -1,6 +1,6 @@
 import { useState, type FormEvent, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Lock, Mail, ShieldCheck, User, X, AlertCircle } from 'lucide-react';
-import { sessionKey } from '../WorkspacePicker';
+import { sessionKey } from './session';
 import { authRoute, requestedWorkspace } from '../auth-routing';
 import { EntryThemeControl } from './EntryAppearance';
 import { OtpCodeInput } from './OtpCodeInput';

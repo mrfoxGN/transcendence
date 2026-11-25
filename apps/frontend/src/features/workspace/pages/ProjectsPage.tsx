@@ -1,3 +1,5 @@
+import { FormField } from '../../../shared/ui';
+import { IconButton, Button, Input } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useRef, useState, type FormEvent } from 'react';
@@ -46,7 +48,7 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
   const [pinNotice,setPinNotice]=useState('');
   function pinButton(item:Project){
     const pinned=pinnedIds.includes(item.id);
-    return <button type="button" className="wu-icon-button wu-project-pin-toggle" aria-label={(pinned?'Unpin ':'Pin ')+item.name} aria-pressed={pinned} title={pinned?'Unpin from Home':'Pin to Home'} onClick={()=>{togglePin(item.id);setPinNotice(item.name+(pinned?' unpinned.':' pinned to Home.'));}}><Pin size={16} strokeWidth={1.75} fill={pinned?'currentColor':'none'} aria-hidden="true"/></button>;
+    return <IconButton type="button" className="wu-project-pin-toggle" aria-label={(pinned?'Unpin ':'Pin ')+item.name} aria-pressed={pinned} title={pinned?'Unpin from Home':'Pin to Home'} onClick={()=>{togglePin(item.id);setPinNotice(item.name+(pinned?' unpinned.':' pinned to Home.'));}}><Pin size={16} strokeWidth={1.75} fill={pinned?'currentColor':'none'} aria-hidden="true"/></IconButton>;
   }
   const [editor, setEditor] = useState<Editor>();
   const [removal, setRemoval] = useState<Removal>();
@@ -98,9 +100,9 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
 
   return <>
     <span className="wu-visually-hidden" role="status">{pinNotice}</span>
-    {pageHeading(!readOnly && (!projectId || project) && <button type="button" className="wu-button wu-button--primary wu-button--with-icon" disabled={busy} onClick={() => edit({ kind: project ? 'milestone' : 'project' })}>
+    {pageHeading(!readOnly && (!projectId || project) && <Button type="button" variant="primary" className="wu-button--with-icon" disabled={busy} onClick={() => edit({ kind: project ? 'milestone' : 'project' })}>
       <Plus size={16} aria-hidden="true" />{project ? 'New milestone' : 'New project'}
-    </button>)}
+    </Button>)}
     {failed ? <Panel className="wu-project-panel"><p role="alert">Could not load projects. <button className="wu-text-button" type="button" onClick={retry}>Try again</button></p></Panel>
       : !projects ? <LoadingPanel label="Loading projects" />
       : projectId ? <>
@@ -137,7 +139,7 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
               {!!project.milestones.length && <label className="wu-field-label">Milestone<Select value={milestoneSelection} onChange={event => setMilestoneSelection(event.target.value)}>
                 <option value="">No milestone</option>{project.milestones.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Select></label>}
-              <button type="submit" className="wu-button wu-button--secondary" disabled={busy || !taskSelection}>Link task</button>
+              <Button type="submit" variant="secondary" disabled={busy || !taskSelection}>Link task</Button>
             </form>
           </Panel>}
           {!editor && !removal && error && <p role="alert">{error}</p>}
@@ -173,8 +175,8 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
       </li>)}</ul> : <Panel className="wu-project-panel"><IllustratedEmptyState kind="projects" title="No projects yet" detail="Group related tasks and milestones in a project." action={!readOnly ? 'Create project' : undefined} onAction={() => edit({kind:'project'})} /></Panel>}
     {!readOnly && editor && <Drawer title={(editor.item ? 'Edit ' : 'New ') + editor.kind} closeDisabled={busy} onClose={() => setEditor(undefined)}>
       <form className="wu-project-form" onSubmit={save}>
-        <label className="wu-field-label">Name<input name="name" required maxLength={120} defaultValue={editor.item?.name} placeholder={editor.kind === 'project' ? 'e.g. Workspace onboarding' : 'e.g. Release candidate'} /></label>
-        <label className="wu-field-label">Target date<input name="targetDate" type="date" min="1000-01-01" max="9999-12-31" defaultValue={editor.item?.targetDate ?? ''} /></label>
+        <FormField label="Name" htmlFor="project-name"><Input name="name" required maxLength={120} defaultValue={editor.item?.name} placeholder={editor.kind === 'project' ? 'e.g. Workspace onboarding' : 'e.g. Release candidate'} /></FormField>
+        <FormField label="Target date" htmlFor="project-target-date"><Input name="targetDate" type="date" min="1000-01-01" max="9999-12-31" defaultValue={editor.item?.targetDate ?? ''} /></FormField>
         {editor.kind === 'project' && <>
           <label className="wu-field-label">Owner<Select name="ownerId" defaultValue={editor.item ? editor.item.ownerId ?? '' : profileId}>
             <option value="">Unassigned</option>{members.map(member => <option key={member.userId} value={member.userId}>{member.username}</option>)}
@@ -184,19 +186,19 @@ export function ProjectsPage({ pageHeading, projects, failed, retry, projectId, 
           </Select></label>
         </>}
         {error && <p role="alert">{error}</p>}
-        <button type="submit" className="wu-button wu-button--primary" disabled={busy}>{busy ? 'Saving…' : editor.item ? 'Save changes' : 'Create ' + editor.kind}</button>
+        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Saving…' : editor.item ? 'Save changes' : 'Create ' + editor.kind}</Button>
       </form>
     </Drawer>}
     {!readOnly && removal && <Drawer title={'Delete ' + removal.name + '?'} confirmation closeDisabled={busy} onClose={() => setRemoval(undefined)}>
       <p>{removal.project ? 'Its tasks will remain in the workspace as ungrouped tasks.' : 'Its tasks will stay in the project without a milestone.'}</p>
       {error && <p role="alert">{error}</p>}
       <div className="wu-modal-actions">
-        <button type="button" className="wu-button wu-button--secondary" disabled={busy} onClick={() => setRemoval(undefined)}>Cancel</button>
-        <button type="button" className="wu-button wu-button--primary" disabled={busy} onClick={() => void perform(async () => {
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => setRemoval(undefined)}>Cancel</Button>
+        <Button type="button" variant="primary" disabled={busy} onClick={() => void perform(async () => {
           await workspaceRequest(removal.path, token, { method: 'DELETE' });
           setRemoval(undefined);
           if (removal.project) onProject();
-        })}>Delete</button>
+        })}>Delete</Button>
       </div>
     </Drawer>}
   </>;

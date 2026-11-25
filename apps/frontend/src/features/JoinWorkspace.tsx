@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AccountShell } from './AccountPages';
 import { authRoute } from './auth-routing';
-import { sessionKey } from './WorkspacePicker';
+import { sessionKey } from './auth/session';
 
 const inviteKey = 'devup.workspace-invitation';
 const destination = '/join-workspace';

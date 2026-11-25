@@ -1,3 +1,4 @@
+import { Input, Button } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import {useEffect,useId,useRef,useState} from 'react';
 import {EditorContent,useEditor,useEditorState} from '@tiptap/react';
@@ -38,7 +39,7 @@ export function NoteRichEditor({value,onChange,editable=true}:{value:string;onCh
       <button type="button" aria-label="Horizontal rule" title="Horizontal rule" onClick={()=>editor.chain().focus().setHorizontalRule().run()}><Minus size={16} aria-hidden="true"/></button>
       <span className="wu-note-formatbar-spacer"/>
       <button type="button" aria-label="Undo" title="Undo" disabled={!state?.canUndo} onMouseDown={event=>event.preventDefault()} onClick={()=>editor.chain().focus().undo().run()}><Undo2 size={16} aria-hidden="true"/></button><button type="button" aria-label="Redo" title="Redo" disabled={!state?.canRedo} onMouseDown={event=>event.preventDefault()} onClick={()=>editor.chain().focus().redo().run()}><Redo2 size={16} aria-hidden="true"/></button>
-    </div>{linkOpen&&<div className="wu-note-link-input" id={linkId} role="group" aria-label="Link options"><label>Link URL<input ref={linkInput} type="url" value={url} placeholder="https://example.com" onChange={event=>setUrl(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();applyLink();}}}/></label><button type="button" className="wu-button wu-button--secondary" onClick={applyLink}>Apply link</button><button type="button" className="wu-text-button" onClick={()=>setLinkOpen(false)}>Cancel</button>{linkError&&<p role="alert">{linkError}</p>}</div>}</>}
+    </div>{linkOpen&&<div className="wu-note-link-input" id={linkId} role="group" aria-label="Link options"><label>Link URL<Input ref={linkInput} type="url" value={url} placeholder="https://example.com" onChange={event=>setUrl(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();applyLink();}}}/></label><Button type="button" variant="secondary" onClick={applyLink}>Apply link</Button><button type="button" className="wu-text-button" onClick={()=>setLinkOpen(false)}>Cancel</button>{linkError&&<p role="alert">{linkError}</p>}</div>}</>}
     <EditorContent editor={editor}/>
     <div className="wu-note-editor-count">{words} {words===1?'word':'words'}<span>{text.length} characters</span></div>
   </div>;

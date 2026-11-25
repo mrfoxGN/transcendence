@@ -1,39 +1,7 @@
 /* Dark mode is a charcoal material system, not an inversion of light surfaces. */
 .devup-design .workspace-app[data-theme=dark] {
   color-scheme: dark;
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --chart-grid: #ffffff0b;
   --input-rest: var(--wu-recessed);
   --input-hover: #202226;
@@ -82,14 +50,6 @@
 }
 
 /* Semantic accents remain readable without fluorescent fills. */
-.devup-design .workspace-app[data-theme=dark] {
-  
-  
-  
-  
-  
-  
-}
 .devup-design .workspace-app[data-theme=dark] .wu-pill--red { background: var(--wu-red-soft); color: var(--wu-red); }
 .devup-design .workspace-app[data-theme=dark] .wu-priority--high i,
 .devup-design .workspace-app[data-theme=dark] .wu-priority--urgent i { background: var(--wu-red); }

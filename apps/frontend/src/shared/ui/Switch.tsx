@@ -1,0 +1,12 @@
+import './switch.css';
+import type { CheckboxProps } from './Checkbox';
+import { Checkbox } from './Checkbox';
+
+export function Switch({ className, ...props }: CheckboxProps) {
+  return (
+    <label className={['wu-switch', className].filter(Boolean).join(' ')}>
+      <Checkbox {...props} role="switch" />
+      <span className="wu-switch-slider" aria-hidden="true" />
+    </label>
+  );
+}

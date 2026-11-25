@@ -1,7 +1,9 @@
+import { Input } from '../../shared/ui';
 import { useHoverPopover } from '../../shared/controls/useHoverPopover';
 import { useId, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
-import { listActiveWorkspaces, SessionExpired, signOut, type Workspace } from '../WorkspacePicker';
+import { SessionExpired, signOut } from '../auth/session';
+import { listActiveWorkspaces, type Workspace } from './workspace-picker-api';
 import { canSearchWorkspaces, recentWorkspaceIds } from './workspace-history';
 
 type WorkspaceSwitcherProps = {
@@ -79,7 +81,7 @@ export function WorkspaceSwitcher({ workspaceId, workspaceName, token, profileId
         )}
         {workspaces?.length === 0 && <p>No active workspaces.</p>}
         {showSearch && <label className="wu-field-label wu-workspace-search">Search workspaces
-          <input type="search" placeholder="Workspace name" value={search} onChange={event => setSearch(event.target.value)} />
+          <Input type="search" placeholder="Workspace name" value={search} onChange={event => setSearch(event.target.value)} />
         </label>}
         {query && !visible?.length && <p role="status">No matching workspaces.</p>}
         {!!recentWorkspaces.length && <><strong className="wu-workspace-popover-title">Recently opened</strong>{renderList(recentWorkspaces)}</>}

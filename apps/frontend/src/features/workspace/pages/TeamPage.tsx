@@ -1,3 +1,4 @@
+import { Button, Input } from '../../../shared/ui';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useState } from 'react';
 import { UserRoundPlus, Search } from 'lucide-react';
@@ -52,16 +53,16 @@ export function TeamPage({ pageHeading, workspaceName, members, loadError, retry
     setConfirmation({ title, action, detail, run });
   }
 
-  return <>{pageHeading(owner && !archived ? <button className="wu-button wu-button--primary wu-button--with-icon" type="button" onClick={onInvite}><UserRoundPlus size={15} aria-hidden="true" />Invite member</button>
-    : !owner && members?.some(member => member.userId === profileId) && <button className="wu-button wu-button--secondary" type="button"
+  return <>{pageHeading(owner && !archived ? <Button variant="primary" className="wu-button--with-icon" type="button" onClick={onInvite}><UserRoundPlus size={15} aria-hidden="true" />Invite member</Button>
+    : !owner && members?.some(member => member.userId === profileId) && <Button variant="secondary" type="button"
       onClick={() => confirm('Leave this workspace?', 'Leave workspace', 'You’ll lose access and your tasks will become unassigned.', async () => {
         await workspaceRequest(path + '/membership', token, { method: 'DELETE' });
         location.replace('/workspaces');
-      })}>Leave workspace</button>)}
+      })}>Leave workspace</Button>)}
     <Panel className="wu-content-panel wu-team-panel">
       <div className="wu-panel-heading"><div><h2>People{members ? ' (' + members.length + ')' : ''}</h2><p>Members with access to {workspaceName}.</p></div></div>
       {!!members?.length && <label className="wu-list-search"><Search size={16} aria-hidden="true" />
-        <input type="search" aria-label="Search members" placeholder="Search members" value={query} onChange={event => setQuery(event.target.value)} />
+        <Input type="search" aria-label="Search members" placeholder="Search members" value={query} onChange={event => setQuery(event.target.value)} />
       </label>}
       {loadError ? <p role="alert">Could not load members. <button className="wu-text-button" onClick={retry}>Try again</button></p>
         : !members || !visibleMembers ? <LoadingPanel label="Loading workspace members" />

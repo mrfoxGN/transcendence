@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { signOut } from '../WorkspacePicker';
+import { signOut } from '../auth/session';
 
 export class WorkspaceRequestError extends Error {
   constructor(public status: number, message: string) {

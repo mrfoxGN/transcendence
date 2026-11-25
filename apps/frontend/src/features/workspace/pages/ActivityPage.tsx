@@ -1,3 +1,4 @@
+import { Button, Input } from '../../../shared/ui';
 import { Select } from '../../../shared/controls/Select';
 import { EmptyIllustration, IllustratedEmptyState } from '../../../shared/illustrations/EmptyIllustration';
 import { useId, useState } from 'react';
@@ -141,9 +142,9 @@ function ActivityResults({ path, token, page, members, openResource, changePage,
       : !events.data ? <p role="status">Loading activity…</p>
       : <WorkspaceActivityList items={events.data.items} members={members} openResource={openResource} today={today} timeZone={timeZone} />}
     <nav className="wu-activity-pagination" aria-label="Activity pages">
-      <button className="wu-button wu-button--secondary" type="button" disabled={page === 1} onClick={() => changePage(page - 1)}>Previous</button>
+      <Button variant="secondary" type="button" disabled={page === 1} onClick={() => changePage(page - 1)}>Previous</Button>
       <span className="wu-muted">Page {page}</span>
-      <button className="wu-button wu-button--secondary" type="button" disabled={events.error || !events.data?.hasNext} onClick={() => changePage(page + 1)}>Next</button>
+      <Button variant="secondary" type="button" disabled={events.error || !events.data?.hasNext} onClick={() => changePage(page + 1)}>Next</Button>
     </nav>
   </Panel>;
 }
@@ -187,11 +188,11 @@ export function ActivityPage({ pageHeading, path, token, members, openResource, 
           </Select>
         </label>
         <label className="wu-field-label">From
-          <input type="date" value={fromDate} aria-invalid={!!invalidRange}
+          <Input type="date" value={fromDate} aria-invalid={!!invalidRange}
             onChange={event => { setFromDate(event.currentTarget.value); setPage(1); }} />
         </label>
         <label className="wu-field-label">Through
-          <input type="date" value={throughDate} aria-invalid={!!invalidRange}
+          <Input type="date" value={throughDate} aria-invalid={!!invalidRange}
             onChange={event => { setThroughDate(event.currentTarget.value); setPage(1); }} />
         </label>
       </div>

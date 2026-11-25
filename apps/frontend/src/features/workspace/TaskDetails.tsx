@@ -1,3 +1,4 @@
+import { Input, Textarea, Button } from '../../shared/ui';
 import { Select } from '../../shared/controls/Select';
 import { useEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { Drawer } from './WorkspaceControls';
@@ -212,7 +213,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
     {watchError && <p role="alert">{watchError} {watching === undefined && <button className="wu-text-button" type="button"
       onClick={() => setWatchRetry(value => value + 1)}>Retry</button>}</p>}
     {linkToCopy && <label className="wu-field-label">Task link
-      <input value={linkToCopy} readOnly autoFocus onFocus={event => event.currentTarget.select()} />
+      <Input value={linkToCopy} readOnly autoFocus onFocus={event => event.currentTarget.select()} />
     </label>}
     {onBack && <button className="wu-text-button" type="button" onClick={onBack}>Back to previous task</button>}
     <dl className="wu-task-summary">
@@ -234,16 +235,16 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         latestEdits.current = {};
         setEditingTask(false);
       }}>Done editing</button></div>
-      <label className="wu-field-label">Title<input name="title" defaultValue={task.title} placeholder="e.g. Fix login form validation" required maxLength={200}
+      <label className="wu-field-label">Title<Input name="title" defaultValue={task.title} placeholder="e.g. Fix login form validation" required maxLength={200}
         onBlur={event => saveFieldOnBlur(event, 'title', task.title)} onKeyDown={finishInputEdit} /></label>
-      <label className="wu-field-label">Description<textarea name="description" defaultValue={task.description} placeholder="Describe what needs to change and why" rows={3}
+      <label className="wu-field-label">Description<Textarea name="description" defaultValue={task.description} placeholder="Describe what needs to change and why" rows={3}
         onBlur={event => saveFieldOnBlur(event, 'description', task.description, true)} /></label>
-      <label className="wu-field-label">Acceptance criteria<textarea name="criteria" defaultValue={task.acceptanceCriteria ?? ''} placeholder="e.g. Invalid passwords show a helpful error" rows={3}
+      <label className="wu-field-label">Acceptance criteria<Textarea name="criteria" defaultValue={task.acceptanceCriteria ?? ''} placeholder="e.g. Invalid passwords show a helpful error" rows={3}
         onBlur={event => saveFieldOnBlur(event, 'acceptanceCriteria', task.acceptanceCriteria ?? '', true)} /></label>
       <label className="wu-field-label">Priority<Select name="priority" defaultValue={task.priority === 'None' ? '' : task.priority.toUpperCase()} onChange={event => save('priority', event.currentTarget.value || null)}>
         <option value="">No priority</option>{Object.entries(taskPriorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </Select></label>
-      <label className="wu-field-label">Due date<input type="date" name="dueDate" min="1000-01-01" max="9999-12-31" defaultValue={task.dueDate ?? ''} onChange={event => {
+      <label className="wu-field-label">Due date<Input type="date" name="dueDate" min="1000-01-01" max="9999-12-31" defaultValue={task.dueDate ?? ''} onChange={event => {
         const field = event.currentTarget;
         if (field.validity.valid) save('dueDate', field.value || null);
       }} /></label>
@@ -281,7 +282,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <h3>Blocker</h3>
       {readOnly ? <p>{task.isBlocked ? task.blockedReason || 'Blocked' : 'No blocker'}</p>
         : task.isBlocked ? <><p>{task.blockedReason}</p><button className="wu-button wu-button--secondary" disabled={busy} onClick={() => void mutate('/block', 'DELETE')}>Unblock task</button></>
-        : <label className="wu-field-label">Reason<input name="reason" placeholder="e.g. Waiting for API access"
+        : <label className="wu-field-label">Reason<Input name="reason" placeholder="e.g. Waiting for API access"
           onBlur={event => saveTextOnBlur(event, '', reason => void mutate('/block', 'POST', { reason }))} onKeyDown={finishInputEdit} /></label>}
     </section>
     <section className="wu-drawer-section">
@@ -312,7 +313,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
         : !comments.items ? <p role="status">Loading comments…</p>
         : comments.items.map(comment => <div key={comment.id}>
           <strong>{members.find(member => member.userId === comment.authorId)?.username ?? 'Former member'}</strong>
-          {!readOnly && editingComment === comment.id ? <label className="wu-field-label">Edit comment<textarea autoFocus name="content"
+          {!readOnly && editingComment === comment.id ? <label className="wu-field-label">Edit comment<Textarea autoFocus name="content"
             defaultValue={comment.content} placeholder="Update your comment" required onBlur={event => {
               const value = event.currentTarget.value.trim();
               if (value === comment.content.trim()) setEditingComment(undefined);
@@ -335,7 +336,7 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
           form.reset();
         }
       }}>
-        <label className="wu-field-label">Add a comment<textarea name="content" rows={2} placeholder="Share an update" required /></label>
+        <label className="wu-field-label">Add a comment<Textarea name="content" rows={2} placeholder="Share an update" required /></label>
         <button className="wu-button wu-button--secondary" disabled={busy}>Post comment</button>
       </form>}
     </section>
@@ -343,8 +344,8 @@ export function TaskDetails({ task, tasks, members, token, profileId, onClose, o
       <h3>Delete “{task.title}”?</h3>
       <p>This removes the task from the workspace board and backlog.</p>
       <div className="wu-modal-actions">
-      <button className="wu-button wu-button--secondary" type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
-      <button className="wu-button wu-button--primary" type="button" disabled={busy} onClick={async () => { if (await mutate('', 'DELETE')) onClose(); }}>Confirm task deletion</button>
+      <Button variant="secondary" type="button" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+      <Button variant="primary" type="button" disabled={busy} onClick={async () => { if (await mutate('', 'DELETE')) onClose(); }}>Confirm task deletion</Button>
     </div></section> : <button className="wu-text-button" type="button" onClick={() => setConfirmDelete(true)}>Delete task</button>)}
     </div>
   </Drawer>;
