@@ -19,6 +19,7 @@ const commits=tasks.map((t,i)=>({id:'co'+i,sha:String(i+1).repeat(40),message:t.
 const activity=tasks.map((t,i)=>({id:'a'+i,actorUserId:uid,actorName:'Alex Morgan',actionType:'TASK_CREATED',resourceType:'task',resourceId:t.id,resourceState:'available',subjectName:t.title,metadata:{title:t.title,taskTitle:t.title},createdAt:stamp}));
 const kanban={activeWipLimit:5,definitionOfReady:'Clear scope',definitionOfDone:'Reviewed'};
 const chatMessages=Array.from({length:18},(_,i)=>({id:'message-'+i,senderId:i%4<2?'u2':uid,content:i===4?'Review https://example.test/design/review?project=devup and https://[invalid':i===17?'Latest update: the chat layout is ready for review.':i===15?'Long message '+('Readable content with clear spacing. '.repeat(30)):'Project update '+i,createdAt:new Date(Date.parse(stamp)+i*60000).toISOString()}));
+let reportFixtureMode='populated';
 const errors=[],unknown=[],writes=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>sessionStorage.setItem('devup.access-token','test-contract-token'));
@@ -59,6 +60,11 @@ await page.route('**/api/**',async route=>{
  if(path.endsWith('/board'))return json({columns:statuses.map(status=>({status,tasks:tasks.filter(t=>t.status===status)})),boardColumns:columns,activeCount:2,activeWipLimit:5,reportingTimeZone:'Africa/Casablanca',assigneesByTaskId:Object.fromEntries(tasks.map(t=>[t.id,uid]))});
  if(path.endsWith('/members'))return json(members);
  if(path.endsWith('/kanban-settings')){if(method==='PATCH')Object.assign(kanban,body);return json(kanban);}
+ if(path.includes('/analytics')&&process.env.ANALYTICS_ONLY){
+  if(reportFixtureMode==='error')return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({message:'Report unavailable'})});
+  const days=Number(url.searchParams.get('days')??30);const rows=reportFixtureMode==='empty'?[]:Array.from({length:days},(_,i)=>({day:new Date(Date.parse(stamp)-(days-1-i)*86400000).toISOString().slice(0,10),completed:i%5===0?2:i%3===0?1:0,counts:{BACKLOG:3,TODO:2,READY:2,IN_PROGRESS:2,REVIEW:1,DONE:i+1,CANCELLED:0}}));
+  return json({timeZone:'Africa/Casablanca',asOf:stamp,rows,completions:rows.filter(row=>row.completed).map((row,i)=>({id:tasks[i%tasks.length].id,title:tasks[i%tasks.length].title,day:row.day,at:stamp,deleted:i===1})),durations:tasks.slice(0,3).map((task,i)=>({id:task.id,title:task.title,progressMs:(i+1)*3600000,reviewMs:(i+1)*60000})),flowTasks:tasks});
+ }
  if(path.includes('/analytics'))return json({timeZone:'Africa/Casablanca',asOf:stamp,rows:[{day:'2026-11-22',completed:1,counts:Object.fromEntries(statuses.map(s=>[s,1]))}],completions:[],durations:[],flowTasks:tasks});
  if(path.includes('/activities')||path.includes('/audit'))return json(url.searchParams.has('limit')?activity:{items:activity,total:activity.length,page:1,limit:20});
  if(path.endsWith('/unread-count'))return json({count:0});
@@ -111,6 +117,16 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.ANALYTICS_ONLY==='1'){
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'analytics');await page.reload();await page.locator('.wu-analytics-chart').first().waitFor();assert.equal(await page.locator('.wu-analytics-bar').count(),60);assert.equal(await page.locator('.wu-analytics-snapshot .wu-metric-card').count(),3);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   await page.screenshot({path:`/tmp/devup-migration-artifacts/analytics-refined-${theme}-${width}.png`});
+   const point=page.locator('.wu-analytics-bar').first();await point.focus();await page.getByRole('tooltip').waitFor();await point.press('Enter');await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');
+   await page.getByRole('button',{name:'Data table',exact:true}).click();assert.equal(await page.locator('.wu-analytics-table tbody tr').count(),30);await page.getByRole('combobox',{name:'Analytics period'}).selectOption('Last 7 days');await page.waitForFunction(()=>document.querySelectorAll('.wu-analytics-table tbody tr').length===7);await page.getByRole('button',{name:'Charts',exact:true}).click();assert.equal(await page.locator('.wu-analytics-bar').count(),14);
+  }
+  reportFixtureMode='empty';await page.reload();await page.getByRole('heading',{name:'Your progress will appear here',exact:true}).waitFor();reportFixtureMode='error';await page.reload();await page.getByRole('alert').filter({hasText:'Could not load the period report'}).waitFor();reportFixtureMode='populated';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.wu-analytics-chart').first().waitFor();
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Analytics passed: populated light/dark desktop/mobile reports, current snapshot, keyboard tooltip/drill-down, data table, 7/30-day filtering, empty and recoverable error states.');process.exit(0);
+ }
  if(process.env.COLORS_ONLY==='1'){
   for(const theme of ['light','dark'])for(const width of [1440,390]){
    profile.theme=theme;await page.setViewportSize({width,height:950});

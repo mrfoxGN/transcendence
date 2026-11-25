@@ -85,7 +85,8 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
 
   return <>
     {pageHeading()}
-    <section className="wu-analytics-section" aria-labelledby="wu-analytics-current">
+    <div className="wu-analytics-workbench">
+    <section className="wu-analytics-section wu-analytics-snapshot" aria-labelledby="wu-analytics-current">
       <div className="wu-analytics-heading"><h2 id="wu-analytics-current">Current snapshot</h2><span className="wu-muted">As of {dayLabel(today)}</span></div>
       <div className="wu-stat-grid">
         <MetricCard icon={<List size={19} />} label="Open tasks" value={open.length} note="All unfinished tasks" tone="blue"
@@ -99,9 +100,10 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
     <section className="wu-analytics-section" aria-labelledby="wu-analytics-report">
       <div className="wu-analytics-heading">
         <div><h2 id="wu-analytics-report">Period report</h2><p className="wu-muted">Reporting time zone · {report.data?.timeZone ?? reportingTimeZone}</p></div>
+        <div className="wu-analytics-controls"><div aria-label="Report display"><FilterChips items={['Charts', 'Data table']} active={view} onChange={setView} /></div>
         <label className="wu-field-label">Date range<select aria-label="Analytics period" value={analyticsPeriod} onChange={event => { setDrill(undefined); setAnalyticsPeriod(event.target.value); }}>
           <option>Last 30 days</option><option>Last 7 days</option>
-        </select></label>
+        </select></label></div>
       </div>
       {report.error ? <Panel className="wu-content-panel"><p role="alert">Could not load the period report. <button className="wu-text-button" type="button" onClick={report.retry}>Try again</button></p></Panel>
         : !report.data ? <LoadingPanel label="Loading the period report" /> : !report.data.rows.length ? <Panel className="wu-content-panel"><IllustratedEmptyState kind="analytics" title="Your progress will appear here" detail="Reports will take shape as your team works on tasks." /></Panel> : <>
@@ -114,12 +116,11 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
               <span>{stageLabels[stage]}</span><strong>{elapsed(totals?.[stage] ?? 0)}</strong><ArrowRight size={15} aria-hidden="true" />
             </button>)}
           </div>
-          <div aria-label="Report display"><FilterChips items={['Charts', 'Data table']} active={view} onChange={setView} /></div>
           {view === 'Charts' ? <div className="wu-analytics-grid">
-            <Panel className="wu-content-panel">
-              <h3>Completion events by day</h3>
+            <Panel className="wu-content-panel wu-analytics-chart wu-analytics-chart--primary">
+              <div className="wu-analytics-chart-head"><div><h3>Completion events by day</h3><p>Finished work across the selected period</p></div><strong>{report.data.completions.length}<small>events</small></strong></div>
               <div className="wu-analytics-scale" aria-hidden="true">{maxCompleted} {maxCompleted === 1 ? 'event' : 'events'}</div>
-              <ChartTooltipSurface><div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
+              <ChartTooltipSurface><div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${rows.length}, minmax(0, 1fr))` }}>
                 {rows.map(row => <button key={row.day} type="button" data-count={row.completed} className="wu-analytics-bar"
                   data-chart-label={dayLabel(row.day)} data-chart-detail={row.completed+' completion events'} aria-label={dayLabel(row.day) + ', ' + row.completed + ' completion events'}
                   onClick={() => setDrill({ kind: 'completion', day: row.day })}>
@@ -128,10 +129,10 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
               </div></ChartTooltipSurface>
               <div className="wu-analytics-axis">{[...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])].map(index => <span key={rows[index].day}>{dayLabel(rows[index].day)}</span>)}</div>
             </Panel>
-            <Panel className="wu-content-panel">
-              <h3>Cumulative flow</h3>
+            <Panel className="wu-content-panel wu-analytics-chart">
+              <div className="wu-analytics-chart-head"><div><h3>Cumulative flow</h3><p>How work moves between stages</p></div></div>
               <div className="wu-analytics-scale" aria-hidden="true">{maxFlow} {maxFlow === 1 ? 'task' : 'tasks'}</div>
-              <ChartTooltipSurface><div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${days}, minmax(0, 1fr))` }}>
+              <ChartTooltipSurface><div className="wu-analytics-bars" style={{ gridTemplateColumns: `repeat(${rows.length}, minmax(0, 1fr))` }}>
                 {rows.map(row => <button key={row.day} type="button" className="wu-analytics-bar wu-analytics-bar--stack"
                   data-chart-label={dayLabel(row.day)} data-chart-detail={statuses.reduce((sum,status)=>sum+row.counts[status],0)+' tasks'}
                   aria-label={'Status breakdown for ' + dayLabel(row.day)} onClick={() => setDrill({ kind: 'flow', day: row.day })}>
@@ -159,6 +160,7 @@ export function AnalyticsPage({ pageHeading, analyticsPeriod, setAnalyticsPeriod
           <p className="wu-muted">Flow counts each task at the end of the day, or at the current time for today. Reopened tasks can complete again.</p>
         </>}
     </section>
+    </div>
     {drill && <Drawer title={drillTitle} onClose={() => setDrill(undefined)}>
       {drill.kind === 'current' && <TaskRows onOpen={openTask} rows={drill.tasks.map(task => ({ ...task, detail: task.status }))} />}
       {drill.kind === 'completion' && <TaskRows onOpen={openTask} rows={(report.data?.completions ?? []).filter(event => !drill.day || event.day === drill.day)
