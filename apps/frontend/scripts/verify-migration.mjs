@@ -19,7 +19,8 @@ const commits=tasks.map((t,i)=>({id:'co'+i,sha:String(i+1).repeat(40),message:t.
 const activity=tasks.map((t,i)=>({id:'a'+i,actorUserId:uid,actorName:'Alex Morgan',actionType:'TASK_CREATED',resourceType:'task',resourceId:t.id,resourceState:'available',subjectName:t.title,metadata:{title:t.title,taskTitle:t.title},createdAt:stamp}));
 const kanban={activeWipLimit:5,definitionOfReady:'Clear scope',definitionOfDone:'Reviewed'};
 const chatMessages=Array.from({length:18},(_,i)=>({id:'message-'+i,senderId:i%4<2?'u2':uid,content:i===4?'Review https://example.test/design/review?project=devup and https://[invalid':i===17?'Latest update: the chat layout is ready for review.':i===15?'Long message '+('Readable content with clear spacing. '.repeat(30)):'Project update '+i,createdAt:new Date(Date.parse(stamp)+i*60000).toISOString()}));
-let reportFixtureMode='populated';
+let reportFixtureMode='populated',activityFixtureMode='populated';
+const activityRequests=[];
 const errors=[],unknown=[],writes=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>sessionStorage.setItem('devup.access-token','test-contract-token'));
@@ -66,6 +67,17 @@ await page.route('**/api/**',async route=>{
   return json({timeZone:'Africa/Casablanca',asOf:stamp,rows,completions:rows.filter(row=>row.completed).map((row,i)=>({id:tasks[i%tasks.length].id,title:tasks[i%tasks.length].title,day:row.day,at:stamp,deleted:i===1})),durations:tasks.slice(0,3).map((task,i)=>({id:task.id,title:task.title,progressMs:(i+1)*3600000,reviewMs:(i+1)*60000})),flowTasks:tasks});
  }
  if(path.includes('/analytics'))return json({timeZone:'Africa/Casablanca',asOf:stamp,rows:[{day:'2026-11-22',completed:1,counts:Object.fromEntries(statuses.map(s=>[s,1]))}],completions:[],durations:[],flowTasks:tasks});
+ if((path.includes('/activities')||path.includes('/audit'))&&process.env.ACTIVITY_ONLY){
+  activityRequests.push(Object.fromEntries(url.searchParams));
+  if(activityFixtureMode==='error')return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({message:'Activity unavailable'})});
+  const now=new Date();now.setUTCHours(12,0,0,0);
+  let rows=activityFixtureMode==='empty'?[]:Array.from({length:8},(_,i)=>({id:'event-'+i,actorUserId:i===2?'u2':i===3?null:uid,actorName:i===3?'Workspace':i===2?'Sarah Kim':'Alex Morgan',actionType:['TASK_STATUS_CHANGED','FILE_UPLOADED','NOTE_CREATED','TASK_DELETED','TASK_ASSIGNED','NOTE_UPDATED','FILE_RENAMED','MEMBER_JOINED'][i],resourceType:['task','workspace_file','note','task','task','note','workspace_file','workspace_membership'][i],resourceId:i===2?'n1':i===1?'f1':'t1',resourceState:i===3?'deleted':'available',subjectName:'Workspace item',metadata:{title:i===0?'Polish mobile layout':i===1?'Design.pdf':i===2?'Planning notes':i===3?'Archived experiment':('Example workspace update '+i),...(i===0?{fromStatus:'TODO',toStatus:'IN_PROGRESS'}:{})},createdAt:new Date(now.getTime()-([0,0,1,3,4,5,6,7][i])*86400000-i*60000).toISOString()}));
+  if(path.includes('/audit'))rows=rows.slice(0,1).map(event=>({...event,actionType:'AUDIT_WORKSPACE_RESTORED',resourceType:'workspace_archive'}));
+  const category=url.searchParams.get('category');if(category)rows=rows.filter(event=>({tasks:'task',files:'workspace_file',notes:'note',members:'workspace_membership'})[category]===event.resourceType);
+  const actor=url.searchParams.get('actorUserId');if(actor)rows=rows.filter(event=>event.actorUserId===actor);
+  if(url.searchParams.get('from'))rows=rows.filter(event=>Date.parse(event.createdAt)>=Date.parse(url.searchParams.get('from')));if(url.searchParams.get('before'))rows=rows.filter(event=>Date.parse(event.createdAt)<Date.parse(url.searchParams.get('before')));
+  if(url.searchParams.has('limit'))return json(rows);const pageNumber=Number(url.searchParams.get('page')??1);return json({items:rows.slice((pageNumber-1)*4,pageNumber*4),hasNext:rows.length>pageNumber*4});
+ }
  if(path.includes('/activities')||path.includes('/audit'))return json(url.searchParams.has('limit')?activity:{items:activity,total:activity.length,page:1,limit:20});
  if(path.endsWith('/unread-count'))return json({count:0});
  if(path.startsWith('notifications'))return json([]);
@@ -117,6 +129,19 @@ await page.route('**/api/**',async route=>{
 const root=(process.env.DEVUP_APP_URL || 'http://localhost:5182')+'/workspaces/'+wid+'?page=';
 await fs.mkdir('/tmp/devup-migration-artifacts',{recursive:true});
 try{
+ if(process.env.ACTIVITY_ONLY==='1'){
+  for(const theme of ['light','dark'])for(const width of [1440,390]){
+   profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'activity');await page.reload();await page.locator('.wu-event-row').first().waitFor();assert.equal(await page.locator('.wu-event-row').count(),4);const firstEvent=page.locator('.wu-event-row').first();const avatarBox=await firstEvent.locator('.wu-event-avatar').boundingBox(),copyBox=await firstEvent.locator('.wu-event-copy').boundingBox(),timeBox=await firstEvent.locator('.wu-event-time').boundingBox(),actionBox=await firstEvent.locator('.wu-event-action').boundingBox();assert.ok(avatarBox.x+avatarBox.width<copyBox.x,'Avatar does not overlap event text');if(width===390){assert.ok(timeBox.y>=copyBox.y+copyBox.height-1,'Mobile timestamp follows event content');assert.ok(actionBox.y>=timeBox.y+timeBox.height-1,'Mobile action follows timestamp');}await page.getByRole('region',{name:'Today',exact:true}).waitFor();await page.getByRole('region',{name:'Yesterday',exact:true}).waitFor();assert.equal(await page.locator('.wu-event-transition .wu-pill').count(),2);assert.equal(await page.getByRole('button',{name:'Open task: Archived experiment',exact:true}).count(),0,'Deleted item is not actionable');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   await page.screenshot({path:`/tmp/devup-migration-artifacts/activity-refined-${theme}-${width}.png`});
+   await page.getByRole('button',{name:'Next',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.wu-activity-pagination')?.textContent?.includes('Page 2'));await page.getByRole('button',{name:'Previous',exact:true}).click();
+   await page.getByRole('button',{name:'Files',exact:true}).last().click();await page.locator('.wu-event-row').first().waitFor();assert.equal(await page.locator('.wu-event-row').count(),2);assert.equal(activityRequests.at(-1).category,'files');await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+   await page.getByRole('combobox',{name:'Actor',exact:true}).selectOption('u2');await page.waitForFunction(()=>document.querySelectorAll('.wu-event-row').length===1);assert.equal(activityRequests.at(-1).actorUserId,'u2');await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+  }
+  await page.getByRole('button',{name:'Audit trail',exact:true}).click();await page.getByText('restored the workspace',{exact:false}).waitFor();await page.getByRole('button',{name:'Activity',exact:true}).last().click();
+  await page.getByLabel('From',{exact:true}).fill('2026-11-26');await page.getByLabel('Through',{exact:true}).fill('2026-11-24');await page.getByRole('alert').filter({hasText:'Choose valid dates'}).waitFor();await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+  activityFixtureMode='empty';await page.reload();await page.getByRole('heading',{name:'No activity in this view',exact:true}).waitFor();activityFixtureMode='error';await page.reload();await page.getByRole('alert').filter({hasText:'Could not load activity'}).waitFor();activityFixtureMode='populated';await page.getByRole('button',{name:'Try again',exact:true}).click();await page.locator('.wu-event-row').first().waitFor();
+  assert.deepEqual(errors,[]);assert.deepEqual(unknown,[]);console.log('Activity passed: light/dark desktop/mobile timeline, day grouping, status transitions, deleted items, pagination, category/actor filters, audit scope, invalid date range, empty/error recovery.');process.exit(0);
+ }
  if(process.env.ANALYTICS_ONLY==='1'){
   for(const theme of ['light','dark'])for(const width of [1440,390]){
    profile.theme=theme;await page.setViewportSize({width,height:950});await page.goto(root+'analytics');await page.reload();await page.locator('.wu-analytics-chart').first().waitFor();assert.equal(await page.locator('.wu-analytics-bar').count(),60);assert.equal(await page.locator('.wu-analytics-snapshot .wu-metric-card').count(),3);assert.equal(await page.locator('.wu-analytics-snapshot .wu-metric-card').nth(1).evaluate(e=>getComputedStyle(e).backgroundImage),'none');if(width===390)assert.equal(await page.locator('.wu-analytics-snapshot .wu-stat-grid').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length),1,'Mobile summaries stack');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

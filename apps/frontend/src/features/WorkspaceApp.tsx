@@ -592,7 +592,7 @@ export function WorkspaceApp({ workspaceId }: { workspaceId: string }) {
         <ActivityPage
           pageHeading={pageHeading}
           path={workspacePath} token={token} members={members.items ?? []} openResource={openActivityResource}
-          canAudit={workspace.ownerId === profileId}
+          canAudit={workspace.ownerId === profileId} today={today} timeZone={reportingTimeZone}
         />
       );
       case 'team': return (
