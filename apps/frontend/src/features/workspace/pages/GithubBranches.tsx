@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   ArrowUpRight,
   Check,
@@ -7,6 +6,7 @@ import {
   GitCommitHorizontal,
   LockKeyhole,
 } from 'lucide-react';
+import { useState } from 'react';
 
 import './github-branches.css';
 
@@ -29,24 +29,17 @@ const PAGE_SIZE = 10;
 
 function branchUrl(repositoryUrl: string, name: string) {
   return (
-    `${repositoryUrl.replace(/\/$/, '')}/tree/` +
-    name.split('/').map(encodeURIComponent).join('/')
+    `${repositoryUrl.replace(/\/$/, '')}/tree/` + name.split('/').map(encodeURIComponent).join('/')
   );
 }
 
-export function GithubBranches({
-  branches,
-  defaultBranch,
-  repositoryUrl,
-}: GithubBranchesProps) {
+export function GithubBranches({ branches, defaultBranch, repositoryUrl }: GithubBranchesProps) {
   const [filter, setFilter] = useState<BranchFilter>('all');
   const [page, setPage] = useState(1);
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
   const [copyError, setCopyError] = useState('');
 
-  const protectedCount = branches.filter(
-    branch => branch.protected
-  ).length;
+  const protectedCount = branches.filter((branch) => branch.protected).length;
 
   const sorted = [...branches].sort((a, b) => {
     if (a.name === defaultBranch) return -1;
@@ -55,26 +48,20 @@ export function GithubBranches({
     return a.name.localeCompare(b.name);
   });
 
-  const filtered = sorted.filter(branch => {
+  const filtered = sorted.filter((branch) => {
     if (filter === 'protected') return branch.protected;
     if (filter === 'default') return branch.name === defaultBranch;
 
     return true;
   });
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filtered.length / PAGE_SIZE)
-  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 
   const currentPage = Math.min(page, totalPages);
 
   const start = (currentPage - 1) * PAGE_SIZE;
 
-  const visible = filtered.slice(
-    start,
-    start + PAGE_SIZE
-  );
+  const visible = filtered.slice(start, start + PAGE_SIZE);
 
   function changeFilter(value: BranchFilter) {
     setFilter(value);
@@ -102,24 +89,14 @@ export function GithubBranches({
 
           <div>
             <h2>Branches</h2>
-            <p>
-              Explore your repository branches and their
-              latest commits.
-            </p>
+            <p>Explore your repository branches and their latest commits.</p>
           </div>
         </div>
 
-        <div
-          className="wu-gbranches__filters"
-          role="group"
-          aria-label="Filter branches"
-        >
+        <div className="wu-gbranches__filters" role="group" aria-label="Filter branches">
           <button
             type="button"
-            className={
-              'wu-gbranches__filter ' +
-              (filter === 'all' ? 'is-active' : '')
-            }
+            className={'wu-gbranches__filter ' + (filter === 'all' ? 'is-active' : '')}
             aria-pressed={filter === 'all'}
             onClick={() => changeFilter('all')}
           >
@@ -130,10 +107,7 @@ export function GithubBranches({
 
           <button
             type="button"
-            className={
-              'wu-gbranches__filter ' +
-              (filter === 'protected' ? 'is-active' : '')
-            }
+            className={'wu-gbranches__filter ' + (filter === 'protected' ? 'is-active' : '')}
             aria-pressed={filter === 'protected'}
             onClick={() => changeFilter('protected')}
           >
@@ -144,10 +118,7 @@ export function GithubBranches({
 
           <button
             type="button"
-            className={
-              'wu-gbranches__filter ' +
-              (filter === 'default' ? 'is-active' : '')
-            }
+            className={'wu-gbranches__filter ' + (filter === 'default' ? 'is-active' : '')}
             aria-pressed={filter === 'default'}
             onClick={() => changeFilter('default')}
           >
@@ -175,35 +146,18 @@ export function GithubBranches({
           </thead>
 
           <tbody>
-            {visible.map(branch => {
-              const isDefault =
-                branch.name === defaultBranch;
+            {visible.map((branch) => {
+              const isDefault = branch.name === defaultBranch;
 
               return (
-                <tr
-                  key={branch.name}
-                  className={
-                    isDefault
-                      ? 'wu-gbranches__row--default'
-                      : ''
-                  }
-                >
+                <tr key={branch.name} className={isDefault ? 'wu-gbranches__row--default' : ''}>
                   <td data-label="Branch">
                     <div className="wu-gbranches__branch">
-                      <GitBranch
-                        size={17}
-                        aria-hidden="true"
-                      />
+                      <GitBranch size={17} aria-hidden="true" />
 
-                      <strong title={branch.name}>
-                        {branch.name}
-                      </strong>
+                      <strong title={branch.name}>{branch.name}</strong>
 
-                      {isDefault && (
-                        <span className="wu-gbranches__default">
-                          Default
-                        </span>
-                      )}
+                      {isDefault && <span className="wu-gbranches__default">Default</span>}
                     </div>
                   </td>
 
@@ -215,22 +169,14 @@ export function GithubBranches({
                       title="Copy full commit SHA"
                       aria-label={`Copy SHA for ${branch.name}`}
                     >
-                      <GitCommitHorizontal
-                        size={14}
-                        aria-hidden="true"
-                      />
+                      <GitCommitHorizontal size={14} aria-hidden="true" />
 
-                      <code>
-                        {branch.sha.slice(0, 7)}
-                      </code>
+                      <code>{branch.sha.slice(0, 7)}</code>
 
                       {copiedSha === branch.sha ? (
                         <Check size={13} aria-hidden="true" />
                       ) : (
-                        <ClipboardCopy
-                          size={13}
-                          aria-hidden="true"
-                        />
+                        <ClipboardCopy size={13} aria-hidden="true" />
                       )}
                     </button>
                   </td>
@@ -238,16 +184,11 @@ export function GithubBranches({
                   <td data-label="Protection">
                     {branch.protected ? (
                       <span className="wu-gbranches__protected">
-                        <LockKeyhole
-                          size={14}
-                          aria-hidden="true"
-                        />
+                        <LockKeyhole size={14} aria-hidden="true" />
                         Protected
                       </span>
                     ) : (
-                      <span className="wu-gbranches__unprotected">
-                        Not protected
-                      </span>
+                      <span className="wu-gbranches__unprotected">Not protected</span>
                     )}
                   </td>
 
@@ -271,21 +212,13 @@ export function GithubBranches({
 
         {filtered.length === 0 && (
           <div className="wu-gbranches__empty">
-            <LockKeyhole
-              size={24}
-              aria-hidden="true"
-            />
+            <LockKeyhole size={24} aria-hidden="true" />
 
             <strong>No branches found</strong>
 
-            <p>
-              No branches match the selected filter.
-            </p>
+            <p>No branches match the selected filter.</p>
 
-            <button
-              type="button"
-              onClick={() => changeFilter('all')}
-            >
+            <button type="button" onClick={() => changeFilter('all')}>
               Show all branches
             </button>
           </div>
@@ -298,15 +231,12 @@ export function GithubBranches({
             ? 'Showing 0 branches'
             : `Showing ${start + 1}–${Math.min(
                 start + PAGE_SIZE,
-                filtered.length
+                filtered.length,
               )} of ${filtered.length} branches`}
         </span>
 
         {totalPages > 1 && (
-          <nav
-            className="wu-gbranches__pagination"
-            aria-label="Branch pages"
-          >
+          <nav className="wu-gbranches__pagination" aria-label="Branch pages">
             <button
               type="button"
               disabled={currentPage === 1}
@@ -315,23 +245,12 @@ export function GithubBranches({
               Previous
             </button>
 
-            {Array.from(
-              { length: totalPages },
-              (_, index) => index + 1
-            ).map(number => (
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((number) => (
               <button
                 type="button"
                 key={number}
-                className={
-                  currentPage === number
-                    ? 'is-active'
-                    : ''
-                }
-                aria-current={
-                  currentPage === number
-                    ? 'page'
-                    : undefined
-                }
+                className={currentPage === number ? 'is-active' : ''}
+                aria-current={currentPage === number ? 'page' : undefined}
                 onClick={() => setPage(number)}
               >
                 {number}
@@ -348,7 +267,6 @@ export function GithubBranches({
           </nav>
         )}
       </footer>
-
     </section>
   );
 }

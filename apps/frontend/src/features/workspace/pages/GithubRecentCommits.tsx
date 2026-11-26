@@ -1,11 +1,4 @@
-import {
-  ArrowRight,
-  Bug,
-  GitCommitHorizontal,
-  GitMerge,
-  Plus,
-  Wrench,
-} from 'lucide-react';
+import { ArrowRight, Bug, GitCommitHorizontal, GitMerge, Plus, Wrench } from 'lucide-react';
 
 import './github-recent-commits.css';
 
@@ -48,20 +41,13 @@ const commitLabels = {
   commit: 'commit',
 };
 
-export function GithubRecentCommits({
-  commits,
-  onViewAll,
-}: GithubRecentCommitsProps) {
+export function GithubRecentCommits({ commits, onViewAll }: GithubRecentCommitsProps) {
   return (
     <section className="wu-github-recent">
       <header className="wu-github-recent__heading">
         <h2>Recent commits</h2>
 
-        <button
-          type="button"
-          className="wu-text-button"
-          onClick={onViewAll}
-        >
+        <button type="button" className="wu-text-button" onClick={onViewAll}>
           View all
           <ArrowRight size={15} aria-hidden="true" />
         </button>
@@ -72,12 +58,10 @@ export function GithubRecentCommits({
           Loading commits…
         </p>
       ) : commits.length === 0 ? (
-        <p className="wu-github-recent__empty">
-          No synchronized commits yet.
-        </p>
+        <p className="wu-github-recent__empty">No synchronized commits yet.</p>
       ) : (
         <ol className="wu-github-recent__timeline">
-          {commits.slice(0, 4).map(commit => {
+          {commits.slice(0, 4).map((commit) => {
             const type = getCommitType(commit.message);
             const Icon = commitIcons[type];
             const title = commit.message.split('\n')[0];
@@ -113,17 +97,15 @@ export function GithubRecentCommits({
                         <span>{commit.authorName ?? 'Unknown author'}</span>
                         <span aria-hidden="true">·</span>
                         <time dateTime={commit.committedAt}>
-                          {new Date(commit.committedAt).toLocaleDateString(
-                            undefined,
-                            { month: 'short', day: 'numeric' },
-                          )}
+                          {new Date(commit.committedAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
                         </time>
                       </div>
                     </div>
 
-                    <span className="wu-github-recent__badge">
-                      {commitLabels[type]}
-                    </span>
+                    <span className="wu-github-recent__badge">{commitLabels[type]}</span>
                   </div>
                 </div>
               </li>

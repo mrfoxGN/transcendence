@@ -2,7 +2,7 @@
 /* Page rhythm: one owner for padding and one gap between adjacent sections. */
 .devup-design .workspace-app { --layout-section-gap: 20px; }
 .devup-design .wu-page-heading { min-height:76px; padding-block:18px; margin-bottom:20px; background:var(--wu-canvas); }
-.devup-design .wu-page-heading h1 { font-size:24px; }
+.devup-design .wu-page-heading h1 { font-size:var(--font-size-title); }
 .devup-design .wu-page > .wu-content-panel + .wu-content-panel { margin-top:20px; }
 .devup-design .wu-panel-heading { margin-bottom:16px; }
 .devup-design .wu-page > .wu-muted { margin:0 0 16px; font-size:12px; }

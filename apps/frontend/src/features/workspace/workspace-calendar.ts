@@ -4,9 +4,13 @@ export const nextSevenDaysLabel = 'Next 7 days';
 
 export function calendarDate(instant: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).formatToParts(instant);
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(item => item.type === type)?.value;
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value;
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
@@ -17,7 +21,10 @@ export function addCalendarDays(day: string, days: number) {
 }
 
 export function formatCalendarDate(day: string, options: Intl.DateTimeFormatOptions) {
-  return new Date(day + 'T00:00:00Z').toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
+  return new Date(day + 'T00:00:00Z').toLocaleDateString(undefined, {
+    ...options,
+    timeZone: 'UTC',
+  });
 }
 
 export function isOpenTask(task: Pick<Task, 'status'>) {

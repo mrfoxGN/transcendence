@@ -93,3 +93,38 @@
 .devup-design .workspace-app .wu-settings-layout .wu-switch { position: relative; }
 .devup-design .workspace-app .wu-settings-layout .wu-switch input { display: block; position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; clip-path: inset(50%); }
 .devup-design .workspace-app .wu-settings-layout .wu-switch:has(input:focus-visible) { outline: 2px solid var(--wu-focus); outline-offset: 4px; }
+
+/* The shell and section navigation stay in place; only the selected section scrolls. */
+.devup-design .workspace-app > .wu-main > .wu-page.wu-page--settings { display:flex; flex-direction:column; overflow:hidden; padding-bottom:var(--wu-page-gutter); }
+.devup-design .wu-page--settings > .wu-page-heading { flex:none; }
+.devup-design .wu-page--settings > .wu-settings-layout { flex:1; min-height:0; margin-bottom:0; grid-template-rows:minmax(0,1fr); align-items:stretch; overflow:hidden; }
+.devup-design .wu-page--settings .wu-settings-layout > .wu-settings-section-nav { position:static; min-height:0; overflow-y:auto; align-content:start; overscroll-behavior:contain; scrollbar-width:thin; }
+.devup-design .wu-page--settings .wu-settings-layout > .wu-settings-panel { min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scroll-padding-block:24px; }
+.devup-design .wu-settings-mobile-trigger { display:none; }
+.devup-design .wu-native-drawer.wu-settings-navigation-drawer { inset:0 auto 0 0; width:min(320px, calc(100vw - 40px)); max-width:none; height:100dvh; max-height:100dvh; border-radius:0 16px 16px 0; background:var(--wu-surface); overflow-y:auto; box-shadow:12px 0 40px #0002; }
+.devup-design .wu-settings-navigation-drawer .wu-drawer-body { padding:20px 16px; }
+.devup-design .wu-settings-navigation-drawer .wu-drawer-head { margin-bottom:24px; }
+.devup-design .workspace-app .wu-settings-navigation-drawer .wu-drawer-head h2 { font-size:16px; }
+.devup-design .wu-settings-navigation-drawer .wu-settings-section-nav { position:static; display:grid; gap:26px; padding:0; }
+.devup-design .workspace-app .wu-settings-navigation-drawer .wu-settings-section-nav h2 { margin:0 10px 8px; font-size:11px; font-weight:500; color:var(--wu-muted); }
+.devup-design .wu-settings-navigation-drawer .wu-settings-section-nav button { min-height:44px; width:100%; font:inherit; font-size:13px; cursor:pointer; }
+@keyframes wu-settings-navigation-enter { from { transform:translateX(-100%); } to { transform:translateX(0); } }
+.devup-design .wu-settings-navigation-drawer[open] { animation:wu-settings-navigation-enter 160ms ease-out; }
+@media(max-width:900px) {
+ .devup-design .wu-page--settings > .wu-settings-layout { display:flex; flex-direction:column; }
+ .devup-design .wu-page--settings .wu-settings-layout > .wu-settings-section-nav { display:none; }
+ .devup-design .wu-page--settings .wu-settings-layout > .wu-settings-panel { flex:1; min-height:0; }
+ .devup-design .wu-settings-mobile-trigger { display:flex; flex:none; align-items:center; justify-content:space-between; gap:12px; margin:0; padding:12px 20px; border:0; border-bottom:1px solid var(--wu-line); background:var(--wu-surface); color:var(--wu-ink); text-align:left; font:inherit; cursor:pointer; }
+ .wu-settings-mobile-trigger > span { display:grid; gap:4px; }
+ .wu-settings-mobile-trigger small { color:var(--wu-muted); font-size:10px; }
+ .wu-settings-mobile-trigger strong { font-size:13px; font-weight:600; }
+ .devup-design .wu-settings-mobile-trigger:hover { background:var(--wu-surface-soft); }
+}
+@media(prefers-reduced-motion:reduce) { .devup-design .wu-settings-navigation-drawer[open] { animation:none; } }
+
+@media(min-width:901px) and (max-height:740px) {
+ .devup-design .wu-page--settings .wu-settings-layout > .wu-settings-section-nav { padding:14px 12px; gap:16px; }
+ .devup-design .wu-page--settings .wu-settings-section-nav section { gap:2px; }
+ .devup-design .wu-page--settings .wu-settings-section-nav h2 { margin-bottom:4px; }
+ .devup-design .wu-page--settings .wu-settings-section-nav button { min-height:30px; padding:4px 8px; }
+}
