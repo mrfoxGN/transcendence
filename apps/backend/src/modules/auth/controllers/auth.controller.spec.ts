@@ -474,26 +474,46 @@ describe('Auth endpoints', () => {
     let token: string;
 
     beforeEach(async () => {
-      usersService.findForAuth.mockResolvedValue({ user: profile, tokenVersion: 0 });
-      token = await jwtService.signAsync({ sub: id, tokenType: 'access', tokenVersion: 0 });
+      usersService.findForAuth.mockResolvedValue({
+        user: profile,
+        tokenVersion: 0,
+      });
+      token = await jwtService.signAsync({
+        sub: id,
+        tokenType: 'access',
+        tokenVersion: 0,
+      });
     });
 
     it.each([
-      ['patch', '/auth/password', { currentPassword: password, newPassword: 'new-password' }],
+      [
+        'patch',
+        '/auth/password',
+        { currentPassword: password, newPassword: 'new-password' },
+      ],
       ['post', '/auth/email-verification/request', {}],
       ['post', '/auth/email-verification/confirm', { code: '123456' }],
-    ] as const)('requires authentication for %s %s', async (method, path, body) => {
-      await request(httpServer())[method](path).send(body).expect(401);
-      expect(usersService.changePassword).not.toHaveBeenCalled();
-      expect(usersService.createEmailVerificationCode).not.toHaveBeenCalled();
-      expect(usersService.confirmEmailVerification).not.toHaveBeenCalled();
-    });
+    ] as const)(
+      'requires authentication for %s %s',
+      async (method, path, body) => {
+        await request(httpServer())[method](path).send(body).expect(401);
+        expect(usersService.changePassword).not.toHaveBeenCalled();
+        expect(usersService.createEmailVerificationCode).not.toHaveBeenCalled();
+        expect(usersService.confirmEmailVerification).not.toHaveBeenCalled();
+      },
+    );
 
     it('changes a password and disconnects both chats', async () => {
-      await request(httpServer()).patch('/auth/password')
+      await request(httpServer())
+        .patch('/auth/password')
         .set('Authorization', `Bearer ${token}`)
-        .send({ currentPassword: password, newPassword: 'new-password' }).expect(204);
-      expect(usersService.changePassword).toHaveBeenCalledWith(id, password, 'new-password');
+        .send({ currentPassword: password, newPassword: 'new-password' })
+        .expect(204);
+      expect(usersService.changePassword).toHaveBeenCalledWith(
+        id,
+        password,
+        'new-password',
+      );
       expect(directChatGateway.disconnectUser).toHaveBeenCalledWith(id);
       expect(workspaceChatGateway.disconnectUser).toHaveBeenCalledWith(id);
     });
@@ -501,51 +521,90 @@ describe('Auth endpoints', () => {
     it.each([
       [{ currentPassword: '', newPassword: 'new-password' }],
       [{ currentPassword: password, newPassword: 'short' }],
-      [{ currentPassword: password, newPassword: 'new-password', tokenVersion: 0 }],
+      [
+        {
+          currentPassword: password,
+          newPassword: 'new-password',
+          tokenVersion: 0,
+        },
+      ],
     ])('rejects invalid password changes: %j', async (body) => {
-      await request(httpServer()).patch('/auth/password')
-        .set('Authorization', `Bearer ${token}`).send(body).expect(400);
+      await request(httpServer())
+        .patch('/auth/password')
+        .set('Authorization', `Bearer ${token}`)
+        .send(body)
+        .expect(400);
       expect(usersService.changePassword).not.toHaveBeenCalled();
     });
 
     it('rejects an incorrect current password without disconnecting chats', async () => {
-      usersService.changePassword.mockRejectedValueOnce(new UnauthorizedException());
-      await request(httpServer()).patch('/auth/password')
+      usersService.changePassword.mockRejectedValueOnce(
+        new UnauthorizedException(),
+      );
+      await request(httpServer())
+        .patch('/auth/password')
         .set('Authorization', `Bearer ${token}`)
-        .send({ currentPassword: 'wrong-password', newPassword: 'new-password' }).expect(401);
+        .send({
+          currentPassword: 'wrong-password',
+          newPassword: 'new-password',
+        })
+        .expect(401);
       expect(directChatGateway.disconnectUser).not.toHaveBeenCalled();
       expect(workspaceChatGateway.disconnectUser).not.toHaveBeenCalled();
     });
 
     it('returns 204 when no verification email needs sending', async () => {
       usersService.createEmailVerificationCode.mockResolvedValue(null);
-      await request(httpServer()).post('/auth/email-verification/request')
-        .set('Authorization', `Bearer ${token}`).expect(204);
+      await request(httpServer())
+        .post('/auth/email-verification/request')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(204);
       expect(usersService.createEmailVerificationCode).toHaveBeenCalledWith(id);
     });
 
     it('returns 503 when verification is unavailable', async () => {
-      usersService.createEmailVerificationCode.mockRejectedValueOnce(new ServiceUnavailableException());
-      await request(httpServer()).post('/auth/email-verification/request')
-        .set('Authorization', `Bearer ${token}`).expect(503);
+      usersService.createEmailVerificationCode.mockRejectedValueOnce(
+        new ServiceUnavailableException(),
+      );
+      await request(httpServer())
+        .post('/auth/email-verification/request')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(503);
     });
 
     it('confirms a verification code', async () => {
-      await request(httpServer()).post('/auth/email-verification/confirm')
-        .set('Authorization', `Bearer ${token}`).send({ code: '012345' }).expect(204);
-      expect(usersService.confirmEmailVerification).toHaveBeenCalledWith(id, '012345');
+      await request(httpServer())
+        .post('/auth/email-verification/confirm')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ code: '012345' })
+        .expect(204);
+      expect(usersService.confirmEmailVerification).toHaveBeenCalledWith(
+        id,
+        '012345',
+      );
     });
 
-    it.each(['12345', '1234567', '12+456', 123456, null])('rejects invalid verification code %j', async (code) => {
-      await request(httpServer()).post('/auth/email-verification/confirm')
-        .set('Authorization', `Bearer ${token}`).send({ code }).expect(400);
-      expect(usersService.confirmEmailVerification).not.toHaveBeenCalled();
-    });
+    it.each(['12345', '1234567', '12+456', 123456, null])(
+      'rejects invalid verification code %j',
+      async (code) => {
+        await request(httpServer())
+          .post('/auth/email-verification/confirm')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ code })
+          .expect(400);
+        expect(usersService.confirmEmailVerification).not.toHaveBeenCalled();
+      },
+    );
 
     it('returns 400 for an expired or incorrect verification code', async () => {
-      usersService.confirmEmailVerification.mockRejectedValueOnce(new BadRequestException());
-      await request(httpServer()).post('/auth/email-verification/confirm')
-        .set('Authorization', `Bearer ${token}`).send({ code: '123456' }).expect(400);
+      usersService.confirmEmailVerification.mockRejectedValueOnce(
+        new BadRequestException(),
+      );
+      await request(httpServer())
+        .post('/auth/email-verification/confirm')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ code: '123456' })
+        .expect(400);
     });
   });
 });

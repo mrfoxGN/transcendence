@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsString, Length, ValidateIf } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  Length,
+  ValidateIf,
+} from 'class-validator';
 
 export class UpdateNoteDto {
   @ValidateIf((dto: UpdateNoteDto) => dto.title !== undefined)

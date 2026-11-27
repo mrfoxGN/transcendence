@@ -121,7 +121,9 @@ describe('UsersService', () => {
     const service = new UsersService(repository as unknown as Repository<User>);
     const avatarImage = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9]).toString('base64')}`;
 
-    const response = await service.updateProfile(makeUser().id, { avatarImage });
+    const response = await service.updateProfile(makeUser().id, {
+      avatarImage,
+    });
 
     expect(response.avatarUrl).toBe(avatarImage);
     expect(repository.save).toHaveBeenCalledWith(
@@ -137,7 +139,9 @@ describe('UsersService', () => {
     const service = new UsersService(repository as unknown as Repository<User>);
 
     await expect(
-      service.updateProfile(makeUser().id, { avatarImage: 'data:image/jpeg;base64,invalid' }),
+      service.updateProfile(makeUser().id, {
+        avatarImage: 'data:image/jpeg;base64,invalid',
+      }),
     ).rejects.toThrow('Choose a valid avatar image.');
   });
 
@@ -150,7 +154,10 @@ describe('UsersService', () => {
     const avatarImage = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0x00, 0xff, 0xd9]).toString('base64')}`;
 
     await expect(
-      service.updateProfile(makeUser().id, { avatarUrl: 'https://example.com/avatar.jpg', avatarImage }),
+      service.updateProfile(makeUser().id, {
+        avatarUrl: 'https://example.com/avatar.jpg',
+        avatarImage,
+      }),
     ).rejects.toThrow('Choose either an image or a URL.');
   });
 
@@ -169,7 +176,11 @@ describe('UsersService', () => {
     expect(response.theme).toBe('dark');
     expect(response.notificationBadge).toBe(false);
     expect(repository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ id: makeUser().id, theme: 'dark', notificationBadge: false }),
+      expect.objectContaining({
+        id: makeUser().id,
+        theme: 'dark',
+        notificationBadge: false,
+      }),
     );
   });
 

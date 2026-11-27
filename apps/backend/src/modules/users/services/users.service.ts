@@ -579,7 +579,10 @@ export class UsersService {
       throw invalidCode;
     }
 
-    const matches = await argon2.verify(user.emailVerifyCodeHash, `2fa:${code}`);
+    const matches = await argon2.verify(
+      user.emailVerifyCodeHash,
+      `2fa:${code}`,
+    );
 
     if (!matches) {
       await this.usersRepository.increment(

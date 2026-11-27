@@ -14,7 +14,7 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsIn(['system', 'light', 'dark'])
   theme?: 'system' | 'light' | 'dark';
-  
+
   @IsOptional()
   @IsBoolean()
   notificationBadge?: boolean;

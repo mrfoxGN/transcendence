@@ -1,14 +1,32 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
-import { And, LessThan, MoreThanOrEqual, Raw, Repository } from 'typeorm';
+import { randomUUID } from 'node:crypto';
+import {
+  And,
+  FindOptionsWhere,
+  LessThan,
+  MoreThanOrEqual,
+  Raw,
+  Repository,
+} from 'typeorm';
 
 import { ActivityResponseDto } from '../dto/activity-response.dto';
 import { ListActivitiesDto } from '../dto/list-activities.dto';
 import { Activity } from '../entities/activity.entity';
 
-const categoryPrefixes = { tasks: 'TASK', files: 'FILE', members: 'MEMBER', notes: 'NOTE', board: 'BOARD', github: 'GITHUB' };
-const resourceTables = { task: 'tasks', workspace_file: 'workspace_files', note: 'notes' } as const;
+const categoryPrefixes = {
+  tasks: 'TASK',
+  files: 'FILE',
+  members: 'MEMBER',
+  notes: 'NOTE',
+  board: 'BOARD',
+  github: 'GITHUB',
+};
+const resourceTables = {
+  task: 'tasks',
+  workspace_file: 'workspace_files',
+  note: 'notes',
+} as const;
 
 export interface CreateActivityInput {
   workspaceId: string;
@@ -21,16 +39,28 @@ export interface CreateActivityInput {
 
 export function activityEntry(input: CreateActivityInput) {
   return {
-    id: randomUUID(), workspaceId: input.workspaceId, actorUserId: input.actorUserId ?? null,
-    actionType: input.actionType, resourceType: input.resourceType ?? null, resourceId: input.resourceId ?? null,
-    metadata: input.metadata ?? null, createdAt: new Date(),
+    id: randomUUID(),
+    workspaceId: input.workspaceId,
+    actorUserId: input.actorUserId ?? null,
+    actionType: input.actionType,
+    resourceType: input.resourceType ?? null,
+    resourceId: input.resourceId ?? null,
+    metadata: input.metadata ?? null,
+    createdAt: new Date(),
   };
 }
 
-export async function recordActivity(service: ActivitiesService, input: CreateActivityInput) {
-  try { await service.create(input); }
-  catch (error) {
-    new Logger(ActivitiesService.name).error('Could not record ' + input.actionType, error instanceof Error ? error.stack : undefined);
+export async function recordActivity(
+  service: ActivitiesService,
+  input: CreateActivityInput,
+) {
+  try {
+    await service.create(input);
+  } catch (error) {
+    new Logger(ActivitiesService.name).error(
+      'Could not record ' + input.actionType,
+      error instanceof Error ? error.stack : undefined,
+    );
   }
 }
 
@@ -53,82 +83,204 @@ export class ActivitiesService {
     workspaceId: string,
     query: ListActivitiesDto,
   ): Promise<ActivityResponseDto[]> {
-    return this.findActivities(workspaceId, query, 0);
-  }
-
-  async findPageForWorkspace(workspaceId: string, query: ListActivitiesDto, audit = false) {
     const limit = query.limit ?? 20;
-    const activities = await this.findActivities(workspaceId, query, 1, audit);
-    return { items: activities.slice(0, limit), hasNext: activities.length > limit };
+    const activities = await this.findActivities(workspaceId, query, limit);
+    return this.buildResponses(workspaceId, activities);
   }
 
-  private async findActivities(workspaceId: string, query: ListActivitiesDto, lookahead: number, audit = false) {
+  async findPageForWorkspace(
+    workspaceId: string,
+    query: ListActivitiesDto,
+    audit = false,
+  ): Promise<{ items: ActivityResponseDto[]; hasNext: boolean }> {
+    const limit = query.limit ?? 20;
+    // Fetch one extra row to see whether there is another page.
+    const activities = await this.findActivities(
+      workspaceId,
+      query,
+      limit + 1,
+      audit,
+    );
+
+    return {
+      items: await this.buildResponses(workspaceId, activities.slice(0, limit)),
+      hasNext: activities.length > limit,
+    };
+  }
+
+  private async findActivities(
+    workspaceId: string,
+    query: ListActivitiesDto,
+    take: number,
+    audit = false,
+  ): Promise<Activity[]> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
-    if (!Number.isSafeInteger(skip)) throw new BadRequestException('Invalid page');
+
+    if (!Number.isSafeInteger(skip)) {
+      throw new BadRequestException('Invalid page');
+    }
+
+    const where: FindOptionsWhere<Activity> = {
+      workspaceId,
+      actionType: this.actionTypeFilter(query.category, audit),
+    };
+
+    if (query.actorUserId) {
+      where.actorUserId = query.actorUserId;
+    }
 
     const from = query.from ? new Date(query.from) : undefined;
     const before = query.before ? new Date(query.before) : undefined;
-    if (from && before && from >= before) {
-      throw new BadRequestException('The start must be before the end');
-    }
-    const lower = from && MoreThanOrEqual(from);
-    const upper = before && LessThan(before);
-    const createdAt = lower && upper ? And(lower, upper) : lower ?? upper;
-    const prefix = audit ? 'AUDIT' : query.category ? categoryPrefixes[query.category] : 'AUDIT';
-    const operator = audit || query.category ? 'LIKE' : 'NOT LIKE';
-    const actionType = Raw(
-      (column) => `(${column} ${operator} :activityPrefix ESCAPE '!' ${audit ? 'OR' : 'AND'} ${column} ${audit ? '=' : '<>'} 'MEMBER_REMOVED')`,
-      { activityPrefix: prefix + '!_%' },
-    );
 
-    const activities = await this.activitiesRepository.find({
-      where: {
-        workspaceId,
-        actionType,
-        ...(query.actorUserId && { actorUserId: query.actorUserId }),
-        ...(createdAt && { createdAt }),
-      },
+    if (from && before) {
+      if (from >= before) {
+        throw new BadRequestException('The start must be before the end');
+      }
+
+      where.createdAt = And(MoreThanOrEqual(from), LessThan(before));
+    } else if (from) {
+      where.createdAt = MoreThanOrEqual(from);
+    } else if (before) {
+      where.createdAt = LessThan(before);
+    }
+
+    return this.activitiesRepository.find({
+      where,
       order: {
         createdAt: 'DESC',
         id: 'DESC',
       },
       skip,
-      take: limit + lookahead,
+      take,
     });
+  }
 
-    const result = activities.map(activity => this.toResponse(activity));
-    await Promise.all(Object.entries(resourceTables).map(async ([type, table]) => {
-      const related = result.filter(activity => activity.resourceType === type && activity.resourceId);
-      if (!related.length) return;
-      const ids = [...new Set(related.map(activity => activity.resourceId))];
-      const rows = await this.activitiesRepository.manager.query<{ id: string }[]>(
-        `SELECT id FROM ${table} WHERE workspace_id = ? AND deleted_at IS NULL AND id IN (${ids.map(() => '?').join(',')})`,
-        [workspaceId, ...ids],
+  private actionTypeFilter(
+    category: ListActivitiesDto['category'],
+    audit: boolean,
+  ) {
+    // MEMBER_REMOVED is the action stored by older versions for member removals.
+    if (audit) {
+      return Raw(
+        (column) =>
+          `(${column} LIKE :activityPrefix ESCAPE '!' OR ${column} = 'MEMBER_REMOVED')`,
+        { activityPrefix: 'AUDIT!_%' },
       );
-      const available = new Set(rows.map(row => row.id));
-      for (const event of related) event.resourceState = available.has(event.resourceId!) ? 'available' : 'deleted';
-    }));
-    const subjects = result.map(event => {
-      const metadata = event.metadata as { assigneeId?: unknown; memberUserId?: unknown } | null;
-      const value = metadata?.assigneeId ?? metadata?.memberUserId;
-      return typeof value === 'string' ? value : undefined;
-    });
-    const people = [...new Set([...result.map(event => event.actorUserId), ...subjects].filter(Boolean))];
-    if (people.length) {
-      const rows = await this.activitiesRepository.manager.query<{ id: string; username: string }[]>(
-        `SELECT id, username FROM users WHERE id IN (${people.map(() => '?').join(',')})`, people,
-      );
-      const names = new Map(rows.map(row => [row.id, row.username]));
-      result.forEach((event, index) => {
-        const actor = event.actorUserId && names.get(event.actorUserId);
-        const subject = subjects[index] && names.get(subjects[index]!);
-        if (actor) event.actorName = actor;
-        if (subject) event.subjectName = subject;
-      });
     }
-    return result;
+
+    const operator = category ? 'LIKE' : 'NOT LIKE';
+    const prefix = category ? categoryPrefixes[category] : 'AUDIT';
+
+    return Raw(
+      (column) =>
+        `(${column} ${operator} :activityPrefix ESCAPE '!' AND ${column} <> 'MEMBER_REMOVED')`,
+      { activityPrefix: prefix + '!_%' },
+    );
+  }
+
+  private async buildResponses(
+    workspaceId: string,
+    activities: Activity[],
+  ): Promise<ActivityResponseDto[]> {
+    const responses = activities.map((activity) => this.toResponse(activity));
+
+    await this.addResourceStates(workspaceId, responses);
+    await this.addUserNames(responses);
+
+    return responses;
+  }
+
+  private async addResourceStates(
+    workspaceId: string,
+    responses: ActivityResponseDto[],
+  ): Promise<void> {
+    await Promise.all(
+      Object.entries(resourceTables).map(async ([resourceType, table]) => {
+        const resourceIds = new Set<string>();
+
+        for (const activity of responses) {
+          if (activity.resourceType === resourceType && activity.resourceId) {
+            resourceIds.add(activity.resourceId);
+          }
+        }
+
+        if (resourceIds.size === 0) {
+          return;
+        }
+
+        const ids = [...resourceIds];
+        const placeholders = ids.map(() => '?').join(', ');
+        const rows = await this.activitiesRepository.manager.query<
+          { id: string }[]
+        >(
+          `SELECT id FROM ${table}
+           WHERE workspace_id = ? AND deleted_at IS NULL
+             AND id IN (${placeholders})`,
+          [workspaceId, ...ids],
+        );
+
+        const availableIds = new Set(rows.map((row) => row.id));
+
+        for (const activity of responses) {
+          if (activity.resourceType === resourceType && activity.resourceId) {
+            activity.resourceState = availableIds.has(activity.resourceId)
+              ? 'available'
+              : 'deleted';
+          }
+        }
+      }),
+    );
+  }
+
+  private async addUserNames(responses: ActivityResponseDto[]): Promise<void> {
+    const userIds = new Set<string>();
+
+    for (const activity of responses) {
+      const subjectUserId = this.getSubjectUserId(activity);
+
+      if (activity.actorUserId) {
+        userIds.add(activity.actorUserId);
+      }
+      if (subjectUserId) {
+        userIds.add(subjectUserId);
+      }
+    }
+
+    if (userIds.size === 0) {
+      return;
+    }
+
+    const ids = [...userIds];
+    const placeholders = ids.map(() => '?').join(', ');
+    const users = await this.activitiesRepository.manager.query<
+      { id: string; username: string }[]
+    >(`SELECT id, username FROM users WHERE id IN (${placeholders})`, ids);
+    const names = new Map(users.map((user) => [user.id, user.username]));
+
+    for (const activity of responses) {
+      const subjectUserId = this.getSubjectUserId(activity);
+      const actorName = activity.actorUserId && names.get(activity.actorUserId);
+      const subjectName = subjectUserId && names.get(subjectUserId);
+
+      if (actorName) {
+        activity.actorName = actorName;
+      }
+      if (subjectName) {
+        activity.subjectName = subjectName;
+      }
+    }
+  }
+
+  private getSubjectUserId(activity: ActivityResponseDto): string | undefined {
+    const metadata = activity.metadata as {
+      assigneeId?: unknown;
+      memberUserId?: unknown;
+    } | null;
+    const userId = metadata?.assigneeId ?? metadata?.memberUserId;
+
+    return typeof userId === 'string' ? userId : undefined;
   }
 
   private toResponse(activity: Activity): ActivityResponseDto {

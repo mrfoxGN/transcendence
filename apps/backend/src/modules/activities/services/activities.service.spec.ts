@@ -14,7 +14,9 @@ function makeRepository() {
     save: jest.fn((entity: Activity): Promise<Activity> =>
       Promise.resolve(entity),
     ),
-    find: jest.fn((_options: unknown): Promise<Activity[]> => Promise.resolve([])),
+    find: jest.fn((_options: unknown): Promise<Activity[]> =>
+      Promise.resolve([]),
+    ),
   };
 }
 
@@ -120,7 +122,9 @@ describe('ActivitiesService', () => {
 
   it('applies filters in the query and uses an extra row to detect the next page', async () => {
     const activities = [new Activity(), new Activity()];
-    repository.find.mockResolvedValueOnce(activities).mockResolvedValueOnce(activities.slice(0, 1));
+    repository.find
+      .mockResolvedValueOnce(activities)
+      .mockResolvedValueOnce(activities.slice(0, 1));
     const query = {
       category: 'files' as const,
       actorUserId,
@@ -131,29 +135,93 @@ describe('ActivitiesService', () => {
     };
 
     const firstPage = await service.findPageForWorkspace(workspaceId, query);
-    const lastPage = await service.findPageForWorkspace(workspaceId, { ...query, page: 2 });
+    const lastPage = await service.findPageForWorkspace(workspaceId, {
+      ...query,
+      page: 2,
+    });
 
     const options = repository.find.mock.calls[0][0] as {
-      where: { workspaceId: string; actorUserId: string; actionType: { objectLiteralParameters: unknown }; createdAt: { type: string } };
+      where: {
+        workspaceId: string;
+        actorUserId: string;
+        actionType: { objectLiteralParameters: unknown };
+        createdAt: { type: string };
+      };
     };
     expect(options.where.workspaceId).toBe(workspaceId);
     expect(options.where.actorUserId).toBe(actorUserId);
-    expect(options.where.actionType.objectLiteralParameters).toEqual({ activityPrefix: 'FILE!_%' });
+    expect(options.where.actionType.objectLiteralParameters).toEqual({
+      activityPrefix: 'FILE!_%',
+    });
     expect(options.where.createdAt.type).toBe('and');
-    expect(repository.find).toHaveBeenNthCalledWith(2, expect.objectContaining({ skip: 1, take: 2 }));
+    expect(repository.find).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ skip: 1, take: 2 }),
+    );
     expect(firstPage.items).toHaveLength(1);
     expect(firstPage.hasNext).toBe(true);
     expect(lastPage.items).toHaveLength(1);
     expect(lastPage.hasNext).toBe(false);
   });
 
-  it('rejects a reversed time range before querying the feed', async () => {
-    await expect(service.findPageForWorkspace(workspaceId, {
+  it('looks up names and resource states for the returned page', async () => {
+    const memberUserId = 'member-1';
+    repository.find.mockResolvedValue([
+      Object.assign(new Activity(), {
+        actorUserId,
+        resourceType: 'task',
+        resourceId: 'task-1',
+        metadata: { assigneeId: memberUserId },
+      }),
+      Object.assign(new Activity(), {
+        resourceType: 'note',
+        resourceId: 'note-1',
+      }),
+      Object.assign(new Activity(), {
+        resourceType: 'workspace_file',
+        resourceId: 'extra-file',
+      }),
+    ]);
+    repository.manager.query
+      .mockResolvedValueOnce([{ id: 'task-1' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: actorUserId, username: 'alex' },
+        { id: memberUserId, username: 'sam' },
+      ]);
+
+    const result = await service.findPageForWorkspace(workspaceId, {
       page: 1,
-      limit: 20,
-      from: '2026-11-03T00:00:00Z',
-      before: '2026-11-02T00:00:00Z',
-    })).rejects.toThrow('The start must be before the end');
+      limit: 2,
+    });
+
+    expect(result.hasNext).toBe(true);
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        resourceState: 'available',
+        actorName: 'alex',
+        subjectName: 'sam',
+      }),
+      expect.objectContaining({ resourceState: 'deleted' }),
+    ]);
+    expect(
+      repository.manager.query.mock.calls.map(([, params]) => params),
+    ).toEqual([
+      [workspaceId, 'task-1'],
+      [workspaceId, 'note-1'],
+      [actorUserId, memberUserId],
+    ]);
+  });
+
+  it('rejects a reversed time range before querying the feed', async () => {
+    await expect(
+      service.findPageForWorkspace(workspaceId, {
+        page: 1,
+        limit: 20,
+        from: '2026-11-03T00:00:00Z',
+        before: '2026-11-02T00:00:00Z',
+      }),
+    ).rejects.toThrow('The start must be before the end');
     expect(repository.find).not.toHaveBeenCalled();
   });
 
@@ -161,8 +229,17 @@ describe('ActivitiesService', () => {
     await service.findAllForWorkspace(workspaceId, {});
     await service.findPageForWorkspace(workspaceId, {}, true);
     const [shared, audit] = repository.find.mock.calls.map(([options]) =>
-      (options as { where: { actionType: { getSql: (column: string) => string } } }).where.actionType.getSql('action_type'));
-    expect(shared).toContain("NOT LIKE :activityPrefix ESCAPE '!' AND action_type <> 'MEMBER_REMOVED'");
-    expect(audit).toContain("LIKE :activityPrefix ESCAPE '!' OR action_type = 'MEMBER_REMOVED'");
+      (
+        options as {
+          where: { actionType: { getSql: (column: string) => string } };
+        }
+      ).where.actionType.getSql('action_type'),
+    );
+    expect(shared).toContain(
+      "NOT LIKE :activityPrefix ESCAPE '!' AND action_type <> 'MEMBER_REMOVED'",
+    );
+    expect(audit).toContain(
+      "LIKE :activityPrefix ESCAPE '!' OR action_type = 'MEMBER_REMOVED'",
+    );
   });
 });
