@@ -1,4 +1,17 @@
-import { Activity, BarChart3, Files, FolderKanban, GitBranch, Home, LayoutGrid, List, MessageCircle, Settings, StickyNote, Users } from 'lucide-react';
+import {
+  Activity,
+  BarChart3,
+  Files,
+  FolderKanban,
+  GitBranch,
+  Home,
+  LayoutGrid,
+  List,
+  MessageCircle,
+  Settings,
+  StickyNote,
+  Users,
+} from 'lucide-react';
 
 export const workspaceIcons = {
   home: Home,

@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
-import { signOut } from '../WorkspacePicker';
+import { signOut } from '../auth/session';
 
 export class WorkspaceRequestError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
 
-export async function workspaceRequest(path: string, token: string | null, options: RequestInit = {}) {
+export async function workspaceRequest(
+  path: string,
+  token: string | null,
+  options: RequestInit = {},
+) {
   const headers = new Headers(options.headers);
   headers.set('Authorization', 'Bearer ' + token);
   const response = await fetch('/api/' + path, { ...options, headers });
@@ -15,10 +22,21 @@ export async function workspaceRequest(path: string, token: string | null, optio
   if (!response.ok) {
     const details = await response.json().catch(() => null);
     const message = details?.message;
-    if (response.status === 409 && typeof message === 'string' && message.startsWith('This workspace is archived.')) {
+    if (
+      response.status === 409 &&
+      typeof message === 'string' &&
+      message.startsWith('This workspace is archived.')
+    ) {
       window.dispatchEvent(new Event('devup:workspace-archived'));
     }
-    throw new WorkspaceRequestError(response.status, Array.isArray(message) ? message.join(' ') : typeof message === 'string' ? message : 'Workspace request failed.');
+    throw new WorkspaceRequestError(
+      response.status,
+      Array.isArray(message)
+        ? message.join(' ')
+        : typeof message === 'string'
+          ? message
+          : 'Workspace request failed.',
+    );
   }
   return response;
 }
@@ -37,15 +55,15 @@ export function useWorkspaceData<T>(path: string, token: string | null) {
     const controller = new AbortController();
     if (!token) return;
     void workspaceRequest(path, token, { signal: controller.signal })
-      .then(response => response.json() as Promise<T>)
-      .then(results => {
+      .then((response) => response.json() as Promise<T>)
+      .then((results) => {
         if (controller.signal.aborted) return;
         setData(results);
         setLoadedPath(path);
         setFailedPath(undefined);
         setErrorMessage(undefined);
       })
-      .catch(error => {
+      .catch((error) => {
         if (!controller.signal.aborted) {
           setFailedPath(path);
           setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -55,9 +73,15 @@ export function useWorkspaceData<T>(path: string, token: string | null) {
   }, [path, token, attempt]);
   function retry() {
     setFailedPath(undefined);
-    setAttempt(current => current + 1);
+    setAttempt((current) => current + 1);
   }
-  return { data: loadedPath === path ? data : undefined, setData, error: failedPath === path, errorMessage, retry };
+  return {
+    data: loadedPath === path ? data : undefined,
+    setData,
+    error: failedPath === path,
+    errorMessage,
+    retry,
+  };
 }
 
 export function useWorkspaceCollection<T>(path: string, token: string | null) {
@@ -68,7 +92,12 @@ export function useWorkspaceCollection<T>(path: string, token: string | null) {
 export const documentPageSize = 20;
 
 export function documentPagePath(path: string, page: number, search: string, sort: string) {
-  const query = new URLSearchParams({ page: String(page), limit: String(documentPageSize), sort, lookahead: '1' });
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(documentPageSize),
+    sort,
+    lookahead: '1',
+  });
   if (search.trim()) query.set('search', search.trim());
   return path + '?' + query;
 }

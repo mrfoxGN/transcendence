@@ -1,14 +1,24 @@
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from 'lucide-react';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import './account-onboarding.css';
 import { accountRequest, authRoute, requestedWorkspace } from './auth-routing';
-import { sessionKey } from './WorkspacePicker';
-import { AvatarPicker, type AvatarSelection } from './AvatarPicker';
+import { EntryThemeControl } from './auth/EntryAppearance';
 import { OtpCodeInput } from './auth/OtpCodeInput';
 import { ResendCodeButton } from './auth/ResendCodeButton';
+import { sessionKey } from './auth/session';
 import { VerifiedUserBadge } from './auth/VerifiedUserBadge';
-import { Check, Eye, EyeOff, Lock, Mail, ArrowRight, ArrowLeft, AlertCircle, ShieldCheck } from 'lucide-react';
+import { AvatarPicker, type AvatarSelection } from './AvatarPicker';
 import './landing/auth.css';
-import './account-onboarding.css';
-import { EntryThemeControl } from './auth/EntryAppearance';
 
 export interface AccountShellProps {
   title: string;
@@ -42,16 +52,19 @@ export function AccountShell({
           </svg>
           <span>DevUP</span>
         </a>
-        <div className="entry-header-actions"><EntryThemeControl />{backHref ? (
-          <a href={backHref} className="auth-header-action" aria-label="Go back">
-            <ArrowLeft size={18} aria-hidden="true" />
-            <span>Back</span>
-          </a>
-        ) : (
-          <a href="/" className="auth-close" aria-label="Back to home">
-            <ArrowLeft size={18} aria-hidden="true" />
-          </a>
-        )}</div>
+        <div className="entry-header-actions">
+          <EntryThemeControl />
+          {backHref ? (
+            <a href={backHref} className="auth-header-action" aria-label="Go back">
+              <ArrowLeft size={18} aria-hidden="true" />
+              <span>Back</span>
+            </a>
+          ) : (
+            <a href="/" className="auth-close" aria-label="Back to home">
+              <ArrowLeft size={18} aria-hidden="true" />
+            </a>
+          )}
+        </div>
       </header>
 
       <section className="auth-shell" aria-labelledby="account-title">
@@ -79,11 +92,7 @@ export interface EmailVerificationFormProps {
   email?: string;
 }
 
-export function EmailVerificationForm({
-  token,
-  onVerified,
-  email,
-}: EmailVerificationFormProps) {
+export function EmailVerificationForm({ token, onVerified, email }: EmailVerificationFormProps) {
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -101,7 +110,9 @@ export function EmailVerificationForm({
       setCodeSent(true);
       setStatusMessage('A 6-digit verification code has been sent. It expires in 10 minutes.');
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Could not send verification email. Try again.');
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Could not send verification email. Try again.',
+      );
       throw err;
     } finally {
       setPending(false);
@@ -138,7 +149,9 @@ export function EmailVerificationForm({
       {email && (
         <div className="auth-target-info">
           <Mail size={16} className="auth-target-icon" aria-hidden="true" />
-          <span>Code sent to <strong>{email}</strong></span>
+          <span>
+            Code sent to <strong>{email}</strong>
+          </span>
         </div>
       )}
 
@@ -396,7 +409,10 @@ export function AccountRecovery({ mode }: { mode: 'request' | 'reset' | 'verify'
                 <Check size={32} />
               </div>
               <h2>Password updated!</h2>
-              <p>Your password has been reset successfully. You can now sign in with your new password.</p>
+              <p>
+                Your password has been reset successfully. You can now sign in with your new
+                password.
+              </p>
               <a
                 className="button button--primary auth-submit"
                 href={authRoute('/login', destination) + '&resetSuccess=1'}
@@ -529,11 +545,17 @@ export function AccountRecovery({ mode }: { mode: 'request' | 'reset' | 'verify'
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
-                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                    {showPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
                   </button>
                 </div>
                 <div className="auth-password-requirements">
-                  <span className={`requirement-pill ${isPasswordValid ? 'requirement-pill--valid' : ''}`}>
+                  <span
+                    className={`requirement-pill ${isPasswordValid ? 'requirement-pill--valid' : ''}`}
+                  >
                     <Check size={12} aria-hidden="true" />
                     At least 8 characters
                   </span>
@@ -559,7 +581,9 @@ export function AccountRecovery({ mode }: { mode: 'request' | 'reset' | 'verify'
                 </div>
                 {confirmPassword && (
                   <div className="auth-password-requirements">
-                    <span className={`requirement-pill ${passwordsMatch ? 'requirement-pill--valid' : 'requirement-pill--invalid'}`}>
+                    <span
+                      className={`requirement-pill ${passwordsMatch ? 'requirement-pill--valid' : 'requirement-pill--invalid'}`}
+                    >
                       <Check size={12} aria-hidden="true" />
                       {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
                     </span>
@@ -633,7 +657,8 @@ export function FirstRun({ step }: { step: 'avatar' | 'email' }) {
         if (!controller.signal.aborted) setProfile(result);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setLoadError('Could not load your profile. Try refreshing.');
+        if (!controller.signal.aborted)
+          setLoadError('Could not load your profile. Try refreshing.');
       });
     return () => controller.abort();
   }, [token, destination]);
@@ -657,7 +682,7 @@ export function FirstRun({ step }: { step: 'avatar' | 'email' }) {
         throw new Error(
           Array.isArray(result?.message)
             ? result.message.join(' ')
-            : result?.message ?? 'Could not save your avatar. Try again.',
+            : (result?.message ?? 'Could not save your avatar. Try again.'),
         );
       }
       nextAfterAvatar();
@@ -722,7 +747,9 @@ export function FirstRun({ step }: { step: 'avatar' | 'email' }) {
             )}
 
             <a
-              className={profile.emailVerified ? 'button button--primary' : 'button button--secondary'}
+              className={
+                profile.emailVerified ? 'button button--primary' : 'button button--secondary'
+              }
               href={destination}
             >
               {profile.emailVerified ? 'Continue to DevUP' : 'Verify later'}

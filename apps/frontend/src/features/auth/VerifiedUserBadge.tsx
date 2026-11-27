@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
 
 export interface VerifiedUserBadgeProps {
   isVerified: boolean;
@@ -17,7 +17,10 @@ export function VerifiedUserBadge({
 
   if (isVerified) {
     return (
-      <span className={`verified-badge verified-badge--verified verified-badge--${size}`} title="Email verified account">
+      <span
+        className={`verified-badge verified-badge--verified verified-badge--${size}`}
+        title="Email verified account"
+      >
         <ShieldCheck size={iconSize} className="verified-badge__icon" aria-hidden="true" />
         {showLabel && <span className="verified-badge__label">Verified</span>}
       </span>
@@ -25,15 +28,14 @@ export function VerifiedUserBadge({
   }
 
   return (
-    <span className={`verified-badge verified-badge--unverified verified-badge--${size}`} title="Email address not yet verified">
+    <span
+      className={`verified-badge verified-badge--unverified verified-badge--${size}`}
+      title="Email address not yet verified"
+    >
       <ShieldAlert size={iconSize} className="verified-badge__icon" aria-hidden="true" />
       {showLabel && <span className="verified-badge__label">Unverified</span>}
       {onVerifyClick && (
-        <button
-          type="button"
-          className="verified-badge__action"
-          onClick={onVerifyClick}
-        >
+        <button type="button" className="verified-badge__action" onClick={onVerifyClick}>
           Verify
         </button>
       )}

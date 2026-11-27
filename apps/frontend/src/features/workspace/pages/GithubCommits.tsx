@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   ArrowUpRight,
   CalendarDays,
@@ -7,6 +6,7 @@ import {
   GitBranch,
   GitCommitHorizontal,
 } from 'lucide-react';
+import { useState } from 'react';
 
 import './github-commits.css';
 
@@ -14,7 +14,8 @@ type Commit = {
   id: string;
   sha: string;
   message: string;
-  authorGithubUserId: string | null; authorName: string | null;
+  authorGithubUserId: string | null;
+  authorName: string | null;
   committedAt: string;
   githubUrl: string | null;
 };
@@ -80,29 +81,20 @@ function formatTime(value: string) {
   }).format(date);
 }
 
-export function GithubCommits({
-  commits,
-  defaultBranch,
-}: GithubCommitsProps) {
+export function GithubCommits({ commits, defaultBranch }: GithubCommitsProps) {
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
   const [copyError, setCopyError] = useState('');
 
   const groups = new Map<string, Commit[]>();
 
   const sorted = [...commits].sort(
-    (a, b) =>
-      new Date(b.committedAt).getTime() -
-      new Date(a.committedAt).getTime()
+    (a, b) => new Date(b.committedAt).getTime() - new Date(a.committedAt).getTime(),
   );
 
   for (const commit of sorted) {
-    const key = Number.isNaN(
-      new Date(commit.committedAt).getTime()
-    )
+    const key = Number.isNaN(new Date(commit.committedAt).getTime())
       ? 'unknown'
-      : new Date(commit.committedAt)
-          .toISOString()
-          .slice(0, 10);
+      : new Date(commit.committedAt).toISOString().slice(0, 10);
 
     const existing = groups.get(key) ?? [];
     existing.push(commit);
@@ -130,9 +122,7 @@ export function GithubCommits({
 
           <div>
             <h2>Commits</h2>
-            <p>
-              A chronological history of repository changes.
-            </p>
+            <p>A chronological history of repository changes.</p>
           </div>
         </div>
 
@@ -164,35 +154,22 @@ export function GithubCommits({
               </h3>
 
               <ol className="wu-gcommits__list">
-                {dayCommits.map(commit => {
-                  const title =
-                    commit.message.split(/\r?\n/)[0]?.trim() ||
-                    'Untitled commit';
+                {dayCommits.map((commit) => {
+                  const title = commit.message.split(/\r?\n/)[0]?.trim() || 'Untitled commit';
 
                   const commitType = getCommitType(title);
                   const author = commit.authorName || 'Unknown author';
 
                   return (
-                    <li
-                      className="wu-gcommits__item"
-                      key={commit.id}
-                    >
-                      <span
-                        className="wu-gcommits__timeline-dot"
-                        aria-hidden="true"
-                      />
+                    <li className="wu-gcommits__item" key={commit.id}>
+                      <span className="wu-gcommits__timeline-dot" aria-hidden="true" />
 
                       <article className="wu-gcommits__card">
                         <div className="wu-gcommits__content">
                           <div className="wu-gcommits__title">
-                            <GitCommitHorizontal
-                              size={16}
-                              aria-hidden="true"
-                            />
+                            <GitCommitHorizontal size={16} aria-hidden="true" />
 
-                            <strong title={title}>
-                              {title}
-                            </strong>
+                            <strong title={title}>{title}</strong>
                           </div>
 
                           <div className="wu-gcommits__metadata">
@@ -207,22 +184,14 @@ export function GithubCommits({
                               {copiedSha === commit.sha ? (
                                 <Check size={12} aria-hidden="true" />
                               ) : (
-                                <ClipboardCopy
-                                  size={12}
-                                  aria-hidden="true"
-                                />
+                                <ClipboardCopy size={12} aria-hidden="true" />
                               )}
                             </button>
 
-                            <span className="wu-gcommits__separator">
-                              ·
-                            </span>
+                            <span className="wu-gcommits__separator">·</span>
 
                             <span className="wu-gcommits__author">
-                              <span
-                                className="wu-gcommits__avatar"
-                                aria-hidden="true"
-                              >
+                              <span className="wu-gcommits__avatar" aria-hidden="true">
                                 {commit.authorGithubUserId &&
                                 /^[0-9]+$/.test(commit.authorGithubUserId) ? (
                                   <img
@@ -246,8 +215,7 @@ export function GithubCommits({
                           {commitType && (
                             <span
                               className={
-                                'wu-gcommits__tag ' +
-                                `wu-gcommits__tag--${commitType.type}`
+                                'wu-gcommits__tag ' + `wu-gcommits__tag--${commitType.type}`
                               }
                             >
                               {commitType.label}
@@ -256,9 +224,7 @@ export function GithubCommits({
 
                           <time dateTime={commit.committedAt}>
                             {formatTime(commit.committedAt)}
-                            <span className="wu-gcommits__timezone">
-                              UTC
-                            </span>
+                            <span className="wu-gcommits__timezone">UTC</span>
                           </time>
 
                           {commit.githubUrl && (
@@ -270,10 +236,7 @@ export function GithubCommits({
                               title="View commit on GitHub"
                               aria-label={`View commit ${commit.sha.slice(0, 7)} on GitHub`}
                             >
-                              <ArrowUpRight
-                                size={17}
-                                aria-hidden="true"
-                              />
+                              <ArrowUpRight size={17} aria-hidden="true" />
                             </a>
                           )}
                         </div>

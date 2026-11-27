@@ -1,6 +1,3 @@
-import {EmptyIllustration} from '../../../shared/illustrations/EmptyIllustration';
-import {ThemePreview,NotificationPreview} from './SettingsVisuals';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   AlertCircle,
   ArrowRight,
@@ -11,29 +8,31 @@ import {
   Eye,
   EyeOff,
   Key,
-  Laptop,
   Lock,
   Mail,
-  Moon,
   Palette,
   RefreshCw,
   Shield,
   ShieldAlert,
   ShieldCheck,
-  Sun,
   Trash2,
   User,
 } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { EmptyIllustration } from '../../../shared/illustrations/EmptyIllustration';
+import { Button, Input, Switch } from '../../../shared/ui';
 import { EmailVerificationForm } from '../../AccountPages';
-import { sessionKey } from '../../WorkspacePicker';
 import { AvatarPicker, type AvatarSelection } from '../../AvatarPicker';
 import { accountRequest, authRoute } from '../../auth-routing';
-import { Drawer } from '../WorkspaceControls';
-import { jsonRequest, workspaceRequest } from '../workspace-api';
 import { OtpCodeInput } from '../../auth/OtpCodeInput';
 import { ResendCodeButton } from '../../auth/ResendCodeButton';
+import { sessionKey } from '../../auth/session';
+import { Drawer } from '../WorkspaceControls';
+import { jsonRequest, workspaceRequest } from '../workspace-api';
+import { NotificationPreview, ThemePreview } from './SettingsVisuals';
 
-export type Theme = 'system' | 'light' | 'dark';
+import type { ThemePreference as Theme } from '../../../shared/design-system/theme';
+export type { ThemePreference as Theme } from '../../../shared/design-system/theme';
 export type PersonalProfile = {
   id: string;
   username: string;
@@ -45,10 +44,7 @@ export type PersonalProfile = {
   notificationBadge?: boolean;
 };
 type PersonalChange =
-  | AvatarSelection
-  | { avatarUrl: null }
-  | { username: string }
-  | { notificationBadge: boolean };
+  AvatarSelection | { avatarUrl: null } | { username: string } | { notificationBadge: boolean };
 
 export function PersonalSettings({
   tab,
@@ -145,10 +141,8 @@ export function PersonalSettings({
       );
       sessionStorage.removeItem(sessionKey);
       location.replace(
-        authRoute(
-          '/login',
-          location.pathname + location.search + location.hash,
-        ) + '&passwordChanged=1',
+        authRoute('/login', location.pathname + location.search + location.hash) +
+          '&passwordChanged=1',
       );
     }, 'Password changed. Sign in again.');
   }
@@ -169,11 +163,7 @@ export function PersonalSettings({
     setTwoFactorBusy(true);
     setTwoFactorError('');
     try {
-      const updated = await accountRequest<PersonalProfile>(
-        '2fa/confirm-enable',
-        { code },
-        token,
-      );
+      const updated = await accountRequest<PersonalProfile>('2fa/confirm-enable', { code }, token);
       onProfile({
         ...profile,
         isTwoFactorEnabled: true,
@@ -183,9 +173,7 @@ export function PersonalSettings({
       setTwoFactorCode('');
       setNotice('Two-factor authentication enabled successfully.');
     } catch (err) {
-      setTwoFactorError(
-        err instanceof Error ? err.message : 'Invalid verification code.',
-      );
+      setTwoFactorError(err instanceof Error ? err.message : 'Invalid verification code.');
     } finally {
       setTwoFactorBusy(false);
     }
@@ -194,11 +182,7 @@ export function PersonalSettings({
   async function disableTwoFactor() {
     if (!token || busy) return;
     await run(async () => {
-      const updated = await accountRequest<PersonalProfile>(
-        '2fa/disable',
-        undefined,
-        token,
-      );
+      const updated = await accountRequest<PersonalProfile>('2fa/disable', undefined, token);
       onProfile({
         ...profile,
         isTwoFactorEnabled: false,
@@ -246,11 +230,7 @@ export function PersonalSettings({
             <div className="wu-profile-hero">
               <div className="wu-avatar-large-wrapper">
                 {profile.avatarUrl ? (
-                  <img
-                    className="wu-avatar-large"
-                    src={profile.avatarUrl}
-                    alt={profile.username}
-                  />
+                  <img className="wu-avatar-large" src={profile.avatarUrl} alt={profile.username} />
                 ) : (
                   <div className="wu-avatar-large-initials">
                     {profile.username.slice(0, 2).toUpperCase()}
@@ -274,8 +254,8 @@ export function PersonalSettings({
                   )}
                 </div>
                 <div className="wu-profile-hero-actions">
-                  <button
-                    className="wu-button wu-button--primary"
+                  <Button
+                    variant="primary"
                     type="button"
                     disabled={busy || !profile.id}
                     onClick={() => {
@@ -284,16 +264,16 @@ export function PersonalSettings({
                     }}
                   >
                     <Camera size={14} /> Change avatar
-                  </button>
+                  </Button>
                   {profile.avatarUrl && (
-                    <button
-                      className="wu-button wu-button--secondary"
+                    <Button
+                      variant="secondary"
                       type="button"
                       disabled={busy}
                       onClick={() => void save({ avatarUrl: null })}
                     >
                       <Trash2 size={14} /> Remove avatar
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -308,11 +288,12 @@ export function PersonalSettings({
               </div>
 
               <form onSubmit={handleUsernameSubmit}>
-                <div className="wu-field-label">
+                <div className="wu-field-label wu-field-group--action">
                   <label htmlFor="settings-username">Username</label>
                   <div className="wu-input-row">
-                    <input
+                    <Input
                       id="settings-username"
+                      aria-describedby="settings-username-hint"
                       value={usernameInput}
                       onChange={(e) => setUsernameInput(e.target.value)}
                       placeholder="e.g. nourdev"
@@ -321,27 +302,27 @@ export function PersonalSettings({
                       required
                       disabled={busy || !profile.id}
                     />
-                    <button
+                    <Button
                       type="submit"
-                      className="wu-button wu-button--secondary"
+                      variant="secondary"
                       disabled={busy || !profile.id || !isUsernameDirty}
                     >
                       Save username
-                    </button>
+                    </Button>
                   </div>
+                  <p id="settings-username-hint" className="wu-field-hint">
+                    Must be between 3 and 30 characters. Your handle is visible to teammates in task
+                    assignments and workspace discussions.
+                  </p>
                 </div>
-                <p className="wu-field-hint">
-                  Must be between 3 and 30 characters. Your handle is visible to teammates
-                  in task assignments and workspace discussions.
-                </p>
               </form>
 
               <div className="wu-readonly-field">
                 <span>Email address</span>
                 <strong>{profile.email}</strong>
                 <p className="wu-field-hint">
-                  Your primary login and notification email. To manage authentication,
-                  see the Security section.
+                  Your primary login and notification email. To manage authentication, see the
+                  Security section.
                 </p>
               </div>
             </div>
@@ -357,7 +338,16 @@ export function PersonalSettings({
               <p>Manage your password, email verification, and two-factor authentication.</p>
             </div>
 
-            <div className="wu-settings-security-visual"><EmptyIllustration kind="restricted" size={104}/><div><strong>Protect your account</strong><p>Keep your account protected with a strong password, a verified email, and two-factor authentication.</p></div></div>
+            <div className="wu-settings-security-visual">
+              <EmptyIllustration kind="restricted" size={104} />
+              <div>
+                <strong>Protect your account</strong>
+                <p>
+                  Keep your account protected with a strong password, a verified email, and
+                  two-factor authentication.
+                </p>
+              </div>
+            </div>
 
             {/* Email Verification Card */}
             <div className="wu-settings-card">
@@ -383,12 +373,14 @@ export function PersonalSettings({
 
               {profile.emailVerified ? (
                 <p className="wu-field-hint" style={{ color: 'var(--wu-mint)' }}>
-                  ✓ Your email is verified. All security alerts and one-time codes will be sent here.
+                  ✓ Your email is verified. All security alerts and one-time codes will be sent
+                  here.
                 </p>
               ) : token ? (
                 <div>
                   <p className="wu-field-hint" style={{ marginBottom: '12px' }}>
-                    Verify your email address to enable two-factor authentication and ensure account recovery.
+                    Verify your email address to enable two-factor authentication and ensure account
+                    recovery.
                   </p>
                   <EmailVerificationForm
                     token={token}
@@ -409,7 +401,8 @@ export function PersonalSettings({
                 </span>
               </div>
               <p className="wu-settings-card-desc">
-                Add an extra layer of protection. When enabled, signing in requires a 6-digit one-time code sent to your email.
+                Add an extra layer of protection. When enabled, signing in requires a 6-digit
+                one-time code sent to your email.
               </p>
 
               {profile.isTwoFactorEnabled ? (
@@ -417,15 +410,15 @@ export function PersonalSettings({
                   <p className="wu-field-hint" style={{ color: 'var(--wu-mint)' }}>
                     ✓ Two-factor authentication is active on <strong>{profile.email}</strong>.
                   </p>
-                  <button
-                    className="wu-button wu-button--secondary"
+                  <Button
+                    variant="secondary"
                     type="button"
                     disabled={busy || !token}
                     onClick={() => void disableTwoFactor()}
                     style={{ justifySelf: 'start' }}
                   >
                     <ShieldAlert size={15} /> Disable 2FA
-                  </button>
+                  </Button>
                 </div>
               ) : !profile.emailVerified ? (
                 <p className="wu-muted" style={{ fontStyle: 'italic', fontSize: '13px' }}>
@@ -437,7 +430,11 @@ export function PersonalSettings({
                     Enter the 6-digit verification code sent to {profile.email}:
                   </p>
                   {twoFactorError && (
-                    <div className="wu-settings-banner wu-settings-banner--error" style={{ margin: 0 }} role="alert">
+                    <div
+                      className="wu-settings-banner wu-settings-banner--error"
+                      style={{ margin: 0 }}
+                      role="alert"
+                    >
                       <AlertCircle size={16} />
                       <span>{twoFactorError}</span>
                     </div>
@@ -458,14 +455,14 @@ export function PersonalSettings({
                       flexWrap: 'wrap',
                     }}
                   >
-                    <button
-                      className="wu-button wu-button--primary"
+                    <Button
+                      variant="primary"
                       type="button"
                       disabled={twoFactorBusy || twoFactorCode.length !== 6}
                       onClick={() => void confirmEnableTwoFactor(twoFactorCode)}
                     >
                       {twoFactorBusy ? 'Verifying…' : 'Confirm & Enable 2FA'}
-                    </button>
+                    </Button>
                     <ResendCodeButton
                       cooldownSeconds={60}
                       storageKey={`devup_2fa_enable_resend_${profile.id}`}
@@ -488,15 +485,15 @@ export function PersonalSettings({
                   </div>
                 </div>
               ) : (
-                <button
-                  className="wu-button wu-button--primary"
+                <Button
+                  variant="primary"
                   type="button"
                   disabled={busy || !token}
                   onClick={() => void requestEnableTwoFactor()}
                   style={{ justifySelf: 'start' }}
                 >
                   <ShieldCheck size={15} /> Enable 2FA
-                </button>
+                </Button>
               )}
             </div>
 
@@ -511,7 +508,7 @@ export function PersonalSettings({
                 Ensure your account uses a secure password of at least 8 characters.
               </p>
 
-              <form className="auth-form" onSubmit={changePassword} style={{ display: 'grid', gap: '14px' }}>
+              <form className="auth-form wu-form-stack" onSubmit={changePassword}>
                 <label className="wu-field-label">
                   Current password
                   <div className="wu-password-wrap">
@@ -581,10 +578,12 @@ export function PersonalSettings({
                   Changing your password signs you out of all other active browser sessions.
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <button className="wu-button wu-button--primary" type="submit" disabled={busy || !token}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}
+                >
+                  <Button variant="primary" type="submit" disabled={busy || !token}>
                     <Lock size={14} /> Update password
-                  </button>
+                  </Button>
                   <a
                     className="wu-text-button"
                     href={authRoute(
@@ -621,11 +620,45 @@ export function PersonalSettings({
               </p>
 
               <div className="wu-theme-grid">
-                {(['light','dark','system'] as Theme[]).map(mode=><button key={mode} type="button" className={'wu-theme-tile'+((profile.theme??'system')===mode?' is-active':'')} aria-label={'Use '+mode+' theme'} aria-pressed={(profile.theme??'system')===mode} disabled={busy||!profile.id} onClick={()=>{void run(async()=>{if(!(await onTheme(mode)))throw new Error('Could not save theme.');},mode==='system'?'Theme set to match system.':mode[0].toUpperCase()+mode.slice(1)+' theme activated.');}}>
-                  <ThemePreview mode={mode}/>
-                  <span className="wu-theme-option-caption"><strong>{mode[0].toUpperCase()+mode.slice(1)}</strong>{(profile.theme??'system')===mode&&<span className="wu-theme-tile-check"><Check size={12} aria-hidden="true"/></span>}</span>
-                  <span className="wu-theme-tile-desc">{mode==='light'?'Bright, clear surfaces':mode==='dark'?'A calm charcoal workspace':'Follow your device'}</span>
-                </button>)}
+                {(['light', 'dark', 'system'] as Theme[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={
+                      'wu-theme-tile' + ((profile.theme ?? 'system') === mode ? ' is-active' : '')
+                    }
+                    aria-label={'Use ' + mode + ' theme'}
+                    aria-pressed={(profile.theme ?? 'system') === mode}
+                    disabled={busy || !profile.id}
+                    onClick={() => {
+                      void run(
+                        async () => {
+                          if (!(await onTheme(mode))) throw new Error('Could not save theme.');
+                        },
+                        mode === 'system'
+                          ? 'Theme set to match system.'
+                          : mode[0].toUpperCase() + mode.slice(1) + ' theme activated.',
+                      );
+                    }}
+                  >
+                    <ThemePreview mode={mode} />
+                    <span className="wu-theme-option-caption">
+                      <strong>{mode[0].toUpperCase() + mode.slice(1)}</strong>
+                      {(profile.theme ?? 'system') === mode && (
+                        <span className="wu-theme-tile-check">
+                          <Check size={12} aria-hidden="true" />
+                        </span>
+                      )}
+                    </span>
+                    <span className="wu-theme-tile-desc">
+                      {mode === 'light'
+                        ? 'Bright, clear surfaces'
+                        : mode === 'dark'
+                          ? 'A calm charcoal workspace'
+                          : 'Follow your device'}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </>
@@ -647,25 +680,21 @@ export function PersonalSettings({
                 </h4>
               </div>
 
-              <NotificationPreview badge={profile.notificationBadge??true}/>
+              <NotificationPreview badge={profile.notificationBadge ?? true} />
               <div className="wu-toggle-card">
                 <div className="wu-toggle-card-meta">
                   <h5 className="wu-toggle-card-title">Unread badge counter</h5>
                   <p className="wu-toggle-card-desc">
-                    Display a numerical badge with your unread count on the notification bell in the top navigation bar.
+                    Display a numerical badge with your unread count on the notification bell in the
+                    top navigation bar.
                   </p>
                 </div>
-                <label className="wu-switch" aria-label="Toggle unread notification badge">
-                  <input aria-label="Show unread notification badge"
-                    type="checkbox"
-                    checked={profile.notificationBadge ?? true}
-                    disabled={busy || !profile.id}
-                    onChange={(event) =>
-                      void save({ notificationBadge: event.target.checked })
-                    }
-                  />
-                  <span className="wu-switch-slider" />
-                </label>
+                <Switch
+                  aria-label="Show unread notification badge"
+                  checked={profile.notificationBadge ?? true}
+                  disabled={busy || !profile.id}
+                  onChange={(event) => void save({ notificationBadge: event.target.checked })}
+                />
               </div>
             </div>
           </>

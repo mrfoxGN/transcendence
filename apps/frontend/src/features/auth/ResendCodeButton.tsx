@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export interface ResendCodeButtonProps {
   onResend: () => Promise<void>;
@@ -84,7 +84,9 @@ export function ResendCodeButton({
       {isCountingDown ? (
         <span className="resend-countdown" role="timer" aria-live="polite">
           <RefreshCw size={14} className="resend-icon" aria-hidden="true" />
-          <span>Resend code in <strong>{secondsLeft}s</strong></span>
+          <span>
+            Resend code in <strong>{secondsLeft}s</strong>
+          </span>
         </span>
       ) : (
         <button
@@ -93,7 +95,11 @@ export function ResendCodeButton({
           disabled={disabled || loading}
           onClick={() => void handleClick()}
         >
-          <RefreshCw size={14} className={`resend-icon ${loading ? 'resend-icon--spinning' : ''}`} aria-hidden="true" />
+          <RefreshCw
+            size={14}
+            className={`resend-icon ${loading ? 'resend-icon--spinning' : ''}`}
+            aria-hidden="true"
+          />
           <span>{loading ? 'Sending…' : secondsLeft === 0 ? resendLabel : label}</span>
         </button>
       )}

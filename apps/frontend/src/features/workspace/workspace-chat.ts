@@ -2,11 +2,37 @@ import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { jsonRequest, workspaceRequest } from './workspace-api';
 
-type Conversation = { id: string; otherUserId: string; lastMessageAt: string | null; otherUsername?: string; unreadCount?: number };
-export type ServerMessage = { id: string; senderId: string | null; content: string; createdAt: string; workspaceId?: string; conversationId?: string; reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean } };
+type Conversation = {
+  id: string;
+  otherUserId: string;
+  lastMessageAt: string | null;
+  otherUsername?: string;
+  unreadCount?: number;
+};
+export type ServerMessage = {
+  id: string;
+  senderId: string | null;
+  content: string;
+  createdAt: string;
+  workspaceId?: string;
+  conversationId?: string;
+  reply?: { id: string; senderId: string | null; preview: string; unavailable: boolean };
+};
+export type MessageNotice = {
+  threadId: string;
+  message: ServerMessage;
+  count: number;
+  workspaceId: string;
+};
 const pageSize = 30;
 
-export function useWorkspaceChat(workspaceId: string, token: string | null, selected: string | null, profileId: string) {
+export function useWorkspaceChat(
+  workspaceId: string,
+  token: string | null,
+  selected: string | null,
+  profileId: string,
+) {
+  const [notices, setNotices] = useState<MessageNotice[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Record<string, ServerMessage[]>>({});
   const [workspaceUnread, setWorkspaceUnread] = useState(0);
@@ -14,7 +40,9 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   const [unreadAttempt, setUnreadAttempt] = useState(0);
   const [pages, setPages] = useState<Record<string, number>>({});
   const [hasOlder, setHasOlder] = useState<Record<string, boolean>>({});
-  const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting'>('connecting');
+  const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting'>(
+    'connecting',
+  );
   const olderRequest = useRef<AbortController | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,32 +52,46 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
   const socketReady = useRef(false);
   activeThread.current = selected;
-  const path = (id: string) => id === 'team' ? 'workspaces/' + workspaceId + '/messages' : 'direct-conversations/' + id + '/messages';
+  const path = (id: string) =>
+    id === 'team'
+      ? 'workspaces/' + workspaceId + '/messages'
+      : 'direct-conversations/' + id + '/messages';
 
   function merge(id: string, incoming: ServerMessage[]) {
-    setMessages(current => {
-      const byId = new Map((current[id] ?? []).map(message => [message.id, message]));
+    setMessages((current) => {
+      const byId = new Map((current[id] ?? []).map((message) => [message.id, message]));
       for (const message of incoming) byId.set(message.id, message);
-      return { ...current, [id]: [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)) };
+      return {
+        ...current,
+        [id]: [...byId.values()].sort(
+          (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+        ),
+      };
     });
   }
 
   async function refreshConversations(signal?: AbortSignal) {
-    const result: Conversation[] = await (await workspaceRequest('direct-conversations?limit=100', token, { signal })).json();
+    const result: Conversation[] = await (
+      await workspaceRequest('direct-conversations?limit=100', token, { signal })
+    ).json();
     if (!signal?.aborted) setConversations(result);
   }
 
   function refreshUnread() {
-    setUnreadAttempt(value => value + 1);
+    setUnreadAttempt((value) => value + 1);
   }
 
   function markRead(id: string, messageId?: string) {
     if (activeThread.current !== id || document.visibilityState !== 'visible') return;
     const isDirect = id !== 'team';
     if (isDirect) {
-      setConversations(current => current.map(item => item.id === id ? { ...item, unreadCount: 0 } : item));
+      setConversations((current) =>
+        current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)),
+      );
     }
-    const readPath = isDirect ? 'direct-conversations/' + id + '/read' : path('team') + '/' + encodeURIComponent(messageId ?? '') + '/read';
+    const readPath = isDirect
+      ? 'direct-conversations/' + id + '/read'
+      : path('team') + '/' + encodeURIComponent(messageId ?? '') + '/read';
     void workspaceRequest(readPath, token, { method: 'PATCH' })
       .finally(refreshUnread)
       .catch(() => {});
@@ -60,12 +102,16 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     const controller = new AbortController();
     const options = { signal: controller.signal };
     void workspaceRequest(path('team') + '/unread-count', token, options)
-      .then(response => response.json() as Promise<{ count: number }>)
-      .then(({ count }) => { if (!controller.signal.aborted) setWorkspaceUnread(count); })
+      .then((response) => response.json() as Promise<{ count: number }>)
+      .then(({ count }) => {
+        if (!controller.signal.aborted) setWorkspaceUnread(count);
+      })
       .catch(() => {});
     void workspaceRequest('direct-conversations/unread-count', token, options)
-      .then(response => response.json() as Promise<{ count: number }>)
-      .then(({ count }) => { if (!controller.signal.aborted) setDirectUnread(count); })
+      .then((response) => response.json() as Promise<{ count: number }>)
+      .then(({ count }) => {
+        if (!controller.signal.aborted) setDirectUnread(count);
+      })
       .catch(() => {});
     return () => controller.abort();
   }, [workspaceId, token, profileId, unreadAttempt]);
@@ -73,7 +119,9 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   useEffect(() => {
     if (!token || !selected) return;
     const controller = new AbortController();
-    void refreshConversations(controller.signal).catch(() => { if (!controller.signal.aborted) setError('Could not load direct conversations.'); });
+    void refreshConversations(controller.signal).catch(() => {
+      if (!controller.signal.aborted) setError('Could not load direct conversations.');
+    });
     return () => controller.abort();
   }, [token, selected, attempt, unreadAttempt]);
 
@@ -83,15 +131,15 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     setLoading(true);
     setError('');
     async function catchUp(id: string) {
-      const items: ServerMessage[] = await (await workspaceRequest(
-        path(id) + '?page=1&limit=' + pageSize,
-        token,
-        { signal: controller.signal },
-      )).json();
+      const items: ServerMessage[] = await (
+        await workspaceRequest(path(id) + '?page=1&limit=' + pageSize, token, {
+          signal: controller.signal,
+        })
+      ).json();
       if (controller.signal.aborted) return;
       merge(id, items);
-      setPages(current => ({ ...current, [id]: 1 }));
-      setHasOlder(current => ({ ...current, [id]: items.length === pageSize }));
+      setPages((current) => ({ ...current, [id]: 1 }));
+      setHasOlder((current) => ({ ...current, [id]: items.length === pageSize }));
       const latest = items.at(-1);
       if (id === 'team') {
         if (latest) markRead(id, latest.id);
@@ -100,23 +148,48 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
       }
     }
     void catchUp(selected)
-      .catch(() => { if (!controller.signal.aborted) setError('Could not load messages.'); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .catch(() => {
+        if (!controller.signal.aborted) setError('Could not load messages.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, [workspaceId, token, selected, attempt]);
 
   useEffect(() => {
     if (!token || !profileId) return;
     setConnection('connecting');
+    setNotices([]);
+    const seen = new Set<string>();
     const socket = io({ auth: { token }, autoConnect: false, upgrade: false });
     const connectTimer = window.setTimeout(() => socket.connect(), 0);
-    const poll = () => { if (activeThread.current && document.visibilityState === 'visible') setAttempt(value => value + 1); };
+    const poll = () => {
+      if (activeThread.current && document.visibilityState === 'visible')
+        setAttempt((value) => value + 1);
+    };
     socketRef.current = socket;
     function incoming(id: string, message: ServerMessage) {
-      if (activeThread.current) merge(id, [message]);
+      if (seen.has(message.id)) return;
+      seen.add(message.id);
+      if (seen.size > 500) seen.delete(seen.values().next().value!);
+      merge(id, [message]);
+      if (
+        message.senderId !== profileId &&
+        activeThread.current !== id &&
+        document.visibilityState === 'visible'
+      ) {
+        setNotices((current) => {
+          const existing = current.find((item) => item.threadId === id);
+          const notice = { threadId: id, message, count: (existing?.count ?? 0) + 1, workspaceId };
+          return existing
+            ? current.map((item) => (item.threadId === id ? notice : item))
+            : [...current, notice].slice(-3);
+        });
+      }
       if (id !== 'team') {
-        setConversations(current => {
-          const target = current.find(item => item.id === id);
+        setConversations((current) => {
+          const target = current.find((item) => item.id === id);
           if (!target) return current;
           const isViewing = activeThread.current === id && document.visibilityState === 'visible';
           const updated = {
@@ -124,10 +197,14 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
             lastMessageAt: message.createdAt,
             unreadCount: isViewing ? 0 : (target.unreadCount ?? 0) + 1,
           };
-          return [updated, ...current.filter(item => item.id !== id)];
+          return [updated, ...current.filter((item) => item.id !== id)];
         });
       }
-      if (message.senderId !== profileId && activeThread.current === id && document.visibilityState === 'visible') {
+      if (
+        message.senderId !== profileId &&
+        activeThread.current === id &&
+        document.visibilityState === 'visible'
+      ) {
         markRead(id, message.id);
       } else refreshUnread();
     }
@@ -135,8 +212,7 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
       socketReady.current = true;
       socket.emit('workspace-chat.watch', workspaceId);
       refreshUnread();
-      if (activeThread.current) joinAndSync(socket);
-      else setConnection('connected');
+      joinAndSync(socket);
     });
     function reconnecting() {
       socketReady.current = false;
@@ -161,7 +237,7 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     function refreshOnReturn() {
       if (document.visibilityState !== 'visible') return;
       refreshUnread();
-      setAttempt(value => value + 1);
+      setAttempt((value) => value + 1);
     }
     document.addEventListener('visibilitychange', refreshOnReturn);
     const timer = window.setInterval(() => {
@@ -180,11 +256,13 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   }, [workspaceId, token, profileId]);
 
   function joinAndSync(socket: ReturnType<typeof io>) {
-    socket.timeout(5_000).emit('workspace-chat.join', workspaceId, (error: Error | null, joined: boolean) => {
-      if (socketRef.current !== socket || !socket.connected || !activeThread.current) return;
-      setConnection(!error && joined ? 'connected' : 'reconnecting');
-      setAttempt(value => value + 1);
-    });
+    socket
+      .timeout(5_000)
+      .emit('workspace-chat.join', workspaceId, (error: Error | null, joined: boolean) => {
+        if (socketRef.current !== socket || !socket.connected) return;
+        setConnection(!error && joined ? 'connected' : 'reconnecting');
+        if (activeThread.current) setAttempt((value) => value + 1);
+      });
   }
 
   const chatOpen = selected !== null;
@@ -192,43 +270,54 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     const socket = socketRef.current;
     if (!socket || !socketReady.current) return;
     if (chatOpen) joinAndSync(socket);
-    else socket.emit('workspace-chat.leave', workspaceId);
+    // Keep the authorized workspace subscription for message toasts outside Chat.
   }, [chatOpen, workspaceId]);
 
+  useEffect(() => {
+    if (selected) setNotices((current) => current.filter((item) => item.threadId !== selected));
+  }, [selected]);
+
   async function openConversation(userId: string, username?: string) {
-    const result: Conversation = await (await workspaceRequest('direct-conversations/' + userId, token, { method: 'POST' })).json();
-    setConversations(current => {
-      const existing = current.find(item => item.id === result.id);
+    const result: Conversation = await (
+      await workspaceRequest('direct-conversations/' + userId, token, { method: 'POST' })
+    ).json();
+    setConversations((current) => {
+      const existing = current.find((item) => item.id === result.id);
       const enriched: Conversation = {
         ...existing,
         ...result,
         otherUsername: existing?.otherUsername ?? username ?? result.otherUsername,
       };
-      return [enriched, ...current.filter(item => item.id !== result.id)];
+      return [enriched, ...current.filter((item) => item.id !== result.id)];
     });
     return result.id;
   }
 
   async function send(id: string, content: string, requestId?: string, replyToId?: string) {
-    const payload: { content: string; requestId?: string; replyToId?: string } = { content: content.trim() };
+    const payload: { content: string; requestId?: string; replyToId?: string } = {
+      content: content.trim(),
+    };
     if (requestId) payload.requestId = requestId;
     if (replyToId) payload.replyToId = replyToId;
     const options = jsonRequest('POST', payload);
     const message: ServerMessage = await (await workspaceRequest(path(id), token, options)).json();
     merge(id, [message]);
     if (id !== 'team') {
-      setConversations(current => {
-        const target = current.find(item => item.id === id);
+      setConversations((current) => {
+        const target = current.find((item) => item.id === id);
         if (!target) return current;
         const updated = { ...target, lastMessageAt: message.createdAt };
-        return [updated, ...current.filter(item => item.id !== id)];
+        return [updated, ...current.filter((item) => item.id !== id)];
       });
     }
   }
 
   useEffect(() => {
     setLoadingOlder(false);
-    return () => { olderRequest.current?.abort(); olderRequest.current = null; };
+    return () => {
+      olderRequest.current?.abort();
+      olderRequest.current = null;
+    };
   }, [selected, token, workspaceId]);
 
   async function loadOlder() {
@@ -239,15 +328,15 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     setLoadingOlder(true);
     setError('');
     try {
-      const items: ServerMessage[] = await (await workspaceRequest(
-        path(selected) + '?page=' + nextPage + '&limit=' + pageSize,
-        token,
-        { signal: controller.signal },
-      )).json();
+      const items: ServerMessage[] = await (
+        await workspaceRequest(path(selected) + '?page=' + nextPage + '&limit=' + pageSize, token, {
+          signal: controller.signal,
+        })
+      ).json();
       if (controller.signal.aborted) return;
       merge(selected, items);
-      setPages(current => ({ ...current, [selected]: nextPage }));
-      setHasOlder(current => ({ ...current, [selected]: items.length === pageSize }));
+      setPages((current) => ({ ...current, [selected]: nextPage }));
+      setHasOlder((current) => ({ ...current, [selected]: items.length === pageSize }));
     } catch {
       if (!controller.signal.aborted) setError('Could not load older messages.');
     } finally {
@@ -259,12 +348,22 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
   }
 
   return {
+    notices: notices.filter((item) => item.workspaceId === workspaceId),
+    dismissNotice: (messageId: string) =>
+      setNotices((current) => current.filter((item) => item.message.id !== messageId)),
     conversations,
     messages,
-    search: async (id: string, query: string, page: number, _signal: AbortSignal): Promise<ServerMessage[]> => {
+    search: async (
+      id: string,
+      query: string,
+      page: number,
+      _signal: AbortSignal,
+    ): Promise<ServerMessage[]> => {
       const lower = query.trim().toLowerCase();
       const threadMessages = messages[id] ?? [];
-      const filtered = threadMessages.filter(m => m.content && m.content.toLowerCase().includes(lower));
+      const filtered = threadMessages.filter(
+        (m) => m.content && m.content.toLowerCase().includes(lower),
+      );
       const limit = 25;
       const start = (page - 1) * limit;
       return filtered.slice(start, start + limit);
@@ -282,7 +381,10 @@ export function useWorkspaceChat(workspaceId: string, token: string | null, sele
     openConversation,
     send,
     loadOlder,
-    retry: () => { setError(''); setAttempt(value => value + 1); },
+    retry: () => {
+      setError('');
+      setAttempt((value) => value + 1);
+    },
     reconnect: () => {
       const socket = socketRef.current;
       if (socket && socketReady.current) joinAndSync(socket);

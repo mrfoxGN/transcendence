@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
 import { Check, Plus, Upload } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 
 const portraits = [
   { path: '/team/board.jpg', label: 'Portrait 1' },
@@ -25,16 +25,39 @@ async function prepareAvatar(file: File) {
     const side = Math.min(image.width, image.height);
     context.fillStyle = '#fff';
     context.fillRect(0, 0, 128, 128);
-    context.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, 128, 128);
+    context.drawImage(
+      image,
+      (image.width - side) / 2,
+      (image.height - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      128,
+      128,
+    );
     return canvas.toDataURL('image/jpeg', 0.8);
   } finally {
     image.close();
   }
 }
 
-export function AvatarPicker({ onSave, onSkip, saving, error, saveLabel = 'Save and continue', skipLabel = 'Skip for now', showPreview = false }: {
-  onSave: (avatar: AvatarSelection) => void; onSkip: () => void; saving: boolean; error: string;
-  saveLabel?: string; skipLabel?: string; showPreview?: boolean;
+export function AvatarPicker({
+  onSave,
+  onSkip,
+  saving,
+  error,
+  saveLabel = 'Save and continue',
+  skipLabel = 'Skip for now',
+  showPreview = false,
+}: {
+  onSave: (avatar: AvatarSelection) => void;
+  onSkip: () => void;
+  saving: boolean;
+  error: string;
+  saveLabel?: string;
+  skipLabel?: string;
+  showPreview?: boolean;
 }) {
   const [selection, setSelection] = useState('');
   const [image, setImage] = useState('');
@@ -76,55 +99,137 @@ export function AvatarPicker({ onSave, onSkip, saving, error, saveLabel = 'Save 
     }
   }
 
-  return <form className="auth-form" onSubmit={submit}>
-    {showPreview && <div className="entry-avatar-preview" aria-live="polite">
-      <span className="entry-avatar-preview__image">{selection && !custom ? <img src={selection} alt="Selected avatar"/> : custom && (image || (previewUrl && !previewError)) ? <img src={image || previewUrl} alt="Selected avatar" onError={()=>setPreviewError(true)}/> : <span aria-hidden="true">You</span>}</span>
-      <span>{selection ? 'Your new look' : 'Make it yours'}<small>{selection ? 'Ready for your workspace' : 'Choose a portrait below'}</small></span>
-    </div>}
-    <div className="avatar-picker-grid" role="group" aria-label="Avatar choices">
-      {portraits.map(portrait => <button key={portrait.path} type="button" className="avatar-choice"
-        aria-label={portrait.label} aria-pressed={selection === portrait.path} disabled={busy}
-        onClick={() => { setSelection(portrait.path); setInputError(''); }}>
-        <img src={portrait.path} alt="" width={88} height={88} />
-        {selection === portrait.path && <span className="avatar-choice-check"><Check size={13} aria-hidden="true" /></span>}
-      </button>)}
-      <button type="button" className="avatar-choice avatar-choice--custom" aria-label="Use your own image"
-        aria-pressed={custom} aria-expanded={custom} aria-controls="avatar-custom-options" disabled={busy}
-        onClick={() => { setSelection('custom'); setInputError(''); }}>
-        {custom && (image || (previewUrl && !previewError))
-          ? <img src={image || previewUrl} alt="" width={88} height={88} onError={() => setPreviewError(true)} />
-          : <Plus size={29} aria-hidden="true" />}
-      </button>
-    </div>
-    {custom && <div id="avatar-custom-options" className="avatar-custom-options">
-      <label className="avatar-upload">
-        <Upload size={17} aria-hidden="true" /> {processing ? 'Preparing image…' : 'Upload from computer'}
-        <input type="file" accept={inputTypes.join(',')} disabled={busy} onChange={event => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
-          if (file) void pickFile(file);
-        }} />
-      </label>
-      <label>Image URL
-        <input type="url" maxLength={500} value={url} placeholder="https://example.com/avatar.png" disabled={busy}
-          onChange={event => {
-            setUrl(event.currentTarget.value);
-            setImage('');
-            setPreviewUrl('');
-            setPreviewError(false);
+  return (
+    <form className="auth-form" onSubmit={submit}>
+      {showPreview && (
+        <div className="entry-avatar-preview" aria-live="polite">
+          <span className="entry-avatar-preview__image">
+            {selection && !custom ? (
+              <img src={selection} alt="Selected avatar" />
+            ) : custom && (image || (previewUrl && !previewError)) ? (
+              <img
+                src={image || previewUrl}
+                alt="Selected avatar"
+                onError={() => setPreviewError(true)}
+              />
+            ) : (
+              <span aria-hidden="true">You</span>
+            )}
+          </span>
+          <span>
+            {selection ? 'Your new look' : 'Make it yours'}
+            <small>{selection ? 'Ready for your workspace' : 'Choose a portrait below'}</small>
+          </span>
+        </div>
+      )}
+      <div className="avatar-picker-grid" role="group" aria-label="Avatar choices">
+        {portraits.map((portrait) => (
+          <button
+            key={portrait.path}
+            type="button"
+            className="avatar-choice"
+            aria-label={portrait.label}
+            aria-pressed={selection === portrait.path}
+            disabled={busy}
+            onClick={() => {
+              setSelection(portrait.path);
+              setInputError('');
+            }}
+          >
+            <img src={portrait.path} alt="" width={88} height={88} />
+            {selection === portrait.path && (
+              <span className="avatar-choice-check">
+                <Check size={13} aria-hidden="true" />
+              </span>
+            )}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="avatar-choice avatar-choice--custom"
+          aria-label="Use your own image"
+          aria-pressed={custom}
+          aria-expanded={custom}
+          aria-controls="avatar-custom-options"
+          disabled={busy}
+          onClick={() => {
+            setSelection('custom');
             setInputError('');
           }}
-          onBlur={event => {
-            setPreviewError(false);
-            if (event.currentTarget.validity.valid && /^https:\/\//i.test(url.trim())) setPreviewUrl(url.trim());
-          }} />
-      </label>
-      {previewError && <p className="auth-description">The image preview couldn’t load. Check the URL or choose a file.</p>}
-    </div>}
-    {(inputError || error) && <p className="auth-error" role="alert">{inputError || error}</p>}
-    <button className="button button--primary" type="submit" disabled={busy || !selection || (custom && !image && !url.trim())}>
-      {saving ? 'Saving…' : saveLabel}
-    </button>
-    <button className="button button--secondary" type="button" disabled={saving} onClick={onSkip}>{skipLabel}</button>
-  </form>;
+        >
+          {custom && (image || (previewUrl && !previewError)) ? (
+            <img
+              src={image || previewUrl}
+              alt=""
+              width={88}
+              height={88}
+              onError={() => setPreviewError(true)}
+            />
+          ) : (
+            <Plus size={29} aria-hidden="true" />
+          )}
+        </button>
+      </div>
+      {custom && (
+        <div id="avatar-custom-options" className="avatar-custom-options">
+          <label className="avatar-upload">
+            <Upload size={17} aria-hidden="true" />{' '}
+            {processing ? 'Preparing image…' : 'Upload from computer'}
+            <input
+              type="file"
+              accept={inputTypes.join(',')}
+              disabled={busy}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (file) void pickFile(file);
+              }}
+            />
+          </label>
+          <label>
+            Image URL
+            <input
+              type="url"
+              maxLength={500}
+              value={url}
+              placeholder="https://example.com/avatar.png"
+              disabled={busy}
+              onChange={(event) => {
+                setUrl(event.currentTarget.value);
+                setImage('');
+                setPreviewUrl('');
+                setPreviewError(false);
+                setInputError('');
+              }}
+              onBlur={(event) => {
+                setPreviewError(false);
+                if (event.currentTarget.validity.valid && /^https:\/\//i.test(url.trim()))
+                  setPreviewUrl(url.trim());
+              }}
+            />
+          </label>
+          {previewError && (
+            <p className="auth-description">
+              The image preview couldn’t load. Check the URL or choose a file.
+            </p>
+          )}
+        </div>
+      )}
+      {(inputError || error) && (
+        <p className="auth-error" role="alert">
+          {inputError || error}
+        </p>
+      )}
+      <button
+        className="button button--primary"
+        type="submit"
+        disabled={busy || !selection || (custom && !image && !url.trim())}
+      >
+        {saving ? 'Saving…' : saveLabel}
+      </button>
+      <button className="button button--secondary" type="button" disabled={saving} onClick={onSkip}>
+        {skipLabel}
+      </button>
+    </form>
+  );
 }

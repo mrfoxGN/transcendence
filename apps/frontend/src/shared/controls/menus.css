@@ -1,0 +1,46 @@
+.devup-design .workspace-app .wu-action-menu {
+  width: 208px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 24px);
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 11px;
+  border: 1px solid var(--wu-line);
+  box-shadow: 0 10px 35px #15102526;
+}
+.devup-design .workspace-app .wu-action-menu button {
+  min-height: 36px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--wu-ink);
+}
+.devup-design .workspace-app .wu-action-menu button:hover:not(:disabled),
+.devup-design .workspace-app .wu-action-menu button:focus-visible {
+  background: var(--wu-hover-row);
+}
+.devup-design .workspace-app .wu-action-menu button:focus-visible {
+  outline: 2px solid var(--wu-focus);
+  outline-offset: -2px;
+}
+.devup-design .workspace-app .wu-action-menu button[data-destructive] {
+  color: var(--wu-red);
+}
+.devup-design .workspace-app .wu-action-menu button[data-separated] {
+  border-top: 1px solid var(--wu-line);
+  margin-top: 5px;
+  border-radius: 0 0 6px 6px;
+  padding-top: 10px;
+}
+.devup-design .workspace-app .wu-action-menu button:disabled {
+  color: var(--wu-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+@media (max-width: 680px) {
+  .devup-design .workspace-app .wu-action-menu button {
+    min-height: 42px;
+  }
+}

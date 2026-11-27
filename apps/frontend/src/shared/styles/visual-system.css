@@ -1,24 +1,4 @@
 /* Shared visual tokens. Keep page layout in its owning stylesheet. */
-.devup-design .workspace-app {
-  --wu-canvas: #f5f6f8;
-  --wu-surface: #ffffff;
-  --wu-surface-soft: #f2f3f6;
-  --wu-ink: #191d27;
-  --wu-muted: #535d6d;
-  --wu-subtle: #647080;
-  --wu-line: #e1e4eb;
-  --wu-hover-row: #f0f1f5;
-  --wu-hover-control: #eceef3;
-  --wu-hover-border: #bdc4d2;
-  --wu-focus: #7462cc;
-  --wu-card-shadow: 0 3px 12px #202b4007;
-  --wu-hover-shadow: 0 5px 16px #202b400c;
-  --wu-glow-blue: #8cb3f5;
-  --wu-glow-pink: #e5a1d9;
-  --wu-glow-violet: #b39aed;
-  --wu-glow-opacity: .58;
-  --wu-top-glow: radial-gradient(ellipse at 12% 0%, color-mix(in srgb,var(--wu-glow-blue) 44%,transparent),transparent 65%), radial-gradient(ellipse at 85% 0%,color-mix(in srgb,var(--wu-glow-pink) 44%,transparent),transparent 65%), radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--wu-glow-violet) 44%,transparent),transparent 70%);
-}
 
 .devup-design .workspace-app .wu-panel { box-shadow: var(--wu-card-shadow); }
 
@@ -65,7 +45,7 @@
   .devup-design .workspace-app .wu-project-task:hover { background: var(--wu-hover-row); }
   .devup-design .workspace-app .wu-sidebar .wu-nav-item:not(.is-active):hover { background: #ffffff80; color: var(--wu-ink) !important; }
   .devup-design .workspace-app[data-theme=dark] .wu-sidebar .wu-nav-item:not(.is-active):hover { background: #ffffff0d; }
-  .devup-design .workspace-app :is(.wu-chip:not(.is-active),.wu-github-tab[aria-pressed=false],.wu-file-type-tabs button[aria-pressed=false],.wu-file-view-toggle button[aria-pressed=false],.wu-note-formatbar button[aria-pressed=false],.wu-settings-section-nav button:not([aria-current])):hover:not(:disabled) { background: var(--wu-hover-control); color: var(--wu-ink); box-shadow: none; }
+  .devup-design .workspace-app :is(.wu-chip:not(.is-active),.wu-github-tab[aria-selected=false],.wu-file-type-tabs button[aria-pressed=false],.wu-file-view-toggle button[aria-pressed=false],.wu-note-formatbar button[aria-pressed=false],.wu-settings-section-nav button:not([aria-current])):hover:not(:disabled) { background: var(--wu-hover-control); color: var(--wu-ink); box-shadow: none; }
   .devup-design .workspace-app .wu-text-button:hover:not(:disabled),
   .devup-design .workspace-app a:not([class]):hover { color: var(--wu-blue); text-decoration: underline; text-underline-offset: 3px; }
   .devup-design .workspace-app :is(.wu-list-search,.wu-command-input,.wu-chat-search,.wu-note-rich-editor):hover:not(:focus-within),

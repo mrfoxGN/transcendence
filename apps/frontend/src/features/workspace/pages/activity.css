@@ -47,3 +47,41 @@
   .wu-event-action { justify-self: start; }
   .wu-event-action:empty { display: none; }
 }
+
+.devup-design .workspace-app .wu-activity-workbench .wu-activity-toolbar { padding:18px 20px; border:1px solid var(--wu-line); border-radius:14px; background:var(--wu-surface); }
+.devup-design .workspace-app .wu-activity-workbench .wu-activity-toolbar .wu-chips { margin:0; gap:4px; }
+.devup-design .workspace-app .wu-activity-workbench .wu-activity-fields { gap:14px; margin:16px 0 0; padding-top:16px; border-top:1px solid var(--wu-line); }
+.wu-activity-clear { margin-top:14px; font-size:12px; }
+.wu-activity-context { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin:20px 2px 12px; color:var(--wu-ink); font-size:12px; font-weight:550; }
+.wu-activity-context span { color:var(--wu-muted); font-size:11px; font-weight:400; }
+.devup-design .workspace-app .wu-activity-workbench .wu-activity-results { padding:20px 24px; background:var(--wu-surface); }
+.wu-activity-day + .wu-activity-day { margin-top:24px; }
+.devup-design .workspace-app .wu-activity-day-heading { display:flex; align-items:center; gap:12px; padding:0 0 12px; margin:0; font-size:13px; font-weight:600; color:var(--wu-ink); border-bottom:1px solid var(--wu-line); }
+.wu-activity-day-heading span { color:var(--wu-muted); font-size:10px; font-weight:400; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-row { padding:17px 8px; grid-template-areas:"icon copy time action"; grid-template-columns:36px minmax(0,1fr) max-content minmax(90px,max-content); border-radius:8px; gap:14px; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-row:hover,.devup-design .workspace-app .wu-activity-timeline .wu-event-row:focus-within { background:var(--wu-hover-row); }
+.wu-event-avatar { grid-area:icon; position:relative; display:block; width:36px; height:36px; align-self:start; margin-top:2px; }
+.wu-event-avatar > .wu-avatar { width:36px; height:36px; }
+.wu-event-avatar > img { position:absolute; inset:0; width:36px; height:36px; border-radius:50%; object-fit:cover; }
+.wu-event-marker { position:absolute; right:-4px; bottom:-4px; display:grid; place-items:center; width:18px; height:18px; border:2px solid var(--wu-surface); border-radius:6px; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-copy p { font-size:12px; color:var(--wu-muted); line-height:1.6; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-copy strong { color:var(--wu-ink); font-weight:600; }
+.wu-event-subject { font-size:13px; line-height:1.6; color:var(--wu-ink); margin-top:3px; overflow-wrap:anywhere; }
+.wu-event-copy > small { display:block; color:var(--wu-muted); font-size:11px; margin-top:4px; }
+.wu-event-transition { display:flex; align-items:center; gap:7px; margin-top:7px; color:var(--wu-muted); }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-time { font-size:11px; white-space:nowrap; align-self:start; padding-top:4px; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-action button { font-size:11px; }
+
+@media(max-width:700px) {
+ .devup-design .workspace-app .wu-activity-workbench .wu-activity-toolbar { padding:16px; }
+ .devup-design .workspace-app .wu-activity-workbench .wu-activity-fields > label { flex:1 1 120px; max-width:none; }
+ .devup-design .workspace-app .wu-activity-workbench .wu-activity-results { padding:16px 12px; }
+ .devup-design .workspace-app .wu-activity-timeline .wu-event-row { grid-template-columns:32px minmax(0,1fr); grid-template-areas:"icon copy" ". time" ". action"; gap:4px 12px; padding:16px 6px; }
+ .wu-event-avatar,.wu-event-avatar > .wu-avatar,.wu-event-avatar > img { width:32px; height:32px; }
+ .devup-design .workspace-app .wu-activity-timeline .wu-event-action { justify-self:start; }
+ .devup-design .workspace-app .wu-activity-timeline .wu-event-time { padding-top:3px; }
+}
+
+.devup-design .workspace-app .wu-activity-timeline .wu-event-copy { grid-area:copy; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-time { grid-area:time; }
+.devup-design .workspace-app .wu-activity-timeline .wu-event-action { grid-area:action; }

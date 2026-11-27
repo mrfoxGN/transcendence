@@ -1,6 +1,6 @@
+import type { Task } from './types';
 import { workspaceRequest } from './workspace-api';
 import { calendarDate, formatCalendarDate } from './workspace-calendar';
-import type { Task } from './types';
 
 export const statusLabels = {
   BACKLOG: 'Backlog',
@@ -13,32 +13,41 @@ export const statusLabels = {
 } as const;
 
 export type Status = keyof typeof statusLabels;
-export type BoardColumnConfig = { id: string; label: string; status: Status; limit?: number | null };
+export type BoardColumnConfig = {
+  id: string;
+  label: string;
+  status: Status;
+  limit?: number | null;
+};
 export const statusCodes = Object.fromEntries(
   Object.entries(statusLabels).map(([code, label]) => [label, code]),
 ) as Record<string, Status>;
 
-export const fixedBoardColumns: BoardColumnConfig[] = (
-  Object.keys(statusLabels) as Status[]
-)
-  .filter(status => status !== 'BACKLOG')
-  .map(status => ({
+export const fixedBoardColumns: BoardColumnConfig[] = (Object.keys(statusLabels) as Status[])
+  .filter((status) => status !== 'BACKLOG')
+  .map((status) => ({
     id: status,
     label: statusLabels[status],
     status,
   }));
 
-export const allTaskColumns: BoardColumnConfig[] = (
-  Object.keys(statusLabels) as Status[]
-).map(status => ({
-  id: status,
-  label: statusLabels[status],
-  status,
-}));
+export const allTaskColumns: BoardColumnConfig[] = (Object.keys(statusLabels) as Status[]).map(
+  (status) => ({
+    id: status,
+    label: statusLabels[status],
+    status,
+  }),
+);
 
 export const taskPriorities = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', URGENT: 'Urgent' };
 
-export type Member = { userId: string; username: string; avatarUrl: string | null; isOwner: boolean; joinedAt: string };
+export type Member = {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  isOwner: boolean;
+  joinedAt: string;
+};
 
 type ApiTask = {
   id: string;
@@ -74,12 +83,9 @@ export type BoardData = {
   reportingTimeZone: string;
 };
 
-export function taskBoardColumn(
-  task: Task,
-  columns: BoardColumnConfig[] = fixedBoardColumns,
-) {
+export function taskBoardColumn(task: Task, columns: BoardColumnConfig[] = fixedBoardColumns) {
   const status = statusCodes[task.status];
-  return columns.find(column => column.status === status);
+  return columns.find((column) => column.status === status);
 }
 
 const transitions: Record<string, string[]> = {
@@ -94,14 +100,16 @@ const transitions: Record<string, string[]> = {
 
 export const canTransition = (from: string, to: string) => transitions[from]?.includes(to) ?? false;
 
-export async function loadBoard(path: string, token: string, signal: AbortSignal): Promise<BoardData> {
+export async function loadBoard(
+  path: string,
+  token: string,
+  signal: AbortSignal,
+): Promise<BoardData> {
   const board: ApiBoard = await (await workspaceRequest(path + '/board', token, { signal })).json();
   const reportingTimeZone = board.reportingTimeZone ?? 'Africa/Casablanca';
   const mapItemToTask = (item: ApiTask): Task => {
     const assigneeId = board.assigneesByTaskId?.[item.id];
-    const dueDate = item.dueAt
-      ? calendarDate(new Date(item.dueAt), reportingTimeZone)
-      : null;
+    const dueDate = item.dueAt ? calendarDate(new Date(item.dueAt), reportingTimeZone) : null;
     return {
       id: item.id,
       taskKey: item.taskKey,
@@ -123,17 +131,17 @@ export async function loadBoard(path: string, token: string, signal: AbortSignal
     };
   };
   const tasks: Task[] = board.columns
-  .flatMap(column => column.tasks)
-  .filter(item => item.status !== 'BACKLOG')
-  .map(mapItemToTask);
+    .flatMap((column) => column.tasks)
+    .filter((item) => item.status !== 'BACKLOG')
+    .map(mapItemToTask);
   const backlogTasks: Task[] = board.columns
-  .flatMap(column => column.tasks)
-  .filter(item => item.status === 'BACKLOG')
-  .map(mapItemToTask);
+    .flatMap((column) => column.tasks)
+    .filter((item) => item.status === 'BACKLOG')
+    .map(mapItemToTask);
   return {
     tasks,
     backlogTasks,
-    columns: fixedBoardColumns.map(column => column.label),
+    columns: fixedBoardColumns.map((column) => column.label),
     boardColumns: fixedBoardColumns,
     activeCount: board.activeCount,
     activeWipLimit: board.activeWipLimit,

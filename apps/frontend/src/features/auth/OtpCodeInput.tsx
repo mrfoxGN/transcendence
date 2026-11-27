@@ -1,4 +1,10 @@
-import { useEffect, useRef, type ClipboardEvent, type KeyboardEvent, type ChangeEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from 'react';
 
 export interface OtpCodeInputProps {
   value: string;
@@ -121,7 +127,9 @@ export function OtpCodeInput({
         {[0, 1, 2].map((i) => (
           <input
             key={i}
-            ref={(el) => { inputRefs.current[i] = el; }}
+            ref={(el) => {
+              inputRefs.current[i] = el;
+            }}
             type="text"
             inputMode="numeric"
             autoComplete={i === 0 ? 'one-time-code' : 'off'}
@@ -145,7 +153,9 @@ export function OtpCodeInput({
         {[3, 4, 5].map((i) => (
           <input
             key={i}
-            ref={(el) => { inputRefs.current[i] = el; }}
+            ref={(el) => {
+              inputRefs.current[i] = el;
+            }}
             type="text"
             inputMode="numeric"
             autoComplete="off"
