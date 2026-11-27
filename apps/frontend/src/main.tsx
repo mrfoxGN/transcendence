@@ -3,7 +3,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AccountRecovery, FirstRun } from './features/AccountPages';
 import { EntryAppearance } from './features/auth/EntryAppearance';
-import { JoinWorkspace } from './features/JoinWorkspace';
 import { AuthPreview, LandingPage } from './features/landing/LandingPage';
 import { WorkspaceApp } from './features/WorkspaceApp';
 import { WorkspacePicker } from './features/WorkspacePicker';
@@ -32,7 +31,6 @@ createRoot(document.getElementById('root')!).render(
     recoveryMode ||
     path === '/onboarding' ||
     path === '/onboarding/email' ||
-    path === '/join-workspace' ||
     (workspacePath && !workspacePath[1]) ? (
       <EntryAppearance>
         {authMode ? (
@@ -41,8 +39,6 @@ createRoot(document.getElementById('root')!).render(
           <AccountRecovery mode={recoveryMode} />
         ) : path === '/onboarding' || path === '/onboarding/email' ? (
           <FirstRun step={path.endsWith('/email') ? 'email' : 'avatar'} />
-        ) : path === '/join-workspace' ? (
-          <JoinWorkspace />
         ) : (
           <WorkspacePicker />
         )}

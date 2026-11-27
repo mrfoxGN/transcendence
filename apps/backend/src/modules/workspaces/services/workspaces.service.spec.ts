@@ -25,7 +25,25 @@ function mockMethods<T>(value: T): { [K in keyof T]: jest.Mock } {
   return value as { [K in keyof T]: jest.Mock };
 }
 
-const activitySink = () => ({ create: jest.fn().mockResolvedValue({}) }) as never;
+const activitySink = () =>
+  ({ create: jest.fn().mockResolvedValue({}) }) as unknown as
+    ConstructorParameters<typeof WorkspacesService>[3];
+
+// Create WorkspacesService with default test dependencies.
+function createTestWorkspacesService(
+  dataSource: DataSource,
+  usersService: UsersService = {} as UsersService,
+  notificationsService: NotificationsService = {} as NotificationsService,
+  activitiesService: ConstructorParameters<typeof WorkspacesService>[3] =
+    {} as ConstructorParameters<typeof WorkspacesService>[3],
+): WorkspacesService {
+  return new WorkspacesService(
+    dataSource,
+    usersService,
+    notificationsService,
+    activitiesService,
+  );
+}
 
 describe('WorkspacesService', () => {
   const ownerId = '1897c53b-478a-414d-b332-ae6db9d6d6da';
@@ -57,7 +75,7 @@ describe('WorkspacesService', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     const response = await service.create(ownerId, {
       name: 'Transcendence Team',
@@ -123,7 +141,7 @@ describe('WorkspacesService', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     const response = await service.create(ownerId, {
       name: 'Workspace Without Description',
@@ -156,7 +174,7 @@ describe('WorkspacesService', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.create(ownerId, {
@@ -186,7 +204,7 @@ describe('WorkspacesService', () => {
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     const result = await service.findAllForUser(ownerId);
 
@@ -235,7 +253,7 @@ describe('WorkspacesService', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     const result = await service.findOneForUser(workspaceId, ownerId);
 
@@ -260,7 +278,7 @@ describe('WorkspacesService', () => {
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.findOneForUser(workspaceId, ownerId)).rejects.toThrow(
       NotFoundException,
@@ -290,7 +308,7 @@ describe('WorkspacesService', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.findOneForUser(workspaceId, ownerId)).rejects.toThrow(
       ForbiddenException,
@@ -328,7 +346,7 @@ describe('WorkspacesService update', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     const response = await service.update(workspaceId, ownerId, {
       name: 'Updated Name',
@@ -350,7 +368,7 @@ describe('WorkspacesService update', () => {
       getRepository: jest.fn(),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.update(workspaceId, ownerId, {})).rejects.toThrow(
       BadRequestException,
@@ -369,7 +387,7 @@ describe('WorkspacesService update', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.update(workspaceId, ownerId, { name: 'Updated Name' }),
@@ -388,7 +406,7 @@ describe('WorkspacesService update', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.update(workspaceId, otherUserId, { name: 'Unauthorized Name' }),
@@ -428,7 +446,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
+    const service = createTestWorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
 
     const response = await service.archive(workspaceId, ownerId);
 
@@ -446,7 +464,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.archive(workspaceId, ownerId)).rejects.toThrow(
       NotFoundException,
@@ -465,7 +483,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.archive(workspaceId, otherUserId)).rejects.toThrow(
       ForbiddenException,
@@ -487,7 +505,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
+    const service = createTestWorkspacesService(dataSource, undefined as never, undefined as never, activitySink());
 
     const response = await service.unarchive(workspaceId, ownerId);
 
@@ -505,7 +523,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.unarchive(workspaceId, ownerId)).rejects.toThrow(
       NotFoundException,
@@ -525,7 +543,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.unarchive(workspaceId, otherUserId)).rejects.toThrow(
       ForbiddenException,
@@ -546,7 +564,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await service.softDelete(workspaceId, ownerId);
 
@@ -563,7 +581,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.softDelete(workspaceId, ownerId)).rejects.toThrow(
       NotFoundException,
@@ -582,7 +600,7 @@ describe('WorkspacesService archive/unarchive/delete', () => {
       getRepository: jest.fn().mockReturnValue(repository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(service.softDelete(workspaceId, otherUserId)).rejects.toThrow(
       ForbiddenException,
@@ -617,7 +635,7 @@ describe('WorkspacesService members', () => {
       getRepository: jest.fn().mockReturnValue(membershipRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     jest.spyOn(service, 'findOneForUser').mockResolvedValue({
       id: workspaceId,
@@ -686,7 +704,7 @@ describe('WorkspacesService members', () => {
       getRepository: jest.fn().mockReturnValue(membershipRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     jest.spyOn(service, 'findOneForUser').mockResolvedValue({
       id: workspaceId,
@@ -712,7 +730,7 @@ describe('WorkspacesService members', () => {
       getRepository: jest.fn().mockReturnValue(membershipRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     jest
       .spyOn(service, 'findOneForUser')
@@ -791,7 +809,7 @@ describe('WorkspacesService removeMember', () => {
       }),
     };
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       undefined as never,
       undefined as never,
@@ -866,7 +884,7 @@ describe('WorkspacesService removeMember', () => {
       create: jest.fn().mockRejectedValue(new Error('Activity unavailable')),
     };
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       undefined as never,
       undefined as never,
@@ -908,7 +926,7 @@ describe('WorkspacesService removeMember', () => {
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.removeMember(workspaceId, ownerId, memberId),
@@ -928,7 +946,7 @@ describe('WorkspacesService removeMember', () => {
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.removeMember(workspaceId, memberId, ownerId),
@@ -948,7 +966,7 @@ describe('WorkspacesService removeMember', () => {
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.removeMember(workspaceId, ownerId, ownerId),
@@ -989,7 +1007,7 @@ describe('WorkspacesService removeMember', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource);
+    const service = createTestWorkspacesService(dataSource);
 
     await expect(
       service.removeMember(workspaceId, ownerId, memberId),
@@ -1070,7 +1088,7 @@ describe('WorkspacesService createInvitation', () => {
       }),
     } as unknown as NotificationsService;
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       usersService,
       notificationsService,
@@ -1188,7 +1206,7 @@ describe('WorkspacesService createInvitation', () => {
 
     const activitiesService = activitySink();
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       usersService,
       notificationsService,
@@ -1239,7 +1257,7 @@ describe('WorkspacesService createInvitation', () => {
       findById: jest.fn(),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(dataSource, usersService);
+    const service = createTestWorkspacesService(dataSource, usersService);
 
     await expect(
       service.createInvitation(workspaceId, ownerId, { invitedUserId }),
@@ -1261,7 +1279,7 @@ describe('WorkspacesService createInvitation', () => {
       findById: jest.fn(),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(dataSource, usersService);
+    const service = createTestWorkspacesService(dataSource, usersService);
 
     await expect(
       service.createInvitation(workspaceId, invitedUserId, {
@@ -1285,7 +1303,7 @@ describe('WorkspacesService createInvitation', () => {
       findById: jest.fn(),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(dataSource, usersService);
+    const service = createTestWorkspacesService(dataSource, usersService);
 
     await expect(
       service.createInvitation(workspaceId, ownerId, {
@@ -1311,7 +1329,7 @@ describe('WorkspacesService createInvitation', () => {
         .mockRejectedValue(new NotFoundException('User not found')),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(dataSource, usersService);
+    const service = createTestWorkspacesService(dataSource, usersService);
 
     await expect(
       service.createInvitation(workspaceId, ownerId, { invitedUserId }),
@@ -1351,7 +1369,7 @@ describe('WorkspacesService createInvitation', () => {
       }),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(dataSource, usersService);
+    const service = createTestWorkspacesService(dataSource, usersService);
 
     await expect(
       service.createInvitation(workspaceId, ownerId, { invitedUserId }),
@@ -1400,7 +1418,7 @@ describe('WorkspacesService createInvitation', () => {
       }),
     } as unknown as UsersService;
 
-    const service = new WorkspacesService(dataSource, usersService);
+    const service = createTestWorkspacesService(dataSource, usersService);
 
     await expect(
       service.createInvitation(workspaceId, ownerId, { invitedUserId }),
@@ -1503,7 +1521,7 @@ describe('WorkspacesService acceptInvitation', () => {
       }),
     };
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       usersService,
       notificationsService,
@@ -1623,7 +1641,7 @@ describe('WorkspacesService acceptInvitation', () => {
       }),
     };
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       {} as UsersService,
       notificationsService,
@@ -1717,7 +1735,7 @@ describe('WorkspacesService acceptInvitation', () => {
       create: jest.fn().mockRejectedValue(new Error('Activity unavailable')),
     };
 
-    const service = new WorkspacesService(
+    const service = createTestWorkspacesService(
       dataSource,
       {} as UsersService,
       notificationsService,
@@ -1772,7 +1790,7 @@ describe('WorkspacesService acceptInvitation', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.acceptInvitation(workspaceId, invitationId, invitedUserId),
@@ -1809,7 +1827,7 @@ describe('WorkspacesService acceptInvitation', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.acceptInvitation(workspaceId, invitationId, invitedUserId),
@@ -1848,7 +1866,7 @@ describe('WorkspacesService acceptInvitation', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.acceptInvitation(workspaceId, invitationId, ownerId),
@@ -1888,7 +1906,7 @@ describe('WorkspacesService acceptInvitation', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.acceptInvitation(workspaceId, invitationId, invitedUserId),
@@ -1941,7 +1959,7 @@ describe('WorkspacesService acceptInvitation', () => {
       ),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.acceptInvitation(workspaceId, invitationId, invitedUserId),
@@ -2015,7 +2033,7 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     const response = await service.rejectInvitation(
       workspaceId,
@@ -2041,7 +2059,7 @@ describe('WorkspacesService rejectInvitation', () => {
       getRepository: jest.fn().mockReturnValue(workspaceRepository),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.rejectInvitation(workspaceId, invitationId, invitedUserId),
@@ -2071,7 +2089,7 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.rejectInvitation(workspaceId, invitationId, invitedUserId),
@@ -2101,7 +2119,7 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.rejectInvitation(workspaceId, invitationId, ownerId),
@@ -2134,7 +2152,7 @@ describe('WorkspacesService rejectInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.rejectInvitation(workspaceId, invitationId, invitedUserId),
@@ -2198,7 +2216,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
+    const service = createTestWorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
 
     const response = await service.cancelInvitation(
       workspaceId,
@@ -2219,7 +2237,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.cancelInvitation(workspaceId, invitationId, ownerId),
@@ -2233,7 +2251,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.cancelInvitation(workspaceId, invitationId, otherUserId),
@@ -2257,7 +2275,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.cancelInvitation(workspaceId, invitationId, ownerId),
@@ -2284,7 +2302,7 @@ describe('WorkspacesService cancelInvitation', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.cancelInvitation(workspaceId, invitationId, ownerId),
@@ -2331,7 +2349,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     jest.spyOn(service, 'findOneForUser').mockResolvedValue(makeWorkspace());
 
@@ -2346,7 +2364,7 @@ describe('WorkspacesService kanban settings', () => {
   });
 
   it('returns 403 when non-member reads kanban settings', async () => {
-    const service = new WorkspacesService({} as DataSource, {} as UsersService);
+    const service = createTestWorkspacesService({} as DataSource, {} as UsersService);
 
     jest
       .spyOn(service, 'findOneForUser')
@@ -2364,7 +2382,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     jest.spyOn(service, 'findOneForUser').mockResolvedValue(makeWorkspace());
 
@@ -2397,7 +2415,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
+    const service = createTestWorkspacesService(dataSource, {} as UsersService, undefined as never, activitySink());
 
     const result = await service.updateKanbanSettings(workspaceId, ownerId, {
       activeWipLimit: 5,
@@ -2412,7 +2430,7 @@ describe('WorkspacesService kanban settings', () => {
   });
 
   it('returns 400 for empty kanban settings update', async () => {
-    const service = new WorkspacesService({} as DataSource, {} as UsersService);
+    const service = createTestWorkspacesService({} as DataSource, {} as UsersService);
 
     await expect(
       service.updateKanbanSettings(workspaceId, ownerId, {}),
@@ -2426,7 +2444,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.updateKanbanSettings(workspaceId, ownerId, { activeWipLimit: 5 }),
@@ -2440,7 +2458,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.updateKanbanSettings(workspaceId, memberId, {
@@ -2468,7 +2486,7 @@ describe('WorkspacesService kanban settings', () => {
       }),
     } as unknown as DataSource;
 
-    const service = new WorkspacesService(dataSource, {} as UsersService);
+    const service = createTestWorkspacesService(dataSource, {} as UsersService);
 
     await expect(
       service.updateKanbanSettings(workspaceId, ownerId, { activeWipLimit: 5 }),

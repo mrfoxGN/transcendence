@@ -13,8 +13,6 @@ export type TeamInvitation = {
   invitedEmail: string | null;
   expiresAt: string | null;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
-  delivery?: 'sent' | 'link';
-  invitePath?: string;
 };
 
 export function TeamPage({

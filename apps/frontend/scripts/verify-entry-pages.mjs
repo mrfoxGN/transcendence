@@ -61,7 +61,6 @@ try {
         '/verify-email',
         '/onboarding',
         '/onboarding/email',
-        '/join-workspace',
         '/workspaces',
       ]) {
         await page.goto((process.env.DEVUP_APP_URL || 'http://localhost:5182') + route);
