@@ -16,8 +16,8 @@ cp -n devops/.env.example .env
 ```
 
 Set the database, JWT, Grafana and email settings in `.env`. Never commit secrets.
-Deployment is restricted to localhost. `HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT`
-select the local ports (defaults: 80, 443 and 8443). Nginx binds only to `127.0.0.1`.
+Deployment is restricted to localhost with fixed ports 80, 443 and 8443.
+Nginx binds only to `127.0.0.1`.
 MySQL and Backend have no published host ports.
 
 3. Build and start Production:
@@ -31,9 +31,15 @@ make status
 Open [DevUP](https://localhost) and accept or explicitly trust the local self-signed
 certificate. Create an account and workspace to start using the application.
 Grafana is available at `/grafana/`, and the status page at `https://localhost:8443/`.
-Use the configured local ports if you changed `.env`.
+Ports are fixed; `.env` does not override them.
 
 4. Stop with `make down`. Named volumes and the root `backups/` directory are preserved.
+
+Run Make commands from the repository root. `make restart` restarts the stack
+without rebuilding. **`make fclean` deletes project volumes and service images;
+`make re` performs this cleanup and then builds and starts again. Both erase
+database and uploaded-file data stored in volumes.** Local `.env`, certificates
+and `backups/` are preserved.
 
 All deployment configuration is organized under [devops/](devops/README.md), including
 Dockerfiles, Compose, Nginx, monitoring, scripts and deployment documentation.

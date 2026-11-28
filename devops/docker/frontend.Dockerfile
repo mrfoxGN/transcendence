@@ -10,7 +10,7 @@ RUN npm run build
 
 FROM nginx:stable-alpine AS production
 
-# Both Compose files use the shared nginx/nginx.conf.template.
+# Compose mounts the shared nginx/nginx.conf directly.
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80 443

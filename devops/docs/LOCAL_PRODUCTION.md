@@ -15,7 +15,7 @@ cp -n devops/.env.example .env
 Set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `JWT_SECRET`,
 `GRAFANA_ADMIN_PASSWORD`, and `GRAFANA_SECRET_KEY`. Generate independent values
 for secrets, for example with `openssl rand -hex 32`. Never commit `.env`.
-`HTTP_PORT`, `HTTPS_PORT`, and `GATUS_PORT` select the local ports.
+Ports are fixed at 80, 443 and 8443; `.env` does not override them.
 The bind address remains `127.0.0.1`; see `devops/docker-compose.prod.yml`.
 `BACKUP_TZ` selects the daily backup timezone and defaults to
 `Africa/Casablanca`. `BACKEND_IMAGE` selects the image shared by Backend and
@@ -58,13 +58,13 @@ curl -I http://localhost/health
 ```
 
 The first command should return `{"status":"ok","service":"backend"}`;
-HTTP redirects to HTTPS. Use the configured local ports if you changed `.env`. `/health` is a Backend liveness check, not a database query. Verify a
+HTTP redirects to HTTPS. Ports are fixed. `/health` is a Backend liveness check, not a database query. Verify a
 real application operation such as login when database connectivity matters.
 
 Nginx is the only service publishing host ports. Its application HTTPS port
 serves Frontend at `/`, Backend routes such as `/api/`, `/auth/`, `/github/`,
 `/health`, and `/socket.io/`, and Grafana at `/grafana/`. It redirects `/status`
-to Gatus on the separately published HTTPS `GATUS_PORT` (default `8443`).
+to Gatus on the separately published HTTPS port `8443`.
 Backend, MySQL, Prometheus, and the exporters have no direct host ports.
 
 ## 3. Services and data
@@ -98,7 +98,7 @@ backup is local only; snapshots older than seven days are removed after successf
 ## 4. Monitoring and alerts
 
 Open `https://localhost/grafana/` with the Grafana administrator credentials
-from `.env`. If the HTTPS port differs, use the configured local port.
+from `.env`. HTTPS uses the fixed port 443.
 The provisioned dashboard is **DevUP Monitoring** at
 `/grafana/d/devup-devops/monitoring/`. Its seven panels show host CPU, host RAM, host
 root disk usage, per-service container RAM, per-service container CPU, Docker
@@ -156,22 +156,32 @@ make backup
 Nginx logs. To inspect a particular
 service, use `docker compose --env-file .env -f devops/docker-compose.prod.yml logs --tail=100 SERVICE`.
 The current Compose file does not configure per-container log rotation. Nginx writes access logs to stdout using the currently configured format in
-`devops/nginx/nginx.conf.template`. Do not assume query parameters are redacted.
+`devops/nginx/nginx.conf`. Do not assume query parameters are redacted.
 Backend logging remains owned by the Backend team.
 
-`make restart` restarts Backend, reloads Nginx, and verifies HTTPS health.
-`make update` rebuilds Backend, runs migrations and replaces it;
-`make update-frontend` rebuilds and replaces the single Nginx container with
-the new Frontend files. This briefly interrupts both Frontend and proxied API
-connections while Nginx is replaced. The Backend container and data volumes
-are preserved. Production uses `devops/docker/frontend.Dockerfile` and
-`devops/nginx/nginx.conf.template`, with one Nginx container. There are no separate Frontend-specific Nginx configurations or
+Run Make commands from the repository root. `make restart` stops and starts the
+whole stack without rebuilding. `make up` builds Backend and Nginx once, then
+starts services without another build; migrations reuse the Backend image.
+Replacing containers briefly interrupts affected connections. Run `make health`
+after deployment to check HTTPS liveness. Production uses `devops/docker/frontend.Dockerfile` and
+`devops/nginx/nginx.conf`, with one Nginx container. There are no separate Frontend-specific Nginx configurations or
 TLS entrypoint scripts. Follow
 [Release and rollback](RELEASE_AND_ROLLBACK.md) before versioned releases or
 database schema changes. `make restore BACKUP=backups/TIMESTAMP` restores the
 selected local snapshot after confirmation; see the backup guide before using
-it. `make down`, `make clean`, and `make fclean` remove this Compose project's
-containers and networks while preserving named volumes.
+it. `make down` and `make clean` remove this Compose project's containers and
+networks while preserving volumes and images. **`make fclean` also deletes
+volumes and service images, including database and uploaded-file data. `make re`
+runs `fclean` before building and starting again.** Host files such as `.env`,
+certificates and `backups/`, and Docker build cache are preserved.
+
+Nginx upstream hostnames are resolved at startup/reload. After replacing an
+upstream container with a different IP, test and reload Nginx:
+
+```bash
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload
+```
 
 This guide records the current configuration, not a guarantee that every
 feature has passed an end-to-end test on a new host. Verify HTTPS, login,

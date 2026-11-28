@@ -251,6 +251,10 @@ services:
         condition: service_completed_successfully
       backend:
         condition: service_healthy
+      grafana:
+        condition: service_healthy
+      status-page:
+        condition: service_started
 
 networks:
   application:

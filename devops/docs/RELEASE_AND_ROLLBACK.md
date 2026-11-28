@@ -82,8 +82,8 @@ docker compose --env-file .env -f devops/docker-compose.prod.yml up -d --no-deps
    after container replacement, then verify the external HTTPS route:
 
 ```bash
-docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t -c /tmp/nginx.conf
-docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload -c /tmp/nginx.conf
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload
 curl --fail --cacert devops/nginx/certs/fullchain.pem https://localhost/health
 ```
 
@@ -103,8 +103,8 @@ ID against the release record, then run:
 ```bash
 docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}'
 docker compose --env-file .env -f devops/docker-compose.prod.yml up -d --no-deps --no-build --pull never --wait --wait-timeout 120 backend
-docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t -c /tmp/nginx.conf
-docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload -c /tmp/nginx.conf
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -t
+docker compose --env-file .env -f devops/docker-compose.prod.yml exec -T nginx nginx -s reload
 curl --fail --cacert devops/nginx/certs/fullchain.pem https://localhost/health
 ```
 

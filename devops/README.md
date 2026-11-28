@@ -10,10 +10,9 @@ devops/
   .env.example
   docker/
     backend.Dockerfile
-    backend.dev.Dockerfile
     frontend.Dockerfile
   nginx/
-    nginx.conf.template
+    nginx.conf
     certs/                  # local, ignored
   monitoring/               # Prometheus, Grafana, Gatus
   scripts/                  # backup, restore, certificates and utilities
@@ -33,15 +32,27 @@ Outside this folder:
 
 ```sh
 cp -n devops/.env.example .env    # only when configuring a new checkout
-make check
+make help
 make build
 make up
+make restart
 make status
 make health
 make backup
 make restore BACKUP=backups/YYYY-MM-DD_HH-MM-SS_UTC
 make down
 ```
+
+Run Make commands from the repository root. `make up` builds Backend and Nginx
+once, then starts the services without another build. Migrations reuse the
+Backend image, avoiding concurrent builds of the same tag.
+
+`make restart` stops and starts the stack without rebuilding. `make clean` is
+an alias for `make down`; both preserve volumes and images. **`make fclean`
+deletes project volumes and service images, including database and uploaded-file
+data. `make re` runs `fclean` before building and starting again.** Host files
+such as `.env`, certificates and `backups/`, and Docker build cache are preserved.
+`make clean-images` asks Docker to prune unused dangling images across the host.
 
 For direct Compose usage, specify both paths from the repository root:
 
@@ -78,6 +89,8 @@ paths and features are not current operating instructions.
 
 Nginx binds its published ports only to `127.0.0.1`. Host/IP selection via
 `PUBLIC_HOST` or `BIND_IP` is no longer supported. TLS certificates identify
-localhost and 127.0.0.1. Grafana and Nginx redirects use localhost. You may still
-change `HTTP_PORT`, `HTTPS_PORT` and `GATUS_PORT` in the root `.env`.
+localhost and 127.0.0.1. Grafana and Nginx redirects use localhost. Ports are fixed at 80, 443 and 8443 and cannot be changed through `.env`.
 GitHub OAuth must use a matching localhost callback registered in the provider.
+
+Nginx reads `/etc/nginx/nginx.conf` directly using the image's default startup.
+No template generation, `envsubst`, or custom Nginx startup command is needed.
