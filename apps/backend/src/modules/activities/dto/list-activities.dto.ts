@@ -1,7 +1,22 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsISO8601, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 
-export const activityCategories = ['tasks', 'files', 'members', 'notes', 'board', 'github'] as const;
+export const activityCategories = [
+  'tasks',
+  'files',
+  'members',
+  'notes',
+  'board',
+  'github',
+] as const;
 
 export class ListActivitiesDto {
   @IsOptional()

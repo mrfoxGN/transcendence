@@ -16,6 +16,7 @@ import { GitHubModule } from './modules/github/github.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { FriendshipsModule } from './modules/friendships/friendships.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AuthModule } from './modules/auth/auth.module';
     ActivitiesModule,
     NotificationsModule,
     AuthModule,
+    FriendshipsModule,
   ],
 
   controllers: [AppController, HealthController],

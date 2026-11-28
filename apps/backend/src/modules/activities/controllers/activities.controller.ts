@@ -31,8 +31,7 @@ export class ActivitiesController {
 
   @Get()
   async findAll(
-    @Param('workspaceId', ParseUUIDPipe)
-    workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Req() request: AuthenticatedRequest,
     @Query() query: ListActivitiesDto,
   ): Promise<ActivityResponseDto[]> {
@@ -59,6 +58,10 @@ export class ActivitiesController {
     @Query() query: ListActivitiesDto,
   ) {
     await this.workspacesService.assertOwner(workspaceId, request.user.id);
-    return this.activitiesService.findPageForWorkspace(workspaceId, query, true);
+    return this.activitiesService.findPageForWorkspace(
+      workspaceId,
+      query,
+      true,
+    );
   }
 }

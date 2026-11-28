@@ -1,6 +1,6 @@
 import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
 
-export const projectStatuses = ['planned', 'active', 'on-hold', 'completed'] as const;
+const projectStatuses = ['planned', 'active', 'on-hold', 'completed'] as const;
 export type ProjectStatus = typeof projectStatuses[number];
 
 export class MilestoneDto {

@@ -54,7 +54,13 @@ function makeRepository() {
     query: jest.fn().mockResolvedValue([]),
     save: jest.fn().mockResolvedValue({}),
   };
-  return { ...repository, manager: { ...manager, transaction: jest.fn(async callback => callback(manager)) } };
+  return {
+    ...repository,
+    manager: {
+      ...manager,
+      transaction: jest.fn(async (callback) => callback(manager)),
+    },
+  };
 }
 
 describe('NotesService', () => {
@@ -206,7 +212,6 @@ describe('NotesService', () => {
       expect.objectContaining({ title: 'Changed' }),
     );
     expect(result.title).toBe('Changed');
-
   });
 
   it('lets the workspace owner clear the content', async () => {

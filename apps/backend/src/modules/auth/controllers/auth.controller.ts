@@ -130,9 +130,7 @@ export class AuthController {
   @HttpCode(204)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  requestEnableTwoFactor(
-    @Req() request: AuthenticatedRequest,
-  ): Promise<void> {
+  requestEnableTwoFactor(@Req() request: AuthenticatedRequest): Promise<void> {
     return this.authService.requestEnableTwoFactor(request.user.id);
   }
 

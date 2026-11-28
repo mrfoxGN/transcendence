@@ -97,13 +97,22 @@ describe('ActivitiesController', () => {
   it('checks workspace access for the paginated endpoint', async () => {
     const request = { user: { id: userId } } as never;
     const query = { page: 1, limit: 20 };
-    workspacesService.findOneForUser.mockRejectedValueOnce(new Error('Forbidden'));
-    await expect(controller.findPage(workspaceId, request, query)).rejects.toThrow('Forbidden');
+    workspacesService.findOneForUser.mockRejectedValueOnce(
+      new Error('Forbidden'),
+    );
+    await expect(
+      controller.findPage(workspaceId, request, query),
+    ).rejects.toThrow('Forbidden');
     expect(activitiesService.findPageForWorkspace).not.toHaveBeenCalled();
 
     const result = { items: [], hasNext: false };
     activitiesService.findPageForWorkspace.mockResolvedValue(result);
-    await expect(controller.findPage(workspaceId, request, query)).resolves.toEqual(result);
-    expect(activitiesService.findPageForWorkspace).toHaveBeenCalledWith(workspaceId, query);
+    await expect(
+      controller.findPage(workspaceId, request, query),
+    ).resolves.toEqual(result);
+    expect(activitiesService.findPageForWorkspace).toHaveBeenCalledWith(
+      workspaceId,
+      query,
+    );
   });
 });
